@@ -17,7 +17,6 @@ struct WKWebViewRepresentable: NSViewRepresentable {
 struct SplitWebViewHost: NSViewRepresentable {
     let tab: BrowserTab
     @ObservedObject var store: BrowserStore
-    let obscuredContentInsets: BrowserChromeInsets
 
     func makeNSView(context: Context) -> NSView {
         SplitWebViewHostContainer()
@@ -28,7 +27,6 @@ struct SplitWebViewHost: NSViewRepresentable {
         guard let container = container as? SplitWebViewHostContainer else { return }
         container.configure(
             tabID: tab.id,
-            obscuredContentInsets: obscuredContentInsets,
             coordinator: store.webCoordinator
         )
     }
@@ -36,16 +34,13 @@ struct SplitWebViewHost: NSViewRepresentable {
 
 private final class SplitWebViewHostContainer: NSView {
     private var tabID: UUID?
-    private var obscuredContentInsets = BrowserChromeInsets()
     private weak var coordinator: WebViewCoordinator?
 
     func configure(
         tabID: UUID,
-        obscuredContentInsets: BrowserChromeInsets,
         coordinator: WebViewCoordinator
     ) {
         self.tabID = tabID
-        self.obscuredContentInsets = obscuredContentInsets
         self.coordinator = coordinator
         needsLayout = true
     }
@@ -67,8 +62,7 @@ private final class SplitWebViewHostContainer: NSView {
 
         coordinator.hostSplitWebView(
             for: tabID,
-            in: self,
-            obscuredContentInsets: obscuredContentInsets
+            in: self
         )
     }
 }
@@ -79,7 +73,6 @@ private final class SplitWebViewHostContainer: NSView {
 struct ActiveWebViewHost: NSViewRepresentable {
     let tab: BrowserTab
     @ObservedObject var store: BrowserStore
-    let obscuredContentInsets: BrowserChromeInsets
 
     func makeNSView(context: Context) -> NSView {
         WebViewHostContainer()
@@ -91,7 +84,6 @@ struct ActiveWebViewHost: NSViewRepresentable {
         container.configure(
             tabID: tab.id,
             excludingTabIDs: store.activeSplitGroupTabIDs,
-            obscuredContentInsets: obscuredContentInsets,
             coordinator: store.webCoordinator
         )
     }
@@ -104,18 +96,15 @@ struct ActiveWebViewHost: NSViewRepresentable {
 private final class WebViewHostContainer: NSView {
     private var tabID: UUID?
     private var excludingTabIDs = Set<UUID>()
-    private var obscuredContentInsets = BrowserChromeInsets()
     private weak var coordinator: WebViewCoordinator?
 
     func configure(
         tabID: UUID,
         excludingTabIDs: Set<UUID>,
-        obscuredContentInsets: BrowserChromeInsets,
         coordinator: WebViewCoordinator
     ) {
         self.tabID = tabID
         self.excludingTabIDs = excludingTabIDs
-        self.obscuredContentInsets = obscuredContentInsets
         self.coordinator = coordinator
         needsLayout = true
     }
@@ -138,8 +127,7 @@ private final class WebViewHostContainer: NSView {
         coordinator.hostActiveWebView(
             for: tabID,
             in: self,
-            excludingTabIDs: excludingTabIDs,
-            obscuredContentInsets: obscuredContentInsets
+            excludingTabIDs: excludingTabIDs
         )
     }
 }

@@ -119,14 +119,14 @@ private enum TabSwitcherMetrics {
     // A four-tab switcher is the common case. Give it enough visual weight to
     // read as a window switcher rather than a compact menu, while the grid
     // still moves to two rows before ten previews become cramped.
-    static let minimumCardWidth: CGFloat = 110
-    static let maximumCardWidth: CGFloat = 170
+    static let minimumCardWidth: CGFloat = 124
+    static let maximumCardWidth: CGFloat = 200
     static let compactColumnLimit = 5
     static let columnSpacing: CGFloat = 10
     static let rowSpacing: CGFloat = 12
     static let panelPadding: CGFloat = 16
     static let windowEdgeMargin: CGFloat = 20
-    static let snapshotWidth: CGFloat = 260
+    static let snapshotWidth: CGFloat = 320
     static let previewAspectRatio: CGFloat = 0.62
 }
 

@@ -75,10 +75,9 @@ struct ContentView: View {
                 // animating it would resize the WKWebView frame every frame
                 // (battery cost), so the content reflows once while the
                 // sidebar slides into the reserved gap.
-                // WebKit reserves each chrome lane once through native
-                // obscured-content insets while the WKWebView itself remains
-                // full-window. Resizing its remote viewport here would expose
-                // the opposite edge for a frame while WebKit repaints.
+                // The AppKit host receives the visible content lane directly,
+                // so WebKit keeps its native scrollbar at the page edge just
+                // like Safari. The one-time resize is deliberately not animated.
 
             sidebarLayout
                 .offset(x: isSidebarPresented ? 0 : -sidebarTotalWidth)

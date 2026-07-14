@@ -90,12 +90,12 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         webView.allowsMagnification = true
         webView.isInspectable = WebInspectorConfiguration.isEnabled
         webView.customUserAgent = Self.desktopSafariUserAgent
-        webView.underPageBackgroundColor = .white
+        webView.underPageBackgroundColor = .textBackgroundColor
 
         // Let web content inherit the window appearance so websites that honor
         // `prefers-color-scheme` can follow the active system/space setting.
-        // The page backing stays explicitly white because some sites leave
-        // large document regions transparent and rely on the browser canvas.
+        // Keep transparent document regions readable while matching the
+        // active macOS appearance instead of forcing a white page backing.
 
         let contentController = webView.configuration.userContentController
         if let contentRuleList {
@@ -109,14 +109,6 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
                 forMainFrameOnly: true
             )
         )
-        contentController.addUserScript(
-            WKUserScript(
-                source: Self.overlayScrollbarScript,
-                injectionTime: .atDocumentStart,
-                forMainFrameOnly: false
-            )
-        )
-
         webViews[tabID] = webView
         tabIDsByWebView.setObject(tabID.uuidString as NSString, forKey: webView)
         observe(webView, tabID: tabID)
@@ -356,11 +348,9 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
     func hostActiveWebView(
         for tabID: UUID,
         in container: NSView,
-        excludingTabIDs: Set<UUID>,
-        obscuredContentInsets: BrowserChromeInsets
+        excludingTabIDs: Set<UUID>
     ) {
         guard let activeWebView = webViews[tabID] else { return }
-        applyObscuredContentInsets(obscuredContentInsets, to: activeWebView)
         if miniPlayerHostedTabID == tabID {
             restoreMiniPlayerPresentation(tabID: tabID)
             miniPlayerHostedTabID = nil
@@ -416,11 +406,9 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
 
     func hostSplitWebView(
         for tabID: UUID,
-        in container: NSView,
-        obscuredContentInsets: BrowserChromeInsets
+        in container: NSView
     ) {
         guard let webView = webViews[tabID] else { return }
-        applyObscuredContentInsets(obscuredContentInsets, to: webView)
         if miniPlayerHostedTabID == tabID {
             restoreMiniPlayerPresentation(tabID: tabID)
             miniPlayerHostedTabID = nil
@@ -437,14 +425,6 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         if restoringTabIDs.contains(tabID), let snapshot = wakeSnapshots[tabID] {
             presentRestoreOverlay(snapshot, for: tabID, in: container)
         }
-    }
-
-    private func applyObscuredContentInsets(_ insets: BrowserChromeInsets, to webView: WKWebView) {
-        guard #available(macOS 26.0, *) else { return }
-        let edgeInsets = NSEdgeInsets(top: 0, left: insets.leading, bottom: 0, right: insets.trailing)
-        let currentInsets = webView.obscuredContentInsets
-        guard currentInsets.left != edgeInsets.left || currentInsets.right != edgeInsets.right else { return }
-        webView.obscuredContentInsets = edgeInsets
     }
 
     func hostMiniPlayerWebView(for tabID: UUID, in container: NSView) {
@@ -592,59 +572,6 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         }
         removeWebView(for: tabID, keepingHibernationData: true)
     }
-
-    /// Injected at document start into every frame; replaces the system
-    /// always-visible scrollbar with a transparent overlay whose thumb is
-    /// shown only while the page is actively scrolling.
-    private static let overlayScrollbarScript = """
-    (() => {
-      if (window.__candoaOverlayScrollbar) { return; }
-      window.__candoaOverlayScrollbar = true;
-
-      const scrollingClass = "__candoa-scrolling";
-      const style = document.createElement("style");
-      style.textContent = `
-        ::-webkit-scrollbar {
-          width: 9px;
-          height: 9px;
-          background: transparent !important;
-        }
-        ::-webkit-scrollbar-track,
-        ::-webkit-scrollbar-corner {
-          background: transparent !important;
-        }
-        ::-webkit-scrollbar-thumb {
-          background: transparent;
-          border-radius: 9px;
-        }
-        html.${scrollingClass} ::-webkit-scrollbar-thumb {
-          background: rgba(128, 128, 128, 0.55);
-        }
-        ::-webkit-scrollbar-thumb:hover {
-          background: rgba(128, 128, 128, 0.75) !important;
-        }
-      `;
-
-      const attachStyle = () => {
-        if (document.documentElement) {
-          document.documentElement.appendChild(style);
-        } else {
-          document.addEventListener("DOMContentLoaded", attachStyle, { once: true });
-        }
-      };
-      attachStyle();
-
-      let hideTimer = null;
-      const revealScrollbar = () => {
-        document.documentElement.classList.add(scrollingClass);
-        if (hideTimer) { clearTimeout(hideTimer); }
-        hideTimer = setTimeout(() => {
-          document.documentElement.classList.remove(scrollingClass);
-        }, 900);
-      };
-      window.addEventListener("scroll", revealScrollbar, { capture: true, passive: true });
-    })();
-    """
 
     /// Hibernation guard: anything the user may have typed keeps the page
     /// alive, because tearing down the web view would lose that input.

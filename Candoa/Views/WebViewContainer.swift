@@ -74,9 +74,10 @@ struct WebViewContainer: View {
                             } else {
                                 ActiveWebViewHost(
                                     tab: tab,
-                                    store: store,
-                                    obscuredContentInsets: webContentInsets
+                                    store: store
                                 )
+                                    .padding(.leading, webContentInsets.leading)
+                                    .padding(.trailing, webContentInsets.trailing)
                                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                                     .background(CandoaChromeStyle.surfaceFill.opacity(0.72))
                                     .overlay(alignment: .top) {
@@ -244,11 +245,14 @@ struct WebViewContainer: View {
     }
 
     private func webPane(for tab: BrowserTab) -> some View {
-        SplitWebViewHost(
+        let chromeInsets = splitPaneInsets(for: tab, in: store.activeSplitGroupTabs)
+
+        return SplitWebViewHost(
             tab: tab,
-            store: store,
-            obscuredContentInsets: splitPaneInsets(for: tab, in: store.activeSplitGroupTabs)
+            store: store
         )
+            .padding(.leading, chromeInsets.leading)
+            .padding(.trailing, chromeInsets.trailing)
             .id(tab.id)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(CandoaChromeStyle.surfaceFill.opacity(0.72))
