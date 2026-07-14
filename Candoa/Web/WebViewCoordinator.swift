@@ -9,7 +9,6 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         let query: String
     }
 
-    private static let acceptLanguageHeader = "en-US,en;q=0.9"
     private static let desktopSafariUserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15"
     private static let pageZoomLevels: [CGFloat] = [0.5, 0.65, 0.8, 0.9, 1.0, 1.1, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0]
 
@@ -348,9 +347,11 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
     func hostActiveWebView(
         for tabID: UUID,
         in container: NSView,
-        excludingTabIDs: Set<UUID>
+        excludingTabIDs: Set<UUID>,
+        obscuredContentInsets: BrowserChromeInsets
     ) {
         guard let activeWebView = webViews[tabID] else { return }
+        applyObscuredContentInsets(obscuredContentInsets, to: activeWebView)
         if miniPlayerHostedTabID == tabID {
             restoreMiniPlayerPresentation(tabID: tabID)
             miniPlayerHostedTabID = nil
@@ -406,9 +407,11 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
 
     func hostSplitWebView(
         for tabID: UUID,
-        in container: NSView
+        in container: NSView,
+        obscuredContentInsets: BrowserChromeInsets
     ) {
         guard let webView = webViews[tabID] else { return }
+        applyObscuredContentInsets(obscuredContentInsets, to: webView)
         if miniPlayerHostedTabID == tabID {
             restoreMiniPlayerPresentation(tabID: tabID)
             miniPlayerHostedTabID = nil
@@ -425,6 +428,14 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         if restoringTabIDs.contains(tabID), let snapshot = wakeSnapshots[tabID] {
             presentRestoreOverlay(snapshot, for: tabID, in: container)
         }
+    }
+
+    private func applyObscuredContentInsets(_ insets: BrowserChromeInsets, to webView: WKWebView) {
+        guard #available(macOS 26.0, *) else { return }
+        let edgeInsets = NSEdgeInsets(top: 0, left: insets.leading, bottom: 0, right: insets.trailing)
+        let currentInsets = webView.obscuredContentInsets
+        guard currentInsets.left != edgeInsets.left || currentInsets.right != edgeInsets.right else { return }
+        webView.obscuredContentInsets = edgeInsets
     }
 
     func hostMiniPlayerWebView(for tabID: UUID, in container: NSView) {
@@ -1676,8 +1687,29 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
 
     private func request(for url: URL) -> URLRequest {
         var request = URLRequest(url: url)
-        request.setValue(Self.acceptLanguageHeader, forHTTPHeaderField: "Accept-Language")
+        request.setValue(Self.preferredAcceptLanguageHeader, forHTTPHeaderField: "Accept-Language")
         return request
+    }
+
+    /// Mirrors macOS's language priority list so websites can choose their
+    /// localized experience. The header is created for each navigation to keep
+    /// it in sync with language changes made while the app is running.
+    private static var preferredAcceptLanguageHeader: String {
+        let languages = Locale.preferredLanguages
+            .map { $0.replacingOccurrences(of: "_", with: "-") }
+            .reduce(into: [String]()) { result, language in
+                guard !language.isEmpty, !result.contains(language) else { return }
+                result.append(language)
+            }
+            .prefix(10)
+
+        guard !languages.isEmpty else { return "en-US" }
+
+        return languages.enumerated().map { index, language in
+            guard index > 0 else { return language }
+            return "\(language);q=\(String(format: "%.1f", max(0.1, 1.0 - (Double(index) * 0.1))))"
+        }
+        .joined(separator: ", ")
     }
 
     private func refreshFavicon(for webView: WKWebView) {

@@ -88,7 +88,7 @@ struct CandoaSettingsView: View {
                 }
                 .tag(CandoaSettingsTab.sync)
 
-            AskSettingsPane()
+            AgentSettingsPane()
                 .tabItem {
                     Label(CandoaSettingsTab.ask.title, systemImage: CandoaSettingsTab.ask.symbolName)
                 }
@@ -137,7 +137,7 @@ internal enum CandoaSettingsTab: Hashable {
         case .search: return "Search"
         case .privacy: return "Privacy"
         case .sync: return "Sync"
-        case .ask: return "Ask"
+        case .ask: return "Agent"
         case .shortcuts: return "Shortcuts"
         case .icon: return "Icon"
         case .advanced: return "Advanced"

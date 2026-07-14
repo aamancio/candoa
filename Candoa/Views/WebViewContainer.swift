@@ -10,6 +10,7 @@ struct BrowserChromeInsets: Equatable {
 struct WebViewContainer: View {
     @ObservedObject var store: BrowserStore
     let visibleChromeInsets: BrowserChromeInsets
+    @AppStorage(DeveloperModeConfiguration.storageKey) private var developerModeOverrides = ""
     private let surfaceCornerRadius: CGFloat = 12
     private let surfacePadding: CGFloat = 8
 
@@ -53,15 +54,21 @@ struct WebViewContainer: View {
                 } else {
                     browserSurface {
                         VStack(spacing: 0) {
-                            if let url = tab.url, url.isLocalDevelopment {
+                            if let url = tab.url,
+                               DeveloperModeConfiguration.isEnabled(
+                                   for: url,
+                                   storedOverrides: developerModeOverrides
+                               ) {
                                 DeveloperToolbar(
+                                    url: url,
                                     urlText: url.localDevelopmentDisplayText,
                                     tintHex: store.activeThemeColorHexes.first,
                                     isSplitViewEnabled: store.isSplitViewEnabled,
                                     onCopyURL: { store.copyActiveTabURL() },
                                     onCapturePage: { store.captureActiveTabPage() },
                                     onToggleSplitView: { store.toggleSplitView() },
-                                    onSubmitURL: { store.navigateActiveTab(to: $0) }
+                                    onSubmitURL: { store.navigateActiveTab(to: $0) },
+                                    onSetDeveloperMode: { store.setDeveloperMode($0, for: url) }
                                 )
                             }
 
@@ -74,10 +81,9 @@ struct WebViewContainer: View {
                             } else {
                                 ActiveWebViewHost(
                                     tab: tab,
-                                    store: store
+                                    store: store,
+                                    obscuredContentInsets: webContentInsets
                                 )
-                                    .padding(.leading, webContentInsets.leading)
-                                    .padding(.trailing, webContentInsets.trailing)
                                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                                     .background(CandoaChromeStyle.surfaceFill.opacity(0.72))
                                     .overlay(alignment: .top) {
@@ -245,14 +251,11 @@ struct WebViewContainer: View {
     }
 
     private func webPane(for tab: BrowserTab) -> some View {
-        let chromeInsets = splitPaneInsets(for: tab, in: store.activeSplitGroupTabs)
-
         return SplitWebViewHost(
             tab: tab,
-            store: store
+            store: store,
+            obscuredContentInsets: splitPaneInsets(for: tab, in: store.activeSplitGroupTabs)
         )
-            .padding(.leading, chromeInsets.leading)
-            .padding(.trailing, chromeInsets.trailing)
             .id(tab.id)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(CandoaChromeStyle.surfaceFill.opacity(0.72))
@@ -450,6 +453,7 @@ private struct SplitDropPreviewPane: View {
 /// page showing the full URL. The tint is the space's theme color — Arc
 /// reuses the color you picked for the space, not a dedicated developer hue.
 private struct DeveloperToolbar: View {
+    let url: URL
     let urlText: String
     let tintHex: String?
     let isSplitViewEnabled: Bool
@@ -457,6 +461,7 @@ private struct DeveloperToolbar: View {
     let onCapturePage: () -> Void
     let onToggleSplitView: () -> Void
     let onSubmitURL: (String) -> Void
+    let onSetDeveloperMode: (Bool) -> Void
 
     private static let arcDevStripBlueHex = "#5156D0"
     private static let storageKey = "CandoaDeveloperToolbarControlIDs"
@@ -651,7 +656,12 @@ private struct DeveloperToolbar: View {
             ),
             arrowEdge: .top
         ) {
-            DeveloperSiteInfoPopover(url: currentURL, urlText: urlText)
+            DeveloperSiteInfoPopover(
+                url: currentURL,
+                urlText: urlText,
+                isLocalDevelopment: url.isLocalDevelopment,
+                onSetDeveloperMode: onSetDeveloperMode
+            )
         }
     }
 
@@ -695,6 +705,8 @@ private struct DeveloperToolbar: View {
 private struct DeveloperSiteInfoPopover: View {
     let url: URL?
     let urlText: String
+    let isLocalDevelopment: Bool
+    let onSetDeveloperMode: (Bool) -> Void
 
     private var hostText: String {
         url?.host(percentEncoded: false) ?? "Local page"
@@ -719,7 +731,21 @@ private struct DeveloperSiteInfoPopover: View {
             DeveloperSiteInfoRow(title: "Address", value: urlText)
             DeveloperSiteInfoRow(title: "Scheme", value: schemeText)
             DeveloperSiteInfoRow(title: "Port", value: portText)
-            DeveloperSiteInfoRow(title: "Scope", value: "Local development")
+
+            Toggle("Developer Mode", isOn: Binding(
+                get: { true },
+                set: { isEnabled in
+                    onSetDeveloperMode(isEnabled)
+                }
+            ))
+
+            Text(
+                isLocalDevelopment
+                    ? "Enabled automatically for local development."
+                    : "Enabled for this site."
+            )
+            .font(.system(size: 12))
+            .foregroundStyle(.secondary)
         }
         .padding(14)
         .frame(width: 300, alignment: .leading)

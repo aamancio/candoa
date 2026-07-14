@@ -205,7 +205,7 @@ final class AISidebarSpeechController: ObservableObject {
     @Published private(set) var statusMessage: String?
     @Published private(set) var elapsedText = "00:00"
 
-    // Do not construct speech or audio capture objects when Ask appears. Creating
+    // Do not construct speech or audio capture objects when Agent appears. Creating
     // an audio input graph can cross macOS's microphone privacy boundary, so these
     // exist only for an explicit dictation request.
     private var speechRecognizer: SFSpeechRecognizer?
@@ -429,7 +429,7 @@ struct AISidebarComposerSendButton: View {
         }
         .buttonStyle(.borderless)
         .disabled(!isEnabled)
-        .help("Ask")
+        .help("Send to Agent")
         .onHover { hovering in
             withAnimation(.easeOut(duration: 0.10)) {
                 isHovered = hovering

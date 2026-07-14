@@ -75,9 +75,10 @@ struct ContentView: View {
                 // animating it would resize the WKWebView frame every frame
                 // (battery cost), so the content reflows once while the
                 // sidebar slides into the reserved gap.
-                // The AppKit host receives the visible content lane directly,
-                // so WebKit keeps its native scrollbar at the page edge just
-                // like Safari. The one-time resize is deliberately not animated.
+                // WebKit reserves each chrome lane once through native
+                // obscured-content insets while the WKWebView itself remains
+                // full-window. Resizing its remote viewport here would expose
+                // the opposite edge for a frame while WebKit repaints.
 
             sidebarLayout
                 .offset(x: isSidebarPresented ? 0 : -sidebarTotalWidth)
@@ -179,7 +180,7 @@ struct ContentView: View {
                         .foregroundStyle(.clear)
                         .frame(width: 1, height: 1)
                         .accessibilityLabel(aiSidebarUITestingState)
-                        .accessibilityIdentifier("ask-ui-testing-state")
+                        .accessibilityIdentifier("agent-ui-testing-state")
                 }
             }
         }
@@ -373,7 +374,7 @@ struct ContentView: View {
     }
 
     private func aiSidebarPanel(width: CGFloat) -> some View {
-        AISidebarView(store: store, uiTestingState: $aiSidebarUITestingState) {
+        AgentSidebarView(store: store, uiTestingState: $aiSidebarUITestingState) {
             toggleAISidebar()
         }
         .frame(width: width)

@@ -50,6 +50,7 @@ struct SidebarView: View {
     @State private var isHoveringAddressPill = false
     @State private var isSpaceDropTargeted = false
     @AppStorage("Candoa.FavoritesDropZoneDismissed") private var isFavoritesDropZoneDismissed = false
+    @AppStorage(DeveloperModeConfiguration.storageKey) private var developerModeOverrides = ""
 
     private let leadingInset: CGFloat = 9
     private let trailingInset: CGFloat = 9
@@ -206,7 +207,7 @@ struct SidebarView: View {
             store.focusSidebarAddressBar()
         } label: {
             HStack(spacing: 10) {
-                Image(systemName: isLocalDevelopmentURL ? "info.circle" : "magnifyingglass")
+                Image(systemName: isDeveloperModeEnabled ? "info.circle" : "magnifyingglass")
                     .font(.system(size: 15, weight: .medium))
                     .frame(width: 18)
                     .foregroundStyle(CandoaChromeStyle.sidebarIcon)
@@ -215,7 +216,7 @@ struct SidebarView: View {
                     .lineLimit(1)
                     .truncationMode(.tail)
                     .font(
-                        isLocalDevelopmentURL
+                        isDeveloperModeEnabled
                             ? .system(size: 13, weight: .medium, design: .monospaced)
                             : .system(size: 14, weight: .semibold)
                     )
@@ -234,15 +235,38 @@ struct SidebarView: View {
         }
         .buttonStyle(.plain)
         .onHover { isHoveringAddressPill = $0 }
-        .help(isLocalDevelopmentURL ? "Local development server" : BrowserDefaults.addressPlaceholder)
+        .help(isDeveloperModeEnabled ? "Developer Mode" : BrowserDefaults.addressPlaceholder)
+        .contextMenu {
+            if let url = store.activeTab?.url,
+               let host = DeveloperModeConfiguration.displayHost(for: url) {
+                Toggle(
+                    "Developer Mode",
+                    isOn: Binding(
+                        get: {
+                            DeveloperModeConfiguration.isEnabled(
+                                for: url,
+                                storedOverrides: developerModeOverrides
+                            )
+                        },
+                        set: { store.setDeveloperMode($0, for: url) }
+                    )
+                )
+
+                Text(host)
+            }
+        }
         .accessibilityLabel("Address")
         .accessibilityIdentifier("sidebar-address-button")
     }
 
-    // Arc's local-dev treatment: localhost pages get an info icon and the
-    // full URL — scheme, port, and path — instead of the trimmed hostname.
-    private var isLocalDevelopmentURL: Bool {
-        store.activeTab?.url?.isLocalDevelopment == true
+    // Arc's Developer Mode shows the full URL for local servers by default
+    // and for any site the user has enabled through site controls.
+    private var isDeveloperModeEnabled: Bool {
+        guard let url = store.activeTab?.url else { return false }
+        return DeveloperModeConfiguration.isEnabled(
+            for: url,
+            storedOverrides: developerModeOverrides
+        )
     }
 
     private var sidebarAddressText: String {
@@ -250,7 +274,7 @@ struct SidebarView: View {
             return "Search..."
         }
 
-        if isLocalDevelopmentURL {
+        if isDeveloperModeEnabled {
             return url.localDevelopmentDisplayText
         }
 

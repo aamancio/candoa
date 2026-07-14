@@ -1,17 +1,17 @@
 import AppKit
 import SwiftUI
 
-internal struct AskSettingsPane: View {
-    @AppStorage(CandoaSettingsOption.askModel) private var model = CandoaAskPreferences.defaultModel
+internal struct AgentSettingsPane: View {
+    @AppStorage(CandoaSettingsOption.askModel) private var model = CandoaAgentPreferences.defaultModel
     @AppStorage(CandoaSettingsOption.askUsesPersonalOpenAIKey) private var usesPersonalOpenAIKey = false
     @State private var apiKey = ""
-    @State private var hasSavedKey = CandoaAskKeychain.hasAPIKey
+    @State private var hasSavedKey = CandoaAgentKeychain.hasAPIKey
     @State private var keychainError: String?
 
     var body: some View {
         SettingsPane {
             VStack(alignment: .leading, spacing: 18) {
-                SettingsSectionTitle("Ask")
+                SettingsSectionTitle("Agent")
 
                 SettingsCard {
                     SettingsRow(
@@ -59,7 +59,7 @@ internal struct AskSettingsPane: View {
                         SettingsRow(
                             systemImage: "checkmark.shield",
                             title: "Personal key saved",
-                            subtitle: "Ask can use your direct OpenAI connection whenever the option above is enabled."
+                            subtitle: "Agent can use your direct OpenAI connection whenever the option above is enabled."
                         ) {
                             Button("Remove", role: .destructive, action: removeAPIKey)
                                 .controlSize(.small)
@@ -83,7 +83,7 @@ internal struct AskSettingsPane: View {
 
     private func saveAPIKey() {
         do {
-            try CandoaAskKeychain.save(apiKey)
+            try CandoaAgentKeychain.save(apiKey)
             apiKey = ""
             hasSavedKey = true
             usesPersonalOpenAIKey = true
@@ -95,7 +95,7 @@ internal struct AskSettingsPane: View {
 
     private func removeAPIKey() {
         do {
-            try CandoaAskKeychain.remove()
+            try CandoaAgentKeychain.remove()
             hasSavedKey = false
             usesPersonalOpenAIKey = false
             keychainError = nil

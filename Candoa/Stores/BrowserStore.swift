@@ -842,6 +842,10 @@ final class BrowserStore: ObservableObject {
         addressFocusRequestID = UUID()
     }
 
+    func setDeveloperMode(_ isEnabled: Bool, for url: URL) {
+        DeveloperModeConfiguration.setEnabled(isEnabled, for: url)
+    }
+
     func openCommandPalette() {
         guard !isInitialSpaceSetupPresented else { return }
 

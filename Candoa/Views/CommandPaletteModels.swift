@@ -77,6 +77,7 @@ internal enum PaletteAction {
     case focusAddressBar
     case copyURL
     case copyURLAsMarkdown
+    case setDeveloperMode(Bool)
     case togglePinTab
     case navigate(String)
     case searchProvider(SearchProvider, String)

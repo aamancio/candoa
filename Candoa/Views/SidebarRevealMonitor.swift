@@ -14,7 +14,6 @@ struct MouseMoveMonitor: NSViewRepresentable {
         let view = NSView(frame: .zero)
         context.coordinator.view = view
         context.coordinator.installMonitorIfNeeded()
-        context.coordinator.installTimerIfNeeded()
         updateCoordinator(context.coordinator)
         return view
     }
@@ -36,7 +35,6 @@ struct MouseMoveMonitor: NSViewRepresentable {
         var isSidebarRevealSuppressed: Binding<Bool>?
         weak var view: NSView?
         private var monitor: Any?
-        private var timer: Timer?
 
         func installMonitorIfNeeded() {
             guard monitor == nil else { return }
@@ -67,58 +65,10 @@ struct MouseMoveMonitor: NSViewRepresentable {
             }
         }
 
-        func installTimerIfNeeded() {
-            guard timer == nil else { return }
-
-            timer = Timer.scheduledTimer(
-                timeInterval: SidebarRevealConfiguration.pollingInterval,
-                target: self,
-                selector: #selector(pollMouseLocationTimer(_:)),
-                userInfo: nil,
-                repeats: true
-            )
-        }
-
-        @MainActor
-        @objc private func pollMouseLocationTimer(_ timer: Timer) {
-            pollMouseLocation()
-        }
-
-        @MainActor
-        private func pollMouseLocation() {
-            guard isSidebarVisible?.wrappedValue == false else { return }
-
-            // Only react when the pointer is actually inside one of our
-            // windows; falling back to an arbitrary window made the sidebar
-            // reveal while the mouse was nowhere near the app.
-            guard NSApp.isActive else { return }
-            let mouseLocation = NSEvent.mouseLocation
-            guard let window = NSApp.windows.first(where: { $0.isVisible && $0.frame.contains(mouseLocation) }) else {
-                return
-            }
-
-            let distanceFromLeftEdge = mouseLocation.x - window.frame.minX
-            if isSidebarRevealSuppressed?.wrappedValue == true {
-                if distanceFromLeftEdge > SidebarRevealConfiguration.suppressionResetDistance {
-                    isSidebarRevealSuppressed?.wrappedValue = false
-                }
-                return
-            }
-
-            if distanceFromLeftEdge >= 0 &&
-                distanceFromLeftEdge <= SidebarRevealConfiguration.revealDistanceFromLeftEdge {
-                isSidebarHoverRevealed?.wrappedValue = true
-            } else if isSidebarHoverRevealed?.wrappedValue == true &&
-                        distanceFromLeftEdge > SidebarRevealConfiguration.hideDistanceFromLeftEdge {
-                isSidebarHoverRevealed?.wrappedValue = false
-            }
-        }
-
         deinit {
             if let monitor {
                 NSEvent.removeMonitor(monitor)
             }
-            timer?.invalidate()
         }
     }
 }

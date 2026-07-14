@@ -157,7 +157,7 @@ final class CandoaUITests: XCTestCase {
     }
 
     private func submitAskText(_ text: String, in app: XCUIApplication) {
-        let field = app.textFields["ask-sidebar"].firstMatch
+        let field = app.textFields["agent-sidebar"].firstMatch
         XCTAssertTrue(field.waitForExistence(timeout: 5), currentState(in: app))
         field.click()
         pasteText(text, into: field)
@@ -195,7 +195,7 @@ final class CandoaUITests: XCTestCase {
     }
 
     private func waitForAskState(in app: XCUIApplication, containing expectedText: String, timeout: TimeInterval = 5) -> Bool {
-        guard element("ask-ui-testing-state", in: app).waitForExistence(timeout: timeout) else { return false }
+        guard element("agent-ui-testing-state", in: app).waitForExistence(timeout: timeout) else { return false }
 
         let deadline = Date().addingTimeInterval(timeout)
         while Date() < deadline {
@@ -214,7 +214,7 @@ final class CandoaUITests: XCTestCase {
     }
 
     private func askState(in app: XCUIApplication) -> String {
-        let stateElement = element("ask-ui-testing-state", in: app)
+        let stateElement = element("agent-ui-testing-state", in: app)
         if let value = stateElement.value as? String, !value.isEmpty {
             return value
         }
@@ -232,14 +232,14 @@ final class CandoaUITests: XCTestCase {
 }
 
 @MainActor
-final class CandoaAskLiveUITests: XCTestCase {
+final class CandoaAgentLiveUITests: XCTestCase {
     private let liveE2EMarkerPath = "/tmp/candoa-live-e2e-enabled"
 
     override func setUpWithError() throws {
         continueAfterFailure = false
 
         guard FileManager.default.fileExists(atPath: liveE2EMarkerPath) else {
-            throw XCTSkip("Run Scripts/e2e-ask-test.sh to enable live Ask website smoke tests.")
+            throw XCTSkip("Run Scripts/e2e-ask-test.sh to enable live Agent website smoke tests.")
         }
     }
 
@@ -330,18 +330,18 @@ final class CandoaAskLiveUITests: XCTestCase {
     }
 
     private func openAskSidebar(in app: XCUIApplication) {
-        if !element("ask-sidebar", in: app).exists {
+        if !element("agent-sidebar", in: app).exists {
             app.typeKey("e", modifierFlags: .command)
         }
-        XCTAssertTrue(element("ask-sidebar", in: app).waitForExistence(timeout: 5), currentState(in: app))
-        XCTAssertTrue(element("ask-ui-testing-state", in: app).waitForExistence(timeout: 8), currentState(in: app))
+        XCTAssertTrue(element("agent-sidebar", in: app).waitForExistence(timeout: 5), currentState(in: app))
+        XCTAssertTrue(element("agent-ui-testing-state", in: app).waitForExistence(timeout: 8), currentState(in: app))
     }
 
     private func resetAskConversation(in app: XCUIApplication) {
         app.typeKey("e", modifierFlags: .command)
         XCTAssertTrue(waitForState(in: app, containing: "sidebar=true", timeout: 5), currentState(in: app))
         app.typeKey("e", modifierFlags: .command)
-        XCTAssertTrue(element("ask-sidebar", in: app).waitForExistence(timeout: 5), currentState(in: app))
+        XCTAssertTrue(element("agent-sidebar", in: app).waitForExistence(timeout: 5), currentState(in: app))
     }
 
     private func element(_ identifier: String, in app: XCUIApplication) -> XCUIElement {
@@ -358,7 +358,7 @@ final class CandoaAskLiveUITests: XCTestCase {
     }
 
     private func submitAskText(_ text: String, in app: XCUIApplication) {
-        let field = app.textFields["ask-sidebar"].firstMatch
+        let field = app.textFields["agent-sidebar"].firstMatch
         XCTAssertTrue(field.waitForExistence(timeout: 5), currentState(in: app))
         field.click()
         field.typeKey("a", modifierFlags: .command)
@@ -401,7 +401,7 @@ final class CandoaAskLiveUITests: XCTestCase {
         timeout: TimeInterval,
         matching predicate: (String) -> Bool
     ) -> Bool {
-        guard element("ask-ui-testing-state", in: app).waitForExistence(timeout: timeout) else { return false }
+        guard element("agent-ui-testing-state", in: app).waitForExistence(timeout: timeout) else { return false }
 
         let deadline = Date().addingTimeInterval(timeout)
         while Date() < deadline {
@@ -431,7 +431,7 @@ final class CandoaAskLiveUITests: XCTestCase {
     }
 
     private func askState(in app: XCUIApplication) -> String {
-        let stateElement = element("ask-ui-testing-state", in: app)
+        let stateElement = element("agent-ui-testing-state", in: app)
         if let value = stateElement.value as? String, !value.isEmpty {
             return value
         }

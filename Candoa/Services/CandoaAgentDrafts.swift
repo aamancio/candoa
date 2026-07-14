@@ -1,8 +1,8 @@
 import Foundation
 
-/// Page-context helpers used to decide what to send to the hosted Ask service.
+/// Page-context helpers used to decide what to send to the hosted Agent service.
 /// This deliberately contains no local response generation.
-enum CandoaAskDrafts {
+enum CandoaAgentDrafts {
     static func referencesCurrentPage(_ normalizedPrompt: String) -> Bool {
         normalizedPrompt.contains("this page")
             || normalizedPrompt.contains("this website")
@@ -39,7 +39,7 @@ enum CandoaAskDrafts {
                 isRetryPrompt(normalizedPrompt)
                     && recentTurns.reversed().contains { turn in
                         guard case .user = turn.role else { return false }
-                        return asksAboutVisibleControl(CandoaAskPromptPolicy.normalizedText(turn.text))
+                        return asksAboutVisibleControl(CandoaAgentPromptPolicy.normalizedText(turn.text))
                     }
             )
     }

@@ -8,54 +8,55 @@ enum AppConfiguration {
 }
 
 enum BrowserCommandTitles {
-    static let newTab = "New Tab"
-    static let focusAddressBar = "Focus Address Bar"
-    static let commandBar = "Command Bar"
-    static let toggleSidebar = "Toggle Sidebar"
-    static let toggleAISidebar = "Toggle Ask Sidebar"
-    static let reloadTab = "Reload Tab"
-    static let back = "Back"
-    static let forward = "Forward"
-    static let closeCurrentTab = "Close Current Tab"
-    static let nextTab = "Next Tab"
-    static let previousTab = "Previous Tab"
-    static let nextSpace = "Next Space"
-    static let previousSpace = "Previous Space"
-    static let duplicateTab = "Duplicate Tab"
-    static let toggleSplitView = "Toggle Split View"
-    static let createSpace = "Create Space"
-    static let reopenClosedTab = "Reopen Closed Tab"
-    static let pinOrUnpinTab = "Pin or Unpin Tab"
-    static let clearUnpinnedTabs = "Clear Unpinned Tabs"
-    static let copyURL = "Copy URL"
-    static let copyURLAsMarkdown = "Copy URL as Markdown"
-    static let findInPage = "Find in Page…"
-    static let findNext = "Find Next"
-    static let findPrevious = "Find Previous"
-    static let zoomIn = "Zoom In"
-    static let zoomOut = "Zoom Out"
-    static let resetZoom = "Reset Zoom"
-    static let addSplitView = "Add Split View"
-    static let closeSplitView = "Close Split View"
-    static let enableWorkspaceICloudSync = "Enable iCloud Sync for Spaces and Tabs"
-    static let disableWorkspaceICloudSync = "Disable iCloud Sync for Spaces and Tabs"
-    static let enableHistoryICloudSync = "Enable iCloud Sync for History"
-    static let disableHistoryICloudSync = "Disable iCloud Sync for History"
+    static let newTab = String(localized: "New Tab")
+    static let focusAddressBar = String(localized: "Focus Address Bar")
+    static let commandBar = String(localized: "Command Bar")
+    static let toggleSidebar = String(localized: "Toggle Sidebar")
+    static let toggleAISidebar = String(localized: "Toggle Agent Sidebar")
+    static let reloadTab = String(localized: "Reload Tab")
+    static let back = String(localized: "Back")
+    static let forward = String(localized: "Forward")
+    static let closeCurrentTab = String(localized: "Close Current Tab")
+    static let nextTab = String(localized: "Next Tab")
+    static let previousTab = String(localized: "Previous Tab")
+    static let nextSpace = String(localized: "Next Space")
+    static let previousSpace = String(localized: "Previous Space")
+    static let duplicateTab = String(localized: "Duplicate Tab")
+    static let toggleSplitView = String(localized: "Toggle Split View")
+    static let createSpace = String(localized: "Create Space")
+    static let reopenClosedTab = String(localized: "Reopen Closed Tab")
+    static let pinOrUnpinTab = String(localized: "Pin or Unpin Tab")
+    static let clearUnpinnedTabs = String(localized: "Clear Unpinned Tabs")
+    static let copyURL = String(localized: "Copy URL")
+    static let copyURLAsMarkdown = String(localized: "Copy URL as Markdown")
+    static let turnOnDeveloperMode = String(localized: "Turn On Developer Mode")
+    static let turnOffDeveloperMode = String(localized: "Turn Off Developer Mode")
+    static let findInPage = String(localized: "Find in Page…")
+    static let findNext = String(localized: "Find Next")
+    static let findPrevious = String(localized: "Find Previous")
+    static let zoomIn = String(localized: "Zoom In")
+    static let zoomOut = String(localized: "Zoom Out")
+    static let resetZoom = String(localized: "Reset Zoom")
+    static let addSplitView = String(localized: "Add Split View")
+    static let closeSplitView = String(localized: "Close Split View")
+    static let enableWorkspaceICloudSync = String(localized: "Enable iCloud Sync for Spaces and Tabs")
+    static let disableWorkspaceICloudSync = String(localized: "Disable iCloud Sync for Spaces and Tabs")
+    static let enableHistoryICloudSync = String(localized: "Enable iCloud Sync for History")
+    static let disableHistoryICloudSync = String(localized: "Disable iCloud Sync for History")
 }
 
 enum BrowserDefaults {
     static let newTabTitle = BrowserCommandTitles.newTab
-    static let addressPlaceholder = "Search or enter URL"
+    static let addressPlaceholder = String(localized: "Search or enter URL")
     static let defaultHomeTitle = "Candoa"
-    static let googleHomeURL = URL(string: "https://www.google.com/?hl=en&gl=us")!
-    static let googleSearchURL = URL(string: "https://www.google.com/search?hl=en&gl=us")!
+    static let googleHomeURL = URL(string: "https://www.google.com/")!
+    static let googleSearchURL = URL(string: "https://www.google.com/search")!
 }
 
 enum SidebarRevealConfiguration {
     static let revealDistanceFromLeftEdge: CGFloat = 10
     static let suppressionResetDistance: CGFloat = 48
     static let hideDistanceFromLeftEdge: CGFloat = 340
-    static let pollingInterval: TimeInterval = 0.12
 }
 
 enum TabHibernationConfiguration {
@@ -89,6 +90,65 @@ enum TabSwitcherConfiguration {
     /// Arc-style hold-to-reveal: a quick Control-Tab switches silently; the
     /// preview overlay only appears if Control is still held after this delay.
     static let holdRevealDelay: TimeInterval = 0.25
+}
+
+/// Per-site Developer Mode mirrors Arc's behavior: local servers opt in by
+/// default, while any other host can be explicitly enabled from site controls
+/// or the Command Bar. The value is a small host → override map, so it neither
+/// observes pages nor adds any work to the WebContent process.
+enum DeveloperModeConfiguration {
+    static let storageKey = "Candoa.DeveloperModeSiteOverrides"
+
+    static func isEnabled(for url: URL, storedOverrides: String? = nil) -> Bool {
+        guard let host = normalizedHost(for: url) else { return false }
+
+        if let override = overrides(from: storedOverrides)[host] {
+            return override
+        }
+
+        return url.isLocalDevelopment
+    }
+
+    static func setEnabled(_ isEnabled: Bool, for url: URL) {
+        guard let host = normalizedHost(for: url) else { return }
+
+        var overrides = overrides(from: nil)
+        overrides[host] = isEnabled
+        UserDefaults.standard.set(encoded(overrides), forKey: storageKey)
+    }
+
+    static func displayHost(for url: URL) -> String? {
+        normalizedHost(for: url)
+    }
+
+    private static func normalizedHost(for url: URL) -> String? {
+        guard let host = url.host(percentEncoded: false)?.lowercased() else { return nil }
+        let normalized = host.trimmingCharacters(in: CharacterSet(charactersIn: "."))
+        return normalized.isEmpty ? nil : normalized
+    }
+
+    private static func overrides(from storedValue: String?) -> [String: Bool] {
+        let value = storedValue ?? UserDefaults.standard.string(forKey: storageKey) ?? ""
+        guard
+            let data = value.data(using: .utf8),
+            let decoded = try? JSONDecoder().decode([String: Bool].self, from: data)
+        else {
+            return [:]
+        }
+
+        return decoded
+    }
+
+    private static func encoded(_ overrides: [String: Bool]) -> String {
+        guard
+            let data = try? JSONEncoder().encode(overrides),
+            let value = String(data: data, encoding: .utf8)
+        else {
+            return ""
+        }
+
+        return value
+    }
 }
 
 extension URL {

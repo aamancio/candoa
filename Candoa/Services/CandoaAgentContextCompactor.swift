@@ -1,6 +1,6 @@
 import Foundation
 
-enum CandoaAskContextCompactor {
+enum CandoaAgentContextCompactor {
     private static let contextThreshold = 18_000
     private static let leadingLimit = 2_500
     private static let trailingLimit = 2_500
@@ -14,14 +14,14 @@ enum CandoaAskContextCompactor {
     ) -> CandoaAIPageContext? {
         guard let text = context.text, text.count > contextThreshold else { return nil }
 
-        let semanticText = CandoaAskDrafts.semanticPageText(from: text) ?? text
+        let semanticText = CandoaAgentDrafts.semanticPageText(from: text) ?? text
         let focusedLines = focusedContextLines(from: semanticText, prompt: prompt)
         let leadingText = String(semanticText.prefix(leadingLimit))
         let trailingText = String(semanticText.suffix(trailingLimit))
-        let visibleControls = CandoaAskDrafts.visibleControlsSection(from: text)
+        let visibleControls = CandoaAgentDrafts.visibleControlsSection(from: text)
             .flatMap(compactControlsForModel)
             .map { "\n\nVisible page controls and links:\n\($0)" } ?? ""
-        let ocrText = CandoaAskDrafts.visibleOCRSection(from: text)
+        let ocrText = CandoaAgentDrafts.visibleOCRSection(from: text)
             .map { "\n\nVisible page image text from OCR:\n\(String($0.prefix(ocrLimit)))" } ?? ""
 
         let compactText = """
@@ -47,7 +47,7 @@ enum CandoaAskContextCompactor {
     }
 
     private static func focusedContextLines(from text: String, prompt: String) -> [String] {
-        let terms = searchTerms(in: CandoaAskPromptPolicy.normalizedText(prompt))
+        let terms = searchTerms(in: CandoaAgentPromptPolicy.normalizedText(prompt))
         guard !terms.isEmpty else { return [] }
 
         let lines = text
@@ -55,7 +55,7 @@ enum CandoaAskContextCompactor {
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
         let matchingIndexes = lines.indices.filter { index in
-            let normalizedLine = CandoaAskPromptPolicy.normalizedText(lines[index])
+            let normalizedLine = CandoaAgentPromptPolicy.normalizedText(lines[index])
             return terms.contains { normalizedLine.contains($0) }
         }
 

@@ -290,7 +290,7 @@ extension CommandPaletteView {
     }
 
     internal var baseCommands: [PaletteCommand] {
-        let commands = [
+        var commands = [
             PaletteCommand(title: BrowserCommandTitles.newTab, symbolName: "plus", action: .newTab),
             PaletteCommand(title: BrowserCommandTitles.closeCurrentTab, symbolName: "xmark", action: .closeCurrentTab),
             PaletteCommand(title: BrowserCommandTitles.duplicateTab, symbolName: "square.on.square", action: .duplicateCurrentTab),
@@ -299,6 +299,21 @@ extension CommandPaletteView {
             PaletteCommand(title: BrowserCommandTitles.createSpace, symbolName: "square.grid.2x2", action: .createSpace),
             PaletteCommand(title: BrowserCommandTitles.focusAddressBar, symbolName: "text.cursor", action: .focusAddressBar)
         ]
+
+        if let url = store.activeTab?.url,
+           let host = DeveloperModeConfiguration.displayHost(for: url) {
+            let isEnabled = DeveloperModeConfiguration.isEnabled(for: url)
+            commands.append(
+                PaletteCommand(
+                    title: isEnabled
+                        ? BrowserCommandTitles.turnOffDeveloperMode
+                        : BrowserCommandTitles.turnOnDeveloperMode,
+                    detail: host,
+                    symbolName: "hammer",
+                    action: .setDeveloperMode(!isEnabled)
+                )
+            )
+        }
 
         return commands
     }
@@ -463,6 +478,9 @@ extension CommandPaletteView {
             store.copyActiveTabURL()
         case .copyURLAsMarkdown:
             store.copyActiveTabURL(asMarkdown: true)
+        case .setDeveloperMode(let isEnabled):
+            guard let url = store.activeTab?.url else { return }
+            store.setDeveloperMode(isEnabled, for: url)
         case .togglePinTab:
             store.togglePinForActiveTab()
         case .navigate(let input):

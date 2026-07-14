@@ -3,10 +3,10 @@ import os
 import SwiftUI
 import UniformTypeIdentifiers
 
-struct AISidebarView: View {
-    private static let askLogger = Logger(
+struct AgentSidebarView: View {
+    private static let agentLogger = Logger(
         subsystem: Bundle.main.bundleIdentifier ?? "Candoa",
-        category: "Ask"
+        category: "Agent"
     )
 
     @ObservedObject var store: BrowserStore
@@ -159,15 +159,15 @@ struct AISidebarView: View {
         return Color(nsColor: resolvedColor)
     }
 
-    private var hasPersonalAskAccess: Bool {
-        CandoaAskPreferences.usesPersonalOpenAIKey && CandoaAskKeychain.hasAPIKey
+    private var hasPersonalAgentAccess: Bool {
+        CandoaAgentPreferences.usesPersonalOpenAIKey && CandoaAgentKeychain.hasAPIKey
     }
 
     var body: some View {
         VStack(spacing: 0) {
             topBar
 
-            if !hasPersonalAskAccess {
+            if !hasPersonalAgentAccess {
                 Spacer(minLength: 60)
                 subscriptionGate
                 Spacer(minLength: 60)
@@ -198,7 +198,7 @@ struct AISidebarView: View {
                 }
             }
 
-            if hasPersonalAskAccess {
+            if hasPersonalAgentAccess {
                 composer
             }
         }
@@ -210,7 +210,7 @@ struct AISidebarView: View {
         }
         .ignoresSafeArea(.container, edges: .top)
         .onAppear {
-            uiTestingState = uiTestingAskState
+            uiTestingState = uiTestingAgentState
             DispatchQueue.main.async {
                 isPromptFocused = true
             }
@@ -220,7 +220,7 @@ struct AISidebarView: View {
             cancelStream()
             speechController.cancelListening()
         }
-        .onChange(of: uiTestingAskState) { _, state in
+        .onChange(of: uiTestingAgentState) { _, state in
             uiTestingState = state
         }
         .onChange(of: store.activeTabID) {
@@ -237,7 +237,7 @@ struct AISidebarView: View {
             handleFileImport(result)
         }
         .confirmationDialog(
-            pendingPageAction?.confirmationTitle ?? "Allow Ask to act?",
+            pendingPageAction?.confirmationTitle ?? "Allow Agent to act?",
             isPresented: Binding(
                 get: { pendingPageAction != nil },
                 set: { if !$0 { pendingPageAction = nil; pendingActionTabID = nil } }
@@ -249,14 +249,14 @@ struct AISidebarView: View {
         } message: {
             Text(pendingPageAction?.confirmationDetail ?? "")
         }
-        .accessibilityIdentifier("ask-sidebar")
+        .accessibilityIdentifier("agent-sidebar")
     }
 
     private var topBar: some View {
         HStack(spacing: 8) {
             AISidebarTopBarIconButton(
                 symbolName: "square.and.pencil",
-                helpText: "New Ask"
+                helpText: "New Agent Conversation"
             ) {
                 prompt = ""
                 mentionedContext = []
@@ -270,7 +270,7 @@ struct AISidebarView: View {
 
             AISidebarTopBarIconButton(
                 symbolName: "xmark",
-                helpText: "Close Ask Sidebar",
+                helpText: "Close Agent Sidebar",
                 iconSize: 18
             ) {
                 onClose()
@@ -284,7 +284,7 @@ struct AISidebarView: View {
 
     private var emptyState: some View {
         VStack(alignment: .leading, spacing: 9) {
-            Text("Try asking")
+            Text("What can Agent do?")
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(CandoaChromeStyle.sidebarTextSecondary)
                 .padding(.horizontal, 2)
@@ -292,7 +292,7 @@ struct AISidebarView: View {
             ForEach(starterHints) { hint in
                 AISidebarStarterHintButton(
                     hint: hint,
-                    accentColor: askAccentColor
+                    accentColor: agentAccentColor
                 ) {
                     submitPrompt(hint.prompt)
                 }
@@ -306,13 +306,13 @@ struct AISidebarView: View {
         VStack(spacing: 14) {
             Image(systemName: "sparkles")
                 .font(.system(size: 28, weight: .medium))
-                .foregroundStyle(askAccentColor)
+                .foregroundStyle(agentAccentColor)
 
             VStack(spacing: 6) {
-                Text("Unlock Ask with Candoa Plus")
+                Text("Unlock Agent with Candoa Plus")
                     .font(.system(size: 18, weight: .semibold))
 
-                Text("Ask questions, summarize pages, and get help with your browsing using Candoa's hosted AI.")
+                Text("Understand pages, summarize content, and safely complete browser tasks with Candoa's hosted Agent.")
                     .font(.system(size: 13))
                     .foregroundStyle(CandoaChromeStyle.sidebarTextSecondary)
                     .multilineTextAlignment(.center)
@@ -323,9 +323,9 @@ struct AISidebarView: View {
                 // Stripe checkout will be connected once the authenticated billing flow exists.
             }
                 .buttonStyle(.borderedProminent)
-                .tint(askAccentColor)
+                .tint(agentAccentColor)
 
-            Text("A Candoa account and subscription are required for hosted Ask.")
+            Text("A Candoa account and subscription are required for hosted Agent.")
                 .font(.system(size: 11))
                 .foregroundStyle(CandoaChromeStyle.sidebarTextSecondary)
                 .multilineTextAlignment(.center)
@@ -342,7 +342,7 @@ struct AISidebarView: View {
         }
         .padding(.horizontal, 26)
         .frame(maxWidth: .infinity)
-        .accessibilityIdentifier("ask-subscription-gate")
+        .accessibilityIdentifier("agent-subscription-gate")
     }
 
     private var starterHints: [AISidebarStarterHint] {
@@ -365,7 +365,7 @@ struct AISidebarView: View {
         ]
     }
 
-    private var askAccentColor: Color {
+    private var agentAccentColor: Color {
         guard let hex = store.activeThemeColorHexes.first else {
             return Color.accentColor
         }
@@ -395,12 +395,12 @@ struct AISidebarView: View {
             }
 
             HStack(alignment: .bottom, spacing: 10) {
-                TextField("Ask a question about this page...", text: $prompt, axis: .vertical)
+                TextField("Tell Agent what to do...", text: $prompt, axis: .vertical)
                     .textFieldStyle(.plain)
                     .lineLimit(1...4)
                     .font(.system(size: 14))
                     .focused($isPromptFocused)
-                    .accessibilityIdentifier("ask-input-field")
+                    .accessibilityIdentifier("agent-input-field")
                     .onSubmit {
                         if !performSelectedMention() {
                             submitPrompt()
@@ -444,7 +444,7 @@ struct AISidebarView: View {
                 ) {
                     submitPrompt()
                 }
-                .accessibilityIdentifier("ask-send-button")
+                .accessibilityIdentifier("agent-send-button")
             }
 
             if speechController.isListening || speechController.statusMessage != nil {
@@ -584,7 +584,7 @@ struct AISidebarView: View {
         )
     }
 
-    private var uiTestingAskState: String {
+    private var uiTestingAgentState: String {
         let composerChipText = contextChips
             .map { "\($0.title)|\($0.subtitle)" }
             .joined(separator: ",")
@@ -605,7 +605,7 @@ struct AISidebarView: View {
 
     private func submitPrompt(_ promptOverride: String? = nil) {
         let submittedPrompt = (promptOverride ?? prompt).trimmingCharacters(in: .whitespacesAndNewlines)
-        guard CandoaAskPromptPolicy.canSubmit(submittedPrompt, hasConversation: !messages.isEmpty) else { return }
+        guard CandoaAgentPromptPolicy.canSubmit(submittedPrompt, hasConversation: !messages.isEmpty) else { return }
 
         if let action = CandoaPageActionProposal.parse(submittedPrompt) {
             prompt = ""
@@ -630,9 +630,9 @@ struct AISidebarView: View {
             )
         }
         let contextMentions = mentionedContext
-        let normalizedSubmittedPrompt = CandoaAskPromptPolicy.normalizedText(submittedPrompt)
+        let normalizedSubmittedPrompt = CandoaAgentPromptPolicy.normalizedText(submittedPrompt)
         let existingRecentTurns = recentTurns()
-        let shouldRefreshCurrentPageContext = CandoaAskDrafts.asksAboutVisibleControl(
+        let shouldRefreshCurrentPageContext = CandoaAgentDrafts.asksAboutVisibleControl(
             normalizedSubmittedPrompt,
             recentTurns: existingRecentTurns
         )
@@ -640,7 +640,7 @@ struct AISidebarView: View {
         let currentPageTabID = includesCurrentPage ? store.activeTabID : nil
         let inheritedPageContext = lastSubmittedPageContext
         let shouldUseCurrentContextOnly = !submittedContextChips.isEmpty
-            && CandoaAskDrafts.referencesCurrentPage(normalizedSubmittedPrompt)
+            && CandoaAgentDrafts.referencesCurrentPage(normalizedSubmittedPrompt)
         let recentTurns = shouldUseCurrentContextOnly ? [] : existingRecentTurns
 
         messages.append(AISidebarMessage(
@@ -672,7 +672,7 @@ struct AISidebarView: View {
                 }
             }
 
-            let remoteContext = CandoaAskContextCompactor.compactedContextIfNeeded(
+            let remoteContext = CandoaAgentContextCompactor.compactedContextIfNeeded(
                 from: pageContext,
                 prompt: submittedPrompt
             ) ?? pageContext
@@ -707,7 +707,7 @@ struct AISidebarView: View {
         do {
             var response = ""
             var displayedCharacterCount = 0
-            for try await fragment in CandoaRemoteAIService.streamResponse(
+            for try await fragment in CandoaRemoteAgentService.streamResponse(
                 to: prompt,
                 context: context,
                 recentTurns: recentTurns
@@ -724,7 +724,7 @@ struct AISidebarView: View {
             }
 
             guard !response.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-                showAskUnavailableMessage(into: responseID)
+                showAgentUnavailableMessage(into: responseID)
                 return
             }
 
@@ -738,13 +738,13 @@ struct AISidebarView: View {
         } catch is CancellationError {
             return
         } catch {
-            Self.askLogger.error("Ask remote service request failed: \(error.localizedDescription, privacy: .public)")
-            showAskUnavailableMessage(for: error, into: responseID)
+            Self.agentLogger.error("Agent remote service request failed: \(error.localizedDescription, privacy: .public)")
+            showAgentUnavailableMessage(for: error, into: responseID)
         }
     }
 
     @MainActor
-    private func showAskUnavailableMessage(
+    private func showAgentUnavailableMessage(
         for error: Error? = nil,
         into responseID: UUID
     ) {
@@ -756,9 +756,9 @@ struct AISidebarView: View {
         } else if errorDescription.contains("authentication")
             || errorDescription.contains("session")
             || errorDescription.contains("current plan") {
-            message = "Ask requires a signed-in Candoa account with an active Ask subscription. Sign in or subscribe to continue, or use your own OpenAI API key in Settings."
+            message = "Agent requires a signed-in Candoa account with an active Agent subscription. Sign in or subscribe to continue."
         } else {
-            message = "Ask is temporarily unavailable. Please try again later."
+            message = "Agent is temporarily unavailable. Please try again later."
         }
 
         guard let index = messages.firstIndex(where: { $0.id == responseID }) else { return }

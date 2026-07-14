@@ -26,7 +26,7 @@ struct AISidebarResizeHandle: View {
         .onHover { hovering in
             isHovering = hovering
         }
-        .help("Resize Ask Sidebar")
+        .help("Resize Agent Sidebar")
     }
 
     private var isActive: Bool {

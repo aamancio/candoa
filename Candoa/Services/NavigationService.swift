@@ -313,11 +313,11 @@ struct NavigationService {
         guard !input.isEmpty else { return nil }
 
         if let directURL = directURL(from: input) {
-            return Self.englishGoogleURLIfNeeded(directURL)
+            return Self.localizedGoogleURLIfNeeded(directURL)
         }
 
         if looksLikeHost(input), let url = URL(string: "https://\(input)") {
-            return Self.englishGoogleURLIfNeeded(url)
+            return Self.localizedGoogleURLIfNeeded(url)
         }
 
         if let provider = Self.searchProviders.first(where: { $0.exactlyMatches(input) }) {
@@ -341,7 +341,7 @@ struct NavigationService {
     }
 
     func preferredLocaleURL(for url: URL) -> URL {
-        Self.englishGoogleURLIfNeeded(url)
+        Self.localizedGoogleURLIfNeeded(url)
     }
 
     func webAppPromptForwardingTarget(for url: URL) -> (providerID: String, query: String)? {
@@ -453,7 +453,9 @@ struct NavigationService {
         return input.contains(".")
     }
 
-    private static func englishGoogleURLIfNeeded(_ url: URL) -> URL {
+    /// Applies the person's highest-priority macOS language to Google unless they
+    /// explicitly selected a language in the URL themselves.
+    private static func localizedGoogleURLIfNeeded(_ url: URL) -> URL {
         guard
             let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
             let host = components.host?.lowercased(),
@@ -465,12 +467,12 @@ struct NavigationService {
         var localizedComponents = components
         var queryItems = localizedComponents.queryItems ?? []
 
-        if !queryItems.contains(where: { $0.name == "hl" }) {
-            queryItems.append(URLQueryItem(name: "hl", value: "en"))
-        }
-
-        if !queryItems.contains(where: { $0.name == "gl" }) {
-            queryItems.append(URLQueryItem(name: "gl", value: "us"))
+        if
+            !queryItems.contains(where: { $0.name == "hl" }),
+            let preferredLanguage = Locale.preferredLanguages.first,
+            !preferredLanguage.isEmpty
+        {
+            queryItems.append(URLQueryItem(name: "hl", value: preferredLanguage))
         }
 
         localizedComponents.queryItems = queryItems
