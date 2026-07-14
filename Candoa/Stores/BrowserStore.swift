@@ -157,6 +157,7 @@ final class BrowserStore: ObservableObject {
     @Published var activeTabID: UUID? {
         didSet {
             guard oldValue != activeTabID else { return }
+            markActiveTabAsActivated()
             handleActiveTabChange(from: oldValue)
         }
     }
@@ -241,6 +242,7 @@ final class BrowserStore: ObservableObject {
     /// rapid Ctrl-Tab walks past it into the wrong tab.
     var pendingMiniPlayerReturnTabID: UUID?
     private var isApplyingRemoteState = false
+    private var needsWorkspaceSaveAfterRepair = false
     private let spaceSymbols = [
         "circle.grid.2x2",
         "sparkle",
@@ -531,6 +533,7 @@ final class BrowserStore: ObservableObject {
 
         self.webCoordinator.attach(store: self)
         repairSessionState()
+        markActiveTabAsActivated()
         shouldPresentInitialSpaceSetup = shouldPresentInitialSpaceSetup || needsInitialSpaceSetup()
         isInitialSpaceSetupPresented = shouldPresentInitialSpaceSetup
         if restoresWebViews {
@@ -539,6 +542,10 @@ final class BrowserStore: ObservableObject {
         updateNavigationState()
         configureAutosave()
         configureRemoteSyncObservation()
+        if needsWorkspaceSaveAfterRepair {
+            needsWorkspaceSaveAfterRepair = false
+            flushSession()
+        }
     }
 
     private static func uiTestingFixtureState() -> BrowserWindowState? {
@@ -552,6 +559,14 @@ final class BrowserStore: ObservableObject {
 
         if fixture == "cross-space-duplicate-url" {
             return crossSpaceDuplicateURLFixtureState()
+        }
+
+        if fixture == "legacy-saved-tab-navigation" {
+            return legacySavedTabNavigationFixtureState()
+        }
+
+        if fixture == "inactive-favorites" {
+            return inactiveFavoritesFixtureState()
         }
 
         return testingBotFixtureState(includesSeedTabs: true)
@@ -604,6 +619,83 @@ final class BrowserStore: ObservableObject {
             tabs: tabs,
             activeSpaceID: activeSpaceID,
             activeTabID: activeStartTabID
+        )
+    }
+
+    private static func legacySavedTabNavigationFixtureState() -> BrowserWindowState {
+        let spaceID = UUID(uuidString: "34343434-3434-3434-3434-343434343434")!
+        let tabID = UUID(uuidString: "45454545-4545-4545-4545-454545454545")!
+        let space = BrowserSpace(
+            id: spaceID,
+            name: "TestingBot",
+            symbolName: "sparkles",
+            themeColorHex: "#6E8BFF",
+            themeAppearance: BrowserSpace.defaultThemeAppearance
+        )
+        let legacyFavorite = BrowserTab(
+            id: tabID,
+            title: "Google",
+            url: URL(string: "https://www.google.com/?hl=en&gl=us")!,
+            faviconSymbol: "magnifyingglass",
+            favoriteTitle: "YouTube",
+            favoriteURL: URL(string: "https://www.youtube.com/")!,
+            favoriteFaviconSymbol: "play.rectangle.fill",
+            isFavorite: true,
+            spaceID: spaceID
+        )
+
+        return BrowserWindowState(
+            spaces: [space],
+            folders: [],
+            tabs: [legacyFavorite],
+            activeSpaceID: spaceID,
+            activeTabID: tabID
+        )
+    }
+
+    private static func inactiveFavoritesFixtureState() -> BrowserWindowState {
+        let spaceID = UUID(uuidString: "56565656-5656-5656-5656-565656565656")!
+        let currentTabID = UUID(uuidString: "67676767-6767-6767-6767-676767676767")!
+        let fixtureDate = Date(timeIntervalSince1970: 1_800_000_000)
+        let space = BrowserSpace(
+            id: spaceID,
+            name: "TestingBot",
+            symbolName: "sparkles",
+            themeAppearance: BrowserSpace.defaultThemeAppearance
+        )
+        let tabs = [
+            BrowserTab(
+                id: currentTabID,
+                title: "Current",
+                url: URL(string: "https://example.com/current")!,
+                spaceID: spaceID,
+                lastAccessedAt: fixtureDate,
+                hasBeenActivated: true
+            ),
+            BrowserTab(
+                title: "Saved One",
+                url: URL(string: "https://example.com/saved-one")!,
+                isFavorite: true,
+                spaceID: spaceID,
+                lastAccessedAt: fixtureDate.addingTimeInterval(-60),
+                hasBeenActivated: false
+            ),
+            BrowserTab(
+                title: "Saved Two",
+                url: URL(string: "https://example.com/saved-two")!,
+                isFavorite: true,
+                spaceID: spaceID,
+                lastAccessedAt: fixtureDate.addingTimeInterval(-120),
+                hasBeenActivated: false
+            )
+        ]
+
+        return BrowserWindowState(
+            spaces: [space],
+            folders: [],
+            tabs: tabs,
+            activeSpaceID: spaceID,
+            activeTabID: currentTabID
         )
     }
 
@@ -2131,12 +2223,22 @@ final class BrowserStore: ObservableObject {
     func navigateActiveTab(to url: URL) {
         // Empty spaces have no active tab; navigating from the address
         // dialog should open one rather than dropping the input.
-        guard let tabID = activeTabID else {
+        guard let activeTab else {
             _ = newTab(url: url)
             return
         }
-        setURL(url, title: title(for: url), for: tabID)
-        webCoordinator.load(url, in: tabID)
+
+        // Favorites and pinned tabs are saved destinations. Navigating the
+        // address bar to another site should preserve that destination and
+        // create a regular tab for the new page, rather than leaving the
+        // sidebar with no visible tab for the page the user just opened.
+        if shouldOpenNewTab(from: activeTab, to: url) {
+            _ = newTab(url: url)
+            return
+        }
+
+        setURL(url, title: title(for: url), for: activeTab.id)
+        webCoordinator.load(url, in: activeTab.id)
     }
 
     func navigateNewTab(to rawInput: String) {
@@ -2321,6 +2423,21 @@ final class BrowserStore: ObservableObject {
         tabs[index].isLoading = true
         tabs[index].loadingProgress = 0.05
         tabs[index].lastAccessedAt = Date()
+    }
+
+    private func shouldOpenNewTab(from tab: BrowserTab, to destination: URL) -> Bool {
+        guard tab.isFavorite || tab.isPinned, let currentURL = tab.url else {
+            return false
+        }
+
+        // Keep normal in-site navigation in the saved tab. A different host
+        // is a new browsing task and belongs in an ordinary tab.
+        return differentHosts(currentURL, destination)
+    }
+
+    private func differentHosts(_ lhs: URL, _ rhs: URL) -> Bool {
+        lhs.host(percentEncoded: false)?.lowercased()
+            != rhs.host(percentEncoded: false)?.lowercased()
     }
 
     private func captureFavoriteSnapshot(at index: Int) {
@@ -2612,7 +2729,9 @@ final class BrowserStore: ObservableObject {
     }
 
     private func recentTabsForActiveSpace() -> [BrowserTab] {
-        var candidates = tabs.filter { $0.spaceID == activeSpaceID }
+        var candidates = tabs.filter {
+            $0.spaceID == activeSpaceID && $0.hasBeenActivated
+        }
 
         if scopesControlTabToCurrentGroup, let activeTab {
             candidates = candidates.filter { tab in
@@ -2631,6 +2750,13 @@ final class BrowserStore: ObservableObject {
                 }
                 return $0.lastAccessedAt > $1.lastAccessedAt
             }
+    }
+
+    private func markActiveTabAsActivated() {
+        guard let activeTabID, let index = tabs.firstIndex(where: { $0.id == activeTabID }) else {
+            return
+        }
+        tabs[index].hasBeenActivated = true
     }
 
     private func isPendingTabForControlTab(_ tab: BrowserTab) -> Bool {
@@ -2841,6 +2967,10 @@ final class BrowserStore: ObservableObject {
             }
         }
 
+        if recoverSavedTabNavigations() {
+            needsWorkspaceSaveAfterRepair = true
+        }
+
         if !spaceIDs.contains(activeSpaceID) {
             activeSpaceID = spaces[0].id
         }
@@ -2863,6 +2993,60 @@ final class BrowserStore: ObservableObject {
         } else {
             splitTabIDs = []
         }
+    }
+
+    /// Older builds allowed the sidebar address field to replace a favorite's
+    /// live URL while retaining its saved title and icon. Preserve both sites
+    /// when opening that state: restore the favorite and make the live page a
+    /// regular tab.
+    private func recoverSavedTabNavigations() -> Bool {
+        let originalTabCount = tabs.count
+        var recoveredTabs: [BrowserTab] = []
+        var replacementActiveTabID: UUID?
+
+        for index in 0..<originalTabCount {
+            let tab = tabs[index]
+            guard
+                tab.isFavorite,
+                let savedURL = tab.favoriteURL,
+                let liveURL = tab.url,
+                differentHosts(savedURL, liveURL)
+            else {
+                continue
+            }
+
+            let recoveredTab = BrowserTab(
+                title: tab.title,
+                url: liveURL,
+                faviconSymbol: tab.faviconSymbol,
+                faviconData: tab.faviconData,
+                spaceID: tab.spaceID,
+                sortOrder: nextSortOrder(
+                    spaceID: tab.spaceID,
+                    isFavorite: false,
+                    isPinned: false,
+                    folderID: nil
+                ),
+                lastAccessedAt: tab.lastAccessedAt
+            )
+            recoveredTabs.append(recoveredTab)
+
+            tabs[index].title = tab.favoriteDisplayTitle
+            tabs[index].url = savedURL
+            tabs[index].faviconSymbol = tab.favoriteDisplayFaviconSymbol
+            tabs[index].faviconData = tab.favoriteDisplayFaviconData
+            tabs[index].isLoading = false
+            tabs[index].loadingProgress = 0
+
+            if activeTabID == tab.id {
+                replacementActiveTabID = recoveredTab.id
+            }
+        }
+
+        guard !recoveredTabs.isEmpty else { return false }
+        tabs.append(contentsOf: recoveredTabs)
+        activeTabID = replacementActiveTabID ?? activeTabID
+        return true
     }
 
     private static func insertingSplitTab(

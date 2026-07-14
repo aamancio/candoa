@@ -414,6 +414,7 @@ struct PersistenceService: @unchecked Sendable {
             object.setValue(tab.spaceID, forKey: Key.spaceID)
             object.setValue(tab.sortOrder, forKey: Key.sortOrder)
             object.setValue(tab.lastAccessedAt, forKey: Key.lastAccessedAt)
+            object.setValue(tab.hasBeenActivated, forKey: Key.hasBeenActivated)
             tabsByID[tab.id] = nil
         }
 
@@ -566,7 +567,8 @@ struct PersistenceService: @unchecked Sendable {
             folderID: object.uuid(for: Key.folderID),
             spaceID: spaceID,
             sortOrder: object.double(for: Key.sortOrder),
-            lastAccessedAt: object.date(for: Key.lastAccessedAt) ?? Date()
+            lastAccessedAt: object.date(for: Key.lastAccessedAt) ?? Date(),
+            hasBeenActivated: object.value(forKey: Key.hasBeenActivated) as? Bool ?? !object.bool(for: Key.isFavorite)
         )
     }
 
@@ -683,7 +685,8 @@ struct PersistenceService: @unchecked Sendable {
                 attribute(Key.folderID, .UUIDAttributeType),
                 attribute(Key.spaceID, .UUIDAttributeType, optional: false),
                 attribute(Key.sortOrder, .doubleAttributeType, optional: false),
-                attribute(Key.lastAccessedAt, .dateAttributeType, optional: false)
+                attribute(Key.lastAccessedAt, .dateAttributeType, optional: false),
+                attribute(Key.hasBeenActivated, .booleanAttributeType)
             ]
         )
     }
@@ -789,6 +792,7 @@ private enum Key {
     static let sortOrder = "sortOrder"
     static let isExpanded = "isExpanded"
     static let lastAccessedAt = "lastAccessedAt"
+    static let hasBeenActivated = "hasBeenActivated"
     static let visitedAt = "visitedAt"
 }
 

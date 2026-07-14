@@ -159,11 +159,19 @@ struct AISidebarView: View {
         return Color(nsColor: resolvedColor)
     }
 
+    private var hasPersonalAskAccess: Bool {
+        CandoaAskPreferences.usesPersonalOpenAIKey && CandoaAskKeychain.hasAPIKey
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             topBar
 
-            if messages.isEmpty {
+            if !hasPersonalAskAccess {
+                Spacer(minLength: 60)
+                subscriptionGate
+                Spacer(minLength: 60)
+            } else if messages.isEmpty {
                 Spacer(minLength: 60)
                 emptyState
                 Spacer(minLength: 60)
@@ -190,7 +198,9 @@ struct AISidebarView: View {
                 }
             }
 
-            composer
+            if hasPersonalAskAccess {
+                composer
+            }
         }
         .background(panelBackgroundColor)
         .overlay(alignment: .leading) {
@@ -290,6 +300,49 @@ struct AISidebarView: View {
         }
         .padding(.horizontal, 26)
         .frame(maxWidth: .infinity, alignment: .center)
+    }
+
+    private var subscriptionGate: some View {
+        VStack(spacing: 14) {
+            Image(systemName: "sparkles")
+                .font(.system(size: 28, weight: .medium))
+                .foregroundStyle(askAccentColor)
+
+            VStack(spacing: 6) {
+                Text("Unlock Ask with Candoa Plus")
+                    .font(.system(size: 18, weight: .semibold))
+
+                Text("Ask questions, summarize pages, and get help with your browsing using Candoa's hosted AI.")
+                    .font(.system(size: 13))
+                    .foregroundStyle(CandoaChromeStyle.sidebarTextSecondary)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Button("Subscribe to Candoa Plus") {
+                // Stripe checkout will be connected once the authenticated billing flow exists.
+            }
+                .buttonStyle(.borderedProminent)
+                .tint(askAccentColor)
+
+            Text("A Candoa account and subscription are required for hosted Ask.")
+                .font(.system(size: 11))
+                .foregroundStyle(CandoaChromeStyle.sidebarTextSecondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: 310)
+        .padding(24)
+        .background {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(CandoaChromeStyle.sidebarControlFill)
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(CandoaChromeStyle.sidebarControlStroke, lineWidth: 1)
+        }
+        .padding(.horizontal, 26)
+        .frame(maxWidth: .infinity)
+        .accessibilityIdentifier("ask-subscription-gate")
     }
 
     private var starterHints: [AISidebarStarterHint] {
@@ -619,28 +672,15 @@ struct AISidebarView: View {
                 }
             }
 
-            if !BrowserStore.isUITesting {
-                let remoteContext = CandoaAskContextCompactor.compactedContextIfNeeded(
-                    from: pageContext,
-                    prompt: submittedPrompt
-                ) ?? pageContext
-                if await streamRemoteAIResponse(
-                    prompt: submittedPrompt,
-                    context: remoteContext,
-                    recentTurns: recentTurns,
-                    responseID: responseID
-                ) {
-                    return
-                }
-            }
-
-            await streamLocalResponse(
-                CandoaAskDrafts.response(
-                    for: submittedPrompt,
-                    context: pageContext,
-                    recentTurns: recentTurns
-                ),
-                into: responseID
+            let remoteContext = CandoaAskContextCompactor.compactedContextIfNeeded(
+                from: pageContext,
+                prompt: submittedPrompt
+            ) ?? pageContext
+            await streamRemoteAIResponse(
+                prompt: submittedPrompt,
+                context: remoteContext,
+                recentTurns: recentTurns,
+                responseID: responseID
             )
         }
     }
@@ -663,7 +703,7 @@ struct AISidebarView: View {
         context: CandoaAIPageContext,
         recentTurns: [CandoaAIConversationTurn],
         responseID: UUID
-    ) async -> Bool {
+    ) async {
         do {
             var response = ""
             var displayedCharacterCount = 0
@@ -672,7 +712,7 @@ struct AISidebarView: View {
                 context: context,
                 recentTurns: recentTurns
             ) {
-                guard !Task.isCancelled else { return false }
+                guard !Task.isCancelled else { return }
                 response += fragment
                 guard response.count - displayedCharacterCount >= 24 else { continue }
 
@@ -684,7 +724,8 @@ struct AISidebarView: View {
             }
 
             guard !response.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-                return false
+                showAskUnavailableMessage(into: responseID)
+                return
             }
 
             await MainActor.run {
@@ -693,13 +734,37 @@ struct AISidebarView: View {
                 messages[index].isStreaming = false
                 streamTask = nil
             }
-            return true
+            return
         } catch is CancellationError {
-            return false
+            return
         } catch {
-            Self.askLogger.info("Ask remote service is unavailable; trying the local assistant")
-            return false
+            Self.askLogger.error("Ask remote service request failed: \(error.localizedDescription, privacy: .public)")
+            showAskUnavailableMessage(for: error, into: responseID)
         }
+    }
+
+    @MainActor
+    private func showAskUnavailableMessage(
+        for error: Error? = nil,
+        into responseID: UUID
+    ) {
+        let errorDescription = error?.localizedDescription.lowercased() ?? ""
+        let message: String
+
+        if errorDescription.contains("api key") {
+            message = "Add an OpenAI API key in Settings before using your own key."
+        } else if errorDescription.contains("authentication")
+            || errorDescription.contains("session")
+            || errorDescription.contains("current plan") {
+            message = "Ask requires a signed-in Candoa account with an active Ask subscription. Sign in or subscribe to continue, or use your own OpenAI API key in Settings."
+        } else {
+            message = "Ask is temporarily unavailable. Please try again later."
+        }
+
+        guard let index = messages.firstIndex(where: { $0.id == responseID }) else { return }
+        messages[index].text = message
+        messages[index].isStreaming = false
+        streamTask = nil
     }
 
     private func combinedContext(
@@ -936,30 +1001,6 @@ struct AISidebarView: View {
         guard !excerpt.isEmpty else { return }
 
         addMention(.file(AISidebarFileContext(name: url.lastPathComponent, text: excerpt)))
-    }
-
-    @MainActor
-    private func streamLocalResponse(_ response: String, into responseID: UUID) async {
-        guard let index = messages.firstIndex(where: { $0.id == responseID }) else { return }
-        messages[index].text = ""
-        messages[index].isStreaming = true
-
-        for chunk in response.split(separator: " ", omittingEmptySubsequences: false).enumerated().map({ $0.offset == 0 ? String($0.element) : " \($0.element)" }) {
-            if Task.isCancelled { return }
-
-            do {
-                try await Task.sleep(nanoseconds: 24_000_000)
-            } catch {
-                return
-            }
-
-            guard let index = messages.firstIndex(where: { $0.id == responseID }) else { return }
-            messages[index].text += chunk
-        }
-
-        guard let index = messages.firstIndex(where: { $0.id == responseID }) else { return }
-        messages[index].isStreaming = false
-        streamTask = nil
     }
 
     private func recentTurns() -> [CandoaAIConversationTurn] {

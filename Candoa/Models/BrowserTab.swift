@@ -18,6 +18,9 @@ struct BrowserTab: Identifiable, Codable, Hashable {
     var spaceID: UUID
     var sortOrder: Double
     var lastAccessedAt: Date
+    /// Saved tabs should not participate in recent-tab switching until the
+    /// user has actually opened them.
+    var hasBeenActivated: Bool
 
     init(
         id: UUID = UUID(),
@@ -36,7 +39,8 @@ struct BrowserTab: Identifiable, Codable, Hashable {
         folderID: UUID? = nil,
         spaceID: UUID,
         sortOrder: Double = 0,
-        lastAccessedAt: Date = Date()
+        lastAccessedAt: Date = Date(),
+        hasBeenActivated: Bool? = nil
     ) {
         self.id = id
         self.title = title
@@ -55,6 +59,7 @@ struct BrowserTab: Identifiable, Codable, Hashable {
         self.spaceID = spaceID
         self.sortOrder = sortOrder
         self.lastAccessedAt = lastAccessedAt
+        self.hasBeenActivated = hasBeenActivated ?? !isFavorite
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -75,6 +80,7 @@ struct BrowserTab: Identifiable, Codable, Hashable {
         case spaceID
         case sortOrder
         case lastAccessedAt
+        case hasBeenActivated
     }
 
     init(from decoder: Decoder) throws {
@@ -96,6 +102,7 @@ struct BrowserTab: Identifiable, Codable, Hashable {
         spaceID = try container.decode(UUID.self, forKey: .spaceID)
         sortOrder = try container.decodeIfPresent(Double.self, forKey: .sortOrder) ?? 0
         lastAccessedAt = try container.decodeIfPresent(Date.self, forKey: .lastAccessedAt) ?? Date()
+        hasBeenActivated = try container.decodeIfPresent(Bool.self, forKey: .hasBeenActivated) ?? !isFavorite
     }
 
     var favoriteDisplayTitle: String {

@@ -45,52 +45,26 @@ enum AISidebarResizeCursor {
 
 struct AISidebarCursorHoverModifier: ViewModifier {
     let cursor: NSCursor
+    @State private var hasPushedCursor = false
 
     func body(content: Content) -> some View {
         content
-            .background(AISidebarCursorRectView(cursor: cursor))
-            .onContinuousHover { phase in
-                if case .active = phase {
-                    cursor.set()
-                }
-            }
             .onHover { isHovering in
-                if isHovering {
-                    cursor.set()
-                }
+                updateCursor(isHovering: isHovering)
+            }
+            .onDisappear {
+                updateCursor(isHovering: false)
             }
     }
-}
 
-struct AISidebarCursorRectView: NSViewRepresentable {
-    let cursor: NSCursor
-
-    func makeNSView(context: Context) -> AISidebarCursorRectNSView {
-        let view = AISidebarCursorRectNSView(frame: .zero)
-        view.cursor = cursor
-        return view
-    }
-
-    func updateNSView(_ nsView: AISidebarCursorRectNSView, context: Context) {
-        nsView.cursor = cursor
-    }
-}
-
-final class AISidebarCursorRectNSView: NSView {
-    var cursor: NSCursor = .arrow {
-        didSet {
-            window?.invalidateCursorRects(for: self)
+    private func updateCursor(isHovering: Bool) {
+        guard isHovering != hasPushedCursor else { return }
+        hasPushedCursor = isHovering
+        if isHovering {
+            cursor.push()
+        } else {
+            NSCursor.pop()
         }
-    }
-
-    override func resetCursorRects() {
-        super.resetCursorRects()
-        addCursorRect(bounds, cursor: cursor)
-    }
-
-    override func viewDidMoveToWindow() {
-        super.viewDidMoveToWindow()
-        window?.invalidateCursorRects(for: self)
     }
 }
 

@@ -205,8 +205,11 @@ final class AISidebarSpeechController: ObservableObject {
     @Published private(set) var statusMessage: String?
     @Published private(set) var elapsedText = "00:00"
 
-    private let speechRecognizer = SFSpeechRecognizer(locale: Locale.current)
-    private let audioEngine = AVAudioEngine()
+    // Do not construct speech or audio capture objects when Ask appears. Creating
+    // an audio input graph can cross macOS's microphone privacy boundary, so these
+    // exist only for an explicit dictation request.
+    private var speechRecognizer: SFSpeechRecognizer?
+    private var audioEngine: AVAudioEngine?
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     private var recognitionTask: SFSpeechRecognitionTask?
     private var elapsedTask: Task<Void, Never>?
@@ -236,13 +239,13 @@ final class AISidebarSpeechController: ObservableObject {
             return
         }
 
-        guard speechRecognizer?.isAvailable == true else {
+        guard let recognizer = SFSpeechRecognizer(locale: Locale.current), recognizer.isAvailable else {
             statusMessage = "Speech recognition is unavailable."
             return
         }
 
         do {
-            try startAudioRecognition()
+            try startAudioRecognition(with: recognizer)
         } catch {
             stopAudioRecognition()
             statusMessage = "Could not start dictation."
@@ -263,14 +266,17 @@ final class AISidebarSpeechController: ObservableObject {
         statusMessage = nil
     }
 
-    private func startAudioRecognition() throws {
+    private func startAudioRecognition(with recognizer: SFSpeechRecognizer) throws {
         stopAudioRecognition()
+        speechRecognizer = recognizer
 
         let request = SFSpeechAudioBufferRecognitionRequest()
         request.shouldReportPartialResults = true
         request.taskHint = .dictation
         recognitionRequest = request
 
+        let audioEngine = AVAudioEngine()
+        self.audioEngine = audioEngine
         let inputNode = audioEngine.inputNode
         let recordingFormat = inputNode.outputFormat(forBus: 0)
         inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { buffer, _ in
@@ -284,7 +290,7 @@ final class AISidebarSpeechController: ObservableObject {
         startedAt = Date()
         startElapsedClock()
 
-        recognitionTask = speechRecognizer?.recognitionTask(with: request) { [weak self] result, error in
+        recognitionTask = recognizer.recognitionTask(with: request) { [weak self] result, error in
             Task { @MainActor in
                 guard let self else { return }
                 if let result {
@@ -298,10 +304,14 @@ final class AISidebarSpeechController: ObservableObject {
     }
 
     private func stopAudioRecognition() {
-        if audioEngine.isRunning {
-            audioEngine.stop()
+        if let audioEngine {
+            if audioEngine.isRunning {
+                audioEngine.stop()
+            }
+            audioEngine.inputNode.removeTap(onBus: 0)
         }
-        audioEngine.inputNode.removeTap(onBus: 0)
+        audioEngine = nil
+        speechRecognizer = nil
         recognitionRequest?.endAudio()
         recognitionTask?.cancel()
         recognitionTask = nil

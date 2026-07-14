@@ -73,6 +73,50 @@ final class CandoaUITests: XCTestCase {
         XCTAssertTrue(waitForState(in: app, containing: "find=true"), currentState(in: app))
     }
 
+    func testAddressEntryFromPinnedTabCreatesRegularTab() throws {
+        let app = launchApp()
+
+        let pinnedTab = element("tab-row-amazon-com", in: app)
+        XCTAssertTrue(pinnedTab.waitForExistence(timeout: 5), currentState(in: app))
+        pinnedTab.click()
+
+        let addressButton = element("sidebar-address-button", in: app)
+        XCTAssertTrue(addressButton.waitForExistence(timeout: 5), currentState(in: app))
+        addressButton.click()
+        submitCommandPaletteText("google.com", in: app)
+
+        XCTAssertTrue(
+            waitForState(in: app, containing: "url=https://www.google.com/?hl=en&gl=us", timeout: 10),
+            currentState(in: app)
+        )
+        XCTAssertTrue(
+            waitForState(
+                in: app,
+                containing: "tabs=amazon.com|Granola|WebKit Documentation|Home / X|Apple|google.com"
+            ),
+            currentState(in: app)
+        )
+    }
+
+    func testRepairsLegacyFavoriteNavigationIntoRegularTab() throws {
+        let app = launchApp(fixture: "legacy-saved-tab-navigation")
+
+        XCTAssertTrue(
+            waitForState(in: app, containing: "active=Google;url=https://www.google.com/?hl=en&gl=us"),
+            currentState(in: app)
+        )
+        XCTAssertTrue(waitForState(in: app, containing: "tabs=YouTube|Google"), currentState(in: app))
+    }
+
+    func testControlTabSkipsFavoritesThatHaveNotBeenActivated() throws {
+        let app = launchApp(fixture: "inactive-favorites")
+
+        XCTAssertTrue(waitForState(in: app, containing: "active=Current"), currentState(in: app))
+        app.typeKey(.tab, modifierFlags: .control)
+
+        XCTAssertTrue(waitForState(in: app, containing: "active=Current"), currentState(in: app))
+    }
+
     func testCommandPaletteDoesNotSwitchToMatchingTabInAnotherSpace() throws {
         let app = launchApp(fixture: "cross-space-duplicate-url")
 

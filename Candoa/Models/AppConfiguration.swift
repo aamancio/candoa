@@ -84,7 +84,7 @@ enum WebInspectorConfiguration {
 }
 
 enum TabSwitcherConfiguration {
-    static let previewLimit = 5
+    static let previewLimit = 10
 
     /// Arc-style hold-to-reveal: a quick Control-Tab switches silently; the
     /// preview overlay only appears if Control is still held after this delay.
