@@ -2,8 +2,14 @@ import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
 
+struct BrowserChromeInsets: Equatable {
+    var leading: CGFloat = 0
+    var trailing: CGFloat = 0
+}
+
 struct WebViewContainer: View {
     @ObservedObject var store: BrowserStore
+    let visibleChromeInsets: BrowserChromeInsets
     private let surfaceCornerRadius: CGFloat = 12
     private let surfacePadding: CGFloat = 8
 
@@ -66,7 +72,11 @@ struct WebViewContainer: View {
                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                                 .background(CandoaChromeStyle.surfaceFill.opacity(0.72))
                             } else {
-                                ActiveWebViewHost(tab: tab, store: store)
+                                ActiveWebViewHost(
+                                    tab: tab,
+                                    store: store,
+                                    obscuredContentInsets: webContentInsets
+                                )
                                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                                     .background(CandoaChromeStyle.surfaceFill.opacity(0.72))
                                     .overlay(alignment: .top) {
@@ -106,6 +116,16 @@ struct WebViewContainer: View {
             }
         }
         .animation(.easeOut(duration: 0.14), value: store.isFindBarPresented)
+        .mask {
+            if visibleChromeInsets.leading > 0 || visibleChromeInsets.trailing > 0 {
+                RoundedRectangle(cornerRadius: surfaceCornerRadius, style: .continuous)
+                    .padding(.vertical, surfacePadding)
+                    .padding(.leading, visibleChromeInsets.leading + surfacePadding)
+                    .padding(.trailing, visibleChromeInsets.trailing + surfacePadding)
+            } else {
+                Rectangle()
+            }
+        }
     }
 
     @ViewBuilder
@@ -152,6 +172,20 @@ struct WebViewContainer: View {
             .compositingGroup()
             .shadow(color: Color.black.opacity(0.10), radius: 16, x: -2, y: 2)
             .shadow(color: Color.black.opacity(0.06), radius: 8, x: 0, y: 3)
+    }
+
+    private var webContentInsets: BrowserChromeInsets {
+        BrowserChromeInsets(
+            leading: max(0, visibleChromeInsets.leading - surfacePadding),
+            trailing: max(0, visibleChromeInsets.trailing - surfacePadding)
+        )
+    }
+
+    private func splitPaneInsets(for tab: BrowserTab, in tabs: [BrowserTab]) -> BrowserChromeInsets {
+        BrowserChromeInsets(
+            leading: tab.id == tabs.first?.id ? webContentInsets.leading : 0,
+            trailing: tab.id == tabs.last?.id ? webContentInsets.trailing : 0
+        )
     }
 
     private struct FindBarView: View {
@@ -213,7 +247,11 @@ struct WebViewContainer: View {
     }
 
     private func webPane(for tab: BrowserTab) -> some View {
-        SplitWebViewHost(tab: tab, store: store)
+        SplitWebViewHost(
+            tab: tab,
+            store: store,
+            obscuredContentInsets: splitPaneInsets(for: tab, in: store.activeSplitGroupTabs)
+        )
             .id(tab.id)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(CandoaChromeStyle.surfaceFill.opacity(0.72))

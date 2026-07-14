@@ -353,8 +353,14 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
     /// keeping background tabs' web views parented (hidden) underneath it.
     /// Unparenting a web view tears down media presentation and throttles
     /// playback, so the floating mini player explicitly rehosts its tab.
-    func hostActiveWebView(for tabID: UUID, in container: NSView, excludingTabIDs: Set<UUID>) {
+    func hostActiveWebView(
+        for tabID: UUID,
+        in container: NSView,
+        excludingTabIDs: Set<UUID>,
+        obscuredContentInsets: BrowserChromeInsets
+    ) {
         guard let activeWebView = webViews[tabID] else { return }
+        applyObscuredContentInsets(obscuredContentInsets, to: activeWebView)
         if miniPlayerHostedTabID == tabID {
             restoreMiniPlayerPresentation(tabID: tabID)
             miniPlayerHostedTabID = nil
@@ -408,8 +414,13 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         }
     }
 
-    func hostSplitWebView(for tabID: UUID, in container: NSView) {
+    func hostSplitWebView(
+        for tabID: UUID,
+        in container: NSView,
+        obscuredContentInsets: BrowserChromeInsets
+    ) {
         guard let webView = webViews[tabID] else { return }
+        applyObscuredContentInsets(obscuredContentInsets, to: webView)
         if miniPlayerHostedTabID == tabID {
             restoreMiniPlayerPresentation(tabID: tabID)
             miniPlayerHostedTabID = nil
@@ -426,6 +437,14 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         if restoringTabIDs.contains(tabID), let snapshot = wakeSnapshots[tabID] {
             presentRestoreOverlay(snapshot, for: tabID, in: container)
         }
+    }
+
+    private func applyObscuredContentInsets(_ insets: BrowserChromeInsets, to webView: WKWebView) {
+        guard #available(macOS 26.0, *) else { return }
+        let edgeInsets = NSEdgeInsets(top: 0, left: insets.leading, bottom: 0, right: insets.trailing)
+        let currentInsets = webView.obscuredContentInsets
+        guard currentInsets.left != edgeInsets.left || currentInsets.right != edgeInsets.right else { return }
+        webView.obscuredContentInsets = edgeInsets
     }
 
     func hostMiniPlayerWebView(for tabID: UUID, in container: NSView) {

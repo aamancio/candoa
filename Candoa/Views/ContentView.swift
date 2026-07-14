@@ -60,7 +60,13 @@ struct ContentView: View {
         let currentAISidebarWidth = clampedAISidebarWidth(CGFloat(aiSidebarWidth))
 
         ZStack(alignment: .leading) {
-            WebViewContainer(store: store)
+            WebViewContainer(
+                store: store,
+                visibleChromeInsets: BrowserChromeInsets(
+                    leading: isSidebarVisible ? sidebarTotalWidth : 0,
+                    trailing: isAISidebarMounted ? currentAISidebarWidth : 0
+                )
+            )
                 .ignoresSafeArea(.container, edges: .top)
                 // A pinned sidebar (Cmd-S) pushes the content aside; the
                 // hover-reveal stays a pure overlay so a quick peek never
@@ -68,12 +74,10 @@ struct ContentView: View {
                 // animating it would resize the WKWebView frame every frame
                 // (battery cost), so the content reflows once while the
                 // sidebar slides into the reserved gap.
-                .padding(.leading, isSidebarVisible ? sidebarTotalWidth : 0)
-                // The Ask sidebar owns a right-side lane when mounted instead
-                // of covering the page. Use the mounted state, not the
-                // animated visible state, so the WKWebView resizes once on
-                // open/close rather than on every animation frame.
-                .padding(.trailing, isAISidebarMounted ? currentAISidebarWidth : 0)
+                // Sidebar chrome masks the covered portions of this stable
+                // full-window surface. Never resize the WKWebView here: its
+                // remote viewport repaints asynchronously and exposes the
+                // opposite edge for a frame when its width changes.
 
             sidebarLayout
                 .offset(x: isSidebarPresented ? 0 : -sidebarTotalWidth)
