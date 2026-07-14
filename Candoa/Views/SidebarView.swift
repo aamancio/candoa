@@ -3129,10 +3129,11 @@ private struct NativeWindowControlsView: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: NSView, context: Context) {
+        let animated = context.transaction.animation != nil
         (nsView as? NativeWindowControlsHost)?
-            .configure(isVisible: isVisible, hiddenOffset: hiddenOffset, animated: true)
+            .configure(isVisible: isVisible, hiddenOffset: hiddenOffset, animated: animated)
         DispatchQueue.main.async {
-            (nsView as? NativeWindowControlsHost)?.attachWindowControls(animated: true)
+            (nsView as? NativeWindowControlsHost)?.attachWindowControls(animated: animated)
         }
     }
 

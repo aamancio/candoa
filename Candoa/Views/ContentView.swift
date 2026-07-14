@@ -77,8 +77,10 @@ struct ContentView: View {
 
             sidebarLayout
                 .offset(x: isSidebarPresented ? 0 : -sidebarTotalWidth)
-                .animation(.easeOut(duration: 0.18), value: isSidebarPresented)
-                .animation(.easeOut(duration: 0.18), value: isSidebarVisible)
+                // A pinned show/hide must snap with the one-time WKWebView
+                // inset above. Only the overlay hover reveal may slide;
+                // otherwise the sidebar temporarily separates from content.
+                .animation(.easeOut(duration: 0.18), value: isSidebarHoverRevealed)
                 .zIndex(2)
 
             if isAISidebarMounted {
