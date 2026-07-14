@@ -162,6 +162,7 @@ struct SidebarView: View {
         }
         .buttonStyle(.plain)
         .foregroundStyle(sidebarIconColor)
+        .frame(maxWidth: .infinity)
         .frame(height: 34)
     }
 
