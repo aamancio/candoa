@@ -4,8 +4,7 @@ enum CandoaAskDrafts {
     static func response(
         for prompt: String,
         context: CandoaAIPageContext,
-        recentTurns: [CandoaAIConversationTurn] = [],
-        modelUnavailableReason: String? = nil
+        recentTurns: [CandoaAIConversationTurn] = []
     ) -> String {
         let normalizedPrompt = CandoaAskPromptPolicy.normalizedText(prompt)
         let visibleControlPrompt = visibleControlPrompt(
@@ -54,10 +53,6 @@ enum CandoaAskDrafts {
             - What should I do next?
             - What is missing or unclear?
             """
-        }
-
-        if let modelUnavailableReason {
-            return modelUnavailableReason
         }
 
         return "I can't answer that yet."

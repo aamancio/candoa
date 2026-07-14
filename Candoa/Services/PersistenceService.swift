@@ -2,15 +2,6 @@ import CoreData
 import Foundation
 import Security
 
-struct HistoryVisit: Identifiable, Hashable {
-    let id: UUID
-    let title: String
-    let url: URL
-    let tabID: UUID
-    let spaceID: UUID
-    let visitedAt: Date
-}
-
 struct PersistenceSyncConfiguration: Equatable {
     static let cloudKitContainerIdentifier = "iCloud.app.candoa.Candoa"
 

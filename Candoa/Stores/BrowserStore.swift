@@ -194,10 +194,10 @@ final class BrowserStore: ObservableObject {
     private var dropSourceClearTask: Task<Void, Never>?
     @Published var isFindBarPresented = false
     @Published var findQuery = ""
-    @Published private(set) var mediaStates: [UUID: TabMediaState] = [:]
-    @Published private(set) var mediaControllerTabID: UUID?
-    @Published private(set) var dismissedMiniPlayerTabID: UUID?
-    @Published private(set) var retainedPausedMiniPlayerTabID: UUID?
+    @Published var mediaStates: [UUID: TabMediaState] = [:]
+    @Published var mediaControllerTabID: UUID?
+    @Published var dismissedMiniPlayerTabID: UUID?
+    @Published var retainedPausedMiniPlayerTabID: UUID?
     @Published private(set) var iCloudWorkspaceSyncEnabled =
         CandoaCloudKitEntitlements.hasConfiguredContainer && CandoaSyncPreferences.syncsWorkspaceWithICloud
     @Published private(set) var iCloudHistorySyncEnabled =
@@ -211,9 +211,9 @@ final class BrowserStore: ObservableObject {
     /// Deliberately not @Published: it's consumed by the mini player's mount
     /// (which the activeTabID change already triggers), and publishing it
     /// would cause a redundant view update per tab switch.
-    private(set) var pendingMiniPlayerSummon: MiniPlayerSummonContext?
+    var pendingMiniPlayerSummon: MiniPlayerSummonContext?
 
-    @Published private(set) var miniPlayerReturn: MiniPlayerReturnContext?
+    @Published var miniPlayerReturn: MiniPlayerReturnContext?
 
     private var recentlyClosedTabs: [ClosedTabSnapshot] = []
     private static let recentlyClosedTabLimit = 50
@@ -222,6 +222,8 @@ final class BrowserStore: ObservableObject {
     let webCoordinator: WebViewCoordinator
 
     private let persistenceService: PersistenceService
+    private let workspaceRepository: any WorkspaceRepository
+    private let historyRepository: any HistoryRepository
     private let faviconService: FaviconService
     private var saveCancellable: AnyCancellable?
     private var remoteChangeCancellable: AnyCancellable?
@@ -237,7 +239,7 @@ final class BrowserStore: ObservableObject {
     /// The mini player's return morph defers the actual switch; until it
     /// lands, recency cycling must treat the destination as current or a
     /// rapid Ctrl-Tab walks past it into the wrong tab.
-    private var pendingMiniPlayerReturnTabID: UUID?
+    var pendingMiniPlayerReturnTabID: UUID?
     private var isApplyingRemoteState = false
     private let spaceSymbols = [
         "circle.grid.2x2",
@@ -366,55 +368,6 @@ final class BrowserStore: ObservableObject {
         return tabs.first { $0.id == activeTabID }
     }
 
-    func activeAIPageContext() async -> CandoaAIPageContext {
-        await aiPageContext(for: activeTabID)
-    }
-
-    func aiPageContext(for tabID: UUID?) async -> CandoaAIPageContext {
-        let tab = tabID.flatMap { id in tabs.first { $0.id == id } }
-        let pageText: String?
-        let controlsText: String?
-        let imageText: String?
-        if let tabID = tab?.id {
-            pageText = await webCoordinator.readablePageText(for: tabID)?
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-            controlsText = await webCoordinator.visiblePageControlsText(for: tabID)?
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-            imageText = await visiblePageOCRText(for: tabID)
-        } else {
-            pageText = nil
-            controlsText = nil
-            imageText = nil
-        }
-        let pageTextSection = pageText.map { "Full page semantic text:\n\($0)" }
-        let imageTextSection = imageText.map { "Visible page image text from OCR:\n\($0)" }
-        let combinedText = [pageTextSection, controlsText, imageTextSection]
-            .compactMap { value -> String? in
-                guard let value, !value.isEmpty else { return nil }
-                return value
-            }
-            .joined(separator: "\n\n")
-
-        return CandoaAIPageContext(
-            title: tab?.title.trimmingCharacters(in: .whitespacesAndNewlines),
-            url: tab?.url?.absoluteString,
-            text: combinedText.isEmpty ? nil : combinedText
-        )
-    }
-
-    private func visiblePageOCRText(for tabID: UUID) async -> String? {
-        await withCheckedContinuation { continuation in
-            webCoordinator.captureVisiblePage(for: tabID) { image in
-                guard let image else {
-                    continuation.resume(returning: nil)
-                    return
-                }
-
-                continuation.resume(returning: CandoaImageTextRecognizer.recognizedText(in: image))
-            }
-        }
-    }
-
     var activeSplitTab: BrowserTab? {
         activeSplitTabs.first
     }
@@ -520,17 +473,21 @@ final class BrowserStore: ObservableObject {
 
     init(
         persistenceService: PersistenceService = .shared,
+        workspaceRepository: (any WorkspaceRepository)? = nil,
+        historyRepository: (any HistoryRepository)? = nil,
         navigationService: NavigationService = .shared,
         faviconService: FaviconService = .shared,
         webCoordinator: WebViewCoordinator = WebViewCoordinator(),
         restoresWebViews: Bool = true
     ) {
         self.persistenceService = persistenceService
+        self.workspaceRepository = workspaceRepository ?? CoreDataWorkspaceRepository(persistence: persistenceService)
+        self.historyRepository = historyRepository ?? CoreDataHistoryRepository(persistence: persistenceService)
         self.navigationService = navigationService
         self.faviconService = faviconService
         self.webCoordinator = webCoordinator
 
-        let restoredState = Self.uiTestingFixtureState() ?? persistenceService.loadState()
+        let restoredState = Self.uiTestingFixtureState() ?? self.workspaceRepository.loadWorkspace()
         var shouldPresentInitialSpaceSetup = false
 
         if let restoredState, !restoredState.spaces.isEmpty {
@@ -1728,7 +1685,7 @@ final class BrowserStore: ObservableObject {
         performSwitchTab(to: id, updatesAccessTime: updatesAccessTime)
     }
 
-    private func performSwitchTab(to id: UUID, updatesAccessTime: Bool) {
+    func performSwitchTab(to id: UUID, updatesAccessTime: Bool) {
         guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
         // Any landed switch resolves the return morph's pending destination —
         // either the morph just finished or another switch interrupted it.
@@ -1745,233 +1702,6 @@ final class BrowserStore: ObservableObject {
             closeSplitView()
         }
         updateNavigationState()
-    }
-
-    // MARK: - Media Controller
-
-    var mediaControllerTab: BrowserTab? {
-        guard let mediaControllerTabID else { return nil }
-        return tabs.first { $0.id == mediaControllerTabID }
-    }
-
-    var mediaControllerState: TabMediaState? {
-        guard let mediaControllerTabID else { return nil }
-        return mediaStates[mediaControllerTabID]
-    }
-
-    var backgroundMediaControllerTab: BrowserTab? {
-        guard let tab = mediaControllerTab, tab.id != activeTabID else { return nil }
-        if activeSplitGroupTabIDs.contains(tab.id) { return nil }
-        return tab
-    }
-
-    var backgroundMediaControllerState: TabMediaState? {
-        guard let tabID = backgroundMediaControllerTab?.id else { return nil }
-        return mediaStates[tabID]
-    }
-
-    var floatingMiniPlayerTab: BrowserTab? {
-        guard let tab = backgroundMediaControllerTab, tab.id != dismissedMiniPlayerTabID else { return nil }
-        guard
-            mediaStates[tab.id]?.isMiniPlayerEligible == true,
-            mediaStates[tab.id]?.isPlaying == true || retainedPausedMiniPlayerTabID == tab.id
-        else {
-            return nil
-        }
-        return tab
-    }
-
-    var floatingMiniPlayerState: TabMediaState? {
-        guard let tabID = floatingMiniPlayerTab?.id else { return nil }
-        return mediaStates[tabID]
-    }
-
-    func updateMediaState(tabID: UUID, state: TabMediaState) {
-        guard tabs.contains(where: { $0.id == tabID }) else { return }
-        var state = state
-        // Reports sent while the page is stripped down (hosted by the
-        // floating player) carry no on-page rect; keep the last full-layout
-        // one so the summon and return morphs always have a target.
-        if state.hasMedia, state.pageVideoFrame == nil {
-            state.pageVideoFrame = mediaStates[tabID]?.pageVideoFrame
-        }
-        mediaStates[tabID] = state.hasMedia ? state : nil
-
-        if state.isPlaying, state.isMiniPlayerEligible {
-            // The most recently playing tab owns the floating mini player; it
-            // keeps it while paused so playback can be resumed from the card.
-            if mediaControllerTabID != tabID {
-                // Hand the previous owner its page back before transferring
-                // ownership: detaching restores the mini player presentation
-                // (the page strips itself down to just the video while
-                // hosted), so reopening that tab from the sidebar shows the
-                // actual page instead of a blacked-out video shell.
-                if let previousOwnerID = mediaControllerTabID {
-                    webCoordinator.detachMiniPlayerWebView(for: previousOwnerID)
-                }
-                dismissedMiniPlayerTabID = nil
-            }
-            retainedPausedMiniPlayerTabID = nil
-            mediaControllerTabID = tabID
-        } else if mediaControllerTabID == tabID {
-            if state.hasMedia, state.isMiniPlayerEligible, retainedPausedMiniPlayerTabID == tabID {
-                return
-            }
-
-            mediaControllerTabID = nil
-            dismissedMiniPlayerTabID = nil
-            retainedPausedMiniPlayerTabID = nil
-            webCoordinator.detachMiniPlayerWebView(for: tabID)
-        }
-    }
-
-    func toggleMediaPlayback() {
-        guard let mediaControllerTabID else { return }
-        webCoordinator.toggleMediaPlayback(tabID: mediaControllerTabID)
-    }
-
-    func toggleMiniPlayerPlayback() {
-        guard let mediaControllerTabID else { return }
-        // Keep the retained marker through the resume round-trip: isPlaying
-        // only flips once the page reports back, and clearing the marker
-        // before then unmounts the player for a frame (visible flash).
-        // updateMediaState clears it when playback actually starts.
-        retainedPausedMiniPlayerTabID = mediaControllerTabID
-        webCoordinator.toggleMediaPlayback(tabID: mediaControllerTabID)
-    }
-
-    func toggleMediaMute() {
-        guard let mediaControllerTabID else { return }
-        toggleMediaMute(tabID: mediaControllerTabID)
-    }
-
-    func toggleMediaMute(tabID: UUID) {
-        webCoordinator.toggleMediaMute(tabID: tabID)
-    }
-
-    func skipMediaTrack(forward: Bool) {
-        guard let mediaControllerTabID else { return }
-        webCoordinator.skipMediaTrack(tabID: mediaControllerTabID, forward: forward)
-    }
-
-    func seekMedia(by seconds: Double) {
-        guard let mediaControllerTabID else { return }
-        webCoordinator.seekMedia(tabID: mediaControllerTabID, by: seconds)
-    }
-
-    func seekMedia(to time: Double) {
-        guard let mediaControllerTabID, time.isFinite else { return }
-        webCoordinator.seekMedia(tabID: mediaControllerTabID, to: max(0, time))
-    }
-
-    func focusMediaTab() {
-        guard let mediaControllerTabID else { return }
-        dismissedMiniPlayerTabID = nil
-        retainedPausedMiniPlayerTabID = nil
-        switchTab(to: mediaControllerTabID)
-    }
-
-    /// Dismisses the floating player but leaves the page playing in the
-    /// background; Close (dismissMiniPlayer) pauses playback as well.
-    func minimizeMiniPlayer() {
-        hideMiniPlayer(pausesPlayback: false)
-    }
-
-    func dismissMiniPlayer() {
-        hideMiniPlayer(pausesPlayback: true)
-    }
-
-    func consumeMiniPlayerSummon() {
-        pendingMiniPlayerSummon = nil
-    }
-
-    private func beginMiniPlayerReturn(tabID: UUID, updatesAccessTime: Bool) {
-        pendingMiniPlayerReturnTabID = tabID
-        // Keep the player mounted through the restore round-trip: the page
-        // can transiently report not-playing while it relayouts.
-        retainedPausedMiniPlayerTabID = tabID
-        // Capture the rect before the page is handed back — the restore
-        // itself triggers a report whose mid-relayout rect is unusable.
-        let targetFrame = mediaStates[tabID]?.pageVideoFrame
-        let activeTabIDAtBegin = activeTabID
-
-        webCoordinator.prepareMiniPlayerReturn(for: tabID) { [weak self] snapshot in
-            guard let self else { return }
-            // The user switched somewhere else — or re-chose the current
-            // tab — while the freeze frame was captured; their newer intent
-            // wins. (The player re-adopts its web view and floats on.)
-            guard
-                self.activeTabID == activeTabIDAtBegin,
-                self.pendingMiniPlayerReturnTabID == tabID
-            else { return }
-            guard self.floatingMiniPlayerTab?.id == tabID, self.miniPlayerReturn == nil else {
-                // The player went away mid-capture (dismissed, playback
-                // ended); the tab switch is still what was asked for.
-                self.performSwitchTab(to: tabID, updatesAccessTime: updatesAccessTime)
-                return
-            }
-
-            self.miniPlayerReturn = MiniPlayerReturnContext(
-                tabID: tabID,
-                updatesAccessTime: updatesAccessTime,
-                snapshot: snapshot,
-                targetFrame: targetFrame
-            )
-        }
-    }
-
-    /// Called by the floating player once the return morph lands; performs
-    /// the actual tab switch onto the already-settled page.
-    func finishMiniPlayerReturn() {
-        guard let returning = miniPlayerReturn else { return }
-        dismissedMiniPlayerTabID = nil
-        retainedPausedMiniPlayerTabID = nil
-        performSwitchTab(to: returning.tabID, updatesAccessTime: returning.updatesAccessTime)
-        miniPlayerReturn = nil
-    }
-
-    private func hideMiniPlayer(pausesPlayback: Bool) {
-        guard let mediaControllerTabID else { return }
-        if pausesPlayback {
-            webCoordinator.pauseMediaPlayback(tabID: mediaControllerTabID)
-        }
-
-        dismissedMiniPlayerTabID = mediaControllerTabID
-        retainedPausedMiniPlayerTabID = nil
-        webCoordinator.detachMiniPlayerWebView(for: mediaControllerTabID)
-    }
-
-    /// Leaving a media tab refreshes playback state so the in-app mini player
-    /// can attach to the background web view immediately.
-    private func handleActiveTabChange(from previousID: UUID?) {
-        // Returning to a dismissed media tab re-arms the mini player so the
-        // next switch away can summon it again.
-        if activeTabID == dismissedMiniPlayerTabID {
-            dismissedMiniPlayerTabID = nil
-        }
-
-        // Leaving the playing tab is the moment the floating player mounts;
-        // remember where the video sat on the page so the player can morph
-        // out of it instead of popping in at the corner.
-        if let previousID, floatingMiniPlayerTab?.id == previousID {
-            pendingMiniPlayerSummon = MiniPlayerSummonContext(
-                pageVideoFrame: mediaStates[previousID]?.pageVideoFrame
-            )
-        } else {
-            pendingMiniPlayerSummon = nil
-        }
-
-        if
-            let previousID,
-            !activeSplitGroupTabIDs.contains(previousID),
-            tabs.contains(where: { $0.id == previousID })
-        {
-            webCoordinator.refreshMediaState(tabID: previousID)
-        }
-
-        if let activeTabID {
-            webCoordinator.refreshMediaState(tabID: activeTabID)
-        }
     }
 
     func switchSpace(to id: UUID) {
@@ -2513,16 +2243,20 @@ final class BrowserStore: ObservableObject {
             resolvedTitle = self.title(for: url)
         }
 
-        persistenceService.recordVisit(
-            title: resolvedTitle,
-            url: url,
-            tabID: tabID,
-            spaceID: tab.spaceID
+        historyRepository.record(
+            HistoryVisit(
+                id: UUID(),
+                title: resolvedTitle,
+                url: url,
+                tabID: tabID,
+                spaceID: tab.spaceID,
+                visitedAt: Date()
+            )
         )
     }
 
     func recentHistory(matching query: String = "", limit: Int = 8) -> [HistoryVisit] {
-        persistenceService.recentHistory(matching: query, in: activeSpaceID, limit: limit)
+        historyRepository.recentVisits(matching: query, in: activeSpaceID, limit: limit)
     }
 
     func flushSession() {
@@ -2676,7 +2410,7 @@ final class BrowserStore: ObservableObject {
     private func saveSnapshot() {
         guard !isInitialSpaceSetupPresented, !isApplyingRemoteState else { return }
 
-        persistenceService.saveState(currentSnapshot())
+        workspaceRepository.saveWorkspace(currentSnapshot())
     }
 
     private func currentSnapshot() -> BrowserWindowState {
@@ -2698,7 +2432,7 @@ final class BrowserStore: ObservableObject {
 
     private func applyRemoteStateIfNeeded() {
         guard
-            let remoteState = persistenceService.loadState(),
+            let remoteState = workspaceRepository.loadWorkspace(),
             !remoteState.spaces.isEmpty,
             remoteState != currentSnapshot()
         else {

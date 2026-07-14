@@ -23,6 +23,8 @@ struct AISidebarView: View {
     @State private var streamTask: Task<Void, Never>?
     @State private var includesCurrentPageContext = true
     @State private var lastSubmittedPageContext: CandoaAIPageContext?
+    @State private var pendingPageAction: CandoaPageActionProposal?
+    @State private var pendingActionTabID: UUID?
     @FocusState private var isPromptFocused: Bool
 
     private var activePageTitle: String {
@@ -141,25 +143,6 @@ struct AISidebarView: View {
         return currentChip + mentionedContext.map { chip(for: $0) }
     }
 
-    private var modelUnavailableReason: String? {
-        if BrowserStore.isUITesting {
-            return "Ask is using deterministic UI test responses."
-        }
-
-        #if canImport(FoundationModels)
-        if #available(macOS 26.0, *) {
-            switch CandoaFoundationModelsService.availability {
-            case .available:
-                return nil
-            case .unavailable(let reason):
-                return reason
-            }
-        }
-        #endif
-
-        return "Ask needs Apple Intelligence before it can answer open-ended questions."
-    }
-
     var body: some View {
         VStack(spacing: 0) {
             topBar
@@ -226,6 +209,19 @@ struct AISidebarView: View {
             allowsMultipleSelection: false
         ) { result in
             handleFileImport(result)
+        }
+        .confirmationDialog(
+            pendingPageAction?.confirmationTitle ?? "Allow Ask to act?",
+            isPresented: Binding(
+                get: { pendingPageAction != nil },
+                set: { if !$0 { pendingPageAction = nil; pendingActionTabID = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("Allow Once") { approvePendingPageAction() }
+            Button("Cancel", role: .cancel) { pendingPageAction = nil; pendingActionTabID = nil }
+        } message: {
+            Text(pendingPageAction?.confirmationDetail ?? "")
         }
         .accessibilityIdentifier("ask-sidebar")
     }
@@ -542,6 +538,15 @@ struct AISidebarView: View {
         let submittedPrompt = (promptOverride ?? prompt).trimmingCharacters(in: .whitespacesAndNewlines)
         guard CandoaAskPromptPolicy.canSubmit(submittedPrompt, hasConversation: !messages.isEmpty) else { return }
 
+        if let action = CandoaPageActionProposal.parse(submittedPrompt) {
+            prompt = ""
+            messages.append(AISidebarMessage(role: .user, text: submittedPrompt, isStreaming: false))
+            messages.append(AISidebarMessage(role: .assistant, text: "I can \(action.confirmationTitle.lowercased()). Please confirm first.", isStreaming: false))
+            pendingActionTabID = store.activeTabID
+            pendingPageAction = action
+            return
+        }
+
         prompt = ""
         cancelStream()
 
@@ -579,7 +584,6 @@ struct AISidebarView: View {
         let responseID = UUID()
         messages.append(AISidebarMessage(id: responseID, role: .assistant, text: "", isStreaming: true))
 
-        let unavailableReason = modelUnavailableReason
         mentionedContext = []
         includesCurrentPageContext = false
         isMentionMenuPresented = false
@@ -599,117 +603,88 @@ struct AISidebarView: View {
                 }
             }
 
-            #if canImport(FoundationModels)
-            if #available(macOS 26.0, *), unavailableReason == nil {
-                let fullContextLength = pageContext.text?.count ?? 0
-                if let compactContext = CandoaAskContextCompactor.compactedContextIfNeeded(from: pageContext, prompt: submittedPrompt) {
-                    Self.askLogger.info(
-                        "Ask model compact-context attempt promptChars=\(submittedPrompt.count, privacy: .public) fullContextChars=\(fullContextLength, privacy: .public) compactContextChars=\(compactContext.text?.count ?? 0, privacy: .public)"
-                    )
-
-                    if await streamFoundationModelAttempt(
-                        prompt: submittedPrompt,
-                        context: compactContext,
-                        recentTurns: recentTurns,
-                        responseID: responseID,
-                        label: "compact"
-                    ) {
-                        Self.askLogger.info("Ask model compact-context attempt succeeded")
-                        return
-                    }
-                }
-
-                Self.askLogger.info(
-                    "Ask model full-context attempt promptChars=\(submittedPrompt.count, privacy: .public) contextChars=\(fullContextLength, privacy: .public)"
-                )
-
-                if await streamFoundationModelAttempt(
+            if !BrowserStore.isUITesting {
+                let remoteContext = CandoaAskContextCompactor.compactedContextIfNeeded(
+                    from: pageContext,
+                    prompt: submittedPrompt
+                ) ?? pageContext
+                if await streamRemoteAIResponse(
                     prompt: submittedPrompt,
-                    context: pageContext,
+                    context: remoteContext,
                     recentTurns: recentTurns,
-                    responseID: responseID,
-                    label: "full"
+                    responseID: responseID
                 ) {
-                    Self.askLogger.info("Ask model full-context attempt succeeded")
                     return
                 }
-
-                Self.askLogger.warning("Ask model attempts failed; using deterministic fallback")
-                await streamLocalResponse(
-                    CandoaAskDrafts.response(
-                        for: submittedPrompt,
-                        context: pageContext,
-                        recentTurns: recentTurns
-                    ),
-                    into: responseID
-                )
-                return
-            }
-            #endif
-
-            if let unavailableReason {
-                Self.askLogger.warning("Ask model unavailable: \(unavailableReason, privacy: .public)")
             }
 
             await streamLocalResponse(
                 CandoaAskDrafts.response(
                     for: submittedPrompt,
                     context: pageContext,
-                    recentTurns: recentTurns,
-                    modelUnavailableReason: unavailableReason
+                    recentTurns: recentTurns
                 ),
                 into: responseID
             )
         }
     }
 
-    #if canImport(FoundationModels)
-    @available(macOS 26.0, *)
-    private func streamFoundationModelAttempt(
+    private func approvePendingPageAction() {
+        guard let action = pendingPageAction else { return }
+        let tabID = pendingActionTabID
+        pendingPageAction = nil
+        pendingActionTabID = nil
+        Task {
+            let result = await store.performAIPageAction(action, in: tabID)
+            await MainActor.run {
+                messages.append(AISidebarMessage(role: .assistant, text: result, isStreaming: false))
+            }
+        }
+    }
+
+    private func streamRemoteAIResponse(
         prompt: String,
         context: CandoaAIPageContext,
         recentTurns: [CandoaAIConversationTurn],
-        responseID: UUID,
-        label: String
+        responseID: UUID
     ) async -> Bool {
         do {
-            var receivedText = false
-            for try await partialText in CandoaFoundationModelsService.streamResponse(
+            var response = ""
+            var displayedCharacterCount = 0
+            for try await fragment in CandoaRemoteAIService.streamResponse(
                 to: prompt,
                 context: context,
                 recentTurns: recentTurns
             ) {
-                if Task.isCancelled { return false }
+                guard !Task.isCancelled else { return false }
+                response += fragment
+                guard response.count - displayedCharacterCount >= 24 else { continue }
 
                 await MainActor.run {
                     guard let index = messages.firstIndex(where: { $0.id == responseID }) else { return }
-                    messages[index].text = partialText
-                    receivedText = receivedText || !partialText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    messages[index].text = response
                 }
+                displayedCharacterCount = response.count
             }
 
-            guard receivedText else {
-                Self.askLogger.warning("Ask model \(label, privacy: .public) attempt returned no text")
+            guard !response.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
                 return false
             }
 
             await MainActor.run {
                 guard let index = messages.firstIndex(where: { $0.id == responseID }) else { return }
+                messages[index].text = response
                 messages[index].isStreaming = false
                 streamTask = nil
             }
             return true
+        } catch is CancellationError {
+            return false
         } catch {
-            Self.askLogger.error("Ask model \(label, privacy: .public) attempt failed: \(String(describing: error), privacy: .public)")
-            await MainActor.run {
-                guard let index = messages.firstIndex(where: { $0.id == responseID }) else { return }
-                messages[index].text = ""
-                messages[index].isStreaming = true
-            }
+            Self.askLogger.info("Ask remote service is unavailable; trying the local assistant")
             return false
         }
     }
-    #endif
 
     private func combinedContext(
         for mentions: [AISidebarContextMention],

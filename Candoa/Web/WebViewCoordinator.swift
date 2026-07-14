@@ -275,6 +275,41 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         }
     }
 
+    func performAIPageAction(_ action: CandoaPageActionProposal, for tabID: UUID) async -> String {
+        guard let webView = webViews[tabID] else { return "That page is not ready for an action." }
+        let payload = ["kind": action.kind.rawValue, "target": action.target, "value": action.value ?? ""]
+        guard let data = try? JSONSerialization.data(withJSONObject: payload),
+              let payloadJSON = String(data: data, encoding: .utf8) else {
+            return "Candoa could not prepare that action."
+        }
+
+        let script = """
+        (() => {
+          const action = \(payloadJSON);
+          const visible = (element) => {
+            if (!(element instanceof HTMLElement) || element.closest('[aria-hidden=true],[hidden]')) return false;
+            const rect = element.getBoundingClientRect();
+            const style = getComputedStyle(element);
+            return rect.width > 2 && rect.height > 2 && rect.bottom >= 0 && rect.right >= 0 && rect.top <= innerHeight && rect.left <= innerWidth && style.display !== 'none' && style.visibility !== 'hidden';
+          };
+          const label = (element) => [element.getAttribute('aria-label'), element.placeholder, element.title, element.value, element.innerText, element.textContent].map(value => String(value || '').trim()).find(Boolean) || '';
+          if (action.kind === 'scroll') { window.scrollBy({ top: action.target === 'up' ? -Math.max(300, innerHeight * 0.8) : Math.max(300, innerHeight * 0.8), behavior: 'smooth' }); return 'Scrolled ' + action.target + '.'; }
+          const selectors = action.kind === 'fill' ? 'input,textarea,[contenteditable=true]' : 'a[href],button,[role=button],[role=link],input[type=submit],input[type=button]';
+          const target = action.target.toLocaleLowerCase();
+          const element = Array.from(document.querySelectorAll(selectors)).find(candidate => visible(candidate) && label(candidate).toLocaleLowerCase().includes(target));
+          if (!element) return 'I could not find a visible control matching "' + action.target + '".';
+          if (action.kind === 'click') { element.click(); return 'Clicked "' + label(element) + '".'; }
+          if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) { element.focus(); element.value = action.value; element.dispatchEvent(new Event('input', { bubbles: true })); element.dispatchEvent(new Event('change', { bubbles: true })); return 'Filled "' + label(element) + '".'; }
+          element.focus(); element.textContent = action.value; element.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: action.value })); return 'Filled "' + label(element) + '".';
+        })();
+        """
+        return await withCheckedContinuation { continuation in
+            webView.evaluateJavaScript(script) { value, error in
+                continuation.resume(returning: error == nil ? (value as? String ?? "Action completed.") : "Candoa could not complete that action.")
+            }
+        }
+    }
+
     func captureVisiblePage(for tabID: UUID, completion: @escaping (NSImage?) -> Void) {
         guard let webView = webViews[tabID], !webView.bounds.isEmpty else {
             completion(nil)

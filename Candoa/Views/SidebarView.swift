@@ -145,6 +145,12 @@ struct SidebarView: View {
             )
                 .frame(width: windowControlsWidth, height: 24)
 
+            Spacer(minLength: 8)
+
+            navigationControls
+                .opacity(hidesNavigationChromeForAddressPalette ? 0 : 1)
+                .allowsHitTesting(!hidesNavigationChromeForAddressPalette)
+
             Button {
                 onToggleSidebar()
             } label: {
@@ -152,12 +158,7 @@ struct SidebarView: View {
             }
             .toolbarIconButton()
             .help("Hide Sidebar")
-
-            Spacer(minLength: 8)
-
-            navigationControls
-                .opacity(hidesNavigationChromeForAddressPalette ? 0 : 1)
-                .allowsHitTesting(!hidesNavigationChromeForAddressPalette)
+            .accessibilityIdentifier("sidebar-toggle-button")
         }
         .buttonStyle(.plain)
         .foregroundStyle(sidebarIconColor)
