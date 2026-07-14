@@ -41,7 +41,6 @@ internal struct SidebarFolderIcon: View {
 struct SidebarView: View {
     @ObservedObject var store: BrowserStore
     let availableUpdate: AppUpdate?
-    let showsWindowControls: Bool
     let windowControlsHiddenOffset: CGFloat
     let onUpdateBannerTapped: () -> Void
     let onToggleSidebar: () -> Void
@@ -140,7 +139,6 @@ struct SidebarView: View {
     private var sidebarHeader: some View {
         HStack(spacing: 6) {
             WindowControlsView(
-                isVisible: showsWindowControls,
                 hiddenOffset: windowControlsHiddenOffset
             )
                 .frame(width: windowControlsWidth, height: 24)

@@ -4,37 +4,63 @@ import UniformTypeIdentifiers
 
 // MARK: - Window controls
 
+@MainActor
+internal struct SidebarRevealEffect: @MainActor AnimatableModifier {
+    var progress: CGFloat
+    let hiddenOffset: CGFloat
+
+    var animatableData: CGFloat {
+        get { progress }
+        set { progress = newValue }
+    }
+
+    func body(content: Content) -> some View {
+        content
+            .transformEffect(CGAffineTransform(
+                translationX: hiddenOffset * (1 - progress),
+                y: 0
+            ))
+            .environment(\.sidebarRevealProgress, progress)
+    }
+}
+
+private struct SidebarRevealProgressKey: EnvironmentKey {
+    static let defaultValue: CGFloat = 1
+}
+
+private extension EnvironmentValues {
+    var sidebarRevealProgress: CGFloat {
+        get { self[SidebarRevealProgressKey.self] }
+        set { self[SidebarRevealProgressKey.self] = newValue }
+    }
+}
+
 internal struct WindowControlsView: View {
-    let isVisible: Bool
+    @Environment(\.sidebarRevealProgress) private var revealProgress
     let hiddenOffset: CGFloat
 
     var body: some View {
         NativeWindowControlsView(
-            isVisible: isVisible,
+            revealProgress: revealProgress,
             hiddenOffset: hiddenOffset
         )
     }
 }
 internal struct NativeWindowControlsView: NSViewRepresentable {
-    let isVisible: Bool
+    let revealProgress: CGFloat
     let hiddenOffset: CGFloat
 
     func makeNSView(context: Context) -> NSView {
         let view = NativeWindowControlsHost()
-        view.configure(isVisible: isVisible, hiddenOffset: hiddenOffset, animated: false)
-        DispatchQueue.main.async {
-            view.attachWindowControls(animated: false)
-        }
+        view.configure(revealProgress: revealProgress, hiddenOffset: hiddenOffset)
         return view
     }
 
     func updateNSView(_ nsView: NSView, context: Context) {
-        let animated = context.transaction.animation != nil
-        (nsView as? NativeWindowControlsHost)?
-            .configure(isVisible: isVisible, hiddenOffset: hiddenOffset, animated: animated)
-        DispatchQueue.main.async {
-            (nsView as? NativeWindowControlsHost)?.attachWindowControls(animated: animated)
-        }
+        (nsView as? NativeWindowControlsHost)?.configure(
+            revealProgress: revealProgress,
+            hiddenOffset: hiddenOffset
+        )
     }
 
     static func dismantleNSView(_ nsView: NSView, coordinator: ()) {
@@ -50,15 +76,26 @@ private final class NativeWindowControlsHost: NSView {
     ]
     private static let centerSpacing: CGFloat = 20
     private static let fallbackButtonSize = NSSize(width: 14, height: 14)
-    private static let transitionDuration: TimeInterval = 0.18
-
+    private let controlsContainer = WindowControlsContainer()
     private weak var attachedWindow: NSWindow?
     private var originalFrames: [Int: NSRect] = [:]
     private var originalHiddenStates: [Int: Bool] = [:]
-    private var lastVisibleHostFrameBySuperview: [ObjectIdentifier: NSRect] = [:]
-    private var isControlsVisible = true
+    private var originalSuperviews: [Int: WeakViewReference] = [:]
+    private var revealProgress: CGFloat = 1
     private var hiddenOffset: CGFloat = 0
-    private var shouldAnimateNextLayout = false
+    private var attachmentGeneration = 0
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        controlsContainer.frame = bounds
+        controlsContainer.autoresizingMask = [.width, .height]
+        controlsContainer.wantsLayer = true
+        addSubview(controlsContainer)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
 
     override var intrinsicContentSize: NSSize {
         NSSize(width: 60, height: 24)
@@ -66,18 +103,32 @@ private final class NativeWindowControlsHost: NSView {
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
-        attachWindowControls(animated: false)
+        attachWindowControls()
+
+        guard let window else { return }
+        attachmentGeneration += 1
+        let generation = attachmentGeneration
+
+        // SwiftUI applies the hidden-title-bar style after representable views
+        // attach. AppKit may rebuild the title-bar container in that pass, so
+        // reclaim and position the same native buttons once the window chrome
+        // has settled. This is a one-shot setup correction, not a timer.
+        DispatchQueue.main.async { [weak self, weak window] in
+            guard let self,
+                  let window,
+                  self.window === window,
+                  self.attachmentGeneration == generation else { return }
+            self.attachWindowControls()
+        }
     }
 
-    func configure(isVisible: Bool, hiddenOffset: CGFloat, animated: Bool) {
-        let visibilityChanged = isControlsVisible != isVisible
-        let offsetChanged = self.hiddenOffset != hiddenOffset
-        isControlsVisible = isVisible
+    func configure(revealProgress: CGFloat, hiddenOffset: CGFloat) {
+        self.revealProgress = min(max(revealProgress, 0), 1)
         self.hiddenOffset = hiddenOffset
-        shouldAnimateNextLayout = animated && (visibilityChanged || offsetChanged)
+        attachWindowControls()
     }
 
-    func attachWindowControls(animated: Bool) {
+    func attachWindowControls() {
         guard let window else { return }
 
         if let attachedWindow, attachedWindow !== window {
@@ -93,21 +144,35 @@ private final class NativeWindowControlsHost: NSView {
             if originalFrames[key] == nil {
                 originalFrames[key] = button.frame
                 originalHiddenStates[key] = button.isHidden
+                originalSuperviews[key] = WeakViewReference(button.superview)
             }
 
             button.isHidden = false
+            if button.superview !== controlsContainer {
+                button.removeFromSuperview()
+                controlsContainer.addSubview(button)
+            }
         }
 
-        layoutWindowControls(animated: animated || shouldAnimateNextLayout)
-        shouldAnimateNextLayout = false
+        layoutWindowControls()
     }
 
     func restoreWindowControls() {
         guard let attachedWindow else { return }
 
+        attachmentGeneration += 1
+
+        controlsContainer.setRevealTranslation(0)
+
         for buttonType in Self.buttonTypes {
             guard let button = attachedWindow.standardWindowButton(buttonType) else { continue }
             let key = Int(buttonType.rawValue)
+
+            if let originalSuperview = originalSuperviews[key]?.view,
+               button.superview !== originalSuperview {
+                button.removeFromSuperview()
+                originalSuperview.addSubview(button)
+            }
 
             if let originalFrame = originalFrames[key] {
                 button.frame = originalFrame
@@ -120,23 +185,21 @@ private final class NativeWindowControlsHost: NSView {
 
         originalFrames.removeAll()
         originalHiddenStates.removeAll()
-        lastVisibleHostFrameBySuperview.removeAll()
+        originalSuperviews.removeAll()
         self.attachedWindow = nil
     }
 
     override func layout() {
         super.layout()
-        layoutWindowControls(animated: false)
+        layoutWindowControls()
     }
 
-    private func layoutWindowControls(animated: Bool) {
+    private func layoutWindowControls() {
         guard let attachedWindow else { return }
 
         for (index, buttonType) in Self.buttonTypes.enumerated() {
-            guard
-                let button = attachedWindow.standardWindowButton(buttonType),
-                let buttonSuperview = button.superview
-            else { continue }
+            guard let button = attachedWindow.standardWindowButton(buttonType),
+                  button.superview === controlsContainer else { continue }
 
             let currentSize = button.frame.size
             let buttonSize = currentSize.width > 0 && currentSize.height > 0
@@ -144,37 +207,37 @@ private final class NativeWindowControlsHost: NSView {
                 : Self.fallbackButtonSize
             button.isHidden = false
 
-            let hostFrameInWindow = convert(bounds, to: nil)
-            let superviewID = ObjectIdentifier(buttonSuperview)
-            let hostFrameInButtonSuperview = buttonSuperview.convert(hostFrameInWindow, from: nil)
-            let isHostOnscreen = hostFrameInWindow.maxX > 0
-                && hostFrameInWindow.minX < attachedWindow.frame.width
+            let x = CGFloat(index) * Self.centerSpacing
+            let y = floor(controlsContainer.bounds.midY - buttonSize.height / 2)
+            button.frame = NSRect(origin: CGPoint(x: x, y: y), size: buttonSize)
+        }
 
-            let resolvedHostFrame: NSRect
-            if isHostOnscreen {
-                lastVisibleHostFrameBySuperview[superviewID] = hostFrameInButtonSuperview
-                resolvedHostFrame = hostFrameInButtonSuperview
-            } else if let lastVisibleHostFrame = lastVisibleHostFrameBySuperview[superviewID] {
-                resolvedHostFrame = lastVisibleHostFrame
-            } else {
-                resolvedHostFrame = hostFrameInButtonSuperview
-            }
+        controlsContainer.isInteractive = revealProgress >= 1
+        controlsContainer.setRevealTranslation(hiddenOffset * (1 - revealProgress))
+    }
 
-            let x = resolvedHostFrame.minX
-                + (isControlsVisible ? 0 : hiddenOffset)
-                + CGFloat(index) * Self.centerSpacing
-            let y = floor(resolvedHostFrame.midY - buttonSize.height / 2)
-            let nextFrame = NSRect(origin: CGPoint(x: x, y: y), size: buttonSize)
+    private final class WindowControlsContainer: NSView {
+        var isInteractive = true
 
-            if animated {
-                NSAnimationContext.runAnimationGroup { context in
-                    context.duration = Self.transitionDuration
-                    context.timingFunction = CAMediaTimingFunction(name: .easeOut)
-                    button.animator().frame = nextFrame
-                }
-            } else {
-                button.frame = nextFrame
-            }
+        override func hitTest(_ point: NSPoint) -> NSView? {
+            guard isInteractive else { return nil }
+            return super.hitTest(point)
+        }
+
+        func setRevealTranslation(_ x: CGFloat) {
+            guard let layer else { return }
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            layer.setAffineTransform(CGAffineTransform(translationX: x, y: 0))
+            CATransaction.commit()
+        }
+    }
+
+    private final class WeakViewReference {
+        weak var view: NSView?
+
+        init(_ view: NSView?) {
+            self.view = view
         }
     }
 }

@@ -81,7 +81,14 @@ struct ContentView: View {
                 // the opposite edge for a frame while WebKit repaints.
 
             sidebarLayout
-                .offset(x: isSidebarPresented ? 0 : -sidebarTotalWidth)
+                // This subtree also coordinates AppKit's native window controls.
+                // One animatable progress value drives both the compositor
+                // translation and the embedded native traffic-light container.
+                // Separate SwiftUI/AppKit animations visibly drift apart.
+                .modifier(SidebarRevealEffect(
+                    progress: isSidebarPresented ? 1 : 0,
+                    hiddenOffset: -sidebarTotalWidth
+                ))
                 // A pinned show/hide must snap with the one-time WKWebView
                 // inset above. Only the overlay hover reveal may slide;
                 // otherwise the sidebar temporarily separates from content.
@@ -345,7 +352,6 @@ struct ContentView: View {
             SidebarView(
                 store: store,
                 availableUpdate: updateService.availableUpdate,
-                showsWindowControls: isSidebarPresented,
                 windowControlsHiddenOffset: -sidebarTotalWidth,
                 onUpdateBannerTapped: {
                     updateService.openAvailableUpdate()
