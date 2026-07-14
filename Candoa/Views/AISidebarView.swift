@@ -13,6 +13,7 @@ struct AISidebarView: View {
     @Binding var uiTestingState: String
     let onClose: () -> Void
 
+    @Environment(\.colorScheme) private var colorScheme
     @StateObject private var speechController = AISidebarSpeechController()
     @State private var prompt = ""
     @State private var messages: [AISidebarMessage] = []
@@ -143,6 +144,21 @@ struct AISidebarView: View {
         return currentChip + mentionedContext.map { chip(for: $0) }
     }
 
+    private var panelBackgroundColor: Color {
+        guard let appearance = NSAppearance(
+            named: colorScheme == .dark ? .darkAqua : .aqua
+        ) else {
+            return CandoaChromeStyle.windowBackground
+        }
+
+        var resolvedColor = NSColor.windowBackgroundColor
+        appearance.performAsCurrentDrawingAppearance {
+            resolvedColor = NSColor.windowBackgroundColor.usingColorSpace(.deviceRGB)
+                ?? NSColor.windowBackgroundColor
+        }
+        return Color(nsColor: resolvedColor)
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             topBar
@@ -176,7 +192,7 @@ struct AISidebarView: View {
 
             composer
         }
-        .background(.regularMaterial)
+        .background(panelBackgroundColor)
         .overlay(alignment: .leading) {
             Rectangle()
                 .fill(CandoaChromeStyle.sidebarBorder)
