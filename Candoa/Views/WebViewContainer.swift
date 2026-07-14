@@ -116,16 +116,13 @@ struct WebViewContainer: View {
             }
         }
         .animation(.easeOut(duration: 0.14), value: store.isFindBarPresented)
-        .mask {
-            if visibleChromeInsets.leading > 0 || visibleChromeInsets.trailing > 0 {
-                RoundedRectangle(cornerRadius: surfaceCornerRadius, style: .continuous)
-                    .padding(.vertical, surfacePadding)
-                    .padding(.leading, visibleChromeInsets.leading + surfacePadding)
-                    .padding(.trailing, visibleChromeInsets.trailing + surfacePadding)
-            } else {
-                Rectangle()
-            }
-        }
+        .modifier(
+            LegacyBrowserChromeMaskModifier(
+                insets: visibleChromeInsets,
+                surfaceCornerRadius: surfaceCornerRadius,
+                surfacePadding: surfacePadding
+            )
+        )
     }
 
     @ViewBuilder
@@ -264,6 +261,30 @@ struct WebViewContainer: View {
                 .padding(.top, 2)
                 .id(tab.id)
             }
+    }
+}
+
+private struct LegacyBrowserChromeMaskModifier: ViewModifier {
+    let insets: BrowserChromeInsets
+    let surfaceCornerRadius: CGFloat
+    let surfacePadding: CGFloat
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if #available(macOS 26.0, *) {
+            content
+        } else {
+            content.mask {
+                if insets.leading > 0 || insets.trailing > 0 {
+                    RoundedRectangle(cornerRadius: surfaceCornerRadius, style: .continuous)
+                        .padding(.vertical, surfacePadding)
+                        .padding(.leading, insets.leading + surfacePadding)
+                        .padding(.trailing, insets.trailing + surfacePadding)
+                } else {
+                    Rectangle()
+                }
+            }
+        }
     }
 }
 

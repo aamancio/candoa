@@ -16,6 +16,7 @@ struct ContentView: View {
     @State private var isSidebarRevealSuppressed = false
     @State private var isAISidebarVisible = false
     @State private var isAISidebarMounted = false
+    @State private var isAISidebarInsetApplied = false
     @State private var aiSidebarTransitionGeneration = 0
     @State private var aiSidebarUITestingState = ""
     @State private var aiSidebarResizeStartWidth: CGFloat?
@@ -64,7 +65,7 @@ struct ContentView: View {
                 store: store,
                 visibleChromeInsets: BrowserChromeInsets(
                     leading: isSidebarVisible ? sidebarTotalWidth : 0,
-                    trailing: isAISidebarMounted ? currentAISidebarWidth : 0
+                    trailing: isAISidebarInsetApplied ? currentAISidebarWidth : 0
                 )
             )
                 .ignoresSafeArea(.container, edges: .top)
@@ -74,10 +75,10 @@ struct ContentView: View {
                 // animating it would resize the WKWebView frame every frame
                 // (battery cost), so the content reflows once while the
                 // sidebar slides into the reserved gap.
-                // Sidebar chrome masks the covered portions of this stable
-                // full-window surface. Never resize the WKWebView here: its
-                // remote viewport repaints asynchronously and exposes the
-                // opposite edge for a frame when its width changes.
+                // WebKit reserves each chrome lane once through native
+                // obscured-content insets while the WKWebView itself remains
+                // full-window. Resizing its remote viewport here would expose
+                // the opposite edge for a frame while WebKit repaints.
 
             sidebarLayout
                 .offset(x: isSidebarPresented ? 0 : -sidebarTotalWidth)
@@ -89,6 +90,7 @@ struct ContentView: View {
 
             if isAISidebarMounted {
                 aiSidebarLayout(width: currentAISidebarWidth)
+                    .transition(.identity)
                     .zIndex(3)
             }
 
@@ -112,7 +114,7 @@ struct ContentView: View {
                let mediaState = store.floatingMiniPlayerState {
                 GeometryReader { proxy in
                     let leadingInset = isSidebarVisible ? sidebarTotalWidth : 0
-                    let trailingInset = isAISidebarMounted ? currentAISidebarWidth : 0
+                    let trailingInset = isAISidebarInsetApplied ? currentAISidebarWidth : 0
                     let availableSize = CGSize(
                         width: max(1, proxy.size.width - leadingInset - trailingInset),
                         height: proxy.size.height
@@ -400,10 +402,9 @@ struct ContentView: View {
         aiSidebarPanel(width: width)
             .frame(width: width)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
-            .offset(x: isAISidebarVisible ? 0 : width)
-        .ignoresSafeArea(.container, edges: .top)
-        .allowsHitTesting(isAISidebarVisible)
-        .accessibilityHidden(!isAISidebarVisible)
+            .ignoresSafeArea(.container, edges: .top)
+            .allowsHitTesting(isAISidebarVisible)
+            .accessibilityHidden(!isAISidebarVisible)
     }
 
     private func toggleSidebar() {
@@ -431,28 +432,38 @@ struct ContentView: View {
         aiSidebarTransitionGeneration += 1
         let generation = aiSidebarTransitionGeneration
 
+        isAISidebarVisible = true
         isAISidebarMounted = true
+
+        // Let the native panel commit before WebKit reserves its lane. The
+        // panel briefly overlays the page, so an empty strip can never appear.
         DispatchQueue.main.async {
-            guard aiSidebarTransitionGeneration == generation else { return }
-            withAnimation(.easeOut(duration: AISidebarLayout.slideAnimationDuration)) {
-                isAISidebarVisible = true
+            DispatchQueue.main.async {
+                guard aiSidebarTransitionGeneration == generation,
+                      isAISidebarVisible,
+                      isAISidebarMounted else { return }
+                isAISidebarInsetApplied = true
             }
         }
     }
 
     private func closeAISidebar() {
-        guard isAISidebarVisible || isAISidebarMounted else { return }
+        guard isAISidebarVisible else { return }
         aiSidebarTransitionGeneration += 1
         let generation = aiSidebarTransitionGeneration
 
         aiSidebarResizeStartWidth = nil
-        withAnimation(.easeOut(duration: AISidebarLayout.slideAnimationDuration)) {
-            isAISidebarVisible = false
-        }
+        isAISidebarVisible = false
+        isAISidebarInsetApplied = false
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + AISidebarLayout.slideAnimationDuration) {
-            guard aiSidebarTransitionGeneration == generation, !isAISidebarVisible else { return }
-            isAISidebarMounted = false
+        // Expand the page behind the panel first, then release the panel after
+        // SwiftUI has committed the unobscured WebKit layout.
+        DispatchQueue.main.async {
+            DispatchQueue.main.async {
+                guard aiSidebarTransitionGeneration == generation,
+                      !isAISidebarVisible else { return }
+                isAISidebarMounted = false
+            }
         }
     }
 
