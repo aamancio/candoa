@@ -232,14 +232,14 @@ final class CandoaUITests: XCTestCase {
 }
 
 @MainActor
-final class CandoaAgentLiveUITests: XCTestCase {
+final class CandoaEliLiveUITests: XCTestCase {
     private let liveE2EMarkerPath = "/tmp/candoa-live-e2e-enabled"
 
     override func setUpWithError() throws {
         continueAfterFailure = false
 
         guard FileManager.default.fileExists(atPath: liveE2EMarkerPath) else {
-            throw XCTSkip("Run Scripts/e2e-ask-test.sh to enable live Agent website smoke tests.")
+            throw XCTSkip("Run Scripts/e2e-ask-test.sh to enable live Eli website smoke tests.")
         }
     }
 

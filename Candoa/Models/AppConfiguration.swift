@@ -12,7 +12,7 @@ enum BrowserCommandTitles {
     static let focusAddressBar = String(localized: "Focus Address Bar")
     static let commandBar = String(localized: "Command Bar")
     static let toggleSidebar = String(localized: "Toggle Sidebar")
-    static let toggleAISidebar = String(localized: "Toggle Agent Sidebar")
+    static let toggleAISidebar = String(localized: "Toggle Eli Sidebar")
     static let reloadTab = String(localized: "Reload Tab")
     static let back = String(localized: "Back")
     static let forward = String(localized: "Forward")

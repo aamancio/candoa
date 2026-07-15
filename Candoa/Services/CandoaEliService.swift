@@ -23,7 +23,7 @@ struct CandoaAIPageContext: Sendable {
     }
 }
 
-enum CandoaAgentPreferences {
+enum CandoaEliPreferences {
     static let defaultModel = "gpt-5.6-luna"
 
     static var model: String {
@@ -37,7 +37,7 @@ enum CandoaAgentPreferences {
     }
 }
 
-enum CandoaAgentKeychain {
+enum CandoaEliKeychain {
     // Keep the existing service identifier so saved personal keys remain available after the rename.
     private static let service = "app.candoa.Candoa.Ask"
     private static let account = "openai-api-key"
@@ -64,7 +64,7 @@ enum CandoaAgentKeychain {
 
     static func save(_ apiKey: String) throws {
         let trimmedKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedKey.isEmpty else { throw CandoaAgentKeychainError.emptyKey }
+        guard !trimmedKey.isEmpty else { throw CandoaEliKeychainError.emptyKey }
 
         let keyData = Data(trimmedKey.utf8)
         let updateStatus = SecItemUpdate(
@@ -80,17 +80,17 @@ enum CandoaAgentKeychain {
                 ]) { _, new in new } as CFDictionary,
                 nil
             )
-            guard addStatus == errSecSuccess else { throw CandoaAgentKeychainError.unavailable(addStatus) }
+            guard addStatus == errSecSuccess else { throw CandoaEliKeychainError.unavailable(addStatus) }
             return
         }
 
-        guard updateStatus == errSecSuccess else { throw CandoaAgentKeychainError.unavailable(updateStatus) }
+        guard updateStatus == errSecSuccess else { throw CandoaEliKeychainError.unavailable(updateStatus) }
     }
 
     static func remove() throws {
         let status = SecItemDelete(baseQuery as CFDictionary)
         guard status == errSecSuccess || status == errSecItemNotFound else {
-            throw CandoaAgentKeychainError.unavailable(status)
+            throw CandoaEliKeychainError.unavailable(status)
         }
     }
 
@@ -103,7 +103,7 @@ enum CandoaAgentKeychain {
     }
 }
 
-private enum CandoaAgentKeychainError: LocalizedError {
+private enum CandoaEliKeychainError: LocalizedError {
     case emptyKey
     case unavailable(OSStatus)
 
@@ -117,12 +117,12 @@ private enum CandoaAgentKeychainError: LocalizedError {
     }
 }
 
-enum CandoaRemoteAgentService {
+enum CandoaRemoteEliService {
     private static let defaultEndpoint = URL(string: "https://api.candoa.com/v1/ai/chat")!
     private static let openAIEndpoint = URL(string: "https://api.openai.com/v1/responses")!
 
     private static let instructions = """
-    You are Agent, Candoa's browser assistant. Be conversational, calm, and useful.
+    You are Eli, Candoa's browser assistant. Be conversational, calm, and useful.
     Help the user understand pages and prepare safe browser actions using the attached page context.
     Keep answers concise by default: one to three sentences unless the user asks for detail.
 
@@ -142,7 +142,7 @@ enum CandoaRemoteAgentService {
         context: CandoaAIPageContext,
         recentTurns: [CandoaAIConversationTurn]
     ) -> AsyncThrowingStream<String, Error> {
-        if CandoaAgentPreferences.usesPersonalOpenAIKey {
+        if CandoaEliPreferences.usesPersonalOpenAIKey {
             return streamPersonalOpenAIResponse(
                 to: prompt,
                 context: context,
@@ -196,12 +196,12 @@ enum CandoaRemoteAgentService {
         AsyncThrowingStream { continuation in
             let task = Task {
                 do {
-                    guard let apiKey = CandoaAgentKeychain.apiKey else {
-                        throw CandoaRemoteAgentError.missingPersonalKey
+                    guard let apiKey = CandoaEliKeychain.apiKey else {
+                        throw CandoaRemoteEliError.missingPersonalKey
                     }
 
                     let payload = OpenAIRequestPayload(
-                        model: CandoaAgentPreferences.model,
+                        model: CandoaEliPreferences.model,
                         instructions: instructions,
                         input: modelInput(
                             prompt: prompt,
@@ -243,7 +243,7 @@ enum CandoaRemoteAgentService {
         bytes: URLSession.AsyncBytes
     ) async throws {
         guard let httpResponse = response as? HTTPURLResponse else {
-            throw CandoaRemoteAgentError.invalidResponse
+            throw CandoaRemoteEliError.invalidResponse
         }
         guard (200...299).contains(httpResponse.statusCode) else {
             var data = Data()
@@ -251,7 +251,7 @@ enum CandoaRemoteAgentService {
                 data.append(byte)
             }
             let serverError = try? JSONDecoder().decode(ServerErrorPayload.self, from: data)
-            throw CandoaRemoteAgentError.server(serverError?.error ?? "The Agent service is unavailable.")
+            throw CandoaRemoteEliError.server(serverError?.error ?? "Eli is temporarily unavailable.")
         }
     }
 
@@ -286,7 +286,7 @@ enum CandoaRemoteAgentService {
             if event.type == "response.output_text.delta", let delta = event.delta {
                 continuation.yield(delta)
             } else if event.type == "error" {
-                throw CandoaRemoteAgentError.server(
+                throw CandoaRemoteEliError.server(
                     event.error?.message ?? event.message ?? "OpenAI could not complete this request."
                 )
             }
@@ -308,7 +308,7 @@ enum CandoaRemoteAgentService {
                 case .user:
                     return "User: \(turn.text)"
                 case .assistant:
-                    return "Agent: \(turn.text)"
+                    return "Eli: \(turn.text)"
                 }
             }
             .joined(separator: "\n")
@@ -412,7 +412,7 @@ enum CandoaRemoteAgentService {
     }
 }
 
-private enum CandoaRemoteAgentError: LocalizedError {
+private enum CandoaRemoteEliError: LocalizedError {
     case invalidResponse
     case missingPersonalKey
     case server(String)
@@ -420,7 +420,7 @@ private enum CandoaRemoteAgentError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .invalidResponse:
-            return "Agent returned an invalid response."
+            return "Eli returned an invalid response."
         case .missingPersonalKey:
             return "Add an OpenAI API key in Candoa Settings before using your own key."
         case .server(let message):

@@ -1,8 +1,8 @@
 import Foundation
 
-/// Page-context helpers used to decide what to send to the hosted Agent service.
+/// Page-context helpers used to decide what to send to the hosted Eli service.
 /// This deliberately contains no local response generation.
-enum CandoaAgentDrafts {
+enum CandoaEliDrafts {
     static func referencesCurrentPage(_ normalizedPrompt: String) -> Bool {
         normalizedPrompt.contains("this page")
             || normalizedPrompt.contains("this website")
@@ -39,7 +39,7 @@ enum CandoaAgentDrafts {
                 isRetryPrompt(normalizedPrompt)
                     && recentTurns.reversed().contains { turn in
                         guard case .user = turn.role else { return false }
-                        return asksAboutVisibleControl(CandoaAgentPromptPolicy.normalizedText(turn.text))
+                        return asksAboutVisibleControl(CandoaEliPromptPolicy.normalizedText(turn.text))
                     }
             )
     }

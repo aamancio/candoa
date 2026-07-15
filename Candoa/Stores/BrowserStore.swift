@@ -254,7 +254,7 @@ final class BrowserStore: ObservableObject {
         "leaf"
     ]
     private let spaceThemeColors = [
-        "#6E8BFF",
+        BrowserSpace.defaultThemeColorHex,
         "#74E0AA",
         "#E0A84F",
         "#DA6A72",
@@ -513,9 +513,8 @@ final class BrowserStore: ObservableObject {
                 : []
             isSplitViewEnabled = restoredState.isSplitViewEnabled && splitTabIDs.count >= 2
         } else {
-            // Neutral by default: no theme color, chrome follows the system.
-            // The window reads as plain native gray (light or dark per the
-            // system); a space color is something the user opts into.
+            // New workspaces start with the shared Candoa blue theme while
+            // still following the system's light or dark appearance.
             let defaultSpace = BrowserSpace(
                 name: "",
                 symbolName: "circle.grid.2x2",
@@ -589,7 +588,7 @@ final class BrowserStore: ObservableObject {
             id: activeSpaceID,
             name: "TestingBot",
             symbolName: "sparkles",
-            themeColorHex: "#6E8BFF",
+            themeColorHex: BrowserSpace.defaultThemeColorHex,
             themeAppearance: BrowserSpace.defaultThemeAppearance
         )
         let tabs = [
@@ -629,7 +628,7 @@ final class BrowserStore: ObservableObject {
             id: spaceID,
             name: "TestingBot",
             symbolName: "sparkles",
-            themeColorHex: "#6E8BFF",
+            themeColorHex: BrowserSpace.defaultThemeColorHex,
             themeAppearance: BrowserSpace.defaultThemeAppearance
         )
         let legacyFavorite = BrowserTab(
@@ -713,7 +712,7 @@ final class BrowserStore: ObservableObject {
             id: testingBotSpaceID,
             name: "TestingBot",
             symbolName: "sparkles",
-            themeColorHex: "#6E8BFF",
+            themeColorHex: BrowserSpace.defaultThemeColorHex,
             themeAppearance: BrowserSpace.defaultThemeAppearance
         )
 
@@ -943,7 +942,7 @@ final class BrowserStore: ObservableObject {
     func createSpace(
         name: String? = nil,
         symbolName: String? = nil,
-        themeColorHex: String? = nil,
+        themeColorHex: String? = BrowserSpace.defaultThemeColorHex,
         themeAppearance: SpaceThemeAppearance = .automatic,
         themeOpacity: Double = 0.5,
         themeTexture: Double = 0,

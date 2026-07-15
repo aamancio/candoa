@@ -76,26 +76,13 @@ private final class NativeWindowControlsHost: NSView {
     ]
     private static let centerSpacing: CGFloat = 20
     private static let fallbackButtonSize = NSSize(width: 14, height: 14)
-    private let controlsContainer = WindowControlsContainer()
     private weak var attachedWindow: NSWindow?
     private var originalFrames: [Int: NSRect] = [:]
     private var originalHiddenStates: [Int: Bool] = [:]
-    private var originalSuperviews: [Int: WeakViewReference] = [:]
+    private var visibleHostFrames: [ObjectIdentifier: NSRect] = [:]
     private var revealProgress: CGFloat = 1
     private var hiddenOffset: CGFloat = 0
     private var attachmentGeneration = 0
-
-    override init(frame frameRect: NSRect) {
-        super.init(frame: frameRect)
-        controlsContainer.frame = bounds
-        controlsContainer.autoresizingMask = [.width, .height]
-        controlsContainer.wantsLayer = true
-        addSubview(controlsContainer)
-    }
-
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
 
     override var intrinsicContentSize: NSSize {
         NSSize(width: 60, height: 24)
@@ -144,13 +131,6 @@ private final class NativeWindowControlsHost: NSView {
             if originalFrames[key] == nil {
                 originalFrames[key] = button.frame
                 originalHiddenStates[key] = button.isHidden
-                originalSuperviews[key] = WeakViewReference(button.superview)
-            }
-
-            button.isHidden = false
-            if button.superview !== controlsContainer {
-                button.removeFromSuperview()
-                controlsContainer.addSubview(button)
             }
         }
 
@@ -162,17 +142,9 @@ private final class NativeWindowControlsHost: NSView {
 
         attachmentGeneration += 1
 
-        controlsContainer.setRevealTranslation(0)
-
         for buttonType in Self.buttonTypes {
             guard let button = attachedWindow.standardWindowButton(buttonType) else { continue }
             let key = Int(buttonType.rawValue)
-
-            if let originalSuperview = originalSuperviews[key]?.view,
-               button.superview !== originalSuperview {
-                button.removeFromSuperview()
-                originalSuperview.addSubview(button)
-            }
 
             if let originalFrame = originalFrames[key] {
                 button.frame = originalFrame
@@ -185,7 +157,7 @@ private final class NativeWindowControlsHost: NSView {
 
         originalFrames.removeAll()
         originalHiddenStates.removeAll()
-        originalSuperviews.removeAll()
+        visibleHostFrames.removeAll()
         self.attachedWindow = nil
     }
 
@@ -199,7 +171,16 @@ private final class NativeWindowControlsHost: NSView {
 
         for (index, buttonType) in Self.buttonTypes.enumerated() {
             guard let button = attachedWindow.standardWindowButton(buttonType),
-                  button.superview === controlsContainer else { continue }
+                  let buttonSuperview = button.superview else { continue }
+
+            // The controls belong to the sidebar, not the web-content lane.
+            // Keep AppKit as their owner and hide them at the landed closed
+            // state so a later title-bar layout pass cannot expose them over
+            // the active WKWebView.
+            guard revealProgress > 0 else {
+                button.isHidden = true
+                continue
+            }
 
             let currentSize = button.frame.size
             let buttonSize = currentSize.width > 0 && currentSize.height > 0
@@ -207,37 +188,20 @@ private final class NativeWindowControlsHost: NSView {
                 : Self.fallbackButtonSize
             button.isHidden = false
 
-            let x = CGFloat(index) * Self.centerSpacing
-            let y = floor(controlsContainer.bounds.midY - buttonSize.height / 2)
+            let hostFrameInWindow = convert(bounds, to: nil)
+            let hostFrameInButtonSuperview = buttonSuperview.convert(hostFrameInWindow, from: nil)
+            let superviewID = ObjectIdentifier(buttonSuperview)
+
+            if revealProgress >= 1 {
+                visibleHostFrames[superviewID] = hostFrameInButtonSuperview
+            }
+
+            let visibleHostFrame = visibleHostFrames[superviewID] ?? hostFrameInButtonSuperview
+            let x = visibleHostFrame.minX
+                + hiddenOffset * (1 - revealProgress)
+                + CGFloat(index) * Self.centerSpacing
+            let y = floor(visibleHostFrame.midY - buttonSize.height / 2)
             button.frame = NSRect(origin: CGPoint(x: x, y: y), size: buttonSize)
-        }
-
-        controlsContainer.isInteractive = revealProgress >= 1
-        controlsContainer.setRevealTranslation(hiddenOffset * (1 - revealProgress))
-    }
-
-    private final class WindowControlsContainer: NSView {
-        var isInteractive = true
-
-        override func hitTest(_ point: NSPoint) -> NSView? {
-            guard isInteractive else { return nil }
-            return super.hitTest(point)
-        }
-
-        func setRevealTranslation(_ x: CGFloat) {
-            guard let layer else { return }
-            CATransaction.begin()
-            CATransaction.setDisableActions(true)
-            layer.setAffineTransform(CGAffineTransform(translationX: x, y: 0))
-            CATransaction.commit()
-        }
-    }
-
-    private final class WeakViewReference {
-        weak var view: NSView?
-
-        init(_ view: NSView?) {
-            self.view = view
         }
     }
 }
@@ -464,7 +428,7 @@ internal enum SpaceThemePalette {
         brightnessScale: CGFloat
     ) -> String {
         guard let color = nsColor(from: hex) else {
-            return "#6E8BFF"
+            return BrowserSpace.defaultThemeColorHex
         }
 
         var hue: CGFloat = 0

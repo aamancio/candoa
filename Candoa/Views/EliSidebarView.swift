@@ -3,10 +3,10 @@ import os
 import SwiftUI
 import UniformTypeIdentifiers
 
-struct AgentSidebarView: View {
-    private static let agentLogger = Logger(
+struct EliSidebarView: View {
+    private static let eliLogger = Logger(
         subsystem: Bundle.main.bundleIdentifier ?? "Candoa",
-        category: "Agent"
+        category: "Eli"
     )
 
     @ObservedObject var store: BrowserStore
@@ -159,15 +159,15 @@ struct AgentSidebarView: View {
         return Color(nsColor: resolvedColor)
     }
 
-    private var hasPersonalAgentAccess: Bool {
-        CandoaAgentPreferences.usesPersonalOpenAIKey && CandoaAgentKeychain.hasAPIKey
+    private var hasPersonalEliAccess: Bool {
+        CandoaEliPreferences.usesPersonalOpenAIKey && CandoaEliKeychain.hasAPIKey
     }
 
     var body: some View {
         VStack(spacing: 0) {
             topBar
 
-            if !hasPersonalAgentAccess {
+            if !hasPersonalEliAccess {
                 Spacer(minLength: 60)
                 subscriptionGate
                 Spacer(minLength: 60)
@@ -198,7 +198,7 @@ struct AgentSidebarView: View {
                 }
             }
 
-            if hasPersonalAgentAccess {
+            if hasPersonalEliAccess {
                 composer
             }
         }
@@ -237,7 +237,7 @@ struct AgentSidebarView: View {
             handleFileImport(result)
         }
         .confirmationDialog(
-            pendingPageAction?.confirmationTitle ?? "Allow Agent to act?",
+            pendingPageAction?.confirmationTitle ?? "Allow Eli to act?",
             isPresented: Binding(
                 get: { pendingPageAction != nil },
                 set: { if !$0 { pendingPageAction = nil; pendingActionTabID = nil } }
@@ -256,7 +256,7 @@ struct AgentSidebarView: View {
         HStack(spacing: 8) {
             AISidebarTopBarIconButton(
                 symbolName: "square.and.pencil",
-                helpText: "New Agent Conversation"
+                helpText: "New Eli Conversation"
             ) {
                 prompt = ""
                 mentionedContext = []
@@ -270,7 +270,7 @@ struct AgentSidebarView: View {
 
             AISidebarTopBarIconButton(
                 symbolName: "xmark",
-                helpText: "Close Agent Sidebar",
+                helpText: "Close Eli Sidebar",
                 iconSize: 18
             ) {
                 onClose()
@@ -284,7 +284,7 @@ struct AgentSidebarView: View {
 
     private var emptyState: some View {
         VStack(alignment: .leading, spacing: 9) {
-            Text("What can Agent do?")
+            Text("What can Eli do?")
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(CandoaChromeStyle.sidebarTextSecondary)
                 .padding(.horizontal, 2)
@@ -292,7 +292,7 @@ struct AgentSidebarView: View {
             ForEach(starterHints) { hint in
                 AISidebarStarterHintButton(
                     hint: hint,
-                    accentColor: agentAccentColor
+                    accentColor: eliAccentColor
                 ) {
                     submitPrompt(hint.prompt)
                 }
@@ -306,13 +306,13 @@ struct AgentSidebarView: View {
         VStack(spacing: 14) {
             Image(systemName: "sparkles")
                 .font(.system(size: 28, weight: .medium))
-                .foregroundStyle(agentAccentColor)
+                .foregroundStyle(eliAccentColor)
 
             VStack(spacing: 6) {
-                Text("Unlock Agent with Candoa Plus")
+                Text("Unlock Eli with Candoa Plus")
                     .font(.system(size: 18, weight: .semibold))
 
-                Text("Understand pages, summarize content, and safely complete browser tasks with Candoa's hosted Agent.")
+                Text("Understand pages, summarize content, and safely complete browser tasks with Eli, Candoa's hosted assistant.")
                     .font(.system(size: 13))
                     .foregroundStyle(CandoaChromeStyle.sidebarTextSecondary)
                     .multilineTextAlignment(.center)
@@ -323,9 +323,9 @@ struct AgentSidebarView: View {
                 // Stripe checkout will be connected once the authenticated billing flow exists.
             }
                 .buttonStyle(.borderedProminent)
-                .tint(agentAccentColor)
+                .tint(eliAccentColor)
 
-            Text("A Candoa account and subscription are required for hosted Agent.")
+            Text("A Candoa account and subscription are required for hosted Eli.")
                 .font(.system(size: 11))
                 .foregroundStyle(CandoaChromeStyle.sidebarTextSecondary)
                 .multilineTextAlignment(.center)
@@ -365,7 +365,7 @@ struct AgentSidebarView: View {
         ]
     }
 
-    private var agentAccentColor: Color {
+    private var eliAccentColor: Color {
         guard let hex = store.activeThemeColorHexes.first else {
             return Color.accentColor
         }
@@ -395,7 +395,7 @@ struct AgentSidebarView: View {
             }
 
             HStack(alignment: .bottom, spacing: 10) {
-                TextField("Tell Agent what to do...", text: $prompt, axis: .vertical)
+                TextField("Tell Eli what to do...", text: $prompt, axis: .vertical)
                     .textFieldStyle(.plain)
                     .lineLimit(1...4)
                     .font(.system(size: 14))
@@ -605,7 +605,7 @@ struct AgentSidebarView: View {
 
     private func submitPrompt(_ promptOverride: String? = nil) {
         let submittedPrompt = (promptOverride ?? prompt).trimmingCharacters(in: .whitespacesAndNewlines)
-        guard CandoaAgentPromptPolicy.canSubmit(submittedPrompt, hasConversation: !messages.isEmpty) else { return }
+        guard CandoaEliPromptPolicy.canSubmit(submittedPrompt, hasConversation: !messages.isEmpty) else { return }
 
         if let action = CandoaPageActionProposal.parse(submittedPrompt) {
             prompt = ""
@@ -630,9 +630,9 @@ struct AgentSidebarView: View {
             )
         }
         let contextMentions = mentionedContext
-        let normalizedSubmittedPrompt = CandoaAgentPromptPolicy.normalizedText(submittedPrompt)
+        let normalizedSubmittedPrompt = CandoaEliPromptPolicy.normalizedText(submittedPrompt)
         let existingRecentTurns = recentTurns()
-        let shouldRefreshCurrentPageContext = CandoaAgentDrafts.asksAboutVisibleControl(
+        let shouldRefreshCurrentPageContext = CandoaEliDrafts.asksAboutVisibleControl(
             normalizedSubmittedPrompt,
             recentTurns: existingRecentTurns
         )
@@ -640,7 +640,7 @@ struct AgentSidebarView: View {
         let currentPageTabID = includesCurrentPage ? store.activeTabID : nil
         let inheritedPageContext = lastSubmittedPageContext
         let shouldUseCurrentContextOnly = !submittedContextChips.isEmpty
-            && CandoaAgentDrafts.referencesCurrentPage(normalizedSubmittedPrompt)
+            && CandoaEliDrafts.referencesCurrentPage(normalizedSubmittedPrompt)
         let recentTurns = shouldUseCurrentContextOnly ? [] : existingRecentTurns
 
         messages.append(AISidebarMessage(
@@ -672,7 +672,7 @@ struct AgentSidebarView: View {
                 }
             }
 
-            let remoteContext = CandoaAgentContextCompactor.compactedContextIfNeeded(
+            let remoteContext = CandoaEliContextCompactor.compactedContextIfNeeded(
                 from: pageContext,
                 prompt: submittedPrompt
             ) ?? pageContext
@@ -707,7 +707,7 @@ struct AgentSidebarView: View {
         do {
             var response = ""
             var displayedCharacterCount = 0
-            for try await fragment in CandoaRemoteAgentService.streamResponse(
+            for try await fragment in CandoaRemoteEliService.streamResponse(
                 to: prompt,
                 context: context,
                 recentTurns: recentTurns
@@ -738,7 +738,7 @@ struct AgentSidebarView: View {
         } catch is CancellationError {
             return
         } catch {
-            Self.agentLogger.error("Agent remote service request failed: \(error.localizedDescription, privacy: .public)")
+            Self.eliLogger.error("Eli remote service request failed: \(error.localizedDescription, privacy: .public)")
             showAgentUnavailableMessage(for: error, into: responseID)
         }
     }
@@ -756,9 +756,9 @@ struct AgentSidebarView: View {
         } else if errorDescription.contains("authentication")
             || errorDescription.contains("session")
             || errorDescription.contains("current plan") {
-            message = "Agent requires a signed-in Candoa account with an active Agent subscription. Sign in or subscribe to continue."
+            message = "Eli requires a signed-in Candoa account with an active Candoa Plus subscription. Sign in or subscribe to continue."
         } else {
-            message = "Agent is temporarily unavailable. Please try again later."
+            message = "Eli is temporarily unavailable. Please try again later."
         }
 
         guard let index = messages.firstIndex(where: { $0.id == responseID }) else { return }

@@ -1,17 +1,17 @@
 import AppKit
 import SwiftUI
 
-internal struct AgentSettingsPane: View {
-    @AppStorage(CandoaSettingsOption.askModel) private var model = CandoaAgentPreferences.defaultModel
+internal struct EliSettingsPane: View {
+    @AppStorage(CandoaSettingsOption.askModel) private var model = CandoaEliPreferences.defaultModel
     @AppStorage(CandoaSettingsOption.askUsesPersonalOpenAIKey) private var usesPersonalOpenAIKey = false
     @State private var apiKey = ""
-    @State private var hasSavedKey = CandoaAgentKeychain.hasAPIKey
+    @State private var hasSavedKey = CandoaEliKeychain.hasAPIKey
     @State private var keychainError: String?
 
     var body: some View {
         SettingsPane {
             VStack(alignment: .leading, spacing: 18) {
-                SettingsSectionTitle("Agent")
+                SettingsSectionTitle("Eli")
 
                 SettingsCard {
                     SettingsRow(
@@ -59,7 +59,7 @@ internal struct AgentSettingsPane: View {
                         SettingsRow(
                             systemImage: "checkmark.shield",
                             title: "Personal key saved",
-                            subtitle: "Agent can use your direct OpenAI connection whenever the option above is enabled."
+                            subtitle: "Eli can use your direct OpenAI connection whenever the option above is enabled."
                         ) {
                             Button("Remove", role: .destructive, action: removeAPIKey)
                                 .controlSize(.small)
@@ -83,7 +83,7 @@ internal struct AgentSettingsPane: View {
 
     private func saveAPIKey() {
         do {
-            try CandoaAgentKeychain.save(apiKey)
+            try CandoaEliKeychain.save(apiKey)
             apiKey = ""
             hasSavedKey = true
             usesPersonalOpenAIKey = true
@@ -95,7 +95,7 @@ internal struct AgentSettingsPane: View {
 
     private func removeAPIKey() {
         do {
-            try CandoaAgentKeychain.remove()
+            try CandoaEliKeychain.remove()
             hasSavedKey = false
             usesPersonalOpenAIKey = false
             keychainError = nil

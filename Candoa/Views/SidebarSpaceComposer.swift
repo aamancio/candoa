@@ -50,6 +50,7 @@ internal struct UpsertSpaceSidebarComposer: View {
     @FocusState private var isNameFocused: Bool
 
     private let themeOptions: [(name: String, hex: String)] = [
+        ("Blue", BrowserSpace.defaultThemeColorHex),
         ("Neutral", "#F0EAE1"),
         ("Green", "#74E0AA"),
         ("Gold", "#E0A84F"),
@@ -139,6 +140,9 @@ internal struct UpsertSpaceSidebarComposer: View {
         self.store = store
         self.mode = mode
         _name = State(initialValue: mode.defaultName)
+        _themeColorHex = State(
+            initialValue: mode == .edit ? nil : BrowserSpace.defaultThemeColorHex
+        )
     }
 
     var body: some View {
@@ -1203,7 +1207,7 @@ internal struct SpaceThemePanel: View {
 
         let color = NSColor(calibratedHue: hue, saturation: saturation, brightness: brightness, alpha: 1)
         guard let rgbColor = color.usingColorSpace(.sRGB) else {
-            return "#6E8BFF"
+            return BrowserSpace.defaultThemeColorHex
         }
 
         let red = Int(round(rgbColor.redComponent * 255))

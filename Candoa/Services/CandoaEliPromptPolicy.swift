@@ -1,6 +1,6 @@
 import Foundation
 
-enum CandoaAgentPromptPolicy {
+enum CandoaEliPromptPolicy {
     private static let singleWordPageCommands: Set<String> = [
         "summarize",
         "summary",

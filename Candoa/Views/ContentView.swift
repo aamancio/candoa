@@ -380,7 +380,7 @@ struct ContentView: View {
     }
 
     private func aiSidebarPanel(width: CGFloat) -> some View {
-        AgentSidebarView(store: store, uiTestingState: $aiSidebarUITestingState) {
+        EliSidebarView(store: store, uiTestingState: $aiSidebarUITestingState) {
             toggleAISidebar()
         }
         .frame(width: width)
