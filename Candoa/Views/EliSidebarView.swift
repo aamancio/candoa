@@ -309,7 +309,7 @@ struct EliSidebarView: View {
                 .foregroundStyle(eliAccentColor)
 
             VStack(spacing: 6) {
-                Text("Unlock Eli with Candoa Plus")
+                Text("Unlock Eli with Candoa Pro")
                     .font(.system(size: 18, weight: .semibold))
 
                 Text("Understand pages, summarize content, and safely complete browser tasks with Eli, Candoa's hosted assistant.")
@@ -319,7 +319,7 @@ struct EliSidebarView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            Button("Subscribe to Candoa Plus") {
+            Button("Subscribe to Candoa Pro") {
                 // Stripe checkout will be connected once the authenticated billing flow exists.
             }
                 .buttonStyle(.borderedProminent)
@@ -756,7 +756,7 @@ struct EliSidebarView: View {
         } else if errorDescription.contains("authentication")
             || errorDescription.contains("session")
             || errorDescription.contains("current plan") {
-            message = "Eli requires a signed-in Candoa account with an active Candoa Plus subscription. Sign in or subscribe to continue."
+            message = "Eli requires a signed-in Candoa account with an active Candoa subscription. Sign in or subscribe to continue."
         } else {
             message = "Eli is temporarily unavailable. Please try again later."
         }
