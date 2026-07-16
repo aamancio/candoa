@@ -22,6 +22,7 @@ jobs:
       SITE_BRANCH: ${{ vars.CANDOA_SITE_BRANCH || 'main' }}
       APP_DMG: ${{ github.workspace }}/artifacts/Candoa.dmg
       APP_BUNDLE: ${{ github.workspace }}/build/DerivedData/Build/Products/Release/Candoa.app
+      EXPECTED_APP_BUNDLE_IDENTIFIER: app.candoa.candoa
       SPARKLE_VERSION: 2.9.3
       CODE_SIGN_IDENTITY: Developer ID Application
 
@@ -155,11 +156,15 @@ jobs:
           xcrun stapler validate "$APP_DMG"
           spctl --assess --type open --context context:primary-signature --verbose=4 "$APP_DMG"
 
-      - name: Read app version
+      - name: Validate app identity and read version
         run: |
           APP_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP_BUNDLE/Contents/Info.plist")"
           APP_BUILD="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP_BUNDLE/Contents/Info.plist")"
           APP_BUNDLE_IDENTIFIER="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP_BUNDLE/Contents/Info.plist")"
+          if [ "$APP_BUNDLE_IDENTIFIER" != "$EXPECTED_APP_BUNDLE_IDENTIFIER" ]; then
+            echo "Expected bundle identifier $EXPECTED_APP_BUNDLE_IDENTIFIER, got $APP_BUNDLE_IDENTIFIER." >&2
+            exit 1
+          fi
           {
             echo "APP_VERSION=$APP_VERSION"
             echo "APP_BUILD=$APP_BUILD"

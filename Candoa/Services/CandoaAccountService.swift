@@ -67,7 +67,7 @@ struct CandoaAccountStatus: Decodable, Sendable {
 }
 
 enum CandoaCloudAPI {
-    private static let defaultBaseURL = URL(string: "https://api.candoa.com/v1")!
+    private static let defaultBaseURL = URL(string: "https://api.candoa.app/v1")!
 
     static var aiChatURL: URL {
         if let override = ProcessInfo.processInfo.environment["CANDOA_ASK_API_URL"],
