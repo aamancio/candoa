@@ -234,12 +234,12 @@ private struct AccountOnboardingStep: View {
     @StateObject private var accountController = CandoaAccountController()
 
     var body: some View {
-        OnboardingSurface(step: .account) {
+        OnboardingSurface(step: .account, onBack: store.goBackInInitialOnboarding) {
             VStack(alignment: .leading, spacing: 18) {
                 OnboardingPageHeader(
                     symbolName: "person.crop.circle.badge.checkmark",
-                    title: "Let’s get you signed in",
-                    detail: "Continue with Apple to set up Candoa."
+                    title: "Finish setting up Candoa",
+                    detail: "Continue with Apple to enter Candoa."
                 )
 
                 Spacer(minLength: 24)
@@ -378,29 +378,59 @@ private struct ImportOnboardingStep: View {
                     .fixedSize(horizontal: false, vertical: true)
                 }
 
-                Button {
-                    isFileImporterPresented = true
-                } label: {
-                    Label("Import My Bookmarks…", systemImage: "doc.badge.plus")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-                .disabled(isImporting)
-                .accessibilityIdentifier("onboarding-import-bookmarks")
+                if importMessage != nil, !importFailed {
+                    Button {
+                        store.completeInitialImport()
+                    } label: {
+                        Text("Continue")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    .keyboardShortcut(.defaultAction)
 
-                Button {
-                    store.completeInitialImport()
-                } label: {
-                    Text(importMessage == nil || importFailed ? "Set Up Later" : "Continue")
-                        .frame(maxWidth: .infinity)
+                    Button {
+                        isFileImporterPresented = true
+                    } label: {
+                        Label("Import Again…", systemImage: "doc.badge.plus")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(.secondary)
+                    .controlSize(.large)
+                    .disabled(isImporting)
+                    .accessibilityIdentifier("onboarding-import-bookmarks")
+                } else {
+                    Button {
+                        isFileImporterPresented = true
+                    } label: {
+                        Label("Import My Bookmarks…", systemImage: "doc.badge.plus")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(isImporting)
+                    .accessibilityIdentifier("onboarding-import-bookmarks")
+
+                    Button {
+                        store.completeInitialImport()
+                    } label: {
+                        Text("Set Up Later")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(.secondary)
+                    .controlSize(.large)
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.large)
-                .keyboardShortcut(.defaultAction)
             }
         } preview: {
             OnboardingImportPreview()
+        }
+        .onAppear {
+            guard importMessage == nil, let count = store.initialImportedBookmarkCount else { return }
+            importMessage = importedBookmarksMessage(count: count)
+            importFailed = false
         }
         .fileImporter(
             isPresented: $isFileImporterPresented,
@@ -421,7 +451,7 @@ private struct ImportOnboardingStep: View {
             Task {
                 do {
                     let count = try await store.importInitialBookmarks(from: fileURL)
-                    importMessage = "Imported \(count) bookmark\(count == 1 ? "" : "s"). They’re ready in your sidebar."
+                    importMessage = importedBookmarksMessage(count: count)
                 } catch {
                     importFailed = true
                     importMessage = error.localizedDescription
@@ -430,13 +460,17 @@ private struct ImportOnboardingStep: View {
             }
         }
     }
+
+    private func importedBookmarksMessage(count: Int) -> String {
+        "Imported \(count) bookmark\(count == 1 ? "" : "s"). They’re ready in your sidebar."
+    }
 }
 
 private struct SpaceOnboardingStep: View {
     @ObservedObject var store: BrowserStore
 
     var body: some View {
-        OnboardingSurface(step: .space) {
+        OnboardingSurface(step: .space, onBack: store.goBackInInitialOnboarding) {
             UpsertSpaceSidebarComposer(store: store, mode: .initial)
                 .frame(maxWidth: 360)
         } preview: {
@@ -461,15 +495,18 @@ private struct SpaceOnboardingStep: View {
 
 private struct OnboardingSurface<Leading: View, Preview: View>: View {
     let step: InitialOnboardingStep
+    let onBack: (() -> Void)?
     @ViewBuilder let leading: Leading
     @ViewBuilder let preview: Preview
 
     init(
         step: InitialOnboardingStep,
+        onBack: (() -> Void)? = nil,
         @ViewBuilder leading: () -> Leading,
         @ViewBuilder preview: () -> Preview
     ) {
         self.step = step
+        self.onBack = onBack
         self.leading = leading()
         self.preview = preview()
     }
@@ -517,9 +554,20 @@ private struct OnboardingSurface<Leading: View, Preview: View>: View {
 
     private var setupProgressLabel: some View {
         HStack(spacing: 10) {
-            Text("Set up your workflow")
+            if let onBack {
+                Button(action: onBack) {
+                    Label("Back", systemImage: "chevron.left")
+                }
+                .buttonStyle(.plain)
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(.secondary)
+                .help("Back")
+                .accessibilityIdentifier("onboarding-back")
+            } else {
+                Text("Set up your workflow")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.secondary)
+            }
 
             Spacer()
 
@@ -638,7 +686,26 @@ private struct OnboardingAccountPreview: View {
 }
 
 private struct OnboardingImportPreview: View {
-    private let browsers = ["Safari", "Chrome", "Arc", "Firefox"]
+    private struct BrowserSource: Identifiable {
+        let name: String
+        let bundleIdentifier: String
+
+        var id: String { bundleIdentifier }
+
+        var icon: NSImage {
+            guard let applicationURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleIdentifier) else {
+                return NSImage(systemSymbolName: "globe", accessibilityDescription: name) ?? NSImage()
+            }
+            return NSWorkspace.shared.icon(forFile: applicationURL.path)
+        }
+    }
+
+    private let browsers = [
+        BrowserSource(name: "Safari", bundleIdentifier: "com.apple.Safari"),
+        BrowserSource(name: "Chrome", bundleIdentifier: "com.google.Chrome"),
+        BrowserSource(name: "Arc", bundleIdentifier: "company.thebrowser.Browser"),
+        BrowserSource(name: "Firefox", bundleIdentifier: "org.mozilla.firefox")
+    ]
 
     var body: some View {
         VStack(spacing: 22) {
@@ -648,12 +715,19 @@ private struct OnboardingImportPreview: View {
                     .foregroundStyle(.secondary)
 
                 HStack(spacing: 10) {
-                    ForEach(browsers, id: \.self) { browser in
-                        Text(browser)
-                            .font(.system(size: 12, weight: .medium))
-                            .padding(.horizontal, 11)
-                            .frame(height: 32)
-                            .background(.background.opacity(0.54), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    ForEach(browsers) { browser in
+                        HStack(spacing: 7) {
+                            Image(nsImage: browser.icon)
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 22, height: 22)
+
+                            Text(browser.name)
+                                .font(.system(size: 12, weight: .medium))
+                        }
+                        .padding(.horizontal, 10)
+                        .frame(height: 38)
+                        .background(.background.opacity(0.54), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                     }
                 }
             }

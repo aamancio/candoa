@@ -115,7 +115,7 @@ enum InitialOnboardingStep: String, CaseIterable {
     case space
     case tour
 
-    private static let numberedSetupSteps: [Self] = [.account, .importData, .space]
+    private static let numberedSetupSteps: [Self] = [.importData, .space, .account]
 
     var position: Int {
         Self.numberedSetupSteps.firstIndex(of: self).map { $0 + 1 } ?? 0
@@ -193,6 +193,7 @@ final class BrowserStore: ObservableObject {
     @Published var editingSpaceID: UUID?
     @Published var editingFolderID: UUID?
     @Published private(set) var initialOnboardingStep: InitialOnboardingStep?
+    @Published private(set) var initialImportedBookmarkCount: Int?
     @Published private(set) var spaceThemeAppearancePreview: SpaceThemeAppearance?
     @Published private(set) var isSpaceThemeColorPreviewActive = false
     @Published private(set) var spaceThemeColorHexPreview: String?
@@ -577,7 +578,7 @@ final class BrowserStore: ObservableObject {
             let resumableStep: InitialOnboardingStep
             switch storedStep {
             case .account where CandoaAccountKeychain.accessToken != nil:
-                resumableStep = .importData
+                resumableStep = .tour
             case .tour:
                 resumableStep = .space
             case .welcome, .account, .importData, .space:
@@ -1071,7 +1072,7 @@ final class BrowserStore: ObservableObject {
 
         activeSpaceID = spaces[index].id
         if initialOnboardingStep == .space {
-            setInitialOnboardingStep(.tour)
+            setInitialOnboardingStep(CandoaAccountKeychain.accessToken == nil ? .account : .tour)
         }
         isCreateSpacePresented = false
         recreateWebViewsIfNeeded(
@@ -1088,20 +1089,35 @@ final class BrowserStore: ObservableObject {
         guard isInitialAccountSetupPresented, CandoaAccountKeychain.accessToken != nil else { return }
 
         if needsInitialSpaceSetup() {
-            setInitialOnboardingStep(.importData)
+            setInitialOnboardingStep(.space)
         } else {
-            finishInitialOnboarding()
+            setInitialOnboardingStep(.tour)
         }
     }
 
     func completeInitialWelcome() {
         guard initialOnboardingStep == .welcome else { return }
-        setInitialOnboardingStep(CandoaAccountKeychain.accessToken == nil ? .account : .importData)
+        setInitialOnboardingStep(.importData)
     }
 
     func completeInitialImport() {
         guard initialOnboardingStep == .importData else { return }
-        setInitialOnboardingStep(needsInitialSpaceSetup() ? .space : .tour)
+        if needsInitialSpaceSetup() {
+            setInitialOnboardingStep(.space)
+        } else {
+            setInitialOnboardingStep(CandoaAccountKeychain.accessToken == nil ? .account : .tour)
+        }
+    }
+
+    func goBackInInitialOnboarding() {
+        switch initialOnboardingStep {
+        case .space:
+            setInitialOnboardingStep(.importData)
+        case .account:
+            setInitialOnboardingStep(.space)
+        case .welcome, .importData, .tour, .none:
+            break
+        }
     }
 
     func importInitialBookmarks(from fileURL: URL) async throws -> Int {
@@ -1130,6 +1146,7 @@ final class BrowserStore: ObservableObject {
             )
         }
         tabs.append(contentsOf: importedTabs)
+        initialImportedBookmarkCount = importedTabs.count
         flushSession()
         return importedTabs.count
     }
