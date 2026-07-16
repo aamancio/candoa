@@ -31,6 +31,11 @@ extension BrowserStore {
         return spaces.first { $0.id == editingSpaceID }
     }
 
+    private var nextAccountOrTourStep: InitialOnboardingStep {
+        CandoaAccountKeychain.accessToken == nil
+            && CandoaDistributionCapabilities.supportsNativeAppleSignIn ? .account : .tour
+    }
+
     func completeInitialSpaceSetup(
         name: String,
         symbolName: String,
@@ -76,7 +81,7 @@ extension BrowserStore {
 
         activeSpaceID = spaces[index].id
         if initialOnboardingStep == .space {
-            setInitialOnboardingStep(CandoaAccountKeychain.accessToken == nil ? .account : .tour)
+            setInitialOnboardingStep(nextAccountOrTourStep)
         }
         isCreateSpacePresented = false
         recreateWebViewsIfNeeded(
@@ -99,6 +104,11 @@ extension BrowserStore {
         }
     }
 
+    func skipInitialAccountSetup() {
+        guard isInitialAccountSetupPresented else { return }
+        setInitialOnboardingStep(needsInitialSpaceSetup() ? .space : .tour)
+    }
+
     func completeInitialWelcome() {
         guard initialOnboardingStep == .welcome else { return }
         setInitialOnboardingStep(.importData)
@@ -109,7 +119,7 @@ extension BrowserStore {
         if needsInitialSpaceSetup() {
             setInitialOnboardingStep(.space)
         } else {
-            setInitialOnboardingStep(CandoaAccountKeychain.accessToken == nil ? .account : .tour)
+            setInitialOnboardingStep(nextAccountOrTourStep)
         }
     }
 

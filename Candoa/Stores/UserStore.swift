@@ -4,6 +4,16 @@ import Foundation
 import Security
 import SwiftUI
 
+enum CandoaDistributionCapabilities {
+    static var supportsNativeAppleSignIn: Bool {
+#if DEBUG
+        true
+#else
+        false
+#endif
+    }
+}
+
 @MainActor
 final class UserStore: ObservableObject {
     @Published private(set) var status: CandoaAccountStatus?

@@ -129,7 +129,8 @@ extension BrowserStore {
             setInitialOnboardingStep(nil, persists: false)
         } else if needsInitialSpaceSetup() {
             setInitialOnboardingStep(.welcome)
-        } else if CandoaAccountKeychain.accessToken == nil {
+        } else if CandoaAccountKeychain.accessToken == nil,
+                  CandoaDistributionCapabilities.supportsNativeAppleSignIn {
             setInitialOnboardingStep(.account)
         } else {
             setInitialOnboardingStep(nil)

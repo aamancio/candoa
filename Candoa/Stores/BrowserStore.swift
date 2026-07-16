@@ -366,7 +366,8 @@ final class BrowserStore: ObservableObject {
                 .flatMap(InitialOnboardingStep.init(rawValue:))
             let resumableStep: InitialOnboardingStep
             switch storedStep {
-            case .account where CandoaAccountKeychain.accessToken != nil:
+            case .account where CandoaAccountKeychain.accessToken != nil
+                || !CandoaDistributionCapabilities.supportsNativeAppleSignIn:
                 resumableStep = .tour
             case .tour:
                 resumableStep = .space
@@ -379,7 +380,8 @@ final class BrowserStore: ObservableObject {
         } else if !UserDefaults.standard.bool(forKey: Self.hasCompletedTourKey),
                   UserDefaults.standard.string(forKey: Self.onboardingStepKey) == InitialOnboardingStep.tour.rawValue {
             setInitialOnboardingStep(.tour)
-        } else if CandoaAccountKeychain.accessToken == nil {
+        } else if CandoaAccountKeychain.accessToken == nil,
+                  CandoaDistributionCapabilities.supportsNativeAppleSignIn {
             setInitialOnboardingStep(.account)
         }
         if restoresWebViews {

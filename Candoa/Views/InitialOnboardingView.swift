@@ -348,6 +348,7 @@ private struct AccountOnboardingStep: View {
                 Spacer(minLength: 24)
 
                 Group {
+#if DEBUG
                     if userStore.isWorking {
                         Button {} label: {
                             HStack(spacing: 8) {
@@ -373,6 +374,14 @@ private struct AccountOnboardingStep: View {
                         )
                         .accessibilityIdentifier("onboarding-apple-sign-in")
                     }
+#else
+                    Button("Continue") {
+                        store.skipInitialAccountSetup()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    .frame(maxWidth: .infinity)
+#endif
                 }
                 .frame(height: 44)
 
@@ -382,6 +391,13 @@ private struct AccountOnboardingStep: View {
                         .foregroundStyle(CandoaColor.danger)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+
+#if !DEBUG
+                Text("Account sign-in is not available in this direct-download build yet. You can use Candoa without an account.")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+#endif
             }
         } preview: {
             OnboardingAccountPreview()

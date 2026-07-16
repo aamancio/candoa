@@ -28,7 +28,7 @@ jobs:
 
     steps:
       - name: Check out Candoa
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Prepare signing keychain path
         run: echo "SIGNING_KEYCHAIN_PATH=$RUNNER_TEMP/candoa-signing.keychain-db" >> "$GITHUB_ENV"
@@ -185,7 +185,7 @@ jobs:
           "$SPARKLE_TOOLS/bin/generate_appcast" --help >/dev/null
 
       - name: Check out CandoaSite
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: ${{ env.SITE_REPOSITORY }}
           ref: ${{ env.SITE_BRANCH }}

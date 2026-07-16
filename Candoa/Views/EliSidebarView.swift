@@ -1210,6 +1210,7 @@ private struct EliSubscriptionGateView: View {
             }
         } else {
             VStack(spacing: 8) {
+#if DEBUG
                 SignInWithAppleButton(.continue) { request in
                     userStore.configure(request)
                 } onCompletion: { result in
@@ -1218,8 +1219,15 @@ private struct EliSubscriptionGateView: View {
                 .signInWithAppleButtonStyle(.black)
                 .frame(height: 36)
                 .disabled(userStore.isWorking)
+#endif
 
-                Text("Sign in to connect your Candoa subscription and history to this browser.")
+                Group {
+#if DEBUG
+                    Text("Sign in to connect your Candoa subscription and history to this browser.")
+#else
+                    Text("Account sign-in is not available in this direct-download build yet.")
+#endif
+                }
                     .font(.system(size: 11.5))
                     .foregroundStyle(CandoaChromeStyle.sidebarTextSecondary)
                     .multilineTextAlignment(.center)
