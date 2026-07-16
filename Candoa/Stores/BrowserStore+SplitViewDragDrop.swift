@@ -427,11 +427,9 @@ extension BrowserStore {
         includesActiveTabID: Bool
     ) -> [UUID] {
         var orderedIDs = ids
-        if
-            includesActiveTabID,
+        if includesActiveTabID,
             let activeTabID,
-            !orderedIDs.contains(activeTabID)
-        {
+            !orderedIDs.contains(activeTabID) {
             orderedIDs.insert(activeTabID, at: 0)
         }
 
@@ -447,4 +445,3 @@ extension BrowserStore {
             .map { $0 }
     }
 }
-

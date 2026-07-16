@@ -141,10 +141,8 @@ struct TabRowView: View {
 
     @ViewBuilder
     private var faviconImage: some View {
-        if
-            let data = tab.faviconData,
-            let nsImage = NSImage(data: data)
-        {
+        if let data = tab.faviconData,
+           let nsImage = NSImage(data: data) {
             Image(nsImage: nsImage)
                 .resizable()
                 .scaledToFit()

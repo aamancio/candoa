@@ -88,7 +88,7 @@ struct SidebarView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             sidebarHeader
-            
+
             if store.isInitialAccountSetupPresented {
                 Spacer(minLength: 0)
             } else if store.isSpaceSetupPresented {
@@ -501,10 +501,8 @@ struct SidebarView: View {
 
     @ViewBuilder
     private var spaceLabel: some View {
-        if
-            let space = store.activeSpace,
-            !space.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        {
+        if let space = store.activeSpace,
+           !space.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             HStack(spacing: 8) {
                 if space.symbolName != "square.dashed" {
                     if let emoji = space.iconEmoji {

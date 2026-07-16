@@ -125,7 +125,6 @@ final class SystemAppearanceObserver: ObservableObject {
         }
     }
 
-
     private static func currentSystemColorScheme() -> ColorScheme {
         let appearance = NSApp.effectiveAppearance
         return appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua

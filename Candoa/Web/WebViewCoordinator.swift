@@ -513,11 +513,9 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
             webView.isHidden = true
             // Adopt the destination size before restoring so the page
             // relayouts (and restores its scroll position) at full layout.
-            if
-                let activeID = self.hostedActiveTabID,
+            if let activeID = self.hostedActiveTabID,
                 let activeFrame = self.webViews[activeID]?.frame,
-                activeFrame.size != .zero
-            {
+                activeFrame.size != .zero {
                 webView.frame = activeFrame
             }
             self.restoreMiniPlayerPresentation(tabID: tabID)

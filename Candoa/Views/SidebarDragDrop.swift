@@ -229,11 +229,9 @@ internal struct RegularTabSectionDropDelegate: DropDelegate {
         let indicator = store.activeSidebarDropIndicator
         let beforeID: UUID?
         let appendToEnd: Bool
-        if
-            indicator?.placement == .regular,
+        if indicator?.placement == .regular,
             let targetID = indicator?.targetTabID,
-            let targetTab = store.regularTabsForActiveSpace.first(where: { $0.id == targetID })
-        {
+            let targetTab = store.regularTabsForActiveSpace.first(where: { $0.id == targetID }) {
             let edge = indicator?.edge ?? .after
             if edge == .split {
                 store.splitTab(draggedID, onto: targetTab.id, side: splitDropSide(for: info))
@@ -299,11 +297,9 @@ internal struct PinnedTabSectionDropDelegate: DropDelegate {
         let indicator = store.activeSidebarDropIndicator
         let beforeID: UUID?
         let appendToEnd: Bool
-        if
-            indicator?.placement == .pinned,
+        if indicator?.placement == .pinned,
             let targetID = indicator?.targetTabID,
-            let targetTab = store.pinnedTabsForActiveSpace.first(where: { $0.id == targetID })
-        {
+            let targetTab = store.pinnedTabsForActiveSpace.first(where: { $0.id == targetID }) {
             let edge = indicator?.edge ?? .after
             if edge == .split {
                 store.splitTab(draggedID, onto: targetTab.id, side: splitDropSide(for: info))

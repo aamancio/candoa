@@ -65,10 +65,8 @@ internal struct EssentialTileView: View {
 
     @ViewBuilder
     private var faviconImage: some View {
-        if
-            let data = placement == .favorite ? tab.favoriteDisplayFaviconData : tab.faviconData,
-            let nsImage = NSImage(data: data)
-        {
+        if let data = placement == .favorite ? tab.favoriteDisplayFaviconData : tab.faviconData,
+           let nsImage = NSImage(data: data) {
             Image(nsImage: nsImage)
                 .resizable()
                 .scaledToFit()

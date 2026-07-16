@@ -178,7 +178,6 @@ extension CommandPaletteView {
         .compactMap { $0 } + provider.aliases.filter { $0.contains(".") }
     }
 
-
     internal func suggestedSearchProvider(for rawQuery: String, allowsAutocomplete: Bool) -> SearchProvider? {
         if allowsAutocomplete,
            let provider = autocompleteSuggestion(
