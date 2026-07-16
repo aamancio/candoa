@@ -165,7 +165,7 @@ jobs:
             echo "APP_BUILD=$APP_BUILD"
             echo "APP_BUNDLE_IDENTIFIER=$APP_BUNDLE_IDENTIFIER"
             echo "APP_FILE_NAME=Candoa $APP_VERSION.dmg"
-            echo "APP_ARCHIVE_NAME=Candoa-$APP_VERSION.dmg"
+            echo "APP_ARCHIVE_NAME=Candoa $APP_VERSION.dmg"
           } >> "$GITHUB_ENV"
 
       - name: Install Sparkle tools
