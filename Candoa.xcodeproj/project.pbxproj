@@ -61,6 +61,19 @@
 		010000000000000000000153 /* HistoryRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000053 /* HistoryRepository.swift */; };
 		010000000000000000000154 /* BrowserStore+Eli.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000054 /* BrowserStore+Eli.swift */; };
 		010000000000000000000155 /* BrowserStore+Media.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000055 /* BrowserStore+Media.swift */; };
+		AA0000000000000000000101 /* UserStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000001 /* UserStore.swift */; };
+		AA0000000000000000000102 /* BrowserStore+Testing.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000002 /* BrowserStore+Testing.swift */; };
+		AA0000000000000000000103 /* BrowserStore+CommandPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000003 /* BrowserStore+CommandPalette.swift */; };
+		AA0000000000000000000104 /* BrowserStore+Onboarding.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000004 /* BrowserStore+Onboarding.swift */; };
+		AA0000000000000000000105 /* BrowserStore+Spaces.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000005 /* BrowserStore+Spaces.swift */; };
+		AA0000000000000000000106 /* BrowserStore+TabsFolders.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000006 /* BrowserStore+TabsFolders.swift */; };
+		AA0000000000000000000107 /* BrowserStore+BrowserActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000007 /* BrowserStore+BrowserActions.swift */; };
+		AA0000000000000000000108 /* BrowserStore+TabSwitching.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000008 /* BrowserStore+TabSwitching.swift */; };
+		AA0000000000000000000109 /* BrowserStore+SplitViewDragDrop.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000009 /* BrowserStore+SplitViewDragDrop.swift */; };
+		AA000000000000000000010A /* BrowserStore+NavigationHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000000A /* BrowserStore+NavigationHistory.swift */; };
+		AA000000000000000000010B /* BrowserStore+Persistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000000B /* BrowserStore+Persistence.swift */; };
+		AA000000000000000000010C /* BrowserStore+SessionRepair.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000000C /* BrowserStore+SessionRepair.swift */; };
+		AA000000000000000000010D /* CandoaImageTextRecognizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000000D /* CandoaImageTextRecognizer.swift */; };
 		010000000000000000000150 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000050 /* Assets.xcassets */; };
 		010000000000000000000160 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 010000000000000000000161 /* Sparkle */; };
 		010000000000000000000170 /* CandoaUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000060 /* CandoaUITests.swift */; };
@@ -82,6 +95,19 @@
 		010000000000000000000003 /* BrowserSpace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserSpace.swift; sourceTree = "<group>"; };
 		010000000000000000000004 /* BrowserWindowState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserWindowState.swift; sourceTree = "<group>"; };
 		010000000000000000000005 /* BrowserStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserStore.swift; sourceTree = "<group>"; };
+		AA0000000000000000000001 /* UserStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserStore.swift; sourceTree = "<group>"; };
+		AA0000000000000000000002 /* BrowserStore+Testing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+Testing.swift"; sourceTree = "<group>"; };
+		AA0000000000000000000003 /* BrowserStore+CommandPalette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+CommandPalette.swift"; sourceTree = "<group>"; };
+		AA0000000000000000000004 /* BrowserStore+Onboarding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+Onboarding.swift"; sourceTree = "<group>"; };
+		AA0000000000000000000005 /* BrowserStore+Spaces.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+Spaces.swift"; sourceTree = "<group>"; };
+		AA0000000000000000000006 /* BrowserStore+TabsFolders.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+TabsFolders.swift"; sourceTree = "<group>"; };
+		AA0000000000000000000007 /* BrowserStore+BrowserActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+BrowserActions.swift"; sourceTree = "<group>"; };
+		AA0000000000000000000008 /* BrowserStore+TabSwitching.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+TabSwitching.swift"; sourceTree = "<group>"; };
+		AA0000000000000000000009 /* BrowserStore+SplitViewDragDrop.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+SplitViewDragDrop.swift"; sourceTree = "<group>"; };
+		AA000000000000000000000A /* BrowserStore+NavigationHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+NavigationHistory.swift"; sourceTree = "<group>"; };
+		AA000000000000000000000B /* BrowserStore+Persistence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+Persistence.swift"; sourceTree = "<group>"; };
+		AA000000000000000000000C /* BrowserStore+SessionRepair.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+SessionRepair.swift"; sourceTree = "<group>"; };
+		AA000000000000000000000D /* CandoaImageTextRecognizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CandoaImageTextRecognizer.swift; sourceTree = "<group>"; };
 		010000000000000000000006 /* NavigationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavigationService.swift; sourceTree = "<group>"; };
 		010000000000000000000007 /* PersistenceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceService.swift; sourceTree = "<group>"; };
 		010000000000000000000008 /* FaviconService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FaviconService.swift; sourceTree = "<group>"; };
@@ -255,6 +281,7 @@
 				010000000000000000000043 /* CandoaEliPromptPolicy.swift */,
 				010000000000000000000044 /* CandoaEliDrafts.swift */,
 				010000000000000000000048 /* CandoaEliContextCompactor.swift */,
+				AA000000000000000000000D /* CandoaImageTextRecognizer.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -265,6 +292,18 @@
 				010000000000000000000005 /* BrowserStore.swift */,
 				010000000000000000000054 /* BrowserStore+Eli.swift */,
 				010000000000000000000055 /* BrowserStore+Media.swift */,
+				AA0000000000000000000001 /* UserStore.swift */,
+				AA0000000000000000000002 /* BrowserStore+Testing.swift */,
+				AA0000000000000000000003 /* BrowserStore+CommandPalette.swift */,
+				AA0000000000000000000004 /* BrowserStore+Onboarding.swift */,
+				AA0000000000000000000005 /* BrowserStore+Spaces.swift */,
+				AA0000000000000000000006 /* BrowserStore+TabsFolders.swift */,
+				AA0000000000000000000007 /* BrowserStore+BrowserActions.swift */,
+				AA0000000000000000000008 /* BrowserStore+TabSwitching.swift */,
+				AA0000000000000000000009 /* BrowserStore+SplitViewDragDrop.swift */,
+				AA000000000000000000000A /* BrowserStore+NavigationHistory.swift */,
+				AA000000000000000000000B /* BrowserStore+Persistence.swift */,
+				AA000000000000000000000C /* BrowserStore+SessionRepair.swift */,
 			);
 			path = Stores;
 			sourceTree = "<group>";
@@ -434,6 +473,19 @@
 				010000000000000000000103 /* BrowserSpace.swift in Sources */,
 				010000000000000000000104 /* BrowserWindowState.swift in Sources */,
 				010000000000000000000105 /* BrowserStore.swift in Sources */,
+				AA0000000000000000000101 /* UserStore.swift in Sources */,
+				AA0000000000000000000102 /* BrowserStore+Testing.swift in Sources */,
+				AA0000000000000000000103 /* BrowserStore+CommandPalette.swift in Sources */,
+				AA0000000000000000000104 /* BrowserStore+Onboarding.swift in Sources */,
+				AA0000000000000000000105 /* BrowserStore+Spaces.swift in Sources */,
+				AA0000000000000000000106 /* BrowserStore+TabsFolders.swift in Sources */,
+				AA0000000000000000000107 /* BrowserStore+BrowserActions.swift in Sources */,
+				AA0000000000000000000108 /* BrowserStore+TabSwitching.swift in Sources */,
+				AA0000000000000000000109 /* BrowserStore+SplitViewDragDrop.swift in Sources */,
+				AA000000000000000000010A /* BrowserStore+NavigationHistory.swift in Sources */,
+				AA000000000000000000010B /* BrowserStore+Persistence.swift in Sources */,
+				AA000000000000000000010C /* BrowserStore+SessionRepair.swift in Sources */,
+				AA000000000000000000010D /* CandoaImageTextRecognizer.swift in Sources */,
 				010000000000000000000106 /* NavigationService.swift in Sources */,
 				010000000000000000000107 /* PersistenceService.swift in Sources */,
 				010000000000000000000108 /* FaviconService.swift in Sources */,

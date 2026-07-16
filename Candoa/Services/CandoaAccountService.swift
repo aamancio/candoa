@@ -1,8 +1,5 @@
-import AuthenticationServices
-import AppKit
 import Foundation
 import Security
-import SwiftUI
 
 enum CandoaAccountKeychain {
     private static let service = "app.candoa.Candoa.Account"
@@ -172,131 +169,35 @@ enum CandoaCloudAPI {
     }
 }
 
-@MainActor
-final class CandoaAccountController: ObservableObject {
-    @Published private(set) var status: CandoaAccountStatus?
-    @Published private(set) var isWorking = false
-    @Published private(set) var errorMessage: String?
-    @Published private(set) var isSignedIn: Bool
+struct CandoaAccountService {
+    var accessToken: String? { CandoaAccountKeychain.accessToken }
 
-    private var pendingAppleNonce: String?
-
-    var hasActiveSubscription: Bool { status?.hasActiveSubscription == true }
-
-    init() {
-        isSignedIn = CandoaAccountKeychain.accessToken != nil
+    func authenticateWithApple(identityToken: String, nonce: String) async throws -> String {
+        try await CandoaCloudAPI.authenticateWithApple(identityToken: identityToken, nonce: nonce)
     }
 
-    func configure(_ request: ASAuthorizationAppleIDRequest) {
-        pendingAppleNonce = makeNonce()
-        request.requestedScopes = [.email, .fullName]
-        request.nonce = pendingAppleNonce
-        errorMessage = nil
+    func saveAccessToken(_ accessToken: String) throws {
+        try CandoaAccountKeychain.save(accessToken)
     }
 
-    func completeAppleSignIn(_ result: Result<ASAuthorization, Error>) {
-        guard case .success(let authorization) = result,
-              let credential = authorization.credential as? ASAuthorizationAppleIDCredential,
-              let tokenData = credential.identityToken,
-              let identityToken = String(data: tokenData, encoding: .utf8),
-              let nonce = pendingAppleNonce else {
-            if case .failure(let error) = result,
-               (error as? ASAuthorizationError)?.code == .canceled {
-                return
-            }
-            errorMessage = "Apple sign-in was not completed. Please try again."
-            return
-        }
-
-        pendingAppleNonce = nil
-        isWorking = true
-        errorMessage = nil
-        Task {
-            do {
-                let accessToken = try await CandoaCloudAPI.authenticateWithApple(
-                    identityToken: identityToken,
-                    nonce: nonce
-                )
-                try CandoaAccountKeychain.save(accessToken)
-                isSignedIn = true
-                await refresh()
-            } catch {
-                isWorking = false
-                errorMessage = error.localizedDescription
-            }
-        }
+    func removeAccessToken() throws {
+        try CandoaAccountKeychain.remove()
     }
 
-    func refresh() async {
-        guard let accessToken = CandoaAccountKeychain.accessToken else {
-            status = nil
-            isSignedIn = false
-            return
-        }
-
-        isWorking = true
-        defer { isWorking = false }
-        do {
-            status = try await CandoaCloudAPI.accountStatus(accessToken: accessToken)
-            errorMessage = nil
-        } catch {
-            status = nil
-            if (error as? CandoaAccountError)?.isAuthenticationFailure == true {
-                try? CandoaAccountKeychain.remove()
-                isSignedIn = false
-            }
-            errorMessage = error.localizedDescription
-        }
+    func accountStatus(accessToken: String) async throws -> CandoaAccountStatus {
+        try await CandoaCloudAPI.accountStatus(accessToken: accessToken)
     }
 
-    func startProCheckout() async {
-        await openBillingURL { accessToken in
-            try await CandoaCloudAPI.checkoutURL(accessToken: accessToken, planID: "pro")
-        }
+    func proCheckoutURL(accessToken: String) async throws -> URL {
+        try await CandoaCloudAPI.checkoutURL(accessToken: accessToken, planID: "pro")
     }
 
-    func openBillingPortal() async {
-        await openBillingURL { accessToken in
-            try await CandoaCloudAPI.portalURL(accessToken: accessToken)
-        }
-    }
-
-    func signOut() {
-        try? CandoaAccountKeychain.remove()
-        isSignedIn = false
-        status = nil
-        errorMessage = nil
-    }
-
-    private func openBillingURL(_ operation: (String) async throws -> URL) async {
-        guard let accessToken = CandoaAccountKeychain.accessToken else {
-            errorMessage = "Sign in with Apple before managing Candoa billing."
-            return
-        }
-
-        isWorking = true
-        defer { isWorking = false }
-        do {
-            NSWorkspace.shared.open(try await operation(accessToken))
-            errorMessage = nil
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-    }
-
-    private func makeNonce() -> String {
-        var bytes = [UInt8](repeating: 0, count: 32)
-        guard SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes) == errSecSuccess else {
-            return UUID().uuidString.replacingOccurrences(of: "-", with: "")
-        }
-        return Data(bytes).base64EncodedString()
-            .replacingOccurrences(of: "+", with: "-")
-            .replacingOccurrences(of: "/", with: "_")
-            .replacingOccurrences(of: "=", with: "")
+    func billingPortalURL(accessToken: String) async throws -> URL {
+        try await CandoaCloudAPI.portalURL(accessToken: accessToken)
     }
 }
 
-private enum CandoaAccountError: LocalizedError {
+enum CandoaAccountError: LocalizedError {
     case invalidResponse
     case keychainUnavailable
     case server(String)

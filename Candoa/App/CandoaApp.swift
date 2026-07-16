@@ -4,10 +4,12 @@ import SwiftUI
 @main
 struct CandoaApp: App {
     @NSApplicationDelegateAdaptor(CandoaAppDelegate.self) private var appDelegate
+    @StateObject private var userStore = UserStore()
 
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environmentObject(userStore)
                 .tint(CandoaColor.primary)
                 .frame(
                     minWidth: AppConfiguration.minimumWindowWidth,
@@ -25,6 +27,7 @@ struct CandoaApp: App {
 
         Settings {
             CandoaSettingsView()
+                .environmentObject(userStore)
                 .tint(CandoaColor.primary)
         }
     }

@@ -231,7 +231,7 @@ private struct WelcomeOnboardingStep: View {
 
 private struct AccountOnboardingStep: View {
     @ObservedObject var store: BrowserStore
-    @StateObject private var accountController = CandoaAccountController()
+    @EnvironmentObject private var userStore: UserStore
 
     var body: some View {
         OnboardingSurface(step: .account, onBack: store.goBackInInitialOnboarding) {
@@ -245,17 +245,17 @@ private struct AccountOnboardingStep: View {
                 Spacer(minLength: 24)
 
                 OnboardingSignInWithAppleButton(
-                    isEnabled: !accountController.isWorking,
-                    configure: accountController.configure,
-                    completion: accountController.completeAppleSignIn
+                    isEnabled: !userStore.isWorking,
+                    configure: userStore.configure,
+                    completion: userStore.completeAppleSignIn
                 )
                 .frame(height: 44)
                 .accessibilityIdentifier("onboarding-apple-sign-in")
 
-                if accountController.isWorking {
+                if userStore.isWorking {
                     ProgressView("Signing in…")
                         .controlSize(.small)
-                } else if let errorMessage = accountController.errorMessage {
+                } else if let errorMessage = userStore.errorMessage {
                     Text(errorMessage)
                         .font(.system(size: 12))
                         .foregroundStyle(CandoaColor.danger)
@@ -265,7 +265,7 @@ private struct AccountOnboardingStep: View {
         } preview: {
             OnboardingAccountPreview()
         }
-        .onChange(of: accountController.isSignedIn) { _, isSignedIn in
+        .onChange(of: userStore.isSignedIn) { _, isSignedIn in
             if isSignedIn {
                 store.completeInitialAccountSetup()
             }
@@ -349,8 +349,7 @@ private struct OnboardingSignInWithAppleButton: NSViewRepresentable {
 
 private struct ImportOnboardingStep: View {
     @ObservedObject var store: BrowserStore
-    @State private var isFileImporterPresented = false
-    @State private var isImporting = false
+    @State private var isMigrationPresented = false
     @State private var importMessage: String?
     @State private var importFailed = false
 
@@ -365,10 +364,7 @@ private struct ImportOnboardingStep: View {
 
                 Spacer(minLength: 24)
 
-                if isImporting {
-                    ProgressView("Importing…")
-                        .controlSize(.small)
-                } else if let importMessage {
+                if let importMessage {
                     Label(
                         importMessage,
                         systemImage: importFailed ? "exclamationmark.triangle" : "checkmark.circle"
@@ -390,7 +386,7 @@ private struct ImportOnboardingStep: View {
                     .keyboardShortcut(.defaultAction)
 
                     Button {
-                        isFileImporterPresented = true
+                        isMigrationPresented = true
                     } label: {
                         Label("Import Again…", systemImage: "doc.badge.plus")
                             .frame(maxWidth: .infinity)
@@ -398,11 +394,10 @@ private struct ImportOnboardingStep: View {
                     .buttonStyle(.bordered)
                     .tint(.secondary)
                     .controlSize(.large)
-                    .disabled(isImporting)
                     .accessibilityIdentifier("onboarding-import-bookmarks")
                 } else {
                     Button {
-                        isFileImporterPresented = true
+                        isMigrationPresented = true
                     } label: {
                         Label("Import My Bookmarks…", systemImage: "doc.badge.plus")
                             .frame(maxWidth: .infinity)
@@ -410,7 +405,6 @@ private struct ImportOnboardingStep: View {
                     .buttonStyle(.borderedProminent)
                     .controlSize(.large)
                     .keyboardShortcut(.defaultAction)
-                    .disabled(isImporting)
                     .accessibilityIdentifier("onboarding-import-bookmarks")
 
                     Button {
@@ -432,37 +426,180 @@ private struct ImportOnboardingStep: View {
             importMessage = importedBookmarksMessage(count: count)
             importFailed = false
         }
-        .fileImporter(
-            isPresented: $isFileImporterPresented,
-            allowedContentTypes: [.html],
-            allowsMultipleSelection: false
-        ) { result in
-            guard case .success(let urls) = result, let fileURL = urls.first else {
-                if case .failure(let error) = result {
-                    importFailed = true
-                    importMessage = error.localizedDescription
-                }
-                return
-            }
-
-            isImporting = true
-            importMessage = nil
-            importFailed = false
-            Task {
-                do {
-                    let count = try await store.importInitialBookmarks(from: fileURL)
-                    importMessage = importedBookmarksMessage(count: count)
-                } catch {
-                    importFailed = true
-                    importMessage = error.localizedDescription
-                }
-                isImporting = false
+        .sheet(isPresented: $isMigrationPresented) {
+            BrowserMigrationSheet(store: store) { count in
+                importMessage = importedBookmarksMessage(count: count)
+                importFailed = false
             }
         }
     }
 
     private func importedBookmarksMessage(count: Int) -> String {
         "Imported \(count) bookmark\(count == 1 ? "" : "s"). They’re ready in your sidebar."
+    }
+}
+
+private struct BrowserMigrationSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @ObservedObject var store: BrowserStore
+    let onImported: (Int) -> Void
+
+    @State private var selectedSource: BrowserImportSource
+    @State private var isProfileFolderImporterPresented = false
+    @State private var isHTMLImporterPresented = false
+    @State private var isImporting = false
+    @State private var errorMessage: String?
+
+    private let sources: [BrowserImportSource]
+
+    init(store: BrowserStore, onImported: @escaping (Int) -> Void) {
+        self.store = store
+        self.onImported = onImported
+
+        sources = BrowserImportSource.allCases
+        let installedSources = sources.filter {
+            NSWorkspace.shared.urlForApplication(withBundleIdentifier: $0.bundleIdentifier) != nil
+        }
+        _selectedSource = State(initialValue: installedSources.first ?? sources[0])
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Import Bookmarks")
+                    .font(.title2.weight(.semibold))
+
+                Text("Choose a browser, then select its local profile folder. Candoa reads the bookmarks on your Mac and keeps their folder organization.")
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Picker("Import from:", selection: $selectedSource) {
+                ForEach(sources) { source in
+                    Label {
+                        Text(source.name)
+                    } icon: {
+                        Image(nsImage: applicationIcon(for: source))
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 20, height: 20)
+                    }
+                    .tag(source)
+                }
+            }
+            .pickerStyle(.radioGroup)
+            .horizontalRadioGroupLayout()
+            .accessibilityIdentifier("migration-browser-picker")
+
+            Text(selectedSource.profileFolderHint)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+
+            if isImporting {
+                ProgressView("Importing from \(selectedSource.name)…")
+                    .controlSize(.small)
+            }
+
+            HStack {
+                Button("Cancel", role: .cancel) {
+                    dismiss()
+                }
+
+                Button("Import an HTML File…") {
+                    isHTMLImporterPresented = true
+                }
+                .disabled(isImporting)
+                .accessibilityIdentifier("migration-import-html")
+
+                Spacer()
+
+                Button("Choose \(selectedSource.name) Profile…") {
+                    isProfileFolderImporterPresented = true
+                }
+                .buttonStyle(.borderedProminent)
+                .keyboardShortcut(.defaultAction)
+                .disabled(isImporting)
+                .accessibilityIdentifier("migration-choose-profile-folder")
+            }
+        }
+        .padding(24)
+        .frame(width: 540)
+        .fileImporter(
+            isPresented: $isProfileFolderImporterPresented,
+            allowedContentTypes: [.folder],
+            allowsMultipleSelection: false,
+            onCompletion: handleProfileFolderSelection
+        )
+        .fileDialogDefaultDirectory(selectedSource.suggestedProfileFolderURL)
+        .fileImporter(
+            isPresented: $isHTMLImporterPresented,
+            allowedContentTypes: [.html],
+            allowsMultipleSelection: false,
+            onCompletion: handleHTMLSelection
+        )
+        .alert("Couldn’t Import Bookmarks", isPresented: errorIsPresented) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(errorMessage ?? "Try choosing the browser’s profile folder or an exported bookmarks HTML file.")
+        }
+    }
+
+    private var errorIsPresented: Binding<Bool> {
+        Binding(
+            get: { errorMessage != nil },
+            set: { isPresented in
+                if !isPresented { errorMessage = nil }
+            }
+        )
+    }
+
+    private func applicationIcon(for source: BrowserImportSource) -> NSImage {
+        guard let applicationURL = NSWorkspace.shared.urlForApplication(
+            withBundleIdentifier: source.bundleIdentifier
+        ) else {
+            return NSImage(systemSymbolName: "globe", accessibilityDescription: source.name) ?? NSImage()
+        }
+        return NSWorkspace.shared.icon(forFile: applicationURL.path)
+    }
+
+    private func handleProfileFolderSelection(_ result: Result<[URL], Error>) {
+        guard case .success(let urls) = result, let folderURL = urls.first else {
+            if case .failure(let error) = result { errorMessage = error.localizedDescription }
+            return
+        }
+
+        runImport {
+            try await store.importInitialBookmarks(
+                fromProfileFolder: folderURL,
+                source: selectedSource
+            )
+        }
+    }
+
+    private func handleHTMLSelection(_ result: Result<[URL], Error>) {
+        guard case .success(let urls) = result, let fileURL = urls.first else {
+            if case .failure(let error) = result { errorMessage = error.localizedDescription }
+            return
+        }
+
+        runImport {
+            try await store.importInitialBookmarks(from: fileURL)
+        }
+    }
+
+    private func runImport(_ operation: @escaping @MainActor () async throws -> Int) {
+        isImporting = true
+        errorMessage = nil
+        Task {
+            do {
+                let count = try await operation()
+                onImported(count)
+                dismiss()
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+            isImporting = false
+        }
     }
 }
 

@@ -7,7 +7,7 @@ internal struct EliSettingsPane: View {
     @State private var apiKey = ""
     @State private var hasSavedKey = CandoaEliKeychain.hasAPIKey
     @State private var keychainError: String?
-    @StateObject private var accountController = CandoaAccountController()
+    @EnvironmentObject private var userStore: UserStore
 
     var body: some View {
         SettingsPane {
@@ -82,22 +82,22 @@ internal struct EliSettingsPane: View {
                 SettingsSectionTitle("Candoa Subscription")
 
                 SettingsCard {
-                    if accountController.isSignedIn {
+                    if userStore.isSignedIn {
                         SettingsRow(
-                            systemImage: accountController.hasActiveSubscription
+                            systemImage: userStore.hasActiveSubscription
                                 ? "checkmark.seal"
                                 : "person.crop.circle",
-                            title: accountController.hasActiveSubscription
-                                ? "Candoa \(accountController.status?.planID.capitalized ?? "")"
+                            title: userStore.hasActiveSubscription
+                                ? "Candoa \(userStore.status?.planID.capitalized ?? "")"
                                 : "No active Candoa subscription",
-                            subtitle: accountController.hasActiveSubscription
+                            subtitle: userStore.hasActiveSubscription
                                 ? "Manage payment details, invoices, or your plan in Stripe."
                                 : "Open Eli to subscribe to Candoa Pro."
                         ) {
-                            if accountController.hasActiveSubscription {
+                            if userStore.hasActiveSubscription {
                                 Button("Manage", action: openBillingPortal)
                                     .controlSize(.small)
-                                    .disabled(accountController.isWorking)
+                                    .disabled(userStore.isWorking)
                             }
                         }
 
@@ -108,7 +108,7 @@ internal struct EliSettingsPane: View {
                             title: "Candoa account",
                             subtitle: "This only removes the Candoa session from this Mac."
                         ) {
-                            Button("Sign out", role: .destructive, action: accountController.signOut)
+                            Button("Sign out", role: .destructive, action: userStore.signOut)
                                 .controlSize(.small)
                         }
                     } else {
@@ -119,7 +119,7 @@ internal struct EliSettingsPane: View {
                         ) { }
                     }
 
-                    if let accountError = accountController.errorMessage {
+                    if let accountError = userStore.errorMessage {
                         SettingsDivider()
 
                         Text(accountError)
@@ -133,7 +133,7 @@ internal struct EliSettingsPane: View {
             }
         }
         .task {
-            await accountController.refresh()
+            await userStore.refresh()
         }
     }
 
@@ -161,6 +161,6 @@ internal struct EliSettingsPane: View {
     }
 
     private func openBillingPortal() {
-        Task { await accountController.openBillingPortal() }
+        Task { await userStore.openBillingPortal() }
     }
 }

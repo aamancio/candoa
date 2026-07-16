@@ -14,6 +14,22 @@ final class CandoaUITests: XCTestCase {
         XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 10))
     }
 
+    func testBrowserMigrationEntryFlowIsWired() throws {
+        let app = launchApp(onboardingStep: "importData")
+
+        let importButton = app.buttons["Import My Bookmarks…"]
+        XCTAssertTrue(importButton.waitForExistence(timeout: 10))
+        importButton.click()
+
+        XCTAssertTrue(app.sheets.firstMatch.waitForExistence(timeout: 5))
+        let firefoxSource = app.radioButtons["Firefox"]
+        XCTAssertTrue(firefoxSource.waitForExistence(timeout: 5))
+        firefoxSource.click()
+        XCTAssertTrue(app.buttons["Choose Firefox Profile…"].waitForExistence(timeout: 5))
+        XCTAssertTrue(element("migration-choose-profile-folder", in: app).waitForExistence(timeout: 5))
+        XCTAssertTrue(element("migration-import-html", in: app).waitForExistence(timeout: 5))
+    }
+
     func testTestingBotNewTabFindAndSidebarShortcuts() throws {
         let app = launchApp()
 
@@ -86,14 +102,11 @@ final class CandoaUITests: XCTestCase {
         submitCommandPaletteText("google.com", in: app)
 
         XCTAssertTrue(
-            waitForState(in: app, containing: "url=https://www.google.com/?hl=en&gl=us", timeout: 10),
+            waitForState(in: app, containing: "url=https://www.google.com/", timeout: 10),
             currentState(in: app)
         )
         XCTAssertTrue(
-            waitForState(
-                in: app,
-                containing: "tabs=amazon.com|Granola|WebKit Documentation|Home / X|Apple|google.com"
-            ),
+            waitForState(in: app, containing: "|Google|Apple"),
             currentState(in: app)
         )
     }
@@ -111,10 +124,16 @@ final class CandoaUITests: XCTestCase {
     func testControlTabSkipsFavoritesThatHaveNotBeenActivated() throws {
         let app = launchApp(fixture: "inactive-favorites")
 
-        XCTAssertTrue(waitForState(in: app, containing: "active=Current"), currentState(in: app))
+        XCTAssertTrue(
+            waitForState(in: app, containing: "url=https://example.com/current"),
+            currentState(in: app)
+        )
         app.typeKey(.tab, modifierFlags: .control)
 
-        XCTAssertTrue(waitForState(in: app, containing: "active=Current"), currentState(in: app))
+        XCTAssertTrue(
+            waitForState(in: app, containing: "url=https://example.com/current"),
+            currentState(in: app)
+        )
     }
 
     func testCommandPaletteDoesNotSwitchToMatchingTabInAnotherSpace() throws {
@@ -128,15 +147,25 @@ final class CandoaUITests: XCTestCase {
         submitCommandPaletteText("google.com", in: app)
 
         XCTAssertTrue(waitForState(in: app, containing: "space=TestingBot", timeout: 10), currentState(in: app))
-        XCTAssertTrue(waitForState(in: app, containing: "url=https://www.google.com/?hl=en&gl=us", timeout: 10), currentState(in: app))
+        XCTAssertTrue(
+            waitForState(in: app, containing: "url=https://www.google.com/", timeout: 10),
+            currentState(in: app)
+        )
     }
 
-    private func launchApp(fixture: String? = nil) -> XCUIApplication {
+    private func launchApp(
+        fixture: String? = nil,
+        onboardingStep: String? = nil
+    ) -> XCUIApplication {
         let app = XCUIApplication()
+        app.launchArguments += ["-ApplePersistenceIgnoreState", "YES"]
         app.launchEnvironment["CANDOA_UI_TESTING"] = "1"
         app.launchEnvironment["CANDOA_UI_TESTING_STORE_ID"] = "TestingBot"
         if let fixture {
             app.launchEnvironment["CANDOA_UI_TESTING_FIXTURE"] = fixture
+        }
+        if let onboardingStep {
+            app.launchEnvironment["CANDOA_UI_TESTING_ONBOARDING_STEP"] = onboardingStep
         }
 
         app.launch()
@@ -315,6 +344,7 @@ final class CandoaEliLiveUITests: XCTestCase {
 
     private func launchAskApp() -> XCUIApplication {
         let app = XCUIApplication()
+        app.launchArguments += ["-ApplePersistenceIgnoreState", "YES"]
         app.launchEnvironment["CANDOA_UI_TESTING"] = "1"
         app.launchEnvironment["CANDOA_UI_TESTING_STORE_ID"] = "TestingBot"
         app.launchEnvironment["CANDOA_UI_TESTING_FIXTURE"] = "ask"

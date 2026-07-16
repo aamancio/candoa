@@ -1,0 +1,637 @@
+import AppKit
+import Foundation
+
+extension BrowserStore {
+    var activeTab: BrowserTab? {
+        guard let activeTabID else { return nil }
+        return tabs.first { $0.id == activeTabID }
+    }
+
+    var activeSplitTab: BrowserTab? {
+        activeSplitTabs.first
+    }
+
+    var activeSplitTabs: [BrowserTab] {
+        let activeID = activeTabID
+        return splitGroupTabIDs()
+            .filter { $0 != activeID }
+            .compactMap(tab)
+    }
+
+    var activeSplitGroupTabs: [BrowserTab] {
+        splitGroupTabIDs().compactMap(tab)
+    }
+
+    var activeSplitGroupTabIDs: Set<UUID> {
+        Set(splitGroupTabIDs())
+    }
+
+    var activeSidebarDropIndicator: SidebarTabDropIndicator? {
+        draggedTabID == nil ? nil : sidebarDropIndicator
+    }
+
+    var visibleTabsForActiveSpace: [BrowserTab] {
+        visibleTabs(in: activeSpaceID)
+    }
+
+    var favoriteTabsForActiveSpace: [BrowserTab] {
+        tabs
+            .filter { $0.spaceID == activeSpaceID && $0.isFavorite }
+            .sorted { $0.sortOrder < $1.sortOrder }
+    }
+
+    var pinnedTabsForActiveSpace: [BrowserTab] {
+        tabs
+            .filter { $0.spaceID == activeSpaceID && $0.folderID == nil && $0.isPinned && !$0.isFavorite }
+            .sorted { $0.sortOrder < $1.sortOrder }
+    }
+
+    var foldersForActiveSpace: [BrowserFolder] {
+        folders
+            .filter { $0.spaceID == activeSpaceID && $0.parentFolderID == nil }
+            .sorted { $0.sortOrder < $1.sortOrder }
+    }
+
+    var folderedTabsForActiveSpace: [BrowserTab] {
+        folders
+            .filter { $0.spaceID == activeSpaceID }
+            .sorted { $0.sortOrder < $1.sortOrder }
+            .flatMap { folder in
+                tabsInFolder(folder.id)
+            }
+    }
+
+    var regularTabsForActiveSpace: [BrowserTab] {
+        tabs
+            .filter { $0.spaceID == activeSpaceID && $0.folderID == nil && !$0.isFavorite && !$0.isPinned }
+            .sorted { $0.sortOrder < $1.sortOrder }
+    }
+
+    func visibleTabs(in spaceID: UUID) -> [BrowserTab] {
+        let favorites = tabs
+            .filter { $0.spaceID == spaceID && $0.isFavorite }
+            .sorted { $0.sortOrder < $1.sortOrder }
+        let pinned = tabs
+            .filter { $0.spaceID == spaceID && $0.folderID == nil && $0.isPinned && !$0.isFavorite }
+            .sorted { $0.sortOrder < $1.sortOrder }
+        let foldered = folders
+            .filter { $0.spaceID == spaceID }
+            .sorted { $0.sortOrder < $1.sortOrder }
+            .flatMap { folder in
+                tabsInFolder(folder.id)
+            }
+        let regular = tabs
+            .filter { $0.spaceID == spaceID && $0.folderID == nil && !$0.isFavorite && !$0.isPinned }
+            .sorted { $0.sortOrder < $1.sortOrder }
+
+        return favorites + pinned + foldered + regular
+    }
+
+    func tabsInFolder(_ folderID: UUID) -> [BrowserTab] {
+        tabs
+            .filter { $0.folderID == folderID }
+            .sorted { $0.sortOrder < $1.sortOrder }
+    }
+
+    func subfolders(in folderID: UUID) -> [BrowserFolder] {
+        folders
+            .filter { $0.parentFolderID == folderID }
+            .sorted { $0.sortOrder < $1.sortOrder }
+    }
+
+    func tabsInFolderTree(_ folderID: UUID) -> [BrowserTab] {
+        tabsInFolder(folderID) + subfolders(in: folderID).flatMap { tabsInFolderTree($0.id) }
+    }
+
+    func descendantFolderIDs(of folderID: UUID) -> Set<UUID> {
+        subfolders(in: folderID).reduce(into: Set<UUID>()) { result, folder in
+            result.insert(folder.id)
+            result.formUnion(descendantFolderIDs(of: folder.id))
+        }
+    }
+
+    @discardableResult
+    func newTab(
+        url: URL? = nil,
+        favorite: Bool = false,
+        pinned: Bool = false,
+        folderID: UUID? = nil,
+        in spaceID: UUID? = nil
+    ) -> BrowserTab {
+        let targetSpaceID = spaceID ?? activeSpaceID
+        let targetFolderID = folderID.flatMap { folder in
+            folders.contains(where: { $0.id == folder && $0.spaceID == targetSpaceID }) ? folder : nil
+        }
+        let isPinned = (pinned || targetFolderID != nil) && !favorite
+        var tab = BrowserTab(
+            title: title(for: url),
+            url: url,
+            faviconSymbol: faviconService.placeholderSymbol(for: url),
+            isFavorite: favorite,
+            isPinned: isPinned,
+            folderID: favorite ? nil : targetFolderID,
+            spaceID: targetSpaceID,
+            sortOrder: nextSortOrder(
+                spaceID: targetSpaceID,
+                isFavorite: favorite,
+                isPinned: isPinned,
+                folderID: favorite ? nil : targetFolderID
+            )
+        )
+        if favorite {
+            tab.favoriteTitle = tab.title
+            tab.favoriteURL = tab.url
+            tab.favoriteFaviconSymbol = tab.faviconSymbol
+            tab.favoriteFaviconData = tab.faviconData
+        }
+
+        tabs.insert(tab, at: 0)
+        switchTab(to: tab.id)
+
+        if let url {
+            webCoordinator.load(url, in: tab.id)
+        }
+
+        return tab
+    }
+
+    func closeCurrentTab() {
+        guard let activeTabID else { return }
+        if performPinnedCloseShortcutIfNeeded(activeTabID) {
+            return
+        }
+        closeTab(activeTabID)
+    }
+
+    func closeTab(_ id: UUID) {
+        guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
+        let previousSplitGroupIDs = splitGroupTabIDs()
+        let wasSplitGroupTab = previousSplitGroupIDs.contains(id)
+        let wasActiveTab = activeTabID == id
+        let replacementTabID = wasActiveTab ? replacementTabIDAfterClosing(id) : nil
+        let closingTab = tabs[index]
+        rememberClosedTab(closingTab)
+        tabs.remove(at: index)
+        webCoordinator.removeWebView(for: id)
+        mediaStates[id] = nil
+        if mediaControllerTabID == id {
+            mediaControllerTabID = nil
+        }
+
+        if wasSplitGroupTab {
+            let remainingGroupIDs = previousSplitGroupIDs.filter { $0 != id }
+            let nextActiveID = wasActiveTab
+                ? remainingGroupIDs.first
+                : activeTabID
+            applySplitGroup(remainingGroupIDs, activeID: nextActiveID)
+            if activeTabID == nil {
+                activeTabID = tabs
+                    .filter { $0.spaceID == activeSpaceID }
+                    .sorted { $0.lastAccessedAt > $1.lastAccessedAt }
+                    .first?.id
+            }
+            updateNavigationState()
+        } else if activeTabID == id {
+            activeTabID = replacementTabID
+            updateNavigationState()
+        }
+    }
+
+    func performPinnedCloseShortcutIfNeeded(_ id: UUID) -> Bool {
+        guard
+            let tab = tabs.first(where: { $0.id == id }),
+            tab.isPinned || tab.isFavorite
+        else {
+            return false
+        }
+
+        let behavior = pinnedCloseShortcutBehavior
+        guard behavior != .close else {
+            closeTab(id)
+            return true
+        }
+
+        let nextTabID = behavior.switchesToNextTab
+            ? replacementTabIDAfterClosing(id, prefersRecentlyUsed: false)
+            : nil
+
+        if behavior.resetsURL {
+            resetSavedURLIfAvailable(for: id, loadsWebView: !behavior.unloadsWebView)
+        }
+
+        if let nextTabID {
+            switchTab(to: nextTabID)
+        }
+
+        if behavior.unloadsWebView {
+            unloadWebView(for: id)
+        }
+
+        updateNavigationState()
+        return true
+    }
+
+    func replacementTabIDAfterClosing(_ id: UUID, prefersRecentlyUsed: Bool? = nil) -> UUID? {
+        guard let closingTab = tabs.first(where: { $0.id == id }) else { return nil }
+        let candidates = tabs.filter { $0.id != id && $0.spaceID == closingTab.spaceID }
+        guard !candidates.isEmpty else { return nil }
+
+        if prefersRecentlyUsed ?? selectsRecentlyUsedTabOnClose {
+            return candidates
+                .sorted {
+                    if $0.lastAccessedAt == $1.lastAccessedAt {
+                        return $0.sortOrder < $1.sortOrder
+                    }
+                    return $0.lastAccessedAt > $1.lastAccessedAt
+                }
+                .first?.id
+        }
+
+        let orderedVisibleTabs = visibleTabs(in: closingTab.spaceID)
+        guard
+            let closingIndex = orderedVisibleTabs.firstIndex(where: { $0.id == id })
+        else {
+            return candidates
+                .sorted { $0.sortOrder < $1.sortOrder }
+                .first?.id
+        }
+
+        let remainingVisibleTabs = orderedVisibleTabs.filter { $0.id != id }
+        guard !remainingVisibleTabs.isEmpty else { return nil }
+
+        if closingIndex < remainingVisibleTabs.count {
+            return remainingVisibleTabs[closingIndex].id
+        }
+        return remainingVisibleTabs.last?.id
+    }
+
+    func resetSavedURLIfAvailable(for tabID: UUID, loadsWebView: Bool) {
+        guard
+            let index = tabs.firstIndex(where: { $0.id == tabID }),
+            let savedURL = tabs[index].favoriteURL
+        else {
+            return
+        }
+
+        let title = tabs[index].favoriteDisplayTitle
+        setURL(savedURL, title: title, for: tabID)
+
+        if loadsWebView {
+            webCoordinator.load(savedURL, in: tabID)
+        }
+    }
+
+    func unloadWebView(for tabID: UUID) {
+        webCoordinator.removeWebView(for: tabID)
+        mediaStates[tabID] = nil
+        if mediaControllerTabID == tabID {
+            mediaControllerTabID = nil
+        }
+    }
+
+    func duplicateCurrentTab() {
+        guard let tab = activeTab else { return }
+        _ = newTab(
+            url: tab.isFavorite ? tab.favoriteURL ?? tab.url : tab.url,
+            favorite: tab.isFavorite,
+            pinned: tab.isPinned,
+            folderID: tab.folderID,
+            in: tab.spaceID
+        )
+    }
+
+    func duplicateTab(_ id: UUID) {
+        guard let tab = tabs.first(where: { $0.id == id }) else { return }
+        _ = newTab(
+            url: tab.isFavorite ? tab.favoriteURL ?? tab.url : tab.url,
+            favorite: tab.isFavorite,
+            pinned: tab.isPinned,
+            folderID: tab.folderID,
+            in: tab.spaceID
+        )
+    }
+
+    @discardableResult
+    func createPopupTab(url: URL?, in spaceID: UUID) -> BrowserTab {
+        let tab = BrowserTab(
+            title: title(for: url),
+            url: url,
+            faviconSymbol: faviconService.placeholderSymbol(for: url),
+            spaceID: spaceID,
+            sortOrder: nextSortOrder(spaceID: spaceID, isFavorite: false, isPinned: false, folderID: nil)
+        )
+
+        tabs.insert(tab, at: 0)
+        switchTab(to: tab.id)
+        return tab
+    }
+
+    func reopenLastClosedTab() {
+        guard let snapshot = recentlyClosedTabs.popLast() else { return }
+        let targetSpaceID = spaces.contains(where: { $0.id == snapshot.spaceID })
+            ? snapshot.spaceID
+            : activeSpaceID
+        _ = newTab(url: snapshot.url, favorite: snapshot.isFavorite, pinned: snapshot.isPinned, in: targetSpaceID)
+    }
+
+    func clearUnpinnedTabs() {
+        regularTabsForActiveSpace.map(\.id).forEach(closeTab)
+    }
+
+    func togglePinForActiveTab() {
+        guard let activeTabID else { return }
+        togglePin(activeTabID)
+    }
+
+    func togglePin(_ id: UUID) {
+        guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
+        let pinned = !tabs[index].isPinned
+        tabs[index].isFavorite = false
+        tabs[index].folderID = nil
+        tabs[index].isPinned = pinned
+        tabs[index].sortOrder = nextSortOrder(
+            spaceID: tabs[index].spaceID,
+            isFavorite: false,
+            isPinned: pinned,
+            folderID: nil
+        )
+        normalizeSortOrder()
+    }
+
+    func toggleFavorite(_ id: UUID) {
+        guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
+        let favorite = !tabs[index].isFavorite
+        tabs[index].isFavorite = favorite
+        tabs[index].folderID = nil
+        if favorite {
+            tabs[index].isPinned = false
+            captureFavoriteSnapshot(at: index)
+        } else {
+            clearFavoriteSnapshot(at: index)
+        }
+        tabs[index].sortOrder = nextSortOrder(
+            spaceID: tabs[index].spaceID,
+            isFavorite: favorite,
+            isPinned: tabs[index].isPinned,
+            folderID: nil
+        )
+        normalizeSortOrder()
+    }
+
+    func addTabToFavorites(_ id: UUID, before targetID: UUID? = nil) {
+        moveTabToPlacement(id, isFavorite: true, isPinned: false, folderID: nil, before: targetID)
+    }
+
+    func activateFavorite(_ id: UUID) {
+        switchTab(to: id)
+    }
+
+    @discardableResult
+    func createFolder(named name: String = "New Folder", parentFolderID: UUID? = nil) -> BrowserFolder {
+        let resolvedParentID = parentFolderID.flatMap { parentID in
+            folders.contains { $0.id == parentID && $0.spaceID == activeSpaceID } ? parentID : nil
+        }
+        let folder = BrowserFolder(
+            name: uniqueFolderName(base: name, in: activeSpaceID),
+            spaceID: activeSpaceID,
+            parentFolderID: resolvedParentID,
+            sortOrder: nextFolderSortOrder(spaceID: activeSpaceID, parentFolderID: resolvedParentID)
+        )
+        folders.append(folder)
+        if let resolvedParentID, let parentIndex = folders.firstIndex(where: { $0.id == resolvedParentID }) {
+            folders[parentIndex].isExpanded = true
+        }
+        editingFolderID = folder.id
+        flushSession()
+        return folder
+    }
+
+    @discardableResult
+    func createSubfolder(in parentFolderID: UUID) -> BrowserFolder? {
+        guard folders.contains(where: { $0.id == parentFolderID && $0.spaceID == activeSpaceID }) else {
+            return nil
+        }
+        return createFolder(named: "New Folder", parentFolderID: parentFolderID)
+    }
+
+    func renameFolder(_ id: UUID, to name: String) {
+        let normalizedName = normalizedFolderName(name)
+        guard !normalizedName.isEmpty, let index = folders.firstIndex(where: { $0.id == id }) else { return }
+        folders[index].name = normalizedName
+        editingFolderID = nil
+        flushSession()
+    }
+
+    func toggleFolderExpanded(_ id: UUID) {
+        guard let index = folders.firstIndex(where: { $0.id == id }) else { return }
+        folders[index].isExpanded.toggle()
+        flushSession()
+    }
+
+    func setFolderExpanded(_ id: UUID, _ isExpanded: Bool) {
+        guard let index = folders.firstIndex(where: { $0.id == id }), folders[index].isExpanded != isExpanded else { return }
+        folders[index].isExpanded = isExpanded
+        flushSession()
+    }
+
+    func revealFolder(_ id: UUID) {
+        var changed = false
+        var currentID: UUID? = id
+        var seen = Set<UUID>()
+
+        while let folderID = currentID, seen.insert(folderID).inserted {
+            guard let index = folders.firstIndex(where: { $0.id == folderID }) else { break }
+            if !folders[index].isExpanded {
+                folders[index].isExpanded = true
+                changed = true
+            }
+            currentID = folders[index].parentFolderID
+        }
+
+        if changed {
+            flushSession()
+        }
+    }
+
+    func deleteFolder(_ id: UUID) {
+        guard let folder = folders.first(where: { $0.id == id }) else { return }
+        let deletedFolderIDs = descendantFolderIDs(of: id).union([id])
+        folders.removeAll { deletedFolderIDs.contains($0.id) }
+        if let currentEditingFolderID = editingFolderID, deletedFolderIDs.contains(currentEditingFolderID) {
+            editingFolderID = nil
+        }
+
+        for index in tabs.indices where tabs[index].folderID.map(deletedFolderIDs.contains) == true {
+            tabs[index].folderID = nil
+            tabs[index].isFavorite = false
+            tabs[index].isPinned = true
+            tabs[index].sortOrder = nextSortOrder(
+                spaceID: folder.spaceID,
+                isFavorite: false,
+                isPinned: true,
+                folderID: nil
+            )
+        }
+
+        normalizeSortOrder()
+        flushSession()
+    }
+
+    func moveTabToFolder(
+        _ tabID: UUID,
+        folderID: UUID,
+        before targetID: UUID? = nil,
+        appendToEnd: Bool = false
+    ) {
+        moveTabToPlacement(
+            tabID,
+            isFavorite: false,
+            isPinned: true,
+            folderID: folderID,
+            before: targetID,
+            appendToEnd: appendToEnd
+        )
+    }
+
+    func switchToTab(at position: Int) {
+        let visibleTabs = visibleTabsForActiveSpace
+        guard position >= 1, position <= visibleTabs.count else { return }
+        switchTab(to: visibleTabs[position - 1].id)
+    }
+
+    func switchToSpace(at position: Int) {
+        guard position >= 1, position <= spaces.count else { return }
+        switchSpace(to: spaces[position - 1].id)
+    }
+
+    func nextSortOrder(
+        spaceID: UUID,
+        isFavorite: Bool,
+        isPinned: Bool,
+        folderID: UUID? = nil
+    ) -> Double {
+        let resolvedPinned = isPinned && !isFavorite
+        let orders = tabs
+            .filter {
+                $0.spaceID == spaceID &&
+                $0.isFavorite == isFavorite &&
+                $0.isPinned == resolvedPinned &&
+                $0.folderID == (isFavorite ? nil : folderID)
+            }
+            .map(\.sortOrder)
+        return (orders.min() ?? 0) - 1
+    }
+
+    func lastSortOrder(
+        spaceID: UUID,
+        isFavorite: Bool,
+        isPinned: Bool,
+        folderID: UUID? = nil
+    ) -> Double {
+        let resolvedPinned = isPinned && !isFavorite
+        let orders = tabs
+            .filter {
+                $0.spaceID == spaceID &&
+                $0.isFavorite == isFavorite &&
+                $0.isPinned == resolvedPinned &&
+                $0.folderID == (isFavorite ? nil : folderID)
+            }
+            .map(\.sortOrder)
+        return (orders.max() ?? -1) + 1
+    }
+
+    func nextFolderSortOrder(spaceID: UUID, parentFolderID: UUID? = nil) -> Double {
+        let orders = folders
+            .filter { $0.spaceID == spaceID && $0.parentFolderID == parentFolderID }
+            .map(\.sortOrder)
+        return (orders.min() ?? 0) - 1
+    }
+
+    func normalizedFolderName(_ name: String) -> String {
+        String(name.trimmingCharacters(in: .whitespacesAndNewlines).prefix(32))
+    }
+
+    func uniqueFolderName(base: String, in spaceID: UUID) -> String {
+        let normalizedBase = normalizedFolderName(base).isEmpty ? "New Folder" : normalizedFolderName(base)
+        let existingNames = Set(
+            folders
+                .filter { $0.spaceID == spaceID }
+                .map { $0.name.lowercased() }
+        )
+        guard existingNames.contains(normalizedBase.lowercased()) else { return normalizedBase }
+
+        for index in 2...99 {
+            let candidate = "\(normalizedBase) \(index)"
+            if !existingNames.contains(candidate.lowercased()) {
+                return candidate
+            }
+        }
+
+        return "\(normalizedBase) \(folders.count + 1)"
+    }
+
+    func folderHasAncestor(_ folderID: UUID, ancestorID: UUID) -> Bool {
+        var seen = Set<UUID>()
+        var currentID: UUID? = folderID
+
+        while let id = currentID {
+            if id == ancestorID { return true }
+            guard seen.insert(id).inserted else { return true }
+            currentID = folders.first { $0.id == id }?.parentFolderID
+        }
+
+        return false
+    }
+
+    func normalizeSortOrder() {
+        for spaceID in spaces.map(\.id) {
+            normalizeFolderSortOrder(spaceID: spaceID)
+            normalizeSortOrder(spaceID: spaceID, isFavorite: true, isPinned: false, folderID: nil)
+            normalizeSortOrder(spaceID: spaceID, isFavorite: false, isPinned: true, folderID: nil)
+            for folder in folders where folder.spaceID == spaceID {
+                normalizeSortOrder(spaceID: spaceID, isFavorite: false, isPinned: true, folderID: folder.id)
+            }
+            normalizeSortOrder(spaceID: spaceID, isFavorite: false, isPinned: false, folderID: nil)
+        }
+    }
+
+    func normalizeFolderSortOrder(spaceID: UUID) {
+        let parentIDs = Set(folders.filter { $0.spaceID == spaceID }.map(\.parentFolderID)) as Set<UUID?>
+
+        for parentID in parentIDs {
+            let orderedIDs = folders
+                .filter { $0.spaceID == spaceID && $0.parentFolderID == parentID }
+                .sorted { $0.sortOrder < $1.sortOrder }
+                .map(\.id)
+
+            for (offset, id) in orderedIDs.enumerated() {
+                guard let index = folders.firstIndex(where: { $0.id == id }) else { continue }
+                folders[index].sortOrder = Double(offset)
+            }
+        }
+    }
+
+    func normalizeSortOrder(spaceID: UUID, isFavorite: Bool, isPinned: Bool, folderID: UUID?) {
+        let resolvedPinned = isPinned && !isFavorite
+        let orderedIDs = tabs
+            .filter {
+                $0.spaceID == spaceID &&
+                $0.isFavorite == isFavorite &&
+                $0.isPinned == resolvedPinned &&
+                $0.folderID == (isFavorite ? nil : folderID)
+            }
+            .sorted {
+                if $0.sortOrder == $1.sortOrder {
+                    return $0.lastAccessedAt > $1.lastAccessedAt
+                }
+                return $0.sortOrder < $1.sortOrder
+            }
+            .map(\.id)
+
+        for (offset, id) in orderedIDs.enumerated() {
+            guard let index = tabs.firstIndex(where: { $0.id == id }) else { continue }
+            tabs[index].sortOrder = Double(offset)
+        }
+    }
+}
+

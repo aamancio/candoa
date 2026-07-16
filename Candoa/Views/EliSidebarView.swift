@@ -15,8 +15,8 @@ struct EliSidebarView: View {
     let onClose: () -> Void
 
     @Environment(\.colorScheme) private var colorScheme
+    @EnvironmentObject private var userStore: UserStore
     @StateObject private var speechController = AISidebarSpeechController()
-    @StateObject private var accountController = CandoaAccountController()
     @State private var prompt = ""
     @State private var messages: [AISidebarMessage] = []
     @State private var mentionedContext: [AISidebarContextMention] = []
@@ -166,7 +166,7 @@ struct EliSidebarView: View {
     }
 
     private var hasEliAccess: Bool {
-        hasPersonalEliAccess || accountController.hasActiveSubscription
+        hasPersonalEliAccess || userStore.hasActiveSubscription
     }
 
     var body: some View {
@@ -222,7 +222,7 @@ struct EliSidebarView: View {
             }
         }
         .task {
-            await accountController.refresh()
+            await userStore.refresh()
         }
         .onDisappear {
             uiTestingState = ""
@@ -312,7 +312,7 @@ struct EliSidebarView: View {
     }
 
     private var subscriptionGate: some View {
-        EliSubscriptionGateView(accentColor: eliAccentColor, accountController: accountController)
+        EliSubscriptionGateView(accentColor: eliAccentColor, userStore: userStore)
     }
 
     private var starterHints: [AISidebarStarterHint] {
@@ -1017,7 +1017,7 @@ private struct EliSubscriptionGateView: View {
 
     let accentColor: Color
 
-    @ObservedObject var accountController: CandoaAccountController
+    @ObservedObject var userStore: UserStore
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var selectedCapabilityIndex = 0
 
@@ -1047,7 +1047,7 @@ private struct EliSubscriptionGateView: View {
 
             authenticationOrSubscriptionAction
 
-            if let errorMessage = accountController.errorMessage {
+            if let errorMessage = userStore.errorMessage {
                 Text(errorMessage)
                     .font(.system(size: 11.5))
                     .foregroundStyle(CandoaChromeStyle.sidebarTextSecondary)
@@ -1087,32 +1087,32 @@ private struct EliSubscriptionGateView: View {
 
     @ViewBuilder
     private var authenticationOrSubscriptionAction: some View {
-        if accountController.isSignedIn {
+        if userStore.isSignedIn {
             VStack(spacing: 8) {
-                Button(accountController.isWorking ? "Opening checkout…" : "Subscribe to Candoa Pro") {
-                    Task { await accountController.startProCheckout() }
+                Button(userStore.isWorking ? "Opening checkout…" : "Subscribe to Candoa Pro") {
+                    Task { await userStore.startProCheckout() }
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(accentColor)
-                .disabled(accountController.isWorking)
+                .disabled(userStore.isWorking)
 
                 Button("Refresh subscription") {
-                    Task { await accountController.refresh() }
+                    Task { await userStore.refresh() }
                 }
                 .buttonStyle(.borderless)
                 .font(.system(size: 12, weight: .medium))
-                .disabled(accountController.isWorking)
+                .disabled(userStore.isWorking)
             }
         } else {
             VStack(spacing: 8) {
                 SignInWithAppleButton(.continue) { request in
-                    accountController.configure(request)
+                    userStore.configure(request)
                 } onCompletion: { result in
-                    accountController.completeAppleSignIn(result)
+                    userStore.completeAppleSignIn(result)
                 }
                 .signInWithAppleButtonStyle(.black)
                 .frame(height: 36)
-                .disabled(accountController.isWorking)
+                .disabled(userStore.isWorking)
 
                 Text("Sign in to connect your Candoa subscription and history to this browser.")
                     .font(.system(size: 11.5))
