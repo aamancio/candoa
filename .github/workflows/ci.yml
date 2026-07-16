@@ -19,15 +19,18 @@ jobs:
 
     steps:
       - name: Check out Candoa
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Show toolchain
         run: |
           xcodebuild -version
           swift --version
 
-      - name: Install SwiftLint
+      - name: Install quality tools
         run: |
+          if ! command -v rg >/dev/null 2>&1; then
+            brew install ripgrep
+          fi
           if ! command -v swiftlint >/dev/null 2>&1; then
             brew install swiftlint
           fi
@@ -41,7 +44,7 @@ jobs:
 
     steps:
       - name: Check out Candoa
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Show toolchain
         run: xcodebuild -version
@@ -69,7 +72,7 @@ jobs:
 
     steps:
       - name: Check out Candoa
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Show toolchain
         run: xcodebuild -version
