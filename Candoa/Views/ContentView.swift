@@ -57,48 +57,63 @@ struct ContentView: View {
         isSidebarHoverRevealed && !isSidebarVisible
     }
 
+    private var isFullWindowOnboardingPresented: Bool {
+        switch store.initialOnboardingStep {
+        case .welcome, .account, .importData, .space:
+            return true
+        case .tour, .none:
+            return false
+        }
+    }
+
     var body: some View {
         let currentAISidebarWidth = clampedAISidebarWidth(CGFloat(aiSidebarWidth))
 
         ZStack(alignment: .leading) {
-            WebViewContainer(
-                store: store,
-                visibleChromeInsets: BrowserChromeInsets(
-                    leading: isSidebarVisible ? sidebarTotalWidth : 0,
-                    trailing: isAISidebarInsetApplied ? currentAISidebarWidth : 0
+            if isFullWindowOnboardingPresented {
+                InitialOnboardingCanvas(store: store)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .transition(.opacity)
+            } else {
+                WebViewContainer(
+                    store: store,
+                    visibleChromeInsets: BrowserChromeInsets(
+                        leading: isSidebarVisible ? sidebarTotalWidth : 0,
+                        trailing: isAISidebarInsetApplied ? currentAISidebarWidth : 0
+                    )
                 )
-            )
-                .ignoresSafeArea(.container, edges: .top)
-                // A pinned sidebar (Cmd-S) pushes the content aside; the
-                // hover-reveal stays a pure overlay so a quick peek never
-                // resizes the page. The inset is intentionally not animated:
-                // animating it would resize the WKWebView frame every frame
-                // (battery cost), so the content reflows once while the
-                // sidebar slides into the reserved gap.
-                // WebKit reserves each chrome lane once through native
-                // obscured-content insets while the WKWebView itself remains
-                // full-window. Resizing its remote viewport here would expose
-                // the opposite edge for a frame while WebKit repaints.
+                    .ignoresSafeArea(.container, edges: .top)
+                    // A pinned sidebar (Cmd-S) pushes the content aside; the
+                    // hover-reveal stays a pure overlay so a quick peek never
+                    // resizes the page. The inset is intentionally not animated:
+                    // animating it would resize the WKWebView frame every frame
+                    // (battery cost), so the content reflows once while the
+                    // sidebar slides into the reserved gap.
+                    // WebKit reserves each chrome lane once through native
+                    // obscured-content insets while the WKWebView itself remains
+                    // full-window. Resizing its remote viewport here would expose
+                    // the opposite edge for a frame while WebKit repaints.
 
-            sidebarLayout
-                // This subtree also coordinates AppKit's native window controls.
-                // One animatable progress value drives both the compositor
-                // translation and the embedded native traffic-light container.
-                // Separate SwiftUI/AppKit animations visibly drift apart.
-                .modifier(SidebarRevealEffect(
-                    progress: isSidebarPresented ? 1 : 0,
-                    hiddenOffset: -sidebarTotalWidth
-                ))
-                // A pinned show/hide must snap with the one-time WKWebView
-                // inset above. Only the overlay hover reveal may slide;
-                // otherwise the sidebar temporarily separates from content.
-                .animation(.easeOut(duration: 0.18), value: isSidebarHoverRevealed)
-                .zIndex(2)
+                sidebarLayout
+                    // This subtree also coordinates AppKit's native window controls.
+                    // One animatable progress value drives both the compositor
+                    // translation and the embedded native traffic-light container.
+                    // Separate SwiftUI/AppKit animations visibly drift apart.
+                    .modifier(SidebarRevealEffect(
+                        progress: isSidebarPresented ? 1 : 0,
+                        hiddenOffset: -sidebarTotalWidth
+                    ))
+                    // A pinned show/hide must snap with the one-time WKWebView
+                    // inset above. Only the overlay hover reveal may slide;
+                    // otherwise the sidebar temporarily separates from content.
+                    .animation(.easeOut(duration: 0.18), value: isSidebarHoverRevealed)
+                    .zIndex(2)
 
-            if isAISidebarMounted {
-                aiSidebarLayout(width: currentAISidebarWidth)
-                    .transition(.identity)
-                    .zIndex(3)
+                if isAISidebarMounted {
+                    aiSidebarLayout(width: currentAISidebarWidth)
+                        .transition(.identity)
+                        .zIndex(3)
+                }
             }
 
             if store.isCommandPalettePresented {
@@ -115,6 +130,12 @@ struct ContentView: View {
             if store.isTabSwitcherPresented {
                 TabSwitcherOverlay(store: store)
                     .zIndex(9)
+            }
+
+            if store.initialOnboardingStep == .tour {
+                InitialOnboardingTourOverlay(store: store)
+                    .transition(.opacity)
+                    .zIndex(11)
             }
 
             if let mediaTab = store.floatingMiniPlayerTab,

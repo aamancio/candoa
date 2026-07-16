@@ -35,8 +35,8 @@ struct BrowserSpace: Identifiable, Codable, Hashable {
     /// persisted field a single string alongside SF Symbol names.
     static let emojiSymbolPrefix = "emoji:"
 
-    /// Tailwind CSS blue-500, shared with the website's primary theme.
-    static let defaultThemeColorHex = "#2B7FFF"
+    /// Apple's system-blue reference used when persisting a blue Space theme.
+    static let defaultThemeColorHex = CandoaColor.primaryHex
 
     /// Chrome follows the macOS system appearance by default — the native
     /// behavior (Safari/Finder track system light/dark). Web content inherits
@@ -57,7 +57,7 @@ struct BrowserSpace: Identifiable, Codable, Hashable {
         id: UUID = UUID(),
         name: String,
         symbolName: String = "sparkle",
-        themeColorHex: String? = BrowserSpace.defaultThemeColorHex,
+        themeColorHex: String? = nil,
         themeAppearance: SpaceThemeAppearance = .automatic,
         themeOpacity: Double = 0.5,
         themeTexture: Double = 0,

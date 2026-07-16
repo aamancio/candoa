@@ -1,4 +1,5 @@
 import AppKit
+import AuthenticationServices
 import os
 import SwiftUI
 import UniformTypeIdentifiers
@@ -15,6 +16,7 @@ struct EliSidebarView: View {
 
     @Environment(\.colorScheme) private var colorScheme
     @StateObject private var speechController = AISidebarSpeechController()
+    @StateObject private var accountController = CandoaAccountController()
     @State private var prompt = ""
     @State private var messages: [AISidebarMessage] = []
     @State private var mentionedContext: [AISidebarContextMention] = []
@@ -163,11 +165,15 @@ struct EliSidebarView: View {
         CandoaEliPreferences.usesPersonalOpenAIKey && CandoaEliKeychain.hasAPIKey
     }
 
+    private var hasEliAccess: Bool {
+        hasPersonalEliAccess || accountController.hasActiveSubscription
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             topBar
 
-            if !hasPersonalEliAccess {
+            if !hasEliAccess {
                 Spacer(minLength: 60)
                 subscriptionGate
                 Spacer(minLength: 60)
@@ -198,7 +204,7 @@ struct EliSidebarView: View {
                 }
             }
 
-            if hasPersonalEliAccess {
+            if hasEliAccess {
                 composer
             }
         }
@@ -214,6 +220,9 @@ struct EliSidebarView: View {
             DispatchQueue.main.async {
                 isPromptFocused = true
             }
+        }
+        .task {
+            await accountController.refresh()
         }
         .onDisappear {
             uiTestingState = ""
@@ -303,46 +312,7 @@ struct EliSidebarView: View {
     }
 
     private var subscriptionGate: some View {
-        VStack(spacing: 14) {
-            Image(systemName: "sparkles")
-                .font(.system(size: 28, weight: .medium))
-                .foregroundStyle(eliAccentColor)
-
-            VStack(spacing: 6) {
-                Text("Unlock Eli with Candoa Pro")
-                    .font(.system(size: 18, weight: .semibold))
-
-                Text("Understand pages, summarize content, and safely complete browser tasks with Eli, Candoa's hosted assistant.")
-                    .font(.system(size: 13))
-                    .foregroundStyle(CandoaChromeStyle.sidebarTextSecondary)
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            Button("Subscribe to Candoa Pro") {
-                // Stripe checkout will be connected once the authenticated billing flow exists.
-            }
-                .buttonStyle(.borderedProminent)
-                .tint(eliAccentColor)
-
-            Text("A Candoa account and subscription are required for hosted Eli.")
-                .font(.system(size: 11))
-                .foregroundStyle(CandoaChromeStyle.sidebarTextSecondary)
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: 310)
-        .padding(24)
-        .background {
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(CandoaChromeStyle.sidebarControlFill)
-        }
-        .overlay {
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(CandoaChromeStyle.sidebarControlStroke, lineWidth: 1)
-        }
-        .padding(.horizontal, 26)
-        .frame(maxWidth: .infinity)
-        .accessibilityIdentifier("agent-subscription-gate")
+        EliSubscriptionGateView(accentColor: eliAccentColor, accountController: accountController)
     }
 
     private var starterHints: [AISidebarStarterHint] {
@@ -367,7 +337,7 @@ struct EliSidebarView: View {
 
     private var eliAccentColor: Color {
         guard let hex = store.activeThemeColorHexes.first else {
-            return Color.accentColor
+            return CandoaColor.primary
         }
         return Color(spaceHex: hex)
     }
@@ -1019,4 +989,201 @@ struct EliSidebarView: View {
             messages[index].isStreaming = false
         }
     }
+}
+
+private struct EliSubscriptionGateView: View {
+    private static let capabilities = [
+        EliSubscriptionCapability(
+            title: "Plan a trip",
+            detail: "Compare flights and stays, then build a simple itinerary.",
+            symbolName: "airplane"
+        ),
+        EliSubscriptionCapability(
+            title: "Shop with confidence",
+            detail: "Compare products, prices, and reviews before you buy.",
+            symbolName: "cart"
+        ),
+        EliSubscriptionCapability(
+            title: "Catch up on email",
+            detail: "Turn a long thread into key takeaways and a reply you can send.",
+            symbolName: "envelope"
+        ),
+        EliSubscriptionCapability(
+            title: "Finish the little tasks",
+            detail: "Fill a form, find the next step, and keep your day moving.",
+            symbolName: "checklist"
+        )
+    ]
+
+    let accentColor: Color
+
+    @ObservedObject var accountController: CandoaAccountController
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var selectedCapabilityIndex = 0
+
+    private var selectedCapability: EliSubscriptionCapability {
+        Self.capabilities[selectedCapabilityIndex]
+    }
+
+    var body: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "sparkles")
+                .font(.system(size: 28, weight: .medium))
+                .foregroundStyle(accentColor)
+
+            VStack(spacing: 6) {
+                Text("Meet Eli, your AI agent")
+                    .font(.system(size: 18, weight: .semibold))
+
+                Text("Plan, compare, and make progress on the everyday things you do online.")
+                    .font(.system(size: 13))
+                    .foregroundStyle(CandoaChromeStyle.sidebarTextSecondary)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            capabilityCard
+            capabilityPageIndicator
+
+            authenticationOrSubscriptionAction
+
+            if let errorMessage = accountController.errorMessage {
+                Text(errorMessage)
+                    .font(.system(size: 11.5))
+                    .foregroundStyle(CandoaChromeStyle.sidebarTextSecondary)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .frame(maxWidth: 310)
+        .padding(24)
+        .background {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(CandoaChromeStyle.sidebarControlFill)
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(CandoaChromeStyle.sidebarControlStroke, lineWidth: 1)
+        }
+        .padding(.horizontal, 26)
+        .frame(maxWidth: .infinity)
+        .accessibilityIdentifier("agent-subscription-gate")
+        .task(id: reduceMotion) {
+            guard !reduceMotion else { return }
+
+            while !Task.isCancelled {
+                do {
+                    try await Task.sleep(for: .seconds(5))
+                } catch {
+                    return
+                }
+
+                withAnimation(.easeInOut(duration: 0.18)) {
+                    selectedCapabilityIndex = (selectedCapabilityIndex + 1) % Self.capabilities.count
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var authenticationOrSubscriptionAction: some View {
+        if accountController.isSignedIn {
+            VStack(spacing: 8) {
+                Button(accountController.isWorking ? "Opening checkout…" : "Subscribe to Candoa Pro") {
+                    Task { await accountController.startProCheckout() }
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(accentColor)
+                .disabled(accountController.isWorking)
+
+                Button("Refresh subscription") {
+                    Task { await accountController.refresh() }
+                }
+                .buttonStyle(.borderless)
+                .font(.system(size: 12, weight: .medium))
+                .disabled(accountController.isWorking)
+            }
+        } else {
+            VStack(spacing: 8) {
+                SignInWithAppleButton(.continue) { request in
+                    accountController.configure(request)
+                } onCompletion: { result in
+                    accountController.completeAppleSignIn(result)
+                }
+                .signInWithAppleButtonStyle(.black)
+                .frame(height: 36)
+                .disabled(accountController.isWorking)
+
+                Text("Sign in to connect your Candoa subscription and history to this browser.")
+                    .font(.system(size: 11.5))
+                    .foregroundStyle(CandoaChromeStyle.sidebarTextSecondary)
+                    .multilineTextAlignment(.center)
+            }
+        }
+    }
+
+    private var capabilityCard: some View {
+        ZStack {
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: selectedCapability.symbolName)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(accentColor)
+                    .frame(width: 30, height: 30)
+                    .background(accentColor.opacity(0.13), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(selectedCapability.title)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(CandoaChromeStyle.sidebarText)
+
+                    Text(selectedCapability.detail)
+                        .font(.system(size: 11.5))
+                        .foregroundStyle(CandoaChromeStyle.sidebarTextSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer(minLength: 0)
+            }
+            .id(selectedCapability.id)
+            .transition(
+                reduceMotion
+                    ? .identity
+                    : .asymmetric(
+                        insertion: .move(edge: .trailing).combined(with: .opacity),
+                        removal: .move(edge: .leading).combined(with: .opacity)
+                    )
+            )
+        }
+        .frame(maxWidth: .infinity, minHeight: 86, alignment: .topLeading)
+        .padding(14)
+        .background {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(CandoaChromeStyle.sidebarControlFillHover)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(CandoaChromeStyle.sidebarControlStroke, lineWidth: 1)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private var capabilityPageIndicator: some View {
+        HStack(spacing: 6) {
+            ForEach(Self.capabilities.indices, id: \.self) { index in
+                Circle()
+                    .fill(index == selectedCapabilityIndex ? accentColor : CandoaChromeStyle.sidebarIcon)
+                    .frame(width: 6, height: 6)
+            }
+        }
+        .accessibilityLabel("Eli capability \(selectedCapabilityIndex + 1) of \(Self.capabilities.count)")
+    }
+}
+
+private struct EliSubscriptionCapability: Identifiable {
+    let title: LocalizedStringKey
+    let detail: LocalizedStringKey
+    let symbolName: String
+
+    var id: String { symbolName }
 }

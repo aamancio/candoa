@@ -108,6 +108,22 @@ private enum PinnedCloseShortcutBehavior: String {
     }
 }
 
+enum InitialOnboardingStep: String, CaseIterable {
+    case welcome
+    case account
+    case importData
+    case space
+    case tour
+
+    private static let numberedSetupSteps: [Self] = [.account, .importData, .space]
+
+    var position: Int {
+        Self.numberedSetupSteps.firstIndex(of: self).map { $0 + 1 } ?? 0
+    }
+
+    var count: Int { Self.numberedSetupSteps.count }
+}
+
 @MainActor
 final class BrowserStore: ObservableObject {
     private struct ClosedTabSnapshot {
@@ -120,6 +136,9 @@ final class BrowserStore: ObservableObject {
     static let spaceNameCharacterLimit = 24
     static let splitViewMaxTabs = 4
     private static let sidebarDropSettleDelayNanoseconds: UInt64 = 480_000_000
+    private static let onboardingStepKey = "Candoa.InitialOnboarding.Step"
+    private static let hasCompletedOnboardingKey = "Candoa.InitialOnboarding.Completed"
+    private static let hasCompletedTourKey = "Candoa.InitialOnboarding.TourCompleted"
 
     private var ignoresPendingTabsWhenCycling: Bool {
         boolSetting(CandoaSettingsOption.ignorePendingTabsWhenCycling, default: false)
@@ -173,7 +192,7 @@ final class BrowserStore: ObservableObject {
     @Published var isCreateSpacePresented = false
     @Published var editingSpaceID: UUID?
     @Published var editingFolderID: UUID?
-    @Published private(set) var isInitialSpaceSetupPresented = false
+    @Published private(set) var initialOnboardingStep: InitialOnboardingStep?
     @Published private(set) var spaceThemeAppearancePreview: SpaceThemeAppearance?
     @Published private(set) var isSpaceThemeColorPreviewActive = false
     @Published private(set) var spaceThemeColorHexPreview: String?
@@ -226,6 +245,7 @@ final class BrowserStore: ObservableObject {
     private let workspaceRepository: any WorkspaceRepository
     private let historyRepository: any HistoryRepository
     private let faviconService: FaviconService
+    private let browserImportService: BrowserImportService
     private var saveCancellable: AnyCancellable?
     private var remoteChangeCancellable: AnyCancellable?
     private var tabSwitcherHideWorkItem: DispatchWorkItem?
@@ -286,6 +306,7 @@ final class BrowserStore: ObservableObject {
 
         return [
             "setup=\(isInitialSpaceSetupPresented)",
+            "accountSetup=\(isInitialAccountSetupPresented)",
             "palette=\(isCommandPalettePresented)",
             "newTabPalette=\(isNewTabPaletteActive)",
             "find=\(isFindBarPresented)",
@@ -358,6 +379,18 @@ final class BrowserStore: ObservableObject {
 
     var isSpaceSetupPresented: Bool {
         isCreateSpacePresented || isInitialSpaceSetupPresented || editingSpaceID != nil
+    }
+
+    var isInitialSpaceSetupPresented: Bool {
+        initialOnboardingStep == .space
+    }
+
+    var isInitialAccountSetupPresented: Bool {
+        initialOnboardingStep == .account
+    }
+
+    var isInitialOnboardingPresented: Bool {
+        initialOnboardingStep != nil
     }
 
     var editingSpace: BrowserSpace? {
@@ -479,6 +512,7 @@ final class BrowserStore: ObservableObject {
         historyRepository: (any HistoryRepository)? = nil,
         navigationService: NavigationService = .shared,
         faviconService: FaviconService = .shared,
+        browserImportService: BrowserImportService = BrowserImportService(),
         webCoordinator: WebViewCoordinator = WebViewCoordinator(),
         restoresWebViews: Bool = true
     ) {
@@ -487,6 +521,7 @@ final class BrowserStore: ObservableObject {
         self.historyRepository = historyRepository ?? CoreDataHistoryRepository(persistence: persistenceService)
         self.navigationService = navigationService
         self.faviconService = faviconService
+        self.browserImportService = browserImportService
         self.webCoordinator = webCoordinator
 
         let restoredState = Self.uiTestingFixtureState() ?? self.workspaceRepository.loadWorkspace()
@@ -513,8 +548,8 @@ final class BrowserStore: ObservableObject {
                 : []
             isSplitViewEnabled = restoredState.isSplitViewEnabled && splitTabIDs.count >= 2
         } else {
-            // New workspaces start with the shared Candoa blue theme while
-            // still following the system's light or dark appearance.
+            // New workspaces start neutral while following the system's
+            // light or dark appearance. Candoa blue is the action accent.
             let defaultSpace = BrowserSpace(
                 name: "",
                 symbolName: "circle.grid.2x2",
@@ -534,7 +569,29 @@ final class BrowserStore: ObservableObject {
         repairSessionState()
         markActiveTabAsActivated()
         shouldPresentInitialSpaceSetup = shouldPresentInitialSpaceSetup || needsInitialSpaceSetup()
-        isInitialSpaceSetupPresented = shouldPresentInitialSpaceSetup
+        if Self.isUITesting {
+            setInitialOnboardingStep(nil, persists: false)
+        } else if shouldPresentInitialSpaceSetup {
+            let storedStep = UserDefaults.standard.string(forKey: Self.onboardingStepKey)
+                .flatMap(InitialOnboardingStep.init(rawValue:))
+            let resumableStep: InitialOnboardingStep
+            switch storedStep {
+            case .account where CandoaAccountKeychain.accessToken != nil:
+                resumableStep = .importData
+            case .tour:
+                resumableStep = .space
+            case .welcome, .account, .importData, .space:
+                resumableStep = storedStep ?? .welcome
+            case .none:
+                resumableStep = .welcome
+            }
+            setInitialOnboardingStep(resumableStep)
+        } else if !UserDefaults.standard.bool(forKey: Self.hasCompletedTourKey),
+                  UserDefaults.standard.string(forKey: Self.onboardingStepKey) == InitialOnboardingStep.tour.rawValue {
+            setInitialOnboardingStep(.tour)
+        } else if CandoaAccountKeychain.accessToken == nil {
+            setInitialOnboardingStep(.account)
+        }
         if restoresWebViews {
             restoreVisibleWebViews()
         }
@@ -804,7 +861,7 @@ final class BrowserStore: ObservableObject {
     }
 
     func focusAddressBar() {
-        guard !isInitialSpaceSetupPresented else { return }
+        guard !isInitialOnboardingPresented else { return }
 
         if isCommandPalettePresented {
             dismissCommandPalette()
@@ -823,7 +880,7 @@ final class BrowserStore: ObservableObject {
     }
 
     func focusSidebarAddressBar() {
-        guard !isInitialSpaceSetupPresented else { return }
+        guard !isInitialOnboardingPresented else { return }
 
         if isCommandPalettePresented {
             dismissCommandPalette()
@@ -846,7 +903,7 @@ final class BrowserStore: ObservableObject {
     }
 
     func openCommandPalette() {
-        guard !isInitialSpaceSetupPresented else { return }
+        guard !isInitialOnboardingPresented else { return }
 
         commandPaletteInitialText = ""
         commandPaletteResumeQuery = ""
@@ -858,7 +915,7 @@ final class BrowserStore: ObservableObject {
     }
 
     func openNewTabCommandPalette() {
-        guard !isInitialSpaceSetupPresented else { return }
+        guard !isInitialOnboardingPresented else { return }
 
         commandPaletteInitialText = ""
         commandPaletteResumeQuery = ""
@@ -911,14 +968,14 @@ final class BrowserStore: ObservableObject {
     }
 
     func beginSpaceCreation() {
-        guard !isInitialSpaceSetupPresented else { return }
+        guard !isInitialOnboardingPresented else { return }
         dismissCommandPalette()
         editingSpaceID = nil
         isCreateSpacePresented = true
     }
 
     func beginSpaceEditing(_ id: UUID) {
-        guard !isInitialSpaceSetupPresented, spaces.contains(where: { $0.id == id }) else { return }
+        guard !isInitialOnboardingPresented, spaces.contains(where: { $0.id == id }) else { return }
         dismissCommandPalette()
         isCreateSpacePresented = false
         switchSpace(to: id)
@@ -942,7 +999,7 @@ final class BrowserStore: ObservableObject {
     func createSpace(
         name: String? = nil,
         symbolName: String? = nil,
-        themeColorHex: String? = BrowserSpace.defaultThemeColorHex,
+        themeColorHex: String? = nil,
         themeAppearance: SpaceThemeAppearance = .automatic,
         themeOpacity: Double = 0.5,
         themeTexture: Double = 0,
@@ -1013,7 +1070,9 @@ final class BrowserStore: ObservableObject {
         }
 
         activeSpaceID = spaces[index].id
-        isInitialSpaceSetupPresented = false
+        if initialOnboardingStep == .space {
+            setInitialOnboardingStep(.tour)
+        }
         isCreateSpacePresented = false
         recreateWebViewsIfNeeded(
             in: spaces[index].id,
@@ -1023,6 +1082,83 @@ final class BrowserStore: ObservableObject {
         repairSessionState()
         updateNavigationState()
         flushSession()
+    }
+
+    func completeInitialAccountSetup() {
+        guard isInitialAccountSetupPresented, CandoaAccountKeychain.accessToken != nil else { return }
+
+        if needsInitialSpaceSetup() {
+            setInitialOnboardingStep(.importData)
+        } else {
+            finishInitialOnboarding()
+        }
+    }
+
+    func completeInitialWelcome() {
+        guard initialOnboardingStep == .welcome else { return }
+        setInitialOnboardingStep(CandoaAccountKeychain.accessToken == nil ? .account : .importData)
+    }
+
+    func completeInitialImport() {
+        guard initialOnboardingStep == .importData else { return }
+        setInitialOnboardingStep(needsInitialSpaceSetup() ? .space : .tour)
+    }
+
+    func importInitialBookmarks(from fileURL: URL) async throws -> Int {
+        guard initialOnboardingStep == .importData else { return 0 }
+
+        let importedBookmarks = try await browserImportService.bookmarks(from: fileURL)
+        guard !importedBookmarks.isEmpty else { return 0 }
+
+        let folder = BrowserFolder(
+            name: uniqueFolderName(base: "Imported Bookmarks", in: activeSpaceID),
+            spaceID: activeSpaceID,
+            sortOrder: nextFolderSortOrder(spaceID: activeSpaceID)
+        )
+        folders.append(folder)
+
+        let importedTabs = importedBookmarks.enumerated().map { index, bookmark in
+            BrowserTab(
+                title: bookmark.title,
+                url: bookmark.url,
+                faviconSymbol: faviconService.placeholderSymbol(for: bookmark.url),
+                isPinned: true,
+                folderID: folder.id,
+                spaceID: activeSpaceID,
+                sortOrder: Double(index),
+                hasBeenActivated: false
+            )
+        }
+        tabs.append(contentsOf: importedTabs)
+        flushSession()
+        return importedTabs.count
+    }
+
+    func completeInitialTour() {
+        guard initialOnboardingStep == .tour else { return }
+        finishInitialOnboarding()
+    }
+
+    private func finishInitialOnboarding() {
+        UserDefaults.standard.set(true, forKey: Self.hasCompletedOnboardingKey)
+        UserDefaults.standard.set(true, forKey: Self.hasCompletedTourKey)
+        setInitialOnboardingStep(nil)
+        flushSession()
+        openNewTabCommandPalette()
+    }
+
+    private func setInitialOnboardingStep(
+        _ step: InitialOnboardingStep?,
+        persists: Bool = true
+    ) {
+        initialOnboardingStep = step
+        guard persists else { return }
+
+        if let step {
+            UserDefaults.standard.set(step.rawValue, forKey: Self.onboardingStepKey)
+        } else {
+            UserDefaults.standard.removeObject(forKey: Self.onboardingStepKey)
+        }
     }
 
     func renameSpace(_ id: UUID, to name: String) {
@@ -2528,7 +2664,7 @@ final class BrowserStore: ObservableObject {
     }
 
     private func saveSnapshot() {
-        guard !isInitialSpaceSetupPresented, !isApplyingRemoteState else { return }
+        guard !isInitialOnboardingPresented, !isApplyingRemoteState else { return }
 
         workspaceRepository.saveWorkspace(currentSnapshot())
     }
@@ -2572,7 +2708,15 @@ final class BrowserStore: ObservableObject {
         splitTabIDs = remoteState.splitTabIDs
         isSplitViewEnabled = remoteState.isSplitViewEnabled
         repairSessionState()
-        isInitialSpaceSetupPresented = needsInitialSpaceSetup()
+        if Self.isUITesting {
+            setInitialOnboardingStep(nil, persists: false)
+        } else if needsInitialSpaceSetup() {
+            setInitialOnboardingStep(.welcome)
+        } else if CandoaAccountKeychain.accessToken == nil {
+            setInitialOnboardingStep(.account)
+        } else {
+            setInitialOnboardingStep(nil)
+        }
         if !isInitialSpaceSetupPresented {
             isCreateSpacePresented = false
         }

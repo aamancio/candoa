@@ -8,6 +8,7 @@ struct CandoaApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .tint(CandoaColor.primary)
                 .frame(
                     minWidth: AppConfiguration.minimumWindowWidth,
                     minHeight: AppConfiguration.minimumWindowHeight
@@ -24,6 +25,7 @@ struct CandoaApp: App {
 
         Settings {
             CandoaSettingsView()
+                .tint(CandoaColor.primary)
         }
     }
 

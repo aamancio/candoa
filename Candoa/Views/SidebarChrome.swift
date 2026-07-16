@@ -74,12 +74,10 @@ private final class NativeWindowControlsHost: NSView {
         .miniaturizeButton,
         .zoomButton
     ]
-    private static let centerSpacing: CGFloat = 20
     private static let fallbackButtonSize = NSSize(width: 14, height: 14)
     private weak var attachedWindow: NSWindow?
     private var originalFrames: [Int: NSRect] = [:]
     private var originalHiddenStates: [Int: Bool] = [:]
-    private var visibleHostFrames: [ObjectIdentifier: NSRect] = [:]
     private var revealProgress: CGFloat = 1
     private var hiddenOffset: CGFloat = 0
     private var attachmentGeneration = 0
@@ -157,7 +155,6 @@ private final class NativeWindowControlsHost: NSView {
 
         originalFrames.removeAll()
         originalHiddenStates.removeAll()
-        visibleHostFrames.removeAll()
         self.attachedWindow = nil
     }
 
@@ -169,9 +166,9 @@ private final class NativeWindowControlsHost: NSView {
     private func layoutWindowControls() {
         guard let attachedWindow else { return }
 
-        for (index, buttonType) in Self.buttonTypes.enumerated() {
-            guard let button = attachedWindow.standardWindowButton(buttonType),
-                  let buttonSuperview = button.superview else { continue }
+        for buttonType in Self.buttonTypes {
+            guard let button = attachedWindow.standardWindowButton(buttonType) else { continue }
+            let key = Int(buttonType.rawValue)
 
             // The controls belong to the sidebar, not the web-content lane.
             // Keep AppKit as their owner and hide them at the landed closed
@@ -187,21 +184,14 @@ private final class NativeWindowControlsHost: NSView {
                 ? currentSize
                 : Self.fallbackButtonSize
             button.isHidden = false
-
-            let hostFrameInWindow = convert(bounds, to: nil)
-            let hostFrameInButtonSuperview = buttonSuperview.convert(hostFrameInWindow, from: nil)
-            let superviewID = ObjectIdentifier(buttonSuperview)
-
-            if revealProgress >= 1 {
-                visibleHostFrames[superviewID] = hostFrameInButtonSuperview
-            }
-
-            let visibleHostFrame = visibleHostFrames[superviewID] ?? hostFrameInButtonSuperview
-            let x = visibleHostFrame.minX
-                + hiddenOffset * (1 - revealProgress)
-                + CGFloat(index) * Self.centerSpacing
-            let y = floor(visibleHostFrame.midY - buttonSize.height / 2)
-            button.frame = NSRect(origin: CGPoint(x: x, y: y), size: buttonSize)
+            let originalFrame = originalFrames[key] ?? button.frame
+            button.frame = NSRect(
+                origin: CGPoint(
+                    x: originalFrame.minX + hiddenOffset * (1 - revealProgress),
+                    y: originalFrame.minY
+                ),
+                size: buttonSize
+            )
         }
     }
 }
@@ -228,6 +218,42 @@ internal extension View {
 
 // MARK: - Shared chrome styling
 
+/// Candoa's semantic color tokens. Native controls follow the person's macOS
+/// accent preference; explicit blue uses Apple's adaptable system blue.
+enum CandoaColor {
+    enum Apple {
+        /// Reference value for persisting an explicitly selected blue Space.
+        /// App chrome uses `NSColor.systemBlue` so it remains adaptive.
+        static let systemBlueReferenceHex = "#007AFF"
+        static var systemBlue: Color { Color(nsColor: .systemBlue) }
+        static var systemRed: Color { Color(nsColor: .systemRed) }
+        static var systemOrange: Color { Color(nsColor: .systemOrange) }
+        static var systemYellow: Color { Color(nsColor: .systemYellow) }
+        static var systemGreen: Color { Color(nsColor: .systemGreen) }
+        static var systemMint: Color { Color(nsColor: .systemMint) }
+        static var systemTeal: Color { Color(nsColor: .systemTeal) }
+        static var systemCyan: Color { Color(nsColor: .systemCyan) }
+        static var systemIndigo: Color { Color(nsColor: .systemIndigo) }
+        static var systemPurple: Color { Color(nsColor: .systemPurple) }
+        static var systemPink: Color { Color(nsColor: .systemPink) }
+        static var systemBrown: Color { Color(nsColor: .systemBrown) }
+        static var systemGray: Color { Color(nsColor: .systemGray) }
+        static var controlAccent: Color { Color(nsColor: .controlAccentColor) }
+        static var selectedControlText: Color { Color(nsColor: .alternateSelectedControlTextColor) }
+    }
+
+    static let primaryHex = Apple.systemBlueReferenceHex
+    static var primary: Color { Apple.controlAccent }
+    static var primaryForeground: Color { Apple.selectedControlText }
+    static var primaryHover: Color {
+        let accent = NSColor.controlAccentColor
+        let contrast = NSColor.labelColor
+        return Color(nsColor: accent.blended(withFraction: 0.12, of: contrast) ?? accent)
+    }
+    static var focusRing: Color { primary.opacity(0.58) }
+    static var selectedFill: Color { primary.opacity(0.16) }
+}
+
 enum CandoaChromeStyle {
     static let sidebarWidth: CGFloat = 234
     static let setupNeutralTint = Color.primary.opacity(0.10)
@@ -239,7 +265,7 @@ enum CandoaChromeStyle {
     static let sidebarControlFill = Color.primary.opacity(0.055)
     static let sidebarControlFillHover = Color.primary.opacity(0.080)
     static let sidebarControlFillDropTarget = Color.primary.opacity(0.18)
-    static let sidebarControlFillActive = Color.accentColor.opacity(0.16)
+    static var sidebarControlFillActive: Color { CandoaColor.selectedFill }
     static let sidebarControlStroke = Color.primary.opacity(0.08)
     static let spaceSetupControlFill = Color.primary.opacity(0.060)
     static let spaceSetupControlStroke = Color.primary.opacity(0.08)

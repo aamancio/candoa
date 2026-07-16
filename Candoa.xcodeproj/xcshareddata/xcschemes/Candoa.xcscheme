@@ -71,6 +71,13 @@
             ReferencedContainer = "container:Candoa.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
+      <EnvironmentVariables>
+         <EnvironmentVariable
+            key = "CANDOA_CLOUD_API_URL"
+            value = "http://127.0.0.1:8787/v1"
+            isEnabled = "YES">
+         </EnvironmentVariable>
+      </EnvironmentVariables>
    </LaunchAction>
    <ProfileAction
       buildConfiguration = "Release"

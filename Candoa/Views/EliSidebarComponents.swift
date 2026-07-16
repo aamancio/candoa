@@ -520,7 +520,7 @@ struct AISidebarMentionButton: View {
 
     private var rowBackground: Color {
         if isSelected {
-            return Color.accentColor
+            return CandoaColor.primary
         }
 
         return isHovered ? CandoaChromeStyle.sidebarControlFillHover : Color.clear

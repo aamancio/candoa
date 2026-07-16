@@ -118,7 +118,6 @@ private enum CandoaEliKeychainError: LocalizedError {
 }
 
 enum CandoaRemoteEliService {
-    private static let defaultEndpoint = URL(string: "https://api.candoa.com/v1/ai/chat")!
     private static let openAIEndpoint = URL(string: "https://api.openai.com/v1/responses")!
 
     private static let instructions = """
@@ -165,15 +164,19 @@ enum CandoaRemoteEliService {
         AsyncThrowingStream { continuation in
             let task = Task {
                 do {
+                    guard let accessToken = CandoaAccountKeychain.accessToken else {
+                        throw CandoaRemoteEliError.missingAccountSession
+                    }
                     let payload = CandoaRequestPayload(
                         message: prompt,
                         context: PageContext(context),
                         history: recentTurns.map(ConversationTurn.init)
                     )
-                    var request = URLRequest(url: candoaEndpoint)
+                    var request = URLRequest(url: CandoaCloudAPI.aiChatURL)
                     request.httpMethod = "POST"
                     request.timeoutInterval = 60
                     request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                    request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
                     request.httpBody = try JSONEncoder().encode(payload)
 
                     let (bytes, response) = try await URLSession.shared.bytes(for: request)
@@ -226,16 +229,6 @@ enum CandoaRemoteEliService {
             }
             continuation.onTermination = { _ in task.cancel() }
         }
-    }
-
-    private static var candoaEndpoint: URL {
-        guard
-            let configuredURL = ProcessInfo.processInfo.environment["CANDOA_ASK_API_URL"],
-            let url = URL(string: configuredURL)
-        else {
-            return defaultEndpoint
-        }
-        return url
     }
 
     private static func validate(
@@ -414,6 +407,7 @@ enum CandoaRemoteEliService {
 
 private enum CandoaRemoteEliError: LocalizedError {
     case invalidResponse
+    case missingAccountSession
     case missingPersonalKey
     case server(String)
 
@@ -421,6 +415,8 @@ private enum CandoaRemoteEliError: LocalizedError {
         switch self {
         case .invalidResponse:
             return "Eli returned an invalid response."
+        case .missingAccountSession:
+            return "Sign in with Apple and subscribe to Candoa to use Eli."
         case .missingPersonalKey:
             return "Add an OpenAI API key in Candoa Settings before using your own key."
         case .server(let message):

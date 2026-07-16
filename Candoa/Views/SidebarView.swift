@@ -89,7 +89,9 @@ struct SidebarView: View {
         VStack(alignment: .leading, spacing: 12) {
             sidebarHeader
             
-            if store.isSpaceSetupPresented {
+            if store.isInitialAccountSetupPresented {
+                Spacer(minLength: 0)
+            } else if store.isSpaceSetupPresented {
                 UpsertSpaceSidebarComposer(
                     store: store,
                     mode: store.isInitialSpaceSetupPresented
@@ -121,7 +123,7 @@ struct SidebarView: View {
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
 
-            if !store.isInitialSpaceSetupPresented {
+            if !store.isInitialOnboardingPresented || store.initialOnboardingStep == .tour {
                 SpaceSwitcherView(store: store)
             }
         }
@@ -165,7 +167,8 @@ struct SidebarView: View {
     }
 
     private var hidesNavigationChromeForAddressPalette: Bool {
-        store.isCommandPalettePresented && store.commandPaletteWasOpenedFromSidebarAddress
+        store.isInitialOnboardingPresented
+            || (store.isCommandPalettePresented && store.commandPaletteWasOpenedFromSidebarAddress)
     }
 
     private var navigationControls: some View {

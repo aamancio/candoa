@@ -11,8 +11,8 @@ struct CommandPaletteView: View {
     @Environment(\.colorScheme) internal var colorScheme
     @AppStorage(CandoaSettingsOption.defaultSearchProvider) internal var defaultSearchProvider = NavigationService.searchProviders.first?.id ?? "google"
 
-    /// Arc's command bar accent — the one selection color everywhere.
-    static let paletteTint = Color(red: 0.26, green: 0.27, blue: 0.88)
+    /// The shared Candoa primary used by search focus and default selections.
+    static var paletteTint: Color { CandoaColor.primary }
     internal static let maxVisibleCommandCount = 6
     internal static let commandRowHeight: CGFloat = 46
     internal static let commandRowSpacing: CGFloat = 7

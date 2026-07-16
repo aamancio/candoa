@@ -203,6 +203,7 @@ struct WebViewContainer: View {
 
                 TextField("Find in page", text: $store.findQuery)
                     .textFieldStyle(.plain)
+                    .tint(CandoaColor.primary)
                     .frame(width: 190)
                     .focused($isFieldFocused)
                     .accessibilityIdentifier("find-bar-field")
@@ -431,7 +432,7 @@ private struct SplitDropPreviewPane: View {
                 HStack {
                     Image(systemName: tab.faviconSymbol)
                         .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(isDragged ? Color.accentColor : .secondary)
+                        .foregroundStyle(isDragged ? CandoaColor.primary : .secondary)
 
                     Spacer()
                 }
@@ -443,7 +444,7 @@ private struct SplitDropPreviewPane: View {
         .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 9, style: .continuous)
-                .stroke(isDragged ? Color.accentColor.opacity(0.62) : Color.primary.opacity(0.10), lineWidth: 1)
+                .stroke(isDragged ? CandoaColor.primary.opacity(0.62) : Color.primary.opacity(0.10), lineWidth: 1)
         }
         .shadow(color: Color.black.opacity(isDragged ? 0.16 : 0.08), radius: isDragged ? 12 : 6, x: 0, y: 3)
     }
@@ -521,6 +522,7 @@ private struct DeveloperToolbar: View {
                 .textFieldStyle(.plain)
                 .font(.system(size: 12, weight: .medium, design: .monospaced))
                 .foregroundStyle(foreground.opacity(0.92))
+                .tint(CandoaColor.primary)
                 .lineLimit(1)
                 .focused($isURLFieldFocused)
                 .onSubmit {
@@ -1002,7 +1004,7 @@ private struct LoadingPillCore: View {
     }
 }
 
-private struct SpaceSetupCanvas: View {
+internal struct SpaceSetupCanvas: View {
     let hexes: [String]
     let intensity: Double
     let texture: Double

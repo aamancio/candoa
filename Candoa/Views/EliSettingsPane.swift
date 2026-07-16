@@ -7,6 +7,7 @@ internal struct EliSettingsPane: View {
     @State private var apiKey = ""
     @State private var hasSavedKey = CandoaEliKeychain.hasAPIKey
     @State private var keychainError: String?
+    @StateObject private var accountController = CandoaAccountController()
 
     var body: some View {
         SettingsPane {
@@ -77,7 +78,62 @@ internal struct EliSettingsPane: View {
                             .padding(.vertical, 12)
                     }
                 }
+
+                SettingsSectionTitle("Candoa Subscription")
+
+                SettingsCard {
+                    if accountController.isSignedIn {
+                        SettingsRow(
+                            systemImage: accountController.hasActiveSubscription
+                                ? "checkmark.seal"
+                                : "person.crop.circle",
+                            title: accountController.hasActiveSubscription
+                                ? "Candoa \(accountController.status?.planID.capitalized ?? "")"
+                                : "No active Candoa subscription",
+                            subtitle: accountController.hasActiveSubscription
+                                ? "Manage payment details, invoices, or your plan in Stripe."
+                                : "Open Eli to subscribe to Candoa Pro."
+                        ) {
+                            if accountController.hasActiveSubscription {
+                                Button("Manage", action: openBillingPortal)
+                                    .controlSize(.small)
+                                    .disabled(accountController.isWorking)
+                            }
+                        }
+
+                        SettingsDivider()
+
+                        SettingsRow(
+                            systemImage: "rectangle.portrait.and.arrow.right",
+                            title: "Candoa account",
+                            subtitle: "This only removes the Candoa session from this Mac."
+                        ) {
+                            Button("Sign out", role: .destructive, action: accountController.signOut)
+                                .controlSize(.small)
+                        }
+                    } else {
+                        SettingsRow(
+                            systemImage: "person.crop.circle.badge.questionmark",
+                            title: "Not signed in",
+                            subtitle: "Open Eli and continue with Apple to connect your subscription."
+                        ) { }
+                    }
+
+                    if let accountError = accountController.errorMessage {
+                        SettingsDivider()
+
+                        Text(accountError)
+                            .font(.callout)
+                            .foregroundStyle(.red)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 12)
+                    }
+                }
             }
+        }
+        .task {
+            await accountController.refresh()
         }
     }
 
@@ -102,5 +158,9 @@ internal struct EliSettingsPane: View {
         } catch {
             keychainError = error.localizedDescription
         }
+    }
+
+    private func openBillingPortal() {
+        Task { await accountController.openBillingPortal() }
     }
 }

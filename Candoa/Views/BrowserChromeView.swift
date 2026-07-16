@@ -65,6 +65,7 @@ struct BrowserChromeView: View {
                 TextField(BrowserDefaults.addressPlaceholder, text: $addressText)
                     .textFieldStyle(.plain)
                     .font(.system(size: 15))
+                    .tint(CandoaColor.primary)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 10)
                     .frame(width: 560)

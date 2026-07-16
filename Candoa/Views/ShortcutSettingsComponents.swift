@@ -329,15 +329,15 @@ internal struct DockIconChoice: View {
 
                 Text(preference.title)
                     .font(.system(size: 12))
-                    .foregroundStyle(isSelected ? Color.accentColor : Color.primary)
+                    .foregroundStyle(isSelected ? CandoaColor.primary : Color.primary)
             }
             .padding(10)
             .frame(width: 124)
-            .background(isSelected ? Color.accentColor.opacity(0.12) : Color(nsColor: .controlBackgroundColor))
+            .background(isSelected ? CandoaColor.primary.opacity(0.12) : Color(nsColor: .controlBackgroundColor))
             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .stroke(isSelected ? Color.accentColor.opacity(0.55) : Color.primary.opacity(0.08), lineWidth: 1)
+                    .stroke(isSelected ? CandoaColor.focusRing : Color.primary.opacity(0.08), lineWidth: 1)
             }
         }
         .buttonStyle(.plain)

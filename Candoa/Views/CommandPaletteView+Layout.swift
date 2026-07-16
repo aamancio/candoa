@@ -76,7 +76,10 @@ extension CommandPaletteView {
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .strokeBorder(CandoaChromeStyle.popoverBorder, lineWidth: 1)
+                .strokeBorder(
+                    isSearchFocused ? CandoaColor.focusRing : CandoaChromeStyle.popoverBorder,
+                    lineWidth: isSearchFocused ? 1.25 : 1
+                )
         }
         .shadow(color: Color(nsColor: .shadowColor).opacity(0.24), radius: 46, y: 24)
     }
@@ -168,4 +171,3 @@ extension CommandPaletteView {
     /// The same page can surface as several history visits plus an open tab;
     /// Arc shows it once. Tab rows and navigations collapse on their target,
 }
-

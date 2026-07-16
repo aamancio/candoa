@@ -47,10 +47,10 @@ internal struct UpsertSpaceSidebarComposer: View {
     @State private var isIconPickerPresented = false
     @State private var isProfilePickerPresented = false
     @State private var isThemeEditorPresented = false
+    @State private var isHoveringPrimaryButton = false
     @FocusState private var isNameFocused: Bool
 
     private let themeOptions: [(name: String, hex: String)] = [
-        ("Blue", BrowserSpace.defaultThemeColorHex),
         ("Neutral", "#F0EAE1"),
         ("Green", "#74E0AA"),
         ("Gold", "#E0A84F"),
@@ -90,6 +90,12 @@ internal struct UpsertSpaceSidebarComposer: View {
         primaryButtonUsesDarkForeground ? Color.black : Color.white
     }
 
+    private var usesCandoaPrimary: Bool {
+        primaryButtonTintHex.caseInsensitiveCompare(
+            BrowserSpace.defaultThemeColorHex
+        ) == .orderedSame
+    }
+
     private var textColor: Color {
         isThemePreviewActive ? foregroundBase.opacity(usesDarkForeground ? 0.82 : 0.88) : CandoaChromeStyle.sidebarText
     }
@@ -115,6 +121,10 @@ internal struct UpsertSpaceSidebarComposer: View {
     }
 
     private var createButtonTextColor: Color {
+        if usesCandoaPrimary {
+            return CandoaColor.primaryForeground.opacity(trimmedName.isEmpty ? 0.42 : 0.92)
+        }
+
         if trimmedName.isEmpty {
             return primaryButtonForegroundBase.opacity(primaryButtonUsesDarkForeground ? 0.38 : 0.42)
         }
@@ -132,7 +142,14 @@ internal struct UpsertSpaceSidebarComposer: View {
     }
 
     private var createButtonBackground: Color {
-        Color(spaceHex: primaryButtonTintHex)
+        if usesCandoaPrimary {
+            return (isHoveringPrimaryButton && !trimmedName.isEmpty
+                ? CandoaColor.primaryHover
+                : CandoaColor.primary)
+                .opacity(trimmedName.isEmpty ? 0.52 : 1)
+        }
+
+        return Color(spaceHex: primaryButtonTintHex)
             .opacity(trimmedName.isEmpty ? 0.52 : 0.86)
     }
 
@@ -140,9 +157,9 @@ internal struct UpsertSpaceSidebarComposer: View {
         self.store = store
         self.mode = mode
         _name = State(initialValue: mode.defaultName)
-        _themeColorHex = State(
-            initialValue: mode == .edit ? nil : BrowserSpace.defaultThemeColorHex
-        )
+        // New Spaces start neutral. Native macOS accent color remains the
+        // primary-action tint instead of washing the browser surface in blue.
+        _themeColorHex = State(initialValue: nil)
     }
 
     var body: some View {
@@ -175,6 +192,8 @@ internal struct UpsertSpaceSidebarComposer: View {
             .background(createButtonBackground)
             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
             .disabled(trimmedName.isEmpty)
+            .onHover { isHoveringPrimaryButton = $0 }
+            .animation(.easeOut(duration: 0.10), value: isHoveringPrimaryButton)
             .accessibilityIdentifier("space-primary-button")
 
             if mode != .initial {
@@ -202,10 +221,18 @@ internal struct UpsertSpaceSidebarComposer: View {
                 themeAppearance = space.themeAppearance
                 themeOpacity = space.themeOpacity
                 themeTexture = space.themeTexture
-            } else {
-                isNameFocused = true
             }
             publishCurrentThemePreview()
+        }
+        .onChange(of: isIconPickerPresented) { _, isPresented in
+            guard !isPresented else { return }
+
+            // AppKit may restore the adjacent text field as first responder
+            // when this popover closes. Keep the setup page neutral after an
+            // icon choice instead of selecting the default Space name.
+            DispatchQueue.main.async {
+                isNameFocused = false
+            }
         }
         .onDisappear {
             store.clearSpaceThemePreview()
@@ -213,20 +240,26 @@ internal struct UpsertSpaceSidebarComposer: View {
     }
 
     private var composerHeader: some View {
-        VStack(spacing: 8) {
-            Text(mode.title)
-                .font(.system(size: 20, weight: .heavy))
-                .foregroundStyle(textColor)
+        Group {
+            if mode == .initial {
+                EmptyView()
+            } else {
+                VStack(spacing: 8) {
+                    Text(mode.title)
+                        .font(.system(size: 20, weight: .heavy))
+                        .foregroundStyle(textColor)
 
-            Text(mode.subtitle)
-                .font(.system(size: 12.5, weight: .semibold))
-                .foregroundStyle(iconColor)
-                .multilineTextAlignment(.center)
-                .lineSpacing(1)
+                    Text(mode.subtitle)
+                        .font(.system(size: 12.5, weight: .semibold))
+                        .foregroundStyle(iconColor)
+                        .multilineTextAlignment(.center)
+                        .lineSpacing(1)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.top, 34)
+                .padding(.bottom, 32)
+            }
         }
-        .frame(maxWidth: .infinity)
-        .padding(.top, 34)
-        .padding(.bottom, 32)
     }
 
     private var nameField: some View {
@@ -247,7 +280,11 @@ internal struct UpsertSpaceSidebarComposer: View {
             .popover(isPresented: $isIconPickerPresented, arrowEdge: .leading) {
                 SpaceIconPicker(
                     selectedSymbolName: $symbolName,
-                    isPresented: $isIconPickerPresented
+                    isPresented: $isIconPickerPresented,
+                    onWillDismiss: {
+                        isNameFocused = false
+                        NSApp.mainWindow?.makeFirstResponder(nil)
+                    }
                 )
             }
 
@@ -405,7 +442,6 @@ internal struct UpsertSpaceSidebarComposer: View {
                 dataStoreID: dataMode.dataStoreID(current: store.activeSpace?.dataStoreID)
             )
             store.clearSpaceThemePreview()
-            store.openNewTabCommandPalette()
             return
         }
 
@@ -432,11 +468,13 @@ internal struct SpaceIconPreview: View {
 
     var body: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .stroke(
-                    strokeColor,
-                    style: StrokeStyle(lineWidth: 1.6, dash: [5, 4])
-                )
+            if symbolName == "square.dashed" {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .stroke(
+                        strokeColor,
+                        style: StrokeStyle(lineWidth: 1.6, dash: [5, 4])
+                    )
+            }
 
             if symbolName != "square.dashed" {
                 if let emoji = SpaceIconOption.emoji(from: symbolName) {
@@ -457,6 +495,7 @@ internal struct SpaceIconPreview: View {
 internal struct SpaceIconPicker: View {
     @Binding var selectedSymbolName: String
     @Binding var isPresented: Bool
+    let onWillDismiss: () -> Void
 
     @State private var query = ""
     @State private var mode = SpaceIconPickerMode.emojis
@@ -638,6 +677,7 @@ internal struct SpaceIconPicker: View {
                 Spacer()
 
                 Button {
+                    onWillDismiss()
                     selectedSymbolName = "square.dashed"
                     isPresented = false
                 } label: {
@@ -670,6 +710,7 @@ internal struct SpaceIconPicker: View {
                 LazyVGrid(columns: columns, spacing: 10) {
                     ForEach(filteredOptions) { option in
                         Button {
+                            onWillDismiss()
                             selectedSymbolName = option.symbolName
                             isPresented = false
                         } label: {
@@ -698,7 +739,7 @@ internal struct SpaceIconOptionView: View {
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(isSelected ? Color.accentColor.opacity(0.18) : Color.clear)
+                .fill(isSelected ? CandoaColor.primary.opacity(0.18) : Color.clear)
 
             if let emoji = option.emoji {
                 Text(emoji)
@@ -706,7 +747,7 @@ internal struct SpaceIconOptionView: View {
             } else {
                 Image(systemName: option.symbolName)
                     .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(isSelected ? Color.accentColor : CandoaChromeStyle.sidebarText)
+                    .foregroundStyle(isSelected ? CandoaColor.primary : CandoaChromeStyle.sidebarText)
             }
         }
         .frame(width: 34, height: 34)
@@ -747,7 +788,7 @@ internal struct SpaceProfilePicker: View {
                         if selectedMode == mode {
                             Image(systemName: "checkmark")
                                 .font(.system(size: 13, weight: .bold))
-                                .foregroundStyle(Color.accentColor)
+                                .foregroundStyle(CandoaColor.primary)
                         }
                     }
                     .padding(.horizontal, 11)
@@ -1782,7 +1823,7 @@ internal enum SpaceIconPickerMode: String, CaseIterable, Identifiable {
     }
 }
 
-internal enum SpaceComposerMode {
+internal enum SpaceComposerMode: Equatable {
     case create
     case initial
     case edit
