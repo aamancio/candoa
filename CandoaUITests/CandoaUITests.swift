@@ -14,6 +14,35 @@ final class CandoaUITests: XCTestCase {
         XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 10))
     }
 
+    func testExternalHTTPSURLIsOpenedDirectlyInANewTab() throws {
+        let app = launchApp()
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
+
+        let url = try XCTUnwrap(URL(string: "https://example.com/candoa-external-url-test?source=macos"))
+        let appURL = try XCTUnwrap(
+            NSRunningApplication.runningApplications(withBundleIdentifier: "app.candoa.browser")
+                .first?.bundleURL
+        )
+        let opened = expectation(description: "macOS delivered the external URL to Candoa")
+        var openError: Error?
+
+        NSWorkspace.shared.open(
+            [url],
+            withApplicationAt: appURL,
+            configuration: NSWorkspace.OpenConfiguration()
+        ) { _, error in
+            openError = error
+            opened.fulfill()
+        }
+
+        wait(for: [opened], timeout: 10)
+        XCTAssertNil(openError)
+        XCTAssertTrue(
+            waitForState(in: app, containing: "url=\(url.absoluteString)", timeout: 10),
+            currentState(in: app)
+        )
+    }
+
     func testBrowserMigrationImportsSafariFixtureThroughRealParser() throws {
         let app = launchApp(
             onboardingStep: "importData",
@@ -38,8 +67,12 @@ final class CandoaUITests: XCTestCase {
         XCTAssertFalse(app.sheets.firstMatch.exists)
 
         importButton.click()
-        XCTAssertTrue(element("account-onboarding", in: app).waitForExistence(timeout: 5))
-        XCTAssertFalse(element("initial-onboarding-importData", in: app).exists)
+        let importStep = element("initial-onboarding-importData", in: app)
+        let importFinished = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "exists == false"),
+            object: importStep
+        )
+        XCTAssertEqual(XCTWaiter.wait(for: [importFinished], timeout: 5), .completed)
         XCTAssertFalse(app.sheets.firstMatch.exists)
         XCTAssertFalse(app.buttons["Continue"].exists)
         XCTAssertFalse(app.staticTexts.matching(NSPredicate(
@@ -148,7 +181,10 @@ final class CandoaUITests: XCTestCase {
             app.staticTexts["Understand any page"].waitForExistence(timeout: 5),
             currentState(in: app)
         )
-        XCTAssertTrue(element("agent-tour-preview", in: app).waitForExistence(timeout: 5))
+        XCTAssertTrue(
+            waitForState(in: app, containing: "aiVisible=true;aiMounted=true", timeout: 5),
+            currentState(in: app)
+        )
         XCTAssertFalse(element("agent-subscription-gate", in: app).exists)
         app.buttons["Done"].click()
 
@@ -331,8 +367,12 @@ final class CandoaUITests: XCTestCase {
         XCTAssertTrue(importButton.waitForExistence(timeout: 5))
         importButton.click()
 
-        XCTAssertTrue(element("account-onboarding", in: app).waitForExistence(timeout: 5))
-        XCTAssertFalse(element("initial-onboarding-importData", in: app).exists)
+        let importStep = element("initial-onboarding-importData", in: app)
+        let importFinished = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "exists == false"),
+            object: importStep
+        )
+        XCTAssertEqual(XCTWaiter.wait(for: [importFinished], timeout: 5), .completed)
         XCTAssertFalse(app.sheets.firstMatch.exists)
         XCTAssertTrue(
             waitForState(in: app, containing: "Imported from \(source)", timeout: 5),

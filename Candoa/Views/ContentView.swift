@@ -312,6 +312,9 @@ struct ContentView: View {
         .onAppear {
             updateService.startCheckingForUpdates()
         }
+        .onOpenURL { url in
+            store.openExternalURL(url)
+        }
         .onDisappear {
             store.flushSession()
             updateService.stopCheckingForUpdates()

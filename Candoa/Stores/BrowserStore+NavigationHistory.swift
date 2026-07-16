@@ -1,6 +1,12 @@
 import Foundation
 
 extension BrowserStore {
+    func openExternalURL(_ url: URL) {
+        guard let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https" else { return }
+        dismissCommandPalette()
+        _ = newTab(url: url)
+    }
+
     func navigateActiveTab(to rawInput: String) {
         guard let url = navigationService.destinationURL(
             for: rawInput,
@@ -240,4 +246,3 @@ extension BrowserStore {
         return url.absoluteString == "about:blank"
     }
 }
-

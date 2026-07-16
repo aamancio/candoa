@@ -50,6 +50,7 @@
 		010000000000000000000176 /* CandoaAccountService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000066 /* CandoaAccountService.swift */; };
 		010000000000000000000177 /* InitialOnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000067 /* InitialOnboardingView.swift */; };
 		010000000000000000000178 /* BrowserImportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000068 /* BrowserImportService.swift */; };
+		BB0000000000000000000101 /* BrowserPasskeyAuthorizationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000000001 /* BrowserPasskeyAuthorizationService.swift */; };
 		010000000000000000000143 /* CandoaEliPromptPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000043 /* CandoaEliPromptPolicy.swift */; };
 		010000000000000000000144 /* CandoaEliDrafts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000044 /* CandoaEliDrafts.swift */; };
 		010000000000000000000145 /* EliSidebarResizeHandle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000045 /* EliSidebarResizeHandle.swift */; };
@@ -149,6 +150,7 @@
 		010000000000000000000066 /* CandoaAccountService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CandoaAccountService.swift; sourceTree = "<group>"; };
 		010000000000000000000067 /* InitialOnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InitialOnboardingView.swift; sourceTree = "<group>"; };
 		010000000000000000000068 /* BrowserImportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserImportService.swift; sourceTree = "<group>"; };
+		BB0000000000000000000001 /* BrowserPasskeyAuthorizationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserPasskeyAuthorizationService.swift; sourceTree = "<group>"; };
 		010000000000000000000043 /* CandoaEliPromptPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CandoaEliPromptPolicy.swift; sourceTree = "<group>"; };
 		010000000000000000000044 /* CandoaEliDrafts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CandoaEliDrafts.swift; sourceTree = "<group>"; };
 		010000000000000000000045 /* EliSidebarResizeHandle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EliSidebarResizeHandle.swift; sourceTree = "<group>"; };
@@ -278,6 +280,7 @@
 				010000000000000000000042 /* CandoaEliService.swift */,
 				010000000000000000000066 /* CandoaAccountService.swift */,
 				010000000000000000000068 /* BrowserImportService.swift */,
+				BB0000000000000000000001 /* BrowserPasskeyAuthorizationService.swift */,
 				010000000000000000000043 /* CandoaEliPromptPolicy.swift */,
 				010000000000000000000044 /* CandoaEliDrafts.swift */,
 				010000000000000000000048 /* CandoaEliContextCompactor.swift */,
@@ -524,6 +527,7 @@
 				010000000000000000000176 /* CandoaAccountService.swift in Sources */,
 				010000000000000000000177 /* InitialOnboardingView.swift in Sources */,
 				010000000000000000000178 /* BrowserImportService.swift in Sources */,
+				BB0000000000000000000101 /* BrowserPasskeyAuthorizationService.swift in Sources */,
 				010000000000000000000143 /* CandoaEliPromptPolicy.swift in Sources */,
 				010000000000000000000144 /* CandoaEliDrafts.swift in Sources */,
 				010000000000000000000145 /* EliSidebarResizeHandle.swift in Sources */,
@@ -674,7 +678,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_ASSET_PATHS = "";
 				DEVELOPMENT_TEAM = "";
 				"DEVELOPMENT_TEAM[sdk=macosx*]" = CHFBL6P6U7;
@@ -685,7 +689,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.1.1;
+				MARKETING_VERSION = 0.1.2;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = app.candoa.browser;
 				PRODUCT_NAME = Candoa;
@@ -704,7 +708,7 @@
 				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_ASSET_PATHS = "";
 				DEVELOPMENT_TEAM = "";
 				"DEVELOPMENT_TEAM[sdk=macosx*]" = CHFBL6P6U7;
@@ -715,7 +719,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.1.1;
+				MARKETING_VERSION = 0.1.2;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = app.candoa.browser;
 				PRODUCT_NAME = Candoa;

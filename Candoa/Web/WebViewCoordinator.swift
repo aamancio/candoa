@@ -9,7 +9,6 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         let query: String
     }
 
-    private static let desktopSafariUserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15"
     private static let pageZoomLevels: [CGFloat] = [0.5, 0.65, 0.8, 0.9, 1.0, 1.1, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0]
 
     private weak var store: BrowserStore?
@@ -88,7 +87,6 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         webView.allowsBackForwardNavigationGestures = true
         webView.allowsMagnification = true
         webView.isInspectable = WebInspectorConfiguration.isEnabled
-        webView.customUserAgent = Self.desktopSafariUserAgent
         webView.underPageBackgroundColor = .textBackgroundColor
 
         // Let web content inherit the window appearance so websites that honor

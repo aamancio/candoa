@@ -11,6 +11,7 @@ struct CandoaApp: App {
             ContentView()
                 .environmentObject(userStore)
                 .tint(CandoaColor.primary)
+                .handlesExternalEvents(preferring: ["*"], allowing: ["*"])
                 .frame(
                     minWidth: AppConfiguration.minimumWindowWidth,
                     minHeight: AppConfiguration.minimumWindowHeight
@@ -47,6 +48,7 @@ struct CandoaApp: App {
 @MainActor
 private final class CandoaAppDelegate: NSObject, NSApplicationDelegate {
     private let appearanceChangedNotification = Notification.Name("AppleInterfaceThemeChangedNotification")
+    private let browserPasskeyAuthorizationService = BrowserPasskeyAuthorizationService()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         updateDockIcon()
@@ -60,6 +62,10 @@ private final class CandoaAppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         DistributedNotificationCenter.default().removeObserver(self)
+    }
+
+    func applicationDidBecomeActive(_ notification: Notification) {
+        browserPasskeyAuthorizationService.requestAuthorizationIfNeeded()
     }
 
     @objc private func systemAppearanceDidChange(_ notification: Notification) {
