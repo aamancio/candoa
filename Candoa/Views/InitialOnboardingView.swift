@@ -258,7 +258,7 @@ private struct AccountOnboardingStep: View {
                 } else if let errorMessage = accountController.errorMessage {
                     Text(errorMessage)
                         .font(.system(size: 12))
-                        .foregroundStyle(.red)
+                        .foregroundStyle(CandoaColor.danger)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
@@ -374,7 +374,7 @@ private struct ImportOnboardingStep: View {
                         systemImage: importFailed ? "exclamationmark.triangle" : "checkmark.circle"
                     )
                     .font(.system(size: 12))
-                    .foregroundStyle(importFailed ? AnyShapeStyle(Color.red) : AnyShapeStyle(.secondary))
+                    .foregroundStyle(importFailed ? AnyShapeStyle(CandoaColor.danger) : AnyShapeStyle(.secondary))
                     .fixedSize(horizontal: false, vertical: true)
                 }
 
@@ -416,7 +416,7 @@ private struct ImportOnboardingStep: View {
                     Button {
                         store.completeInitialImport()
                     } label: {
-                        Text("Set Up Later")
+                        Text("Skip")
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered)

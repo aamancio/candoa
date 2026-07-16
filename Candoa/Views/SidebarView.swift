@@ -80,7 +80,7 @@ struct SidebarView: View {
         guard isSetupThemePreviewActive else { return CandoaChromeStyle.sidebarIcon }
 
         let usesDarkForeground = CandoaChromeStyle.prefersDarkForeground(
-            forSpaceHex: store.activeThemeColorHexes.first ?? ""
+            forSpaceHexes: store.activeThemeColorHexes
         )
         return (usesDarkForeground ? Color.black : Color.white).opacity(0.42)
     }

@@ -22,8 +22,9 @@ struct WebViewContainer: View {
     /// not the system: a dark space theme means dark chrome. Nil when the
     /// space is unthemed, falling back to the system appearance.
     private var themeIsDarkChrome: Bool? {
-        guard let hex = store.activeThemeColorHexes.first else { return nil }
-        return !CandoaChromeStyle.prefersDarkForeground(forSpaceHex: hex)
+        let hexes = store.activeThemeColorHexes
+        guard !hexes.isEmpty else { return nil }
+        return !CandoaChromeStyle.prefersDarkForeground(forSpaceHexes: hexes)
     }
 
     var body: some View {

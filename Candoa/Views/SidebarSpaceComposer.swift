@@ -66,10 +66,18 @@ internal struct UpsertSpaceSidebarComposer: View {
     }
 
     private var isThemePreviewActive: Bool {
-        mode != .edit && themeColorHex != nil
+        // The standalone create flow sits directly on the themed browser
+        // chrome, so its controls must follow the preview's contrast. Initial
+        // onboarding is inside a neutral system surface and keeps semantic
+        // macOS label/control colors regardless of the surrounding preview.
+        mode == .create && themeColorHex != nil
     }
 
     private var usesDarkForeground: Bool {
+        let previewHexes = store.activeThemeColorHexes
+        if !previewHexes.isEmpty {
+            return CandoaChromeStyle.prefersDarkForeground(forSpaceHexes: previewHexes)
+        }
         guard let themeColorHex else { return false }
         return CandoaChromeStyle.prefersDarkForeground(forSpaceHex: themeColorHex)
     }

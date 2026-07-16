@@ -252,6 +252,9 @@ enum CandoaColor {
     }
     static var focusRing: Color { primary.opacity(0.58) }
     static var selectedFill: Color { primary.opacity(0.16) }
+    static var success: Color { Apple.systemGreen }
+    static var warning: Color { Apple.systemOrange }
+    static var danger: Color { Apple.systemRed }
 }
 
 enum CandoaChromeStyle {
@@ -260,42 +263,104 @@ enum CandoaChromeStyle {
     static let windowBackground = Color(nsColor: .windowBackgroundColor)
     static let workspaceBackground = Color(nsColor: .controlBackgroundColor)
     static let sidebarBackground = Color(nsColor: .windowBackgroundColor).opacity(0.90)
-    static let sidebarBorder = Color.primary.opacity(0.12)
-    static let sidebarSeparator = Color.primary.opacity(0.08)
-    static let sidebarControlFill = Color.primary.opacity(0.055)
-    static let sidebarControlFillHover = Color.primary.opacity(0.080)
-    static let sidebarControlFillDropTarget = Color.primary.opacity(0.18)
+    static var sidebarBorder: Color { Color.primary.opacity(increasesContrast ? 0.24 : 0.12) }
+    static var sidebarSeparator: Color { Color.primary.opacity(increasesContrast ? 0.18 : 0.08) }
+    static var sidebarControlFill: Color { Color.primary.opacity(increasesContrast ? 0.10 : 0.055) }
+    static var sidebarControlFillHover: Color { Color.primary.opacity(increasesContrast ? 0.16 : 0.080) }
+    static var sidebarControlFillDropTarget: Color { Color.primary.opacity(increasesContrast ? 0.28 : 0.18) }
     static var sidebarControlFillActive: Color { CandoaColor.selectedFill }
-    static let sidebarControlStroke = Color.primary.opacity(0.08)
-    static let spaceSetupControlFill = Color.primary.opacity(0.060)
-    static let spaceSetupControlStroke = Color.primary.opacity(0.08)
-    static let spaceSetupPillFill = Color.primary.opacity(0.075)
-    static let updateBannerFill = Color.primary.opacity(0.075)
-    static let updateBannerFillHover = Color.primary.opacity(0.105)
-    static let updateBannerStroke = Color.primary.opacity(0.20)
-    static let sidebarText = Color.primary.opacity(0.88)
-    static let sidebarTextSecondary = Color.primary.opacity(0.62)
-    static let sidebarIcon = Color.primary.opacity(0.38)
-    static let windowControlInactive = Color.primary.opacity(0.14)
+    static var sidebarControlStroke: Color { Color.primary.opacity(increasesContrast ? 0.20 : 0.08) }
+    static var spaceSetupControlFill: Color { Color.primary.opacity(increasesContrast ? 0.12 : 0.060) }
+    static var spaceSetupControlStroke: Color { Color.primary.opacity(increasesContrast ? 0.20 : 0.08) }
+    static var spaceSetupPillFill: Color { Color.primary.opacity(increasesContrast ? 0.14 : 0.075) }
+    static var updateBannerFill: Color { Color.primary.opacity(increasesContrast ? 0.14 : 0.075) }
+    static var updateBannerFillHover: Color { Color.primary.opacity(increasesContrast ? 0.20 : 0.105) }
+    static var updateBannerStroke: Color { Color.primary.opacity(increasesContrast ? 0.34 : 0.20) }
+    static var sidebarText: Color { Color.primary.opacity(increasesContrast ? 1 : 0.88) }
+    static var sidebarTextSecondary: Color { Color.primary.opacity(increasesContrast ? 0.78 : 0.62) }
+    static var sidebarIcon: Color { Color.primary.opacity(increasesContrast ? 0.58 : 0.38) }
+    static var windowControlInactive: Color { Color.primary.opacity(increasesContrast ? 0.26 : 0.14) }
     static let surfaceFill = Color(nsColor: .controlBackgroundColor)
-    static let surfaceBorder = Color.primary.opacity(0.12)
+    static var surfaceBorder: Color { Color.primary.opacity(increasesContrast ? 0.24 : 0.12) }
     static let popoverBackground = Color(nsColor: .windowBackgroundColor)
     static let popoverBorder = Color(nsColor: .separatorColor).opacity(0.85)
+
+    private static var increasesContrast: Bool {
+        NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast
+    }
 
     /// Whether chrome text needs to be dark to stay legible on the themed
     /// surface. At preview strength the theme color dominates the chrome
     /// (0.74 tint), so the color's own perceived luminance decides: light
     /// colors (mint, gold, pink…) wash out white text.
     static func prefersDarkForeground(forSpaceHex hex: String) -> Bool {
+        prefersDarkForeground(forSpaceHexes: [hex])
+    }
+
+    static func prefersDarkForeground(forSpaceHexes hexes: [String]) -> Bool {
+        SpaceThemeReadability.resolved(for: hexes).usesDarkForeground
+    }
+}
+
+internal struct SpaceThemeReadability {
+    let usesDarkForeground: Bool
+    let overlayOpacity: Double
+
+    var overlayColor: Color {
+        usesDarkForeground ? .white : .black
+    }
+
+    static func resolved(for hexes: [String]) -> Self {
+        guard let palette = SpaceThemePalette.resolvedHexes(from: hexes) else {
+            return Self(usesDarkForeground: false, overlayOpacity: 0)
+        }
+
+        let luminances = palette.compactMap(relativeLuminance)
+        guard let darkest = luminances.min(), let lightest = luminances.max() else {
+            return Self(usesDarkForeground: false, overlayOpacity: 0)
+        }
+
+        // WCAG's 4.5:1 target for ordinary text. Instead of assuming a
+        // brightness threshold, solve for the smallest neutral overlay that
+        // makes every generated theme color support one foreground.
+        let minimumLightBackgroundLuminance = 4.5 * 0.05 - 0.05
+        let maximumDarkBackgroundLuminance = 1.05 / 4.5 - 0.05
+
+        let whiteOverlay = darkest >= minimumLightBackgroundLuminance
+            ? 0
+            : (minimumLightBackgroundLuminance - darkest) / (1 - darkest)
+        let blackOverlay = lightest <= maximumDarkBackgroundLuminance
+            ? 0
+            : 1 - maximumDarkBackgroundLuminance / lightest
+
+        if whiteOverlay < blackOverlay {
+            return Self(usesDarkForeground: true, overlayOpacity: whiteOverlay)
+        }
+        if blackOverlay < whiteOverlay {
+            return Self(usesDarkForeground: false, overlayOpacity: blackOverlay)
+        }
+
+        let average = luminances.reduce(0, +) / Double(luminances.count)
+        return Self(
+            usesDarkForeground: average >= 0.179,
+            overlayOpacity: whiteOverlay
+        )
+    }
+
+    private static func relativeLuminance(hex: String) -> Double? {
         let cleaned = hex.trimmingCharacters(in: CharacterSet(charactersIn: "#"))
-        guard cleaned.count == 6, let value = Int(cleaned, radix: 16) else { return false }
+        guard cleaned.count == 6, let value = Int(cleaned, radix: 16) else { return nil }
 
-        let red = Double((value >> 16) & 0xFF) / 255.0
-        let green = Double((value >> 8) & 0xFF) / 255.0
-        let blue = Double(value & 0xFF) / 255.0
+        let red = linearized(Double((value >> 16) & 0xFF) / 255)
+        let green = linearized(Double((value >> 8) & 0xFF) / 255)
+        let blue = linearized(Double(value & 0xFF) / 255)
+        return 0.2126 * red + 0.7152 * green + 0.0722 * blue
+    }
 
-        let luminance = 0.299 * red + 0.587 * green + 0.114 * blue
-        return luminance > 0.60
+    private static func linearized(_ component: Double) -> Double {
+        component <= 0.04045
+            ? component / 12.92
+            : pow((component + 0.055) / 1.055, 2.4)
     }
 }
 
@@ -336,6 +401,10 @@ struct CandoaWindowBackdrop: View {
         return usesSetupChrome ? 0.74 : 0.050
     }
 
+    private var setupReadability: SpaceThemeReadability {
+        SpaceThemeReadability.resolved(for: store.activeThemeColorHexes)
+    }
+
     var body: some View {
         ZStack {
             CandoaChromeStyle.windowBackground
@@ -346,6 +415,9 @@ struct CandoaWindowBackdrop: View {
                 intensity: backdropIntensity * store.activeThemeIntensityMultiplier,
                 texture: store.activeThemeTexture
             )
+            if isSetupThemePreviewActive, setupReadability.overlayOpacity > 0 {
+                setupReadability.overlayColor.opacity(setupReadability.overlayOpacity)
+            }
             CandoaChromeStyle.setupNeutralTint.opacity(usesSetupChrome && !isSetupThemePreviewActive ? 0.18 : 0)
         }
     }

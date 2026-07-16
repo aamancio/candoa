@@ -127,7 +127,9 @@ final class SystemAppearanceObserver: ObservableObject {
 
 
     private static func currentSystemColorScheme() -> ColorScheme {
-        let isDark = UserDefaults.standard.string(forKey: "AppleInterfaceStyle") == "Dark"
-        return isDark ? .dark : .light
+        let appearance = NSApp.effectiveAppearance
+        return appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+            ? .dark
+            : .light
     }
 }

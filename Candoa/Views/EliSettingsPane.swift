@@ -72,7 +72,7 @@ internal struct EliSettingsPane: View {
 
                         Text(keychainError)
                             .font(.callout)
-                            .foregroundStyle(.red)
+                            .foregroundStyle(CandoaColor.danger)
                             .fixedSize(horizontal: false, vertical: true)
                             .padding(.horizontal, 14)
                             .padding(.vertical, 12)
@@ -124,7 +124,7 @@ internal struct EliSettingsPane: View {
 
                         Text(accountError)
                             .font(.callout)
-                            .foregroundStyle(.red)
+                            .foregroundStyle(CandoaColor.danger)
                             .fixedSize(horizontal: false, vertical: true)
                             .padding(.horizontal, 14)
                             .padding(.vertical, 12)
