@@ -11,7 +11,7 @@ extension BrowserStore {
 
         if enabled, !CandoaCloudKitEntitlements.hasConfiguredContainer {
             syncRestartMessage = """
-            This build is not signed with the CloudKit entitlement yet. Enable the iCloud capability for iCloud.app.candoa.Candoa in Xcode, then build with your Apple Developer team.
+            This build is not signed with the CloudKit entitlement yet. Enable the iCloud capability for iCloud.app.candoa.browser in Xcode, then build with your Apple Developer team.
             """
             return
         }
@@ -33,7 +33,7 @@ extension BrowserStore {
 
         if enabled, !CandoaCloudKitEntitlements.hasConfiguredContainer {
             syncRestartMessage = """
-            This build is not signed with the CloudKit entitlement yet. Enable the iCloud capability for iCloud.app.candoa.Candoa in Xcode before syncing history.
+            This build is not signed with the CloudKit entitlement yet. Enable the iCloud capability for iCloud.app.candoa.browser in Xcode before syncing history.
             """
             return
         }
@@ -194,4 +194,3 @@ extension BrowserStore {
         }
     }
 }
-

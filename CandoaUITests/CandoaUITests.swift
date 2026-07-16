@@ -20,7 +20,7 @@ final class CandoaUITests: XCTestCase {
 
         let url = try XCTUnwrap(URL(string: "https://example.com/candoa-external-url-test?source=macos"))
         let appURL = try XCTUnwrap(
-            NSRunningApplication.runningApplications(withBundleIdentifier: "app.candoa.candoa")
+            NSRunningApplication.runningApplications(withBundleIdentifier: "app.candoa.browser")
                 .first?.bundleURL
         )
         let opened = expectation(description: "macOS delivered the external URL to Candoa")

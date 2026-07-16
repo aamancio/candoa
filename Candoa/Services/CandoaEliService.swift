@@ -38,8 +38,7 @@ enum CandoaEliPreferences {
 }
 
 enum CandoaEliKeychain {
-    // Keep the existing service identifier so saved personal keys remain available after the rename.
-    private static let service = "app.candoa.Candoa.Ask"
+    private static let service = "app.candoa.browser.Ask"
     private static let account = "openai-api-key"
 
     static var apiKey: String? {

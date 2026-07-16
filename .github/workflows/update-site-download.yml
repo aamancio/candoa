@@ -22,7 +22,7 @@ jobs:
       SITE_BRANCH: ${{ vars.CANDOA_SITE_BRANCH || 'main' }}
       APP_DMG: ${{ github.workspace }}/artifacts/Candoa.dmg
       APP_BUNDLE: ${{ github.workspace }}/build/DerivedData/Build/Products/Release/Candoa.app
-      EXPECTED_APP_BUNDLE_IDENTIFIER: app.candoa.candoa
+      EXPECTED_APP_BUNDLE_IDENTIFIER: app.candoa.browser
       SPARKLE_VERSION: 2.9.3
       CODE_SIGN_IDENTITY: Developer ID Application
 

@@ -3,7 +3,7 @@ import Foundation
 import Security
 
 struct PersistenceSyncConfiguration: Equatable {
-    static let cloudKitContainerIdentifier = "iCloud.app.candoa.Candoa"
+    static let cloudKitContainerIdentifier = "iCloud.app.candoa.browser"
 
     var syncsWorkspaceWithICloud: Bool
     var syncsHistoryWithICloud: Bool

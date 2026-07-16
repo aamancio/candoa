@@ -2,7 +2,7 @@ import Foundation
 import Security
 
 enum CandoaAccountKeychain {
-    private static let service = "app.candoa.Candoa.Account"
+    private static let service = "app.candoa.browser.Account"
     private static let account = "cloud-session"
 
     static var accessToken: String? {
