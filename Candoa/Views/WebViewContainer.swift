@@ -55,7 +55,12 @@ struct WebViewContainer: View {
                 } else {
                     browserSurface {
                         VStack(spacing: 0) {
-                            if let url = tab.url,
+                            if tab.isWelcomePage {
+                                WelcomeToCandoaPage(store: store)
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                    .padding(.leading, visibleChromeInsets.leading)
+                                    .padding(.trailing, visibleChromeInsets.trailing)
+                            } else if let url = tab.url,
                                DeveloperModeConfiguration.isEnabled(
                                    for: url,
                                    storedOverrides: developerModeOverrides
@@ -73,7 +78,9 @@ struct WebViewContainer: View {
                                 )
                             }
 
-                            if tab.url == nil {
+                            if tab.isWelcomePage {
+                                EmptyView()
+                            } else if tab.url == nil {
                                 EmptyTabSurface {
                                     store.openNewTabCommandPalette()
                                 }
@@ -125,7 +132,7 @@ struct WebViewContainer: View {
         }
         .animation(.easeOut(duration: 0.14), value: store.isFindBarPresented)
         .modifier(
-            LegacyBrowserChromeMaskModifier(
+            BrowserChromeMaskModifier(
                 insets: visibleChromeInsets,
                 surfaceCornerRadius: surfaceCornerRadius,
                 surfacePadding: surfacePadding
@@ -273,26 +280,25 @@ struct WebViewContainer: View {
     }
 }
 
-private struct LegacyBrowserChromeMaskModifier: ViewModifier {
+private struct BrowserChromeMaskModifier: ViewModifier {
     let insets: BrowserChromeInsets
     let surfaceCornerRadius: CGFloat
     let surfacePadding: CGFloat
 
     @ViewBuilder
     func body(content: Content) -> some View {
-        if #available(macOS 26.0, *) {
-            content
-        } else {
+        if insets.leading > 0 || insets.trailing > 0 {
+            // Keep WebKit's frame stable and clip on the compositor. The
+            // pinned sidebar therefore reads as a pushed, contained surface
+            // without animating or repeatedly resizing remote web content.
             content.mask {
-                if insets.leading > 0 || insets.trailing > 0 {
-                    RoundedRectangle(cornerRadius: surfaceCornerRadius, style: .continuous)
-                        .padding(.vertical, surfacePadding)
-                        .padding(.leading, insets.leading + surfacePadding)
-                        .padding(.trailing, insets.trailing + surfacePadding)
-                } else {
-                    Rectangle()
-                }
+                RoundedRectangle(cornerRadius: surfaceCornerRadius, style: .continuous)
+                    .padding(.vertical, surfacePadding)
+                    .padding(.leading, insets.leading + surfacePadding)
+                    .padding(.trailing, insets.trailing + surfacePadding)
             }
+        } else {
+            content
         }
     }
 }

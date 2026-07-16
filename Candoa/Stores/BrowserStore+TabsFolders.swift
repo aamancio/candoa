@@ -148,7 +148,7 @@ extension BrowserStore {
         tabs.insert(tab, at: 0)
         switchTab(to: tab.id)
 
-        if let url {
+        if let url, !tab.isWelcomePage {
             webCoordinator.load(url, in: tab.id)
         }
 
@@ -170,6 +170,7 @@ extension BrowserStore {
         let wasActiveTab = activeTabID == id
         let replacementTabID = wasActiveTab ? replacementTabIDAfterClosing(id) : nil
         let closingTab = tabs[index]
+        let closesWelcomeDuringTour = closingTab.isWelcomePage && initialOnboardingStep == .tour
         rememberClosedTab(closingTab)
         tabs.remove(at: index)
         webCoordinator.removeWebView(for: id)
@@ -194,6 +195,10 @@ extension BrowserStore {
         } else if activeTabID == id {
             activeTabID = replacementTabID
             updateNavigationState()
+        }
+
+        if closesWelcomeDuringTour {
+            completeInitialTour()
         }
     }
 
@@ -634,4 +639,3 @@ extension BrowserStore {
         }
     }
 }
-

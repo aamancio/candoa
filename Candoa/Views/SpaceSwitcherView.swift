@@ -35,6 +35,7 @@ struct SpaceSwitcherView: View {
             addSpaceButton
         }
         .frame(height: 32)
+        .initialTourPopover(.spaces, store: store, arrowEdge: .leading)
         .alert("Delete Space", isPresented: isDeleteAlertPresented, presenting: deletingSpace) { space in
             Button("Delete", role: .destructive) {
                 store.deleteSpace(space.id)

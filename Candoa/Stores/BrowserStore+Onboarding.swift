@@ -17,6 +17,15 @@ extension BrowserStore {
         initialOnboardingStep != nil
     }
 
+    var isInitialOnboardingBlockingBrowsing: Bool {
+        switch initialOnboardingStep {
+        case .welcome, .account, .importData, .space:
+            return true
+        case .tour, .none:
+            return false
+        }
+    }
+
     var editingSpace: BrowserSpace? {
         guard let editingSpaceID else { return nil }
         return spaces.first { $0.id == editingSpaceID }
@@ -115,13 +124,6 @@ extension BrowserStore {
         }
     }
 
-    func importInitialBookmarks(from fileURL: URL) async throws -> Int {
-        guard initialOnboardingStep == .importData else { return 0 }
-
-        let importedBookmarks = try await browserImportService.bookmarks(from: fileURL)
-        return addInitialBookmarks(importedBookmarks, rootFolderName: "Imported Bookmarks")
-    }
-
     func importInitialBookmarks(
         fromProfileFolder folderURL: URL,
         source: BrowserImportSource
@@ -136,6 +138,21 @@ extension BrowserStore {
             importedBookmarks,
             rootFolderName: "Imported from \(source.name)"
         )
+    }
+
+    func importInitialBookmarks(from source: BrowserImportSource) async throws -> Int {
+        guard initialOnboardingStep == .importData else { return 0 }
+
+        let importedBookmarks = try await browserImportService.bookmarks(from: source)
+        return addInitialBookmarks(
+            importedBookmarks,
+            rootFolderName: "Imported from \(source.name)"
+        )
+    }
+
+    func canImportAutomatically(from source: BrowserImportSource) -> Bool {
+        if Self.isUITesting { return true }
+        return source != .safari || browserImportService.hasRememberedProfileFolder(for: source)
     }
 
     private func addInitialBookmarks(
@@ -201,7 +218,6 @@ extension BrowserStore {
             )
         }
         tabs.append(contentsOf: importedTabs)
-        initialImportedBookmarkCount = importedTabs.count
         flushSession()
         return importedTabs.count
     }
@@ -211,12 +227,77 @@ extension BrowserStore {
         finishInitialOnboarding()
     }
 
+    func startInitialTour() {
+        guard initialOnboardingStep == .tour,
+              initialTourTip == nil,
+              preparingInitialTourTip == nil
+        else { return }
+        initialTourTip = .commandBar
+    }
+
+    func showQuickTour() {
+        // Replaying the tour is intentionally session-only. A person who opens
+        // it from Help should not be forced back into onboarding next launch.
+        let returnTabID = activeTab?.isWelcomePage == false ? activeTabID : nil
+        setInitialOnboardingStep(.tour, persists: false)
+        initialTourReturnTabID = returnTabID
+    }
+
+    func showNextInitialTourTip() {
+        guard let tip = initialTourTip,
+              let index = InitialTourTip.allCases.firstIndex(of: tip)
+        else { return }
+
+        let nextIndex = InitialTourTip.allCases.index(after: index)
+        if nextIndex == InitialTourTip.allCases.endIndex {
+            completeInitialTour()
+        } else {
+            let nextTip = InitialTourTip.allCases[nextIndex]
+            if nextTip == .ask {
+                initialTourTip = nil
+                preparingInitialTourTip = nextTip
+            } else {
+                initialTourTip = nextTip
+            }
+        }
+    }
+
+    func presentPreparedInitialTourTip(_ tip: InitialTourTip) {
+        guard initialOnboardingStep == .tour,
+              preparingInitialTourTip == tip
+        else { return }
+        preparingInitialTourTip = nil
+        initialTourTip = tip
+    }
+
+    func showPreviousInitialTourTip() {
+        guard let tip = initialTourTip,
+              let index = InitialTourTip.allCases.firstIndex(of: tip),
+              index > InitialTourTip.allCases.startIndex
+        else { return }
+        initialTourTip = InitialTourTip.allCases[InitialTourTip.allCases.index(before: index)]
+    }
+
     func finishInitialOnboarding() {
+        let returnTabID = initialTourReturnTabID
+        initialTourReturnTabID = nil
         UserDefaults.standard.set(true, forKey: Self.hasCompletedOnboardingKey)
         UserDefaults.standard.set(true, forKey: Self.hasCompletedTourKey)
         setInitialOnboardingStep(nil)
+
+        let welcomeTabIDs = Set(tabs.filter(\.isWelcomePage).map(\.id))
+        tabs.removeAll { welcomeTabIDs.contains($0.id) }
+        for tabID in welcomeTabIDs {
+            webCoordinator.removeWebView(for: tabID)
+            mediaStates[tabID] = nil
+        }
+
+        if let returnTabID, tabs.contains(where: { $0.id == returnTabID }) {
+            switchTab(to: returnTabID)
+        } else {
+            newTab()
+        }
         flushSession()
-        openNewTabCommandPalette()
     }
 
     func setInitialOnboardingStep(
@@ -224,6 +305,11 @@ extension BrowserStore {
         persists: Bool = true
     ) {
         initialOnboardingStep = step
+        initialTourTip = nil
+        preparingInitialTourTip = nil
+        if step == .tour {
+            prepareWelcomeTab()
+        }
         guard persists else { return }
 
         if let step {
@@ -231,6 +317,22 @@ extension BrowserStore {
         } else {
             UserDefaults.standard.removeObject(forKey: Self.onboardingStepKey)
         }
+    }
+
+    private func prepareWelcomeTab() {
+        if let existingTab = tabs.first(where: \.isWelcomePage) {
+            switchTab(to: existingTab.id)
+            return
+        }
+
+        let welcomeTab = newTab(url: BrowserInternalPage.welcomeURL)
+        if let index = tabs.firstIndex(where: { $0.id == welcomeTab.id }) {
+            tabs[index].title = String(localized: "Welcome to Candoa")
+            tabs[index].faviconSymbol = "hand.wave"
+            tabs[index].isLoading = false
+            tabs[index].loadingProgress = 0
+        }
+        flushSession()
     }
 
     func needsInitialSpaceSetup() -> Bool {

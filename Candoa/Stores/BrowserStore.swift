@@ -123,6 +123,12 @@ enum InitialOnboardingStep: String, CaseIterable {
     var count: Int { Self.numberedSetupSteps.count }
 }
 
+enum InitialTourTip: Int, CaseIterable {
+    case commandBar
+    case spaces
+    case ask
+}
+
 @MainActor
 final class BrowserStore: ObservableObject {
     struct ClosedTabSnapshot {
@@ -192,7 +198,9 @@ final class BrowserStore: ObservableObject {
     @Published var editingSpaceID: UUID?
     @Published var editingFolderID: UUID?
     @Published var initialOnboardingStep: InitialOnboardingStep?
-    @Published var initialImportedBookmarkCount: Int?
+    @Published var initialTourTip: InitialTourTip?
+    @Published var preparingInitialTourTip: InitialTourTip?
+    var initialTourReturnTabID: UUID? = nil
     @Published var spaceThemeAppearancePreview: SpaceThemeAppearance?
     @Published var isSpaceThemeColorPreviewActive = false
     @Published var spaceThemeColorHexPreview: String?
@@ -290,7 +298,7 @@ final class BrowserStore: ObservableObject {
         historyRepository: (any HistoryRepository)? = nil,
         navigationService: NavigationService = .shared,
         faviconService: FaviconService = .shared,
-        browserImportService: BrowserImportService = BrowserImportService(),
+        browserImportService: BrowserImportService? = nil,
         webCoordinator: WebViewCoordinator = WebViewCoordinator(),
         restoresWebViews: Bool = true
     ) {
@@ -300,6 +308,8 @@ final class BrowserStore: ObservableObject {
         self.navigationService = navigationService
         self.faviconService = faviconService
         self.browserImportService = browserImportService
+            ?? Self.uiTestingBrowserImportService()
+            ?? BrowserImportService()
         self.webCoordinator = webCoordinator
 
         let restoredState = Self.uiTestingFixtureState() ?? self.workspaceRepository.loadWorkspace()

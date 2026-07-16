@@ -263,6 +263,9 @@ enum CandoaChromeStyle {
     static let windowBackground = Color(nsColor: .windowBackgroundColor)
     static let workspaceBackground = Color(nsColor: .controlBackgroundColor)
     static let sidebarBackground = Color(nsColor: .windowBackgroundColor).opacity(0.90)
+    static var sidebarSurfaceOverlay: Color {
+        Color.primary.opacity(increasesContrast ? 0.075 : 0.035)
+    }
     static var sidebarBorder: Color { Color.primary.opacity(increasesContrast ? 0.24 : 0.12) }
     static var sidebarSeparator: Color { Color.primary.opacity(increasesContrast ? 0.18 : 0.08) }
     static var sidebarControlFill: Color { Color.primary.opacity(increasesContrast ? 0.10 : 0.055) }
@@ -364,9 +367,9 @@ internal struct SpaceThemeReadability {
     }
 }
 
-/// The single chrome surface painted across the entire window (Zen-style):
-/// sidebar, title-bar strip, and the gutter around the web view all share it,
-/// so the theme tint reads as one continuous backdrop.
+/// The shared chrome surface painted across the window. Space tint remains
+/// continuous through the sidebar, title-bar strip, and web-view gutter;
+/// individual chrome lanes can add a restrained semantic tonal layer above it.
 struct CandoaWindowBackdrop: View {
     @ObservedObject var store: BrowserStore
 
@@ -420,6 +423,18 @@ struct CandoaWindowBackdrop: View {
             }
             CandoaChromeStyle.setupNeutralTint.opacity(usesSetupChrome && !isSetupThemePreviewActive ? 0.18 : 0)
         }
+    }
+}
+
+/// Finder-style sidebar treatment: retain the Space backdrop while lifting the
+/// sidebar just enough to remain identifiable beside dark or similarly colored
+/// page surfaces. The semantic overlay follows appearance and Increase Contrast.
+struct CandoaSidebarBackdrop: View {
+    @ObservedObject var store: BrowserStore
+
+    var body: some View {
+        CandoaWindowBackdrop(store: store)
+            .overlay(CandoaChromeStyle.sidebarSurfaceOverlay)
     }
 }
 

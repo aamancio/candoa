@@ -58,12 +58,7 @@ struct ContentView: View {
     }
 
     private var isFullWindowOnboardingPresented: Bool {
-        switch store.initialOnboardingStep {
-        case .welcome, .account, .importData, .space:
-            return true
-        case .tour, .none:
-            return false
-        }
+        store.isInitialOnboardingBlockingBrowsing
     }
 
     var body: some View {
@@ -132,12 +127,6 @@ struct ContentView: View {
                     .zIndex(9)
             }
 
-            if store.initialOnboardingStep == .tour {
-                InitialOnboardingTourOverlay(store: store)
-                    .transition(.opacity)
-                    .zIndex(11)
-            }
-
             if let mediaTab = store.floatingMiniPlayerTab,
                let mediaState = store.floatingMiniPlayerState {
                 GeometryReader { proxy in
@@ -194,6 +183,7 @@ struct ContentView: View {
         .overlay(alignment: .bottomTrailing) {
             if BrowserStore.isUITesting {
                 let stateDescription = store.uiTestingStateDescription(sidebarVisible: isSidebarVisible)
+                    + ";aiVisible=\(isAISidebarVisible);aiMounted=\(isAISidebarMounted)"
 
                 VStack(spacing: 0) {
                     Text(stateDescription)
@@ -331,6 +321,24 @@ struct ContentView: View {
                 store.flushSession()
             }
         }
+        .onChange(of: store.initialTourTip) { previousTip, currentTip in
+            if previousTip == .ask, currentTip != .ask {
+                closeAISidebar()
+            }
+        }
+        .onChange(of: store.preparingInitialTourTip) { _, tip in
+            guard tip == .ask else { return }
+            openAISidebar()
+
+            // The native popover needs an AppKit anchor that has completed a
+            // layout pass. Mount the Ask panel first, then present its tip on
+            // the next committed SwiftUI pass.
+            DispatchQueue.main.async {
+                DispatchQueue.main.async {
+                    store.presentPreparedInitialTourTip(.ask)
+                }
+            }
+        }
     }
 
     private var browserCommandActions: BrowserCommandActions {
@@ -340,6 +348,7 @@ struct ContentView: View {
             openCommandPalette: store.openCommandPalette,
             toggleSidebar: toggleSidebar,
             toggleAISidebar: toggleAISidebar,
+            showQuickTour: showQuickTour,
             reloadTab: store.reloadActiveTab,
             goBack: store.goBack,
             goForward: store.goForward,
@@ -384,12 +393,19 @@ struct ContentView: View {
         .frame(width: sidebarTotalWidth, alignment: .leading)
         .frame(maxHeight: .infinity)
         .background {
-            // The sidebar floats over a stable browser surface. Keep an
-            // opaque native chrome backing whenever it is onscreen so page
-            // content never bleeds through the sidebar lane.
+            // The sidebar retains the Space tint but has its own restrained
+            // semantic tone, matching native macOS sidebar separation.
             if isSidebarPresented {
-                CandoaWindowBackdrop(store: store)
+                CandoaSidebarBackdrop(store: store)
                     .ignoresSafeArea(.container, edges: .top)
+            }
+        }
+        .overlay(alignment: .trailing) {
+            if isSidebarPresented {
+                Rectangle()
+                    .fill(CandoaChromeStyle.sidebarSeparator)
+                    .frame(width: 1)
+                    .allowsHitTesting(false)
             }
         }
         .shadow(
@@ -452,6 +468,16 @@ struct ContentView: View {
         } else {
             openAISidebar()
         }
+    }
+
+    private func showQuickTour() {
+        if !isSidebarVisible {
+            isSidebarVisible = true
+            isSidebarHoverRevealed = false
+            isSidebarRevealSuppressed = false
+        }
+        closeAISidebar()
+        store.showQuickTour()
     }
 
     private func openAISidebar() {

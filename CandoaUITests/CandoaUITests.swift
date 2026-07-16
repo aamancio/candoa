@@ -14,20 +14,153 @@ final class CandoaUITests: XCTestCase {
         XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 10))
     }
 
-    func testBrowserMigrationEntryFlowIsWired() throws {
-        let app = launchApp(onboardingStep: "importData")
+    func testBrowserMigrationImportsSafariFixtureThroughRealParser() throws {
+        let app = launchApp(
+            onboardingStep: "importData",
+            browserImportFixture: "safari"
+        )
 
-        let importButton = app.buttons["Import My Bookmarks…"]
+        let browserSources = ["Safari", "Chrome", "Arc", "Firefox"].map { app.radioButtons[$0] }
+        let firefoxSource = app.radioButtons["Firefox"]
+        XCTAssertTrue(firefoxSource.waitForExistence(timeout: 10))
+
+        for source in browserSources {
+            XCTAssertTrue(source.exists)
+            XCTAssertEqual(source.frame.midY, firefoxSource.frame.midY, accuracy: 2)
+        }
+        for (leadingSource, trailingSource) in zip(browserSources, browserSources.dropFirst()) {
+            XCTAssertLessThan(leadingSource.frame.midX, trailingSource.frame.midX)
+        }
+
+        let importButton = app.buttons["Import from Safari…"]
+        XCTAssertTrue(importButton.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["Import an HTML File…"].exists)
+        XCTAssertFalse(app.sheets.firstMatch.exists)
+
+        importButton.click()
+        XCTAssertTrue(element("account-onboarding", in: app).waitForExistence(timeout: 5))
+        XCTAssertFalse(element("initial-onboarding-importData", in: app).exists)
+        XCTAssertFalse(app.sheets.firstMatch.exists)
+        XCTAssertFalse(app.buttons["Continue"].exists)
+        XCTAssertFalse(app.staticTexts.matching(NSPredicate(
+            format: "label BEGINSWITH %@",
+            "Imported 1 bookmark"
+        )).firstMatch.exists)
+        XCTAssertTrue(
+            waitForState(in: app, containing: "Imported from Safari", timeout: 5),
+            currentState(in: app)
+        )
+        XCTAssertTrue(
+            waitForState(in: app, containing: "Safari Import Fixture", timeout: 5),
+            currentState(in: app)
+        )
+    }
+
+    func testBrowserMigrationImportsChromeFixtureThroughRealParser() throws {
+        try assertBrowserMigration(
+            source: "Chrome",
+            fixtureName: "chrome",
+            importedTitle: "Chrome Import Fixture"
+        )
+    }
+
+    func testBrowserMigrationImportsArcFixtureThroughRealParser() throws {
+        try assertBrowserMigration(
+            source: "Arc",
+            fixtureName: "arc",
+            importedTitle: "Arc Import Fixture"
+        )
+    }
+
+    func testBrowserMigrationImportsFirefoxFixtureThroughRealParser() throws {
+        try assertBrowserMigration(
+            source: "Firefox",
+            fixtureName: "firefox",
+            importedTitle: "Firefox Import Fixture"
+        )
+    }
+
+    func testSafariMigrationReportsPermissionRequirementForUnreadableProfile() throws {
+        let app = launchApp(
+            onboardingStep: "importData",
+            browserImportFixture: "unreadable-safari"
+        )
+
+        let importButton = app.buttons["Import from Safari…"]
         XCTAssertTrue(importButton.waitForExistence(timeout: 10))
         importButton.click()
 
-        XCTAssertTrue(app.sheets.firstMatch.waitForExistence(timeout: 5))
-        let firefoxSource = app.radioButtons["Firefox"]
-        XCTAssertTrue(firefoxSource.waitForExistence(timeout: 5))
-        firefoxSource.click()
-        XCTAssertTrue(app.buttons["Choose Firefox Profile…"].waitForExistence(timeout: 5))
-        XCTAssertTrue(element("migration-choose-profile-folder", in: app).waitForExistence(timeout: 5))
-        XCTAssertTrue(element("migration-import-html", in: app).waitForExistence(timeout: 5))
+        let chooseProfileButton = app.buttons["Choose Profile…"]
+        XCTAssertTrue(chooseProfileButton.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Couldn’t Import Bookmarks"].exists)
+        XCTAssertTrue(app.staticTexts["macOS requires permission before Candoa can read Safari’s bookmarks."].exists)
+        XCTAssertFalse(app.buttons["Continue"].exists)
+    }
+
+    func testCreateSpaceButtonAcceptsClicksAcrossItsVisibleWidth() throws {
+        let app = launchApp(onboardingStep: "space")
+        let createSpaceButton = app.buttons["Create Space"]
+        XCTAssertTrue(createSpaceButton.waitForExistence(timeout: 10))
+
+        createSpaceButton
+            .coordinate(withNormalizedOffset: CGVector(dx: 0.05, dy: 0.5))
+            .click()
+
+        let spaceOnboarding = element("initial-onboarding-space", in: app)
+        let dismissed = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "exists == false"),
+            object: spaceOnboarding
+        )
+        XCTAssertEqual(XCTWaiter.wait(for: [dismissed], timeout: 5), .completed)
+    }
+
+    func testAppleSignInShowsProgressInsideItsButton() throws {
+        let app = launchApp(onboardingStep: "account", appleSignInWorking: true)
+        let accountOnboarding = element("account-onboarding", in: app).firstMatch
+
+        XCTAssertTrue(accountOnboarding.waitForExistence(timeout: 10))
+        XCTAssertEqual(accountOnboarding.value as? String, "signing-in")
+    }
+
+    func testInitialTourStartsOnLocalWelcomePage() throws {
+        let app = launchApp(onboardingStep: "tour")
+
+        XCTAssertTrue(element("welcome-to-candoa-page", in: app).waitForExistence(timeout: 10))
+        XCTAssertTrue(element("initial-tour-command-bar", in: app).waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["Start Quick Tour"].exists)
+        XCTAssertFalse(app.buttons["Explore on My Own"].exists)
+        XCTAssertTrue(
+            waitForState(in: app, containing: "url=candoa://welcome", timeout: 5),
+            currentState(in: app)
+        )
+        XCTAssertFalse(app.webViews.firstMatch.exists)
+    }
+
+    func testInitialTourMovesThroughNativeControlPopovers() throws {
+        let app = launchApp(onboardingStep: "tour")
+        XCTAssertTrue(element("initial-tour-command-bar", in: app).waitForExistence(timeout: 5))
+        app.buttons["Next"].click()
+
+        XCTAssertTrue(element("initial-tour-spaces", in: app).waitForExistence(timeout: 5))
+        app.buttons["Next"].click()
+
+        XCTAssertTrue(
+            app.staticTexts["Understand any page"].waitForExistence(timeout: 5),
+            currentState(in: app)
+        )
+        XCTAssertTrue(element("agent-tour-preview", in: app).waitForExistence(timeout: 5))
+        XCTAssertFalse(element("agent-subscription-gate", in: app).exists)
+        app.buttons["Done"].click()
+
+        let askTip = element("initial-tour-ask", in: app)
+        let dismissed = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "exists == false"),
+            object: askTip
+        )
+        XCTAssertEqual(XCTWaiter.wait(for: [dismissed], timeout: 5), .completed)
+        XCTAssertFalse(element("welcome-to-candoa-page", in: app).exists)
+        XCTAssertTrue(waitForState(in: app, containing: "url=none", timeout: 5), currentState(in: app))
+        XCTAssertTrue(element("sidebar-new-tab-button", in: app).exists)
     }
 
     func testTestingBotNewTabFindAndSidebarShortcuts() throws {
@@ -155,7 +288,9 @@ final class CandoaUITests: XCTestCase {
 
     private func launchApp(
         fixture: String? = nil,
-        onboardingStep: String? = nil
+        onboardingStep: String? = nil,
+        browserImportFixture: String? = nil,
+        appleSignInWorking: Bool = false
     ) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments += ["-ApplePersistenceIgnoreState", "YES"]
@@ -167,9 +302,46 @@ final class CandoaUITests: XCTestCase {
         if let onboardingStep {
             app.launchEnvironment["CANDOA_UI_TESTING_ONBOARDING_STEP"] = onboardingStep
         }
+        if let browserImportFixture {
+            app.launchEnvironment["CANDOA_UI_TESTING_BROWSER_IMPORT_FIXTURE"] = browserImportFixture
+        }
+        if appleSignInWorking {
+            app.launchEnvironment["CANDOA_UI_TESTING_APPLE_SIGN_IN_WORKING"] = "1"
+        }
 
         app.launch()
         return app
+    }
+
+    private func assertBrowserMigration(
+        source: String,
+        fixtureName: String,
+        importedTitle: String
+    ) throws {
+        let app = launchApp(
+            onboardingStep: "importData",
+            browserImportFixture: fixtureName
+        )
+
+        let sourceButton = app.radioButtons[source]
+        XCTAssertTrue(sourceButton.waitForExistence(timeout: 10))
+        sourceButton.click()
+
+        let importButton = app.buttons["Import from \(source)…"]
+        XCTAssertTrue(importButton.waitForExistence(timeout: 5))
+        importButton.click()
+
+        XCTAssertTrue(element("account-onboarding", in: app).waitForExistence(timeout: 5))
+        XCTAssertFalse(element("initial-onboarding-importData", in: app).exists)
+        XCTAssertFalse(app.sheets.firstMatch.exists)
+        XCTAssertTrue(
+            waitForState(in: app, containing: "Imported from \(source)", timeout: 5),
+            currentState(in: app)
+        )
+        XCTAssertTrue(
+            waitForState(in: app, containing: importedTitle, timeout: 5),
+            currentState(in: app)
+        )
     }
 
     private func element(_ identifier: String, in app: XCUIApplication) -> XCUIElement {

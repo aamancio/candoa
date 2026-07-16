@@ -28,6 +28,7 @@ struct EliSidebarView: View {
     @State private var lastSubmittedPageContext: CandoaAIPageContext?
     @State private var pendingPageAction: CandoaPageActionProposal?
     @State private var pendingActionTabID: UUID?
+    @State private var isTourPreviewSession = false
     @FocusState private var isPromptFocused: Bool
 
     private var activePageTitle: String {
@@ -169,11 +170,19 @@ struct EliSidebarView: View {
         hasPersonalEliAccess || userStore.hasActiveSubscription
     }
 
+    private var showsTourPreview: Bool {
+        isTourPreviewSession || store.initialOnboardingStep == .tour
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             topBar
 
-            if !hasEliAccess {
+            if showsTourPreview {
+                Spacer(minLength: 44)
+                EliTourPreviewView(accentColor: eliAccentColor)
+                Spacer(minLength: 44)
+            } else if !hasEliAccess {
                 Spacer(minLength: 60)
                 subscriptionGate
                 Spacer(minLength: 60)
@@ -204,7 +213,7 @@ struct EliSidebarView: View {
                 }
             }
 
-            if hasEliAccess {
+            if hasEliAccess && !showsTourPreview {
                 composer
             }
         }
@@ -216,15 +225,22 @@ struct EliSidebarView: View {
         }
         .ignoresSafeArea(.container, edges: .top)
         .onAppear {
+            if store.initialOnboardingStep == .tour {
+                isTourPreviewSession = true
+            }
             uiTestingState = uiTestingAgentState
             DispatchQueue.main.async {
-                isPromptFocused = true
+                if !showsTourPreview {
+                    isPromptFocused = true
+                }
             }
         }
         .task {
+            guard !showsTourPreview else { return }
             await userStore.refresh()
         }
         .onDisappear {
+            isTourPreviewSession = false
             uiTestingState = ""
             cancelStream()
             speechController.cancelListening()
@@ -289,6 +305,7 @@ struct EliSidebarView: View {
         .frame(height: 34)
         .padding(.top, 8)
         .padding(.bottom, 4)
+        .initialTourPopover(.ask, store: store, arrowEdge: .trailing)
     }
 
     private var emptyState: some View {
@@ -988,6 +1005,94 @@ struct EliSidebarView: View {
         for index in messages.indices where messages[index].isStreaming {
             messages[index].isStreaming = false
         }
+    }
+}
+
+private struct EliTourPreviewView: View {
+    let accentColor: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(String(localized: "Example"))
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(accentColor)
+                .padding(.horizontal, 9)
+                .padding(.vertical, 4)
+                .background(accentColor.opacity(0.12), in: Capsule())
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(String(localized: "Turn a long page into clear next steps"))
+                    .font(.system(size: 17, weight: .semibold))
+
+                Text(String(localized: "Ask works beside the page, so you can understand it and keep moving."))
+                    .font(.system(size: 12.5))
+                    .foregroundStyle(CandoaChromeStyle.sidebarTextSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            GroupBox {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Label(String(localized: "Project Brief"), systemImage: "doc.text")
+                            .font(.system(size: 12.5, weight: .semibold))
+
+                        Spacer()
+
+                        Text(String(localized: "8 min read"))
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Text(String(localized: "The launch plan covers a revised timeline, owners, and open decisions."))
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(4)
+            }
+
+            HStack(alignment: .top, spacing: 9) {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(accentColor)
+
+                Text(String(localized: "Summarize this and give me the next steps."))
+                    .font(.system(size: 12.5, weight: .medium))
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(accentColor.opacity(0.10), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 10) {
+                Label(String(localized: "Candoa Ask"), systemImage: "sparkles")
+                    .font(.system(size: 12.5, weight: .semibold))
+                    .foregroundStyle(accentColor)
+
+                outcomeRow(String(localized: "Launch moves to September 12"))
+                outcomeRow(String(localized: "Maya owns the revised brief"))
+                outcomeRow(String(localized: "Review the final plan on Friday"))
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(CandoaChromeStyle.sidebarControlFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(CandoaChromeStyle.sidebarControlStroke, lineWidth: 1)
+            }
+        }
+        .frame(maxWidth: 340)
+        .padding(.horizontal, 24)
+        .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(Text(String(localized: "Candoa Ask example")))
+        .accessibilityIdentifier("agent-tour-preview")
+    }
+
+    private func outcomeRow(_ title: String) -> some View {
+        Label(title, systemImage: "checkmark.circle.fill")
+            .font(.system(size: 12, weight: .medium))
+            .symbolRenderingMode(.hierarchical)
     }
 }
 

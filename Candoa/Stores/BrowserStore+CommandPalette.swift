@@ -4,7 +4,7 @@ import SwiftUI
 
 extension BrowserStore {
     func focusAddressBar() {
-        guard !isInitialOnboardingPresented else { return }
+        guard !isInitialOnboardingBlockingBrowsing else { return }
 
         if isCommandPalettePresented {
             dismissCommandPalette()
@@ -23,7 +23,7 @@ extension BrowserStore {
     }
 
     func focusSidebarAddressBar() {
-        guard !isInitialOnboardingPresented else { return }
+        guard !isInitialOnboardingBlockingBrowsing else { return }
 
         if isCommandPalettePresented {
             dismissCommandPalette()
@@ -46,7 +46,7 @@ extension BrowserStore {
     }
 
     func openCommandPalette() {
-        guard !isInitialOnboardingPresented else { return }
+        guard !isInitialOnboardingBlockingBrowsing else { return }
 
         commandPaletteInitialText = ""
         commandPaletteResumeQuery = ""
@@ -58,7 +58,7 @@ extension BrowserStore {
     }
 
     func openNewTabCommandPalette() {
-        guard !isInitialOnboardingPresented else { return }
+        guard !isInitialOnboardingBlockingBrowsing else { return }
 
         commandPaletteInitialText = ""
         commandPaletteResumeQuery = ""

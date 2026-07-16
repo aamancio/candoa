@@ -22,141 +22,244 @@ struct InitialOnboardingCanvas: View {
     }
 }
 
-struct InitialOnboardingTourOverlay: View {
-    @ObservedObject var store: BrowserStore
-    @State private var tipIndex = 0
-
-    private let tips = [
-        OnboardingTip(
-            symbolName: "command",
-            title: "Find anything, fast",
-            detail: "Press Command-T to search the web, open a site, or jump into a new tab from one place.",
-            shortcut: "⌘T",
-            anchor: .topLeading
-        ),
-        OnboardingTip(
-            symbolName: "square.stack.3d.up",
-            title: "Switch context, keep your place",
-            detail: "Spaces separate work, projects, and personal browsing—each with its own tabs and session.",
-            shortcut: "⌃1–9",
-            anchor: .bottomLeading
-        ),
-        OnboardingTip(
-            symbolName: "sparkles",
-            title: "Get help without leaving the page",
-            detail: "Use Candoa Ask to summarize, explain, compare, or pull out the next steps.",
-            shortcut: "⌘E",
-            anchor: .topTrailing
-        )
-    ]
-
-    var body: some View {
-        GeometryReader { proxy in
-            let tip = tips[tipIndex]
-
-            VStack(alignment: .leading, spacing: 14) {
-                HStack(spacing: 10) {
-                    Image(systemName: tip.symbolName)
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundStyle(CandoaColor.primary)
-                        .frame(width: 28, height: 28)
-
-                    Text(tip.title)
-                        .font(.system(size: 16, weight: .semibold))
-
-                    Spacer(minLength: 8)
-
-                    Text(tip.shortcut)
-                        .font(.system(size: 12, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(.quaternary, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
-                }
-
-                Text(tip.detail)
-                    .font(.system(size: 13))
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                HStack {
-                    Button("Skip Tour") {
-                        store.completeInitialTour()
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(.secondary)
-
-                    Spacer()
-
-                    if tipIndex > 0 {
-                        Button("Back") {
-                            withAnimation(.easeOut(duration: 0.16)) {
-                                tipIndex -= 1
-                            }
-                        }
-                    }
-
-                    Button(tipIndex == tips.count - 1 ? "Done" : "Next") {
-                        if tipIndex == tips.count - 1 {
-                            store.completeInitialTour()
-                        } else {
-                            withAnimation(.easeOut(duration: 0.16)) {
-                                tipIndex += 1
-                            }
-                        }
-                    }
-                    .keyboardShortcut(.defaultAction)
-                }
-            }
-            .padding(18)
-            .frame(width: 340)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .stroke(CandoaChromeStyle.popoverBorder, lineWidth: 1)
-            }
-            .shadow(color: Color.black.opacity(0.14), radius: 18, y: 7)
-            .position(position(for: tip.anchor, in: proxy.size))
-            .transition(.opacity.combined(with: .move(edge: transitionEdge(for: tip.anchor))))
-            .id(tipIndex)
-        }
-        .ignoresSafeArea(.container, edges: .top)
-        .accessibilityIdentifier("initial-onboarding-tour")
-    }
-
-    private func position(for anchor: OnboardingTip.Anchor, in size: CGSize) -> CGPoint {
-        switch anchor {
-        case .topLeading:
-            return CGPoint(x: CandoaChromeStyle.sidebarWidth + 188, y: 116)
-        case .bottomLeading:
-            return CGPoint(x: CandoaChromeStyle.sidebarWidth + 188, y: max(120, size.height - 116))
-        case .topTrailing:
-            return CGPoint(x: max(CandoaChromeStyle.sidebarWidth + 188, size.width - 188), y: 116)
+extension InitialTourTip {
+    var symbolName: String {
+        switch self {
+        case .commandBar: "command"
+        case .spaces: "square.stack.3d.up"
+        case .ask: "sparkles"
         }
     }
 
-    private func transitionEdge(for anchor: OnboardingTip.Anchor) -> Edge {
-        switch anchor {
-        case .topLeading, .bottomLeading:
-            return .leading
-        case .topTrailing:
-            return .trailing
+    var title: String {
+        switch self {
+        case .commandBar: String(localized: "Find anything quickly")
+        case .spaces: String(localized: "Keep contexts separate")
+        case .ask: String(localized: "Understand any page")
+        }
+    }
+
+    var detail: String {
+        switch self {
+        case .commandBar:
+            String(localized: "Press Command-T to search the web, open a site, or jump to an existing tab.")
+        case .spaces:
+            String(localized: "Spaces separate work, projects, research, and personal browsing without losing your tabs.")
+        case .ask:
+            String(localized: "Press Command-E to open Candoa Ask and summarize, explain, compare, or identify next steps without leaving the page.")
+        }
+    }
+
+    var shortcut: String {
+        switch self {
+        case .commandBar: "⌘T"
+        case .spaces: "⌃1–9"
+        case .ask: "⌘E"
+        }
+    }
+
+    var accessibilityShortcutLabel: String {
+        switch self {
+        case .commandBar: String(localized: "Keyboard shortcut: Command-T")
+        case .spaces: String(localized: "Keyboard shortcut: Control-1 through 9")
+        case .ask: String(localized: "Keyboard shortcut: Command-E")
+        }
+    }
+
+    var identifier: String {
+        switch self {
+        case .commandBar: "command-bar"
+        case .spaces: "spaces"
+        case .ask: "ask"
         }
     }
 }
 
-private struct OnboardingTip {
-    enum Anchor {
-        case topLeading
-        case bottomLeading
-        case topTrailing
+private struct InitialTourPopover: View {
+    @ObservedObject var store: BrowserStore
+    let tip: InitialTourTip
+
+    private var isFirstTip: Bool { tip == InitialTourTip.allCases.first }
+    private var isLastTip: Bool { tip == InitialTourTip.allCases.last }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 10) {
+                Image(systemName: tip.symbolName)
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(CandoaColor.primary)
+                    .frame(width: 28, height: 28)
+
+                Text(tip.title)
+                    .font(.headline)
+
+                Spacer(minLength: 8)
+
+                Text(tip.shortcut)
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.secondary)
+                    .accessibilityLabel(Text(tip.accessibilityShortcutLabel))
+            }
+
+            Text(tip.detail)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            HStack {
+                Button(String(localized: "Skip Tour")) {
+                    store.completeInitialTour()
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+
+                Spacer()
+
+                if !isFirstTip {
+                    Button(String(localized: "Back")) {
+                        store.showPreviousInitialTourTip()
+                    }
+                }
+
+                Button(isLastTip ? String(localized: "Done") : String(localized: "Next")) {
+                    store.showNextInitialTourTip()
+                }
+                .keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding(16)
+        .frame(width: 330)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(Text(tip.title))
+        .accessibilityIdentifier("initial-tour-\(tip.identifier)")
+    }
+}
+
+private struct InitialTourPopoverModifier: ViewModifier {
+    @ObservedObject var store: BrowserStore
+    let tip: InitialTourTip
+    let arrowEdge: Edge
+
+    func body(content: Content) -> some View {
+        content.popover(
+            isPresented: Binding(
+                get: { store.initialTourTip == tip },
+                set: { isPresented in
+                    if !isPresented, store.initialTourTip == tip {
+                        store.completeInitialTour()
+                    }
+                }
+            ),
+            arrowEdge: arrowEdge
+        ) {
+            InitialTourPopover(store: store, tip: tip)
+        }
+    }
+}
+
+extension View {
+    func initialTourPopover(
+        _ tip: InitialTourTip,
+        store: BrowserStore,
+        arrowEdge: Edge
+    ) -> some View {
+        modifier(InitialTourPopoverModifier(store: store, tip: tip, arrowEdge: arrowEdge))
+    }
+}
+
+struct WelcomeToCandoaPage: View {
+    @ObservedObject var store: BrowserStore
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var revealsContent = false
+
+    var body: some View {
+        GeometryReader { proxy in
+            ScrollView {
+                VStack(spacing: 28) {
+                    VStack(spacing: 14) {
+                        Image(nsImage: NSApplication.shared.applicationIconImage)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 72, height: 72)
+
+                        Text(String(localized: "Welcome to Candoa"))
+                            .font(.system(size: 30, weight: .semibold))
+                            .accessibilityAddTraits(.isHeader)
+
+                        Text(String(localized: "Your browser is ready. Here are three essentials to help you get started."))
+                            .font(.title3)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+
+                    HStack(alignment: .top, spacing: 14) {
+                        welcomeFeature(
+                            title: String(localized: "Find anything quickly"),
+                            detail: String(localized: "Search, open a site, or jump to a tab with Command-T."),
+                            symbolName: "command"
+                        )
+                        welcomeFeature(
+                            title: String(localized: "Keep contexts separate"),
+                            detail: String(localized: "Use Spaces for work, projects, research, and personal browsing."),
+                            symbolName: "square.stack.3d.up"
+                        )
+                        welcomeFeature(
+                            title: String(localized: "Understand any page"),
+                            detail: String(localized: "Open Candoa Ask with Command-E without changing apps."),
+                            symbolName: "sparkles"
+                        )
+                    }
+                }
+                .padding(48)
+                .frame(maxWidth: 820)
+                .frame(maxWidth: .infinity)
+                .frame(minHeight: proxy.size.height, alignment: .center)
+                .opacity(revealsContent ? 1 : 0)
+                .offset(y: reduceMotion || revealsContent ? 0 : 8)
+            }
+        }
+        .background(CandoaChromeStyle.surfaceFill.opacity(0.72))
+        .accessibilityIdentifier("welcome-to-candoa-page")
+        .onAppear {
+            guard !revealsContent else { return }
+
+            if reduceMotion {
+                revealsContent = true
+                store.startInitialTour()
+            } else {
+                withAnimation(.easeOut(duration: 0.22)) {
+                    revealsContent = true
+                } completion: {
+                    store.startInitialTour()
+                }
+            }
+        }
     }
 
-    let symbolName: String
-    let title: String
-    let detail: String
-    let shortcut: String
-    let anchor: Anchor
+    private func welcomeFeature(
+        title: String,
+        detail: String,
+        symbolName: String
+    ) -> some View {
+        GroupBox {
+            VStack(alignment: .leading, spacing: 9) {
+                Image(systemName: symbolName)
+                    .font(.system(size: 20, weight: .medium))
+                    .foregroundStyle(CandoaColor.primary)
+
+                Text(title)
+                    .font(.headline)
+
+                Text(detail)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(4)
+        }
+        .frame(maxWidth: .infinity)
+    }
 }
 
 private struct WelcomeOnboardingStep: View {
@@ -244,18 +347,36 @@ private struct AccountOnboardingStep: View {
 
                 Spacer(minLength: 24)
 
-                OnboardingSignInWithAppleButton(
-                    isEnabled: !userStore.isWorking,
-                    configure: userStore.configure,
-                    completion: userStore.completeAppleSignIn
-                )
-                .frame(height: 44)
-                .accessibilityIdentifier("onboarding-apple-sign-in")
+                Group {
+                    if userStore.isWorking {
+                        Button {} label: {
+                            HStack(spacing: 8) {
+                                ProgressView()
+                                    .controlSize(.small)
+                                    .accessibilityIdentifier("onboarding-apple-sign-in-progress")
 
-                if userStore.isWorking {
-                    ProgressView("Signing in…")
-                        .controlSize(.small)
-                } else if let errorMessage = userStore.errorMessage {
+                                Text("Signing in…")
+                            }
+                            .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(.black)
+                        .controlSize(.large)
+                        .disabled(true)
+                        .accessibilityLabel("Signing in…")
+                        .accessibilityIdentifier("onboarding-apple-sign-in")
+                    } else {
+                        OnboardingSignInWithAppleButton(
+                            isEnabled: true,
+                            configure: userStore.configure,
+                            completion: userStore.completeAppleSignIn
+                        )
+                        .accessibilityIdentifier("onboarding-apple-sign-in")
+                    }
+                }
+                .frame(height: 44)
+
+                if let errorMessage = userStore.errorMessage, !userStore.isWorking {
                     Text(errorMessage)
                         .font(.system(size: 12))
                         .foregroundStyle(CandoaColor.danger)
@@ -270,6 +391,7 @@ private struct AccountOnboardingStep: View {
                 store.completeInitialAccountSetup()
             }
         }
+        .accessibilityValue(userStore.isWorking ? "signing-in" : "idle")
         .accessibilityIdentifier("account-onboarding")
     }
 }
@@ -349,9 +471,10 @@ private struct OnboardingSignInWithAppleButton: NSViewRepresentable {
 
 private struct ImportOnboardingStep: View {
     @ObservedObject var store: BrowserStore
-    @State private var isMigrationPresented = false
-    @State private var importMessage: String?
-    @State private var importFailed = false
+    @State private var selectedSource: BrowserImportSource = .safari
+    @State private var isProfileFolderImporterPresented = false
+    @State private var isImporting = false
+    @State private var errorMessage: String?
 
     var body: some View {
         OnboardingSurface(step: .importData) {
@@ -362,168 +485,67 @@ private struct ImportOnboardingStep: View {
                     detail: "Bring your bookmarks from Safari, Chrome, Arc, or Firefox so your essential sites are ready on day one."
                 )
 
-                Spacer(minLength: 24)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Import from:")
+                        .font(.system(size: 13, weight: .medium))
 
-                if let importMessage {
-                    Label(
-                        importMessage,
-                        systemImage: importFailed ? "exclamationmark.triangle" : "checkmark.circle"
-                    )
-                    .font(.system(size: 12))
-                    .foregroundStyle(importFailed ? AnyShapeStyle(CandoaColor.danger) : AnyShapeStyle(.secondary))
-                    .fixedSize(horizontal: false, vertical: true)
+                    Picker("Import from:", selection: $selectedSource) {
+                        ForEach(BrowserImportSource.allCases) { source in
+                            Label {
+                                Text(source.name)
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.85)
+                            } icon: {
+                                Image(nsImage: applicationIcon(for: source))
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 18, height: 18)
+                            }
+                            .tag(source)
+                        }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.radioGroup)
+                    .horizontalRadioGroupLayout()
+                    .controlSize(.small)
+                    .accessibilityIdentifier("migration-browser-picker")
                 }
 
-                if importMessage != nil, !importFailed {
-                    Button {
-                        store.completeInitialImport()
-                    } label: {
-                        Text("Continue")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
-                    .keyboardShortcut(.defaultAction)
+                Spacer(minLength: 16)
 
-                    Button {
-                        isMigrationPresented = true
-                    } label: {
-                        Label("Import Again…", systemImage: "doc.badge.plus")
-                            .frame(maxWidth: .infinity)
+                Button {
+                    importFromSelectedBrowser()
+                } label: {
+                    HStack(spacing: 8) {
+                        if isImporting {
+                            ProgressView()
+                                .controlSize(.small)
+                            Text("Importing from \(selectedSource.name)…")
+                        } else {
+                            Label("Import from \(selectedSource.name)…", systemImage: "doc.badge.plus")
+                        }
                     }
-                    .buttonStyle(.bordered)
-                    .tint(.secondary)
-                    .controlSize(.large)
-                    .accessibilityIdentifier("onboarding-import-bookmarks")
-                } else {
-                    Button {
-                        isMigrationPresented = true
-                    } label: {
-                        Label("Import My Bookmarks…", systemImage: "doc.badge.plus")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
-                    .keyboardShortcut(.defaultAction)
-                    .accessibilityIdentifier("onboarding-import-bookmarks")
-
-                    Button {
-                        store.completeInitialImport()
-                    } label: {
-                        Text("Skip")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.bordered)
-                    .tint(.secondary)
-                    .controlSize(.large)
+                        .frame(maxWidth: .infinity)
                 }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .keyboardShortcut(.defaultAction)
+                .disabled(isImporting)
+                .accessibilityIdentifier("onboarding-import-bookmarks")
+
+                Button {
+                    store.completeInitialImport()
+                } label: {
+                    Text("Skip")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .tint(.secondary)
+                .controlSize(.large)
             }
         } preview: {
             OnboardingImportPreview()
         }
-        .onAppear {
-            guard importMessage == nil, let count = store.initialImportedBookmarkCount else { return }
-            importMessage = importedBookmarksMessage(count: count)
-            importFailed = false
-        }
-        .sheet(isPresented: $isMigrationPresented) {
-            BrowserMigrationSheet(store: store) { count in
-                importMessage = importedBookmarksMessage(count: count)
-                importFailed = false
-            }
-        }
-    }
-
-    private func importedBookmarksMessage(count: Int) -> String {
-        "Imported \(count) bookmark\(count == 1 ? "" : "s"). They’re ready in your sidebar."
-    }
-}
-
-private struct BrowserMigrationSheet: View {
-    @Environment(\.dismiss) private var dismiss
-    @ObservedObject var store: BrowserStore
-    let onImported: (Int) -> Void
-
-    @State private var selectedSource: BrowserImportSource
-    @State private var isProfileFolderImporterPresented = false
-    @State private var isHTMLImporterPresented = false
-    @State private var isImporting = false
-    @State private var errorMessage: String?
-
-    private let sources: [BrowserImportSource]
-
-    init(store: BrowserStore, onImported: @escaping (Int) -> Void) {
-        self.store = store
-        self.onImported = onImported
-
-        sources = BrowserImportSource.allCases
-        let installedSources = sources.filter {
-            NSWorkspace.shared.urlForApplication(withBundleIdentifier: $0.bundleIdentifier) != nil
-        }
-        _selectedSource = State(initialValue: installedSources.first ?? sources[0])
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Import Bookmarks")
-                    .font(.title2.weight(.semibold))
-
-                Text("Choose a browser, then select its local profile folder. Candoa reads the bookmarks on your Mac and keeps their folder organization.")
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            Picker("Import from:", selection: $selectedSource) {
-                ForEach(sources) { source in
-                    Label {
-                        Text(source.name)
-                    } icon: {
-                        Image(nsImage: applicationIcon(for: source))
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 20, height: 20)
-                    }
-                    .tag(source)
-                }
-            }
-            .pickerStyle(.radioGroup)
-            .horizontalRadioGroupLayout()
-            .accessibilityIdentifier("migration-browser-picker")
-
-            Text(selectedSource.profileFolderHint)
-                .font(.callout)
-                .foregroundStyle(.secondary)
-
-            if isImporting {
-                ProgressView("Importing from \(selectedSource.name)…")
-                    .controlSize(.small)
-            }
-
-            HStack {
-                Button("Cancel", role: .cancel) {
-                    dismiss()
-                }
-
-                Button("Import an HTML File…") {
-                    isHTMLImporterPresented = true
-                }
-                .disabled(isImporting)
-                .accessibilityIdentifier("migration-import-html")
-
-                Spacer()
-
-                Button("Choose \(selectedSource.name) Profile…") {
-                    isProfileFolderImporterPresented = true
-                }
-                .buttonStyle(.borderedProminent)
-                .keyboardShortcut(.defaultAction)
-                .disabled(isImporting)
-                .accessibilityIdentifier("migration-choose-profile-folder")
-            }
-        }
-        .padding(24)
-        .frame(width: 540)
         .fileImporter(
             isPresented: $isProfileFolderImporterPresented,
             allowedContentTypes: [.folder],
@@ -531,16 +553,13 @@ private struct BrowserMigrationSheet: View {
             onCompletion: handleProfileFolderSelection
         )
         .fileDialogDefaultDirectory(selectedSource.suggestedProfileFolderURL)
-        .fileImporter(
-            isPresented: $isHTMLImporterPresented,
-            allowedContentTypes: [.html],
-            allowsMultipleSelection: false,
-            onCompletion: handleHTMLSelection
-        )
         .alert("Couldn’t Import Bookmarks", isPresented: errorIsPresented) {
+            Button("Choose Profile…") {
+                isProfileFolderImporterPresented = true
+            }
             Button("OK", role: .cancel) {}
         } message: {
-            Text(errorMessage ?? "Try choosing the browser’s profile folder or an exported bookmarks HTML file.")
+            Text(errorMessage ?? "Candoa couldn’t access \(selectedSource.name)’s default profile. You can choose another profile manually.")
         }
     }
 
@@ -576,30 +595,48 @@ private struct BrowserMigrationSheet: View {
         }
     }
 
-    private func handleHTMLSelection(_ result: Result<[URL], Error>) {
-        guard case .success(let urls) = result, let fileURL = urls.first else {
-            if case .failure(let error) = result { errorMessage = error.localizedDescription }
+    private func importFromSelectedBrowser() {
+        if !store.canImportAutomatically(from: selectedSource) {
+            isProfileFolderImporterPresented = true
             return
         }
-
         runImport {
-            try await store.importInitialBookmarks(from: fileURL)
+            try await store.importInitialBookmarks(from: selectedSource)
         }
     }
 
     private func runImport(_ operation: @escaping @MainActor () async throws -> Int) {
+        let clock = ContinuousClock()
+        let startedAt = clock.now
+        let minimumFeedbackDuration: Duration = .milliseconds(900)
         isImporting = true
         errorMessage = nil
         Task {
             do {
                 let count = try await operation()
-                onImported(count)
-                dismiss()
+                let elapsed = startedAt.duration(to: clock.now)
+                if elapsed < minimumFeedbackDuration {
+                    try? await Task.sleep(for: minimumFeedbackDuration - elapsed)
+                }
+                announceImportedBookmarks(count)
+                store.completeInitialImport()
             } catch {
                 errorMessage = error.localizedDescription
             }
             isImporting = false
         }
+    }
+
+    private func announceImportedBookmarks(_ count: Int) {
+        let message = "Imported \(count) bookmark\(count == 1 ? "" : "s")."
+        NSAccessibility.post(
+            element: NSApp as Any,
+            notification: .announcementRequested,
+            userInfo: [
+                .announcement: message,
+                .priority: NSAccessibilityPriorityLevel.medium.rawValue
+            ]
+        )
     }
 }
 
@@ -879,7 +916,7 @@ private struct OnboardingImportPreview: View {
                     .scaledToFit()
                     .frame(width: 56, height: 56)
 
-                Label("Ready in Candoa", systemImage: "folder.fill")
+                Label("Bookmarks ready in Candoa", systemImage: "bookmark.fill")
                     .font(.system(size: 15, weight: .semibold))
             }
             .padding(24)

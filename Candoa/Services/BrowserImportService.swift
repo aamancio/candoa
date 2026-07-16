@@ -1,5 +1,6 @@
 import Foundation
 import SQLite3
+import Darwin
 
 struct ImportedBrowserBookmark: Equatable, Sendable {
     let title: String
@@ -39,21 +40,8 @@ enum BrowserImportSource: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    var profileFolderHint: String {
-        switch self {
-        case .safari:
-            "Select Safari’s Safari folder."
-        case .chrome:
-            "Select Chrome’s Chrome folder or one profile folder inside it."
-        case .arc:
-            "Select Arc’s Arc folder."
-        case .firefox:
-            "Select Firefox’s Profiles folder or one profile folder inside it."
-        }
-    }
-
     var suggestedProfileFolderURL: URL {
-        let libraryURL = FileManager.default.homeDirectoryForCurrentUser
+        let libraryURL = Self.userHomeDirectory
             .appending(path: "Library", directoryHint: .isDirectory)
 
         switch self {
@@ -76,11 +64,20 @@ enum BrowserImportSource: String, CaseIterable, Identifiable, Sendable {
             )
         }
     }
+
+    private static var userHomeDirectory: URL {
+        guard let passwordEntry = getpwuid(getuid()),
+              let homePath = passwordEntry.pointee.pw_dir
+        else {
+            return FileManager.default.homeDirectoryForCurrentUser
+        }
+        return URL(filePath: String(cString: homePath), directoryHint: .isDirectory)
+    }
 }
 
 enum BrowserImportError: LocalizedError {
     case unreadableFile
-    case unsupportedFile
+    case profileAccessRequired(String)
     case profileDataNotFound(String)
     case noBookmarks
 
@@ -88,8 +85,8 @@ enum BrowserImportError: LocalizedError {
         switch self {
         case .unreadableFile:
             return "Candoa couldn’t read that bookmarks file."
-        case .unsupportedFile:
-            return "Choose a bookmarks HTML file exported by your browser."
+        case .profileAccessRequired(let sourceName):
+            return "macOS requires permission before Candoa can read \(sourceName)’s bookmarks."
         case .profileDataNotFound(let sourceName):
             return "Candoa couldn’t find \(sourceName) bookmark data in that folder."
         case .noBookmarks:
@@ -99,6 +96,8 @@ enum BrowserImportError: LocalizedError {
 }
 
 struct BrowserImportService {
+    typealias ProfileFolderURLProvider = @Sendable (BrowserImportSource) -> URL
+
     private struct FirefoxNode {
         let id: Int64
         let parentID: Int64
@@ -108,31 +107,25 @@ struct BrowserImportService {
     }
 
     private static let bookmarkLimit = 2_000
+    private let profileFolderURLProvider: ProfileFolderURLProvider
+    private let persistsProfileAccess: Bool
 
-    func bookmarks(from fileURL: URL) async throws -> [ImportedBrowserBookmark] {
-        try await Task.detached(priority: .userInitiated) {
-            try Self.withSecurityScopedAccess(to: fileURL) {
-                guard let data = try? Data(contentsOf: fileURL) else {
-                    throw BrowserImportError.unreadableFile
-                }
-                guard let html = Self.decodeHTML(data) else {
-                    throw BrowserImportError.unsupportedFile
-                }
-
-                let bookmarks = try Self.parseHTMLBookmarks(in: html)
-                guard !bookmarks.isEmpty else {
-                    throw BrowserImportError.noBookmarks
-                }
-                return bookmarks
-            }
-        }.value
+    init(
+        profileFolderURLProvider: @escaping ProfileFolderURLProvider = { source in
+            source.suggestedProfileFolderURL
+        },
+        persistsProfileAccess: Bool = true
+    ) {
+        self.profileFolderURLProvider = profileFolderURLProvider
+        self.persistsProfileAccess = persistsProfileAccess
     }
 
     func bookmarks(
         fromProfileFolder folderURL: URL,
         source: BrowserImportSource
     ) async throws -> [ImportedBrowserBookmark] {
-        try await Task.detached(priority: .userInitiated) {
+        let persistsProfileAccess = persistsProfileAccess
+        let (bookmarks, _) = try await Task.detached(priority: .userInitiated) {
             try Self.withSecurityScopedAccess(to: folderURL) {
                 let bookmarks: [ImportedBrowserBookmark]
                 switch source {
@@ -153,35 +146,138 @@ struct BrowserImportService {
                 guard !result.isEmpty else {
                     throw BrowserImportError.noBookmarks
                 }
+                if persistsProfileAccess {
+                    Self.rememberProfileFolder(folderURL, source: source)
+                }
                 return result
             }
         }.value
+        return bookmarks
+    }
+
+    func bookmarks(from source: BrowserImportSource) async throws -> [ImportedBrowserBookmark] {
+        let profileFolderURL = (persistsProfileAccess ? Self.rememberedProfileFolder(for: source) : nil)
+            ?? profileFolderURLProvider(source)
+        return try await bookmarks(fromProfileFolder: profileFolderURL, source: source)
+    }
+
+    func hasRememberedProfileFolder(for source: BrowserImportSource) -> Bool {
+        Self.rememberedProfileFolder(for: source) != nil
     }
 
     private static func withSecurityScopedAccess<T>(
         to url: URL,
         operation: () throws -> T
-    ) throws -> T {
+    ) throws -> (T, Bool) {
         let accessedSecurityScope = url.startAccessingSecurityScopedResource()
         defer {
             if accessedSecurityScope {
                 url.stopAccessingSecurityScopedResource()
             }
         }
-        return try operation()
+        return (try operation(), accessedSecurityScope)
+    }
+
+    private static func rememberProfileFolder(_ url: URL, source: BrowserImportSource) {
+        let accessedSecurityScope = url.startAccessingSecurityScopedResource()
+        defer {
+            if accessedSecurityScope {
+                url.stopAccessingSecurityScopedResource()
+            }
+        }
+        do {
+            let bookmarkData = try url.bookmarkData(
+                options: [.withSecurityScope, .securityScopeAllowOnlyReadAccess],
+                includingResourceValuesForKeys: nil,
+                relativeTo: nil
+            )
+            let destinationURL = try profileBookmarkURL(for: source, createsDirectory: true)
+            try bookmarkData.write(to: destinationURL, options: .atomic)
+        } catch let error as NSError {
+            NSLog(
+                "Could not preserve %@ import access (%@:%ld)",
+                source.name,
+                error.domain,
+                error.code
+            )
+        }
+    }
+
+    private static func rememberedProfileFolder(for source: BrowserImportSource) -> URL? {
+        guard let bookmarkURL = try? profileBookmarkURL(for: source, createsDirectory: false),
+              let bookmarkData = try? Data(contentsOf: bookmarkURL)
+        else { return nil }
+
+        var isStale = false
+        guard let url = try? URL(
+            resolvingBookmarkData: bookmarkData,
+            options: [.withSecurityScope],
+            relativeTo: nil,
+            bookmarkDataIsStale: &isStale
+        ) else {
+            try? FileManager.default.removeItem(at: bookmarkURL)
+            return nil
+        }
+        if isStale {
+            rememberProfileFolder(url, source: source)
+        }
+        return url
+    }
+
+    private static func profileBookmarkURL(
+        for source: BrowserImportSource,
+        createsDirectory: Bool
+    ) throws -> URL {
+        let applicationSupportURL = try FileManager.default.url(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask,
+            appropriateFor: nil,
+            create: createsDirectory
+        )
+        let directoryURL = applicationSupportURL
+            .appending(path: "Candoa", directoryHint: .isDirectory)
+            .appending(path: "BrowserImportAccess", directoryHint: .isDirectory)
+        if createsDirectory {
+            try FileManager.default.createDirectory(
+                at: directoryURL,
+                withIntermediateDirectories: true
+            )
+        }
+        return directoryURL.appending(path: "\(source.rawValue).bookmark", directoryHint: .notDirectory)
     }
 
     private static func safariBookmarks(in selectedFolder: URL) throws -> [ImportedBrowserBookmark] {
-        let candidates = candidateFiles(
-            named: "Bookmarks.plist",
-            below: selectedFolder,
-            maximumDepth: 2
+        let directBookmarksURL = selectedFolder.appending(
+            path: "Bookmarks.plist",
+            directoryHint: .notDirectory
         )
-        guard let bookmarksURL = candidates.first,
-              let data = try? Data(contentsOf: bookmarksURL),
-              let root = try? PropertyListSerialization.propertyList(from: data, format: nil)
-        else {
-            throw BrowserImportError.profileDataNotFound(BrowserImportSource.safari.name)
+        let data: Data
+        do {
+            data = try Data(contentsOf: directBookmarksURL)
+        } catch let error as NSError where error.domain == NSCocoaErrorDomain
+            && error.code == CocoaError.fileReadNoPermission.rawValue {
+            throw BrowserImportError.profileAccessRequired(BrowserImportSource.safari.name)
+        } catch {
+            let candidates = try candidateFiles(
+                named: "Bookmarks.plist",
+                below: selectedFolder,
+                maximumDepth: 2,
+                sourceName: BrowserImportSource.safari.name
+            )
+            guard let bookmarksURL = candidates.first else {
+                throw BrowserImportError.profileDataNotFound(BrowserImportSource.safari.name)
+            }
+            do {
+                data = try Data(contentsOf: bookmarksURL)
+            } catch let error as NSError where error.domain == NSCocoaErrorDomain
+                && error.code == CocoaError.fileReadNoPermission.rawValue {
+                throw BrowserImportError.profileAccessRequired(BrowserImportSource.safari.name)
+            } catch {
+                throw BrowserImportError.unreadableFile
+            }
+        }
+        guard let root = try? PropertyListSerialization.propertyList(from: data, format: nil) else {
+            throw BrowserImportError.unreadableFile
         }
 
         var bookmarks: [ImportedBrowserBookmark] = []
@@ -250,10 +346,11 @@ struct BrowserImportService {
         in selectedFolder: URL,
         sourceName: String
     ) throws -> [ImportedBrowserBookmark] {
-        let bookmarkFiles = candidateFiles(
+        let bookmarkFiles = try candidateFiles(
             named: "Bookmarks",
             below: selectedFolder,
-            maximumDepth: 2
+            maximumDepth: 2,
+            sourceName: sourceName
         )
         guard !bookmarkFiles.isEmpty else {
             throw BrowserImportError.profileDataNotFound(sourceName)
@@ -325,10 +422,11 @@ struct BrowserImportService {
     }
 
     private static func arcBookmarks(in selectedFolder: URL) throws -> [ImportedBrowserBookmark] {
-        let sidebarFiles = candidateFiles(
+        let sidebarFiles = try candidateFiles(
             named: "StorableSidebar.json",
             below: selectedFolder,
-            maximumDepth: 2
+            maximumDepth: 2,
+            sourceName: BrowserImportSource.arc.name
         )
 
         if let sidebarURL = sidebarFiles.first,
@@ -344,7 +442,12 @@ struct BrowserImportService {
         let chromiumUserDataURL = selectedFolder.lastPathComponent == "User Data"
             ? selectedFolder
             : selectedFolder.appending(path: "User Data", directoryHint: .isDirectory)
-        if !candidateFiles(named: "Bookmarks", below: chromiumUserDataURL, maximumDepth: 2).isEmpty {
+        if try !candidateFiles(
+            named: "Bookmarks",
+            below: chromiumUserDataURL,
+            maximumDepth: 2,
+            sourceName: BrowserImportSource.arc.name
+        ).isEmpty {
             return try chromiumBookmarks(in: chromiumUserDataURL, sourceName: BrowserImportSource.arc.name)
         }
         throw BrowserImportError.profileDataNotFound(BrowserImportSource.arc.name)
@@ -432,10 +535,11 @@ struct BrowserImportService {
     }
 
     private static func firefoxBookmarks(in selectedFolder: URL) throws -> [ImportedBrowserBookmark] {
-        let databaseURLs = candidateFiles(
+        let databaseURLs = try candidateFiles(
             named: "places.sqlite",
             below: selectedFolder,
-            maximumDepth: 2
+            maximumDepth: 2,
+            sourceName: BrowserImportSource.firefox.name
         )
         guard !databaseURLs.isEmpty else {
             throw BrowserImportError.profileDataNotFound(BrowserImportSource.firefox.name)
@@ -571,8 +675,9 @@ struct BrowserImportService {
     private static func candidateFiles(
         named fileName: String,
         below selectedFolder: URL,
-        maximumDepth: Int
-    ) -> [URL] {
+        maximumDepth: Int,
+        sourceName: String
+    ) throws -> [URL] {
         var isDirectory: ObjCBool = false
         if FileManager.default.fileExists(atPath: selectedFolder.path, isDirectory: &isDirectory),
            !isDirectory.boolValue {
@@ -580,88 +685,50 @@ struct BrowserImportService {
         }
 
         var result: [URL] = []
-        func search(_ directory: URL, depth: Int) {
+        func search(_ directory: URL, depth: Int) throws {
             guard depth <= maximumDepth, result.count < 20 else { return }
             let directCandidate = directory.appending(path: fileName, directoryHint: .notDirectory)
             if FileManager.default.fileExists(atPath: directCandidate.path) {
                 result.append(directCandidate)
             }
-            guard depth < maximumDepth,
-                  let children = try? FileManager.default.contentsOfDirectory(
+            guard depth < maximumDepth else { return }
+            let children: [URL]
+            do {
+                children = try FileManager.default.contentsOfDirectory(
                     at: directory,
                     includingPropertiesForKeys: [.isDirectoryKey],
                     options: [.skipsHiddenFiles]
                   )
-            else { return }
+            } catch let error as NSError where isPermissionDenied(error) {
+                throw BrowserImportError.profileAccessRequired(sourceName)
+            } catch {
+                return
+            }
 
             for child in children.sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) {
                 guard (try? child.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true else { continue }
-                search(child, depth: depth + 1)
+                try search(child, depth: depth + 1)
                 if result.count >= 20 { return }
             }
         }
 
-        search(selectedFolder, depth: 0)
+        try search(selectedFolder, depth: 0)
         return result.sorted { $0.path < $1.path }
     }
 
-    private static func decodeHTML(_ data: Data) -> String? {
-        for encoding in [String.Encoding.utf8, .utf16, .windowsCP1252, .isoLatin1] {
-            if let value = String(data: data, encoding: encoding),
-               value.range(of: "<a", options: .caseInsensitive) != nil {
-                return value
-            }
+    private static func isPermissionDenied(_ error: NSError) -> Bool {
+        if error.domain == NSCocoaErrorDomain,
+           error.code == CocoaError.fileReadNoPermission.rawValue {
+            return true
         }
-        return nil
-    }
-
-    private static func parseHTMLBookmarks(in html: String) throws -> [ImportedBrowserBookmark] {
-        let pattern = #"<a\b[^>]*\bhref\s*=\s*(?:\"([^\"]+)\"|'([^']+)'|([^\s>]+))[^>]*>(.*?)</a\s*>"#
-        let expression = try NSRegularExpression(
-            pattern: pattern,
-            options: [.caseInsensitive, .dotMatchesLineSeparators]
-        )
-        let fullRange = NSRange(html.startIndex..<html.endIndex, in: html)
-        var seenURLs = Set<String>()
-        var bookmarks: [ImportedBrowserBookmark] = []
-
-        expression.enumerateMatches(in: html, range: fullRange) { match, _, stop in
-            guard let match else { return }
-            let href = [1, 2, 3]
-                .compactMap { substring(in: html, range: match.range(at: $0)) }
-                .first
-                .map(decodeHTMLEntities)
-                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-
-            guard let href,
-                  let url = webURL(from: href)
-            else { return }
-
-            let key = url.absoluteString
-            guard seenURLs.insert(key).inserted else { return }
-
-            let rawTitle = substring(in: html, range: match.range(at: 4)) ?? ""
-            let title = decodeHTMLEntities(
-                rawTitle.replacingOccurrences(
-                    of: #"<[^>]+>"#,
-                    with: "",
-                    options: .regularExpression
-                )
-            ).trimmingCharacters(in: .whitespacesAndNewlines)
-
-            bookmarks.append(
-                ImportedBrowserBookmark(
-                    title: title.isEmpty ? fallbackTitle(for: url) : title,
-                    url: url
-                )
-            )
-
-            if bookmarks.count >= bookmarkLimit {
-                stop.pointee = true
-            }
+        if error.domain == NSPOSIXErrorDomain,
+           error.code == EACCES || error.code == EPERM {
+            return true
         }
-
-        return bookmarks
+        guard let underlyingError = error.userInfo[NSUnderlyingErrorKey] as? NSError else {
+            return false
+        }
+        return isPermissionDenied(underlyingError)
     }
 
     private static func deduplicated(
@@ -692,21 +759,4 @@ struct BrowserImportService {
         source.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    private static func substring(in source: String, range: NSRange) -> String? {
-        guard range.location != NSNotFound,
-              let swiftRange = Range(range, in: source)
-        else { return nil }
-        return String(source[swiftRange])
-    }
-
-    private static func decodeHTMLEntities(_ source: String) -> String {
-        source
-            .replacingOccurrences(of: "&amp;", with: "&", options: .caseInsensitive)
-            .replacingOccurrences(of: "&quot;", with: "\"", options: .caseInsensitive)
-            .replacingOccurrences(of: "&#39;", with: "'", options: .caseInsensitive)
-            .replacingOccurrences(of: "&apos;", with: "'", options: .caseInsensitive)
-            .replacingOccurrences(of: "&lt;", with: "<", options: .caseInsensitive)
-            .replacingOccurrences(of: "&gt;", with: ">", options: .caseInsensitive)
-            .replacingOccurrences(of: "&nbsp;", with: " ", options: .caseInsensitive)
-    }
 }

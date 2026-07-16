@@ -41,6 +41,8 @@
 	</dict>
 	<key>NSCameraUsageDescription</key>
 	<string>Websites you visit can request access to your camera.</string>
+	<key>NSAppDataUsageDescription</key>
+	<string>Import bookmarks from the browser you select during setup.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Use microphone features only after you choose to allow them, such as dictation or website voice input.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>

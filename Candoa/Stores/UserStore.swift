@@ -19,6 +19,9 @@ final class UserStore: ObservableObject {
     init(accountService: CandoaAccountService = CandoaAccountService()) {
         self.accountService = accountService
         isSignedIn = accountService.accessToken != nil
+        if ProcessInfo.processInfo.environment["CANDOA_UI_TESTING_APPLE_SIGN_IN_WORKING"] == "1" {
+            isWorking = true
+        }
     }
 
     func configure(_ request: ASAuthorizationAppleIDRequest) {

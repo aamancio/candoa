@@ -115,7 +115,7 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
 
     func ensureLoaded(_ tab: BrowserTab) {
         // Popup web views own their first navigation; loading here would sever window.opener.
-        guard !popupTabIDsAwaitingFirstLoad.contains(tab.id) else { return }
+        guard !popupTabIDsAwaitingFirstLoad.contains(tab.id), !tab.isWelcomePage else { return }
 
         let webView = webView(for: tab)
 
@@ -131,6 +131,7 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
     }
 
     func load(_ url: URL, in tabID: UUID) {
+        guard url != BrowserInternalPage.welcomeURL else { return }
         let url = store?.navigationService.preferredLocaleURL(for: url) ?? url
         let webView = webViews[tabID]
         let targetWebView: WKWebView

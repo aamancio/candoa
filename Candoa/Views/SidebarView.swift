@@ -699,6 +699,7 @@ struct SidebarView: View {
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         .onHover { isHoveringNewTab = $0 }
         .accessibilityIdentifier("sidebar-new-tab-button")
+        .initialTourPopover(.commandBar, store: store, arrowEdge: .leading)
         .overlay {
             if isHoveringNewTab && !isArmed && store.draggedTabID == nil {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)

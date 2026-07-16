@@ -79,6 +79,7 @@ private struct BrowserCommands: Commands {
             Button(BrowserCommandTitles.newTab) {
                 actions?.newTab()
             }
+            .keyboardShortcut("t", modifiers: .command)
             .disabled(actions == nil)
 
             Button(BrowserCommandTitles.reopenClosedTab) {
@@ -104,6 +105,13 @@ private struct BrowserCommands: Commands {
                 actions?.findPrevious()
             }
             .keyboardShortcut("g", modifiers: [.command, .shift])
+            .disabled(actions == nil)
+        }
+
+        CommandGroup(after: .help) {
+            Button(String(localized: "Quick Tour…")) {
+                actions?.showQuickTour()
+            }
             .disabled(actions == nil)
         }
 
@@ -269,6 +277,7 @@ struct BrowserCommandActions {
     var openCommandPalette: () -> Void
     var toggleSidebar: () -> Void
     var toggleAISidebar: () -> Void
+    var showQuickTour: () -> Void
     var reloadTab: () -> Void
     var goBack: () -> Void
     var goForward: () -> Void

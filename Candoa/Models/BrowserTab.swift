@@ -1,5 +1,9 @@
 import Foundation
 
+enum BrowserInternalPage {
+    static let welcomeURL = URL(string: "candoa://welcome")!
+}
+
 struct BrowserTab: Identifiable, Codable, Hashable {
     var id: UUID
     var title: String
@@ -117,5 +121,11 @@ struct BrowserTab: Identifiable, Codable, Hashable {
 
     var favoriteDisplayFaviconData: Data? {
         favoriteFaviconData ?? faviconData
+    }
+}
+
+extension BrowserTab {
+    var isWelcomePage: Bool {
+        url == BrowserInternalPage.welcomeURL
     }
 }

@@ -190,15 +190,16 @@ internal struct UpsertSpaceSidebarComposer: View {
                 createSpace()
             } label: {
                 Text(mode.primaryButtonTitle)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(createButtonTextColor)
                     .frame(maxWidth: .infinity)
+                    .frame(height: 36)
+                    .background(createButtonBackground)
+                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .font(.system(size: 13, weight: .semibold))
-            .foregroundStyle(createButtonTextColor)
             .frame(maxWidth: .infinity)
-            .frame(height: 36)
-            .background(createButtonBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
             .disabled(trimmedName.isEmpty)
             .onHover { isHoveringPrimaryButton = $0 }
             .animation(.easeOut(duration: 0.10), value: isHoveringPrimaryButton)

@@ -1,4 +1,5 @@
 import Foundation
+import SQLite3
 
 extension BrowserStore {
     static var isUITesting: Bool {
@@ -9,6 +10,240 @@ extension BrowserStore {
         guard isUITesting else { return nil }
         return ProcessInfo.processInfo.environment["CANDOA_UI_TESTING_ONBOARDING_STEP"]
             .flatMap(InitialOnboardingStep.init(rawValue:))
+    }
+
+    static func uiTestingBrowserImportService() -> BrowserImportService? {
+        let environment = ProcessInfo.processInfo.environment
+        guard environment["CANDOA_UI_TESTING"] == "1",
+              let fixtureName = environment["CANDOA_UI_TESTING_BROWSER_IMPORT_FIXTURE"]
+        else { return nil }
+
+        if fixtureName == "unreadable-safari" {
+            let inaccessibleURL = FileManager.default.temporaryDirectory
+                .appending(path: "MissingCandoaUITestSafariProfile", directoryHint: .isDirectory)
+            let bookmarksURL = inaccessibleURL.appending(
+                path: "Bookmarks.plist",
+                directoryHint: .notDirectory
+            )
+            do {
+                try FileManager.default.createDirectory(
+                    at: inaccessibleURL,
+                    withIntermediateDirectories: true
+                )
+                if FileManager.default.fileExists(atPath: bookmarksURL.path) {
+                    try FileManager.default.setAttributes(
+                        [.posixPermissions: 0o600],
+                        ofItemAtPath: bookmarksURL.path
+                    )
+                }
+                try Data("unreadable Safari fixture".utf8).write(to: bookmarksURL, options: .atomic)
+                try FileManager.default.setAttributes(
+                    [.posixPermissions: 0o000],
+                    ofItemAtPath: bookmarksURL.path
+                )
+            } catch {
+                assertionFailure("Could not create unreadable browser-import UI test fixture: \(error)")
+                return nil
+            }
+            return BrowserImportService(
+                profileFolderURLProvider: { source in
+                    source == .safari ? inaccessibleURL : source.suggestedProfileFolderURL
+                },
+                persistsProfileAccess: false
+            )
+        }
+
+        if fixtureName == BrowserImportSource.chrome.rawValue {
+            let profileURL = FileManager.default.temporaryDirectory
+                .appending(path: "CandoaUITestChromeProfile", directoryHint: .isDirectory)
+            let defaultProfileURL = profileURL.appending(path: "Default", directoryHint: .isDirectory)
+            let bookmarksURL = defaultProfileURL.appending(path: "Bookmarks", directoryHint: .notDirectory)
+            let fixture: [String: Any] = [
+                "roots": [
+                    "bookmark_bar": [
+                        "type": "folder",
+                        "name": "Bookmarks Bar",
+                        "children": [[
+                            "type": "url",
+                            "name": "Chrome Import Fixture",
+                            "url": "https://fixture.candoa.test/chrome-import"
+                        ]]
+                    ]
+                ]
+            ]
+
+            do {
+                try FileManager.default.createDirectory(
+                    at: defaultProfileURL,
+                    withIntermediateDirectories: true
+                )
+                let data = try JSONSerialization.data(withJSONObject: fixture)
+                try data.write(to: bookmarksURL, options: .atomic)
+            } catch {
+                assertionFailure("Could not create Chrome import UI test fixture: \(error)")
+                return nil
+            }
+            return uiTestingBrowserImportService(source: .chrome, profileURL: profileURL)
+        }
+
+        if fixtureName == BrowserImportSource.arc.rawValue {
+            let profileURL = FileManager.default.temporaryDirectory
+                .appending(path: "CandoaUITestArcProfile", directoryHint: .isDirectory)
+            let sidebarURL = profileURL.appending(
+                path: "StorableSidebar.json",
+                directoryHint: .notDirectory
+            )
+            let fixture: [String: Any] = [
+                "sidebarSyncState": [
+                    "items": [
+                        "fixture-item": [
+                            "value": [
+                                "id": "fixture-item",
+                                "parentID": "fixture-space-container",
+                                "title": "Arc Import Fixture",
+                                "data": [
+                                    "tab": [
+                                        "savedURL": "https://fixture.candoa.test/arc-import",
+                                        "savedTitle": "Arc Import Fixture"
+                                    ]
+                                ]
+                            ]
+                        ]
+                    ],
+                    "spaceModels": [
+                        "fixture-space": [
+                            "value": [
+                                "title": "E2E Space",
+                                "containerIDs": ["fixture-space-container"]
+                            ]
+                        ]
+                    ]
+                ]
+            ]
+
+            do {
+                try FileManager.default.createDirectory(
+                    at: profileURL,
+                    withIntermediateDirectories: true
+                )
+                let data = try JSONSerialization.data(withJSONObject: fixture)
+                try data.write(to: sidebarURL, options: .atomic)
+            } catch {
+                assertionFailure("Could not create Arc import UI test fixture: \(error)")
+                return nil
+            }
+            return uiTestingBrowserImportService(source: .arc, profileURL: profileURL)
+        }
+
+        if fixtureName == BrowserImportSource.firefox.rawValue {
+            let profileURL = FileManager.default.temporaryDirectory
+                .appending(path: "CandoaUITestFirefoxProfile", directoryHint: .isDirectory)
+            let databaseURL = profileURL.appending(path: "places.sqlite", directoryHint: .notDirectory)
+            do {
+                try FileManager.default.createDirectory(
+                    at: profileURL,
+                    withIntermediateDirectories: true
+                )
+                try createFirefoxImportFixture(at: databaseURL)
+            } catch {
+                assertionFailure("Could not create Firefox import UI test fixture: \(error)")
+                return nil
+            }
+            return uiTestingBrowserImportService(source: .firefox, profileURL: profileURL)
+        }
+
+        guard fixtureName == BrowserImportSource.safari.rawValue else { return nil }
+
+        let profileURL = FileManager.default.temporaryDirectory
+            .appending(path: "CandoaUITestSafariProfile", directoryHint: .isDirectory)
+        let bookmarksURL = profileURL.appending(path: "Bookmarks.plist", directoryHint: .notDirectory)
+        let fixture: [String: Any] = [
+            "WebBookmarkType": "WebBookmarkTypeList",
+            "Children": [
+                [
+                    "WebBookmarkType": "WebBookmarkTypeList",
+                    "Title": "E2E Favorites",
+                    "Children": [
+                        [
+                            "WebBookmarkType": "WebBookmarkTypeLeaf",
+                            "URLString": "https://fixture.candoa.test/safari-import",
+                            "URIDictionary": ["title": "Safari Import Fixture"]
+                        ]
+                    ]
+                ]
+            ]
+        ]
+
+        do {
+            try FileManager.default.createDirectory(
+                at: profileURL,
+                withIntermediateDirectories: true
+            )
+            let data = try PropertyListSerialization.data(
+                fromPropertyList: fixture,
+                format: .binary,
+                options: 0
+            )
+            try data.write(to: bookmarksURL, options: .atomic)
+        } catch {
+            assertionFailure("Could not create browser-import UI test fixture: \(error)")
+            return nil
+        }
+
+        return BrowserImportService(
+            profileFolderURLProvider: { source in
+                source == .safari ? profileURL : source.suggestedProfileFolderURL
+            },
+            persistsProfileAccess: false
+        )
+    }
+
+    private static func uiTestingBrowserImportService(
+        source: BrowserImportSource,
+        profileURL: URL
+    ) -> BrowserImportService {
+        BrowserImportService(
+            profileFolderURLProvider: { requestedSource in
+                requestedSource == source ? profileURL : requestedSource.suggestedProfileFolderURL
+            },
+            persistsProfileAccess: false
+        )
+    }
+
+    private static func createFirefoxImportFixture(at databaseURL: URL) throws {
+        if FileManager.default.fileExists(atPath: databaseURL.path) {
+            try FileManager.default.removeItem(at: databaseURL)
+        }
+
+        var database: OpaquePointer?
+        guard sqlite3_open(databaseURL.path, &database) == SQLITE_OK, let database else {
+            if let database { sqlite3_close(database) }
+            throw CocoaError(.fileWriteUnknown)
+        }
+        defer { sqlite3_close(database) }
+
+        let sql = """
+            CREATE TABLE moz_bookmarks_roots (folder_id INTEGER, root_name TEXT);
+            CREATE TABLE moz_places (id INTEGER PRIMARY KEY, url TEXT);
+            CREATE TABLE moz_bookmarks (
+                id INTEGER PRIMARY KEY,
+                type INTEGER,
+                fk INTEGER,
+                parent INTEGER,
+                position INTEGER,
+                title TEXT
+            );
+            INSERT INTO moz_bookmarks_roots VALUES (1, 'placesRoot');
+            INSERT INTO moz_bookmarks_roots VALUES (2, 'toolbar');
+            INSERT INTO moz_places VALUES (1, 'https://fixture.candoa.test/firefox-import');
+            INSERT INTO moz_bookmarks VALUES (1, 2, NULL, 0, 0, 'root');
+            INSERT INTO moz_bookmarks VALUES (2, 2, NULL, 1, 0, 'toolbar');
+            INSERT INTO moz_bookmarks VALUES (3, 2, NULL, 2, 0, 'E2E Firefox');
+            INSERT INTO moz_bookmarks VALUES (4, 1, 1, 3, 0, 'Firefox Import Fixture');
+            """
+        guard sqlite3_exec(database, sql, nil, nil, nil) == SQLITE_OK else {
+            throw CocoaError(.fileWriteUnknown)
+        }
     }
 
     var activeSpace: BrowserSpace? {
@@ -30,6 +265,9 @@ extension BrowserStore {
         return [
             "setup=\(isInitialSpaceSetupPresented)",
             "accountSetup=\(isInitialAccountSetupPresented)",
+            "onboarding=\(initialOnboardingStep?.rawValue ?? "none")",
+            "tourTip=\(initialTourTip?.rawValue.description ?? "none")",
+            "preparingTourTip=\(preparingInitialTourTip?.rawValue.description ?? "none")",
             "palette=\(isCommandPalettePresented)",
             "newTabPalette=\(isNewTabPaletteActive)",
             "find=\(isFindBarPresented)",
