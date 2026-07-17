@@ -10,6 +10,7 @@ struct ContentView: View {
     @StateObject private var updateService = AppUpdateService.shared
     @StateObject private var systemAppearance = SystemAppearanceObserver()
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage(CandoaSettingsOption.websiteAppearance) private var websiteAppearanceValue =
         WebsiteAppearance.dark.rawValue
     @SceneStorage("candoa.windowAutosaveID") private var windowAutosaveID = UUID().uuidString
@@ -18,7 +19,6 @@ struct ContentView: View {
     @State private var isSidebarRevealSuppressed = false
     @State private var isAISidebarVisible = false
     @State private var isAISidebarMounted = false
-    @State private var isAISidebarInsetApplied = false
     @State private var aiSidebarTransitionGeneration = 0
     @State private var aiSidebarUITestingState = ""
     @State private var aiSidebarResizeStartWidth: CGFloat?
@@ -69,8 +69,8 @@ struct ContentView: View {
 
     var body: some View {
         let currentAISidebarWidth = clampedAISidebarWidth(CGFloat(aiSidebarWidth))
-        let currentAISidebarInset = isAISidebarInsetApplied
-            ? currentAISidebarWidth + AISidebarLayout.contentGutter
+        let currentAISidebarInset = isAISidebarMounted
+            ? currentAISidebarWidth + AISidebarLayout.containerPadding
             : 0
 
         ZStack(alignment: .leading) {
@@ -79,24 +79,33 @@ struct ContentView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .transition(.opacity)
             } else {
-                WebViewContainer(
-                    store: store,
-                    visibleChromeInsets: BrowserChromeInsets(
-                        leading: isSidebarVisible ? sidebarTotalWidth : 0,
-                        trailing: currentAISidebarInset
+                HStack(spacing: 0) {
+                    // Keep the pinned sidebar's reservation outside the web
+                    // surface. Changing the sidebar must not mutate the web
+                    // container's own chrome insets: doing so invalidates that
+                    // subtree and makes the independently mounted Ask lane
+                    // appear to toggle with it. This zero-cost layout lane also
+                    // stays present at width zero, preserving child identity.
+                    Color.clear
+                        .frame(width: isSidebarVisible ? sidebarTotalWidth : 0)
+                        .allowsHitTesting(false)
+
+                    WebViewContainer(
+                        store: store,
+                        visibleChromeInsets: BrowserChromeInsets(),
+                        attachesToTrailingPanel: isAISidebarMounted
                     )
-                )
-                    .ignoresSafeArea(.container, edges: .top)
-                    // A pinned sidebar (Cmd-S) pushes the content aside; the
-                    // hover-reveal stays a pure overlay so a quick peek never
-                    // resizes the page. The inset is intentionally not animated:
-                    // animating it would resize the WKWebView frame every frame
-                    // (battery cost), so the content reflows once while the
-                    // sidebar slides into the reserved gap.
-                    // The visible browser surface receives the final available
-                    // frame in one layout transaction. This keeps WebKit's
-                    // native scroll indicator at the surface edge without
-                    // animating the remote viewport.
+
+                    if isAISidebarMounted {
+                        aiSidebarLayout(width: currentAISidebarWidth)
+                            .transition(.identity)
+                    }
+                }
+                // The web surface and attached Ask panel form one window row.
+                // Extending only the web child into the title-bar safe area
+                // pushes Ask's toolbar down and exposes a square strip above
+                // its rounded outside corner.
+                .ignoresSafeArea(.container, edges: .top)
 
                 sidebarLayout
                     // This subtree also coordinates AppKit's native window controls.
@@ -112,12 +121,6 @@ struct ContentView: View {
                     // otherwise the sidebar temporarily separates from content.
                     .animation(.easeOut(duration: 0.18), value: isSidebarHoverRevealed)
                     .zIndex(2)
-
-                if isAISidebarMounted {
-                    aiSidebarLayout(width: currentAISidebarWidth)
-                        .transition(.identity)
-                        .zIndex(3)
-                }
             }
 
             if store.isCommandPalettePresented {
@@ -441,6 +444,31 @@ struct ContentView: View {
             toggleAISidebar()
         }
         .frame(width: width)
+    }
+
+    private func aiSidebarLayout(width: CGFloat) -> some View {
+        ZStack {
+            Color(nsColor: .windowBackgroundColor)
+
+            aiSidebarPanel(width: width)
+                .offset(x: isAISidebarVisible || reduceMotion ? 0 : 12)
+                .opacity(isAISidebarVisible ? 1 : 0)
+                .animation(
+                    reduceMotion ? nil : .easeInOut(duration: AISidebarLayout.slideAnimationDuration),
+                    value: isAISidebarVisible
+                )
+        }
+        .frame(width: width)
+        .frame(maxHeight: .infinity)
+        .clipShape(
+            UnevenRoundedRectangle(
+                topLeadingRadius: 12,
+                bottomLeadingRadius: 0,
+                bottomTrailingRadius: 12,
+                topTrailingRadius: 12,
+                style: .continuous
+            )
+        )
         .overlay(alignment: .leading) {
             AISidebarResizeHandle(isResizing: aiSidebarResizeStartWidth != nil)
                 .frame(width: AISidebarLayout.resizeHandleHitWidth)
@@ -459,15 +487,10 @@ struct ContentView: View {
                         }
                 )
         }
-    }
-
-    private func aiSidebarLayout(width: CGFloat) -> some View {
-        aiSidebarPanel(width: width)
-            .frame(width: width)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
-            .ignoresSafeArea(.container, edges: .top)
-            .allowsHitTesting(isAISidebarVisible)
-            .accessibilityHidden(!isAISidebarVisible)
+        .allowsHitTesting(isAISidebarVisible)
+        .accessibilityHidden(!isAISidebarVisible)
+        .padding(.vertical, AISidebarLayout.containerPadding)
+        .padding(.trailing, AISidebarLayout.containerPadding)
     }
 
     private func toggleSidebar() {
@@ -505,18 +528,15 @@ struct ContentView: View {
         aiSidebarTransitionGeneration += 1
         let generation = aiSidebarTransitionGeneration
 
-        isAISidebarVisible = true
+        // Reserve the panel's lane in one layout transaction, then reveal its
+        // contents within that lane. The live WKWebView is never animated or
+        // covered by a separately floating panel.
         isAISidebarMounted = true
 
-        // Let the native panel commit before WebKit reserves its lane. The
-        // panel briefly overlays the page, so an empty strip can never appear.
         DispatchQueue.main.async {
-            DispatchQueue.main.async {
-                guard aiSidebarTransitionGeneration == generation,
-                      isAISidebarVisible,
-                      isAISidebarMounted else { return }
-                isAISidebarInsetApplied = true
-            }
+            guard aiSidebarTransitionGeneration == generation,
+                  isAISidebarMounted else { return }
+            isAISidebarVisible = true
         }
     }
 
@@ -527,16 +547,12 @@ struct ContentView: View {
 
         aiSidebarResizeStartWidth = nil
         isAISidebarVisible = false
-        isAISidebarInsetApplied = false
 
-        // Expand the page behind the panel first, then release the panel after
-        // SwiftUI has committed the unobscured WebKit layout.
-        DispatchQueue.main.async {
-            DispatchQueue.main.async {
-                guard aiSidebarTransitionGeneration == generation,
-                      !isAISidebarVisible else { return }
-                isAISidebarMounted = false
-            }
+        let delay = reduceMotion ? 0 : AISidebarLayout.slideAnimationDuration
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+            guard aiSidebarTransitionGeneration == generation,
+                  !isAISidebarVisible else { return }
+            isAISidebarMounted = false
         }
     }
 

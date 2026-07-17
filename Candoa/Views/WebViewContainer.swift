@@ -10,6 +10,7 @@ struct BrowserChromeInsets: Equatable {
 struct WebViewContainer: View {
     @ObservedObject var store: BrowserStore
     let visibleChromeInsets: BrowserChromeInsets
+    let attachesToTrailingPanel: Bool
     @AppStorage(DeveloperModeConfiguration.storageKey) private var developerModeOverrides = ""
     private let surfaceCornerRadius: CGFloat = 12
     private let surfacePadding: CGFloat = 8
@@ -116,14 +117,22 @@ struct WebViewContainer: View {
     }
 
     private func browserSurface<Content: View>(@ViewBuilder content: () -> Content) -> some View {
-        content()
-            .clipShape(RoundedRectangle(cornerRadius: surfaceCornerRadius, style: .continuous))
+        let shape = UnevenRoundedRectangle(
+            topLeadingRadius: surfaceCornerRadius,
+            bottomLeadingRadius: surfaceCornerRadius,
+            bottomTrailingRadius: surfaceCornerRadius,
+            topTrailingRadius: surfaceCornerRadius,
+            style: .continuous
+        )
+
+        return content()
+            .clipShape(shape)
             .overlay {
-                RoundedRectangle(cornerRadius: surfaceCornerRadius, style: .continuous)
+                shape
                     .stroke(CandoaChromeStyle.surfaceBorder, lineWidth: 1)
             }
             .background(
-                RoundedRectangle(cornerRadius: surfaceCornerRadius, style: .continuous)
+                shape
                     .fill(CandoaChromeStyle.surfaceFill.opacity(0.74))
             )
             .compositingGroup()
@@ -136,7 +145,7 @@ struct WebViewContainer: View {
             top: surfacePadding,
             leading: visibleChromeInsets.leading + surfacePadding,
             bottom: surfacePadding,
-            trailing: visibleChromeInsets.trailing + surfacePadding
+            trailing: visibleChromeInsets.trailing + (attachesToTrailingPanel ? 0 : surfacePadding)
         )
     }
 

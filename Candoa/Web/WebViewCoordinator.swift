@@ -109,7 +109,9 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         webView.allowsBackForwardNavigationGestures = true
         webView.allowsMagnification = true
         webView.isInspectable = WebInspectorConfiguration.isEnabled
-        webView.underPageBackgroundColor = .textBackgroundColor
+        // Keep WebKit's native under-page color derivation. It samples the
+        // page's html/body backgrounds, which lets the scrollbar gutter match
+        // light and dark sites independently of Candoa's chrome appearance.
         applyWebsiteAppearance(to: webView)
 
         let contentController = webView.configuration.userContentController
