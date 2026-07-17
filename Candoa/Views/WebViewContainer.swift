@@ -30,14 +30,14 @@ struct WebViewContainer: View {
     var body: some View {
         ZStack {
             if store.isInitialSpaceSetupPresented || store.isCreateSpacePresented {
-                SpaceSetupCanvas(
-                    hexes: store.activeThemeColorHexes,
-                    intensity: store.activeThemeIntensityMultiplier,
-                    texture: store.activeThemeTexture
-                )
-                .padding(.top, surfacePadding)
-                .padding(.trailing, surfacePadding)
-                .padding(.bottom, surfacePadding)
+                browserSurface {
+                    SpaceSetupCanvas(
+                        hexes: store.activeThemeColorHexes,
+                        intensity: store.activeThemeIntensityMultiplier,
+                        texture: store.activeThemeTexture
+                    )
+                }
+                .padding(containedSurfaceInsets)
                 .transition(.opacity)
             } else if let tab = store.activeTab {
                 let splitTabs = store.activeSplitGroupTabs
@@ -51,70 +51,22 @@ struct WebViewContainer: View {
                         }
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                    .padding(surfacePadding)
+                    .padding(containedSurfaceInsets)
                 } else {
                     browserSurface {
-                        VStack(spacing: 0) {
-                            if tab.isWelcomePage {
-                                WelcomeToCandoaPage(store: store)
-                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                    .padding(.leading, visibleChromeInsets.leading)
-                                    .padding(.trailing, visibleChromeInsets.trailing)
-                            } else if let url = tab.url,
-                               DeveloperModeConfiguration.isEnabled(
-                                   for: url,
-                                   storedOverrides: developerModeOverrides
-                               ) {
-                                DeveloperToolbar(
-                                    url: url,
-                                    urlText: url.localDevelopmentDisplayText,
-                                    tintHex: store.activeThemeColorHexes.first,
-                                    isSplitViewEnabled: store.isSplitViewEnabled,
-                                    onCopyURL: { store.copyActiveTabURL() },
-                                    onCapturePage: { store.captureActiveTabPage() },
-                                    onToggleSplitView: { store.toggleSplitView() },
-                                    onSubmitURL: { store.navigateActiveTab(to: $0) },
-                                    onSetDeveloperMode: { store.setDeveloperMode($0, for: url) }
-                                )
-                            }
-
-                            if tab.isWelcomePage {
-                                EmptyView()
-                            } else if tab.url == nil {
-                                EmptyTabSurface {
-                                    store.openNewTabCommandPalette()
-                                }
-                                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                .background(CandoaChromeStyle.surfaceFill.opacity(0.72))
-                            } else {
-                                ActiveWebViewHost(
-                                    tab: tab,
-                                    store: store,
-                                    obscuredContentInsets: webContentInsets
-                                )
-                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                    .background(CandoaChromeStyle.surfaceFill.opacity(0.72))
-                                    .overlay(alignment: .top) {
-                                        PageLoadingPill(
-                                            isLoading: tab.isLoading,
-                                            tint: spaceTint,
-                                            themeIsDark: themeIsDarkChrome
-                                        )
-                                        .padding(.top, 2)
-                                        .id(tab.id)
-                                    }
-                            }
-                        }
+                        singleTabContent(for: tab)
                     }
-                    .padding(surfacePadding)
+                    .padding(containedSurfaceInsets)
                 }
             } else {
-                SpaceSetupCanvas(
-                    hexes: store.activeThemeColorHexes,
-                    intensity: store.activeThemeIntensityMultiplier,
-                    texture: store.activeThemeTexture
-                )
-                .padding(surfacePadding)
+                browserSurface {
+                    SpaceSetupCanvas(
+                        hexes: store.activeThemeColorHexes,
+                        intensity: store.activeThemeIntensityMultiplier,
+                        texture: store.activeThemeTexture
+                    )
+                }
+                .padding(containedSurfaceInsets)
                 .transition(.opacity)
             }
         }
@@ -126,18 +78,11 @@ struct WebViewContainer: View {
             if store.isFindBarPresented {
                 FindBarView(store: store)
                     .padding(.top, surfacePadding + 10)
-                    .padding(.trailing, surfacePadding + 14)
+                    .padding(.trailing, visibleChromeInsets.trailing + surfacePadding + 14)
                     .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
         .animation(.easeOut(duration: 0.14), value: store.isFindBarPresented)
-        .modifier(
-            BrowserChromeMaskModifier(
-                insets: visibleChromeInsets,
-                surfaceCornerRadius: surfaceCornerRadius,
-                surfacePadding: surfacePadding
-            )
-        )
     }
 
     @ViewBuilder
@@ -161,7 +106,7 @@ struct WebViewContainer: View {
                             preview: preview,
                             cornerRadius: surfaceCornerRadius
                         )
-                        .padding(surfacePadding)
+                        .padding(containedSurfaceInsets)
                         .transition(.opacity.combined(with: .scale(scale: 0.985)))
                     }
                 }
@@ -186,18 +131,66 @@ struct WebViewContainer: View {
             .shadow(color: Color.black.opacity(0.06), radius: 8, x: 0, y: 3)
     }
 
-    private var webContentInsets: BrowserChromeInsets {
-        BrowserChromeInsets(
-            leading: max(0, visibleChromeInsets.leading - surfacePadding),
-            trailing: max(0, visibleChromeInsets.trailing - surfacePadding)
+    private var containedSurfaceInsets: EdgeInsets {
+        EdgeInsets(
+            top: surfacePadding,
+            leading: visibleChromeInsets.leading + surfacePadding,
+            bottom: surfacePadding,
+            trailing: visibleChromeInsets.trailing + surfacePadding
         )
     }
 
-    private func splitPaneInsets(for tab: BrowserTab, in tabs: [BrowserTab]) -> BrowserChromeInsets {
-        BrowserChromeInsets(
-            leading: tab.id == tabs.first?.id ? webContentInsets.leading : 0,
-            trailing: tab.id == tabs.last?.id ? webContentInsets.trailing : 0
-        )
+    @ViewBuilder
+    private func singleTabContent(for tab: BrowserTab) -> some View {
+        VStack(spacing: 0) {
+            if tab.isWelcomePage {
+                WelcomeToCandoaPage(store: store)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if let url = tab.url,
+               DeveloperModeConfiguration.isEnabled(
+                   for: url,
+                   storedOverrides: developerModeOverrides
+               ) {
+                DeveloperToolbar(
+                    url: url,
+                    urlText: url.localDevelopmentDisplayText,
+                    tintHex: store.activeThemeColorHexes.first,
+                    isSplitViewEnabled: store.isSplitViewEnabled,
+                    onCopyURL: { store.copyActiveTabURL() },
+                    onCapturePage: { store.captureActiveTabPage() },
+                    onToggleSplitView: { store.toggleSplitView() },
+                    onSubmitURL: { store.navigateActiveTab(to: $0) },
+                    onSetDeveloperMode: { store.setDeveloperMode($0, for: url) }
+                )
+            }
+
+            if tab.isWelcomePage {
+                EmptyView()
+            } else if tab.url == nil {
+                EmptyTabSurface {
+                    store.openNewTabCommandPalette()
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(CandoaChromeStyle.surfaceFill.opacity(0.72))
+            } else {
+                ActiveWebViewHost(
+                    tab: tab,
+                    store: store,
+                    obscuredContentInsets: BrowserChromeInsets()
+                )
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(CandoaChromeStyle.surfaceFill.opacity(0.72))
+                    .overlay(alignment: .top) {
+                        PageLoadingPill(
+                            isLoading: tab.isLoading,
+                            tint: spaceTint,
+                            themeIsDark: themeIsDarkChrome
+                        )
+                        .padding(.top, 2)
+                        .id(tab.id)
+                    }
+            }
+        }
     }
 
     private struct FindBarView: View {
@@ -263,7 +256,7 @@ struct WebViewContainer: View {
         return SplitWebViewHost(
             tab: tab,
             store: store,
-            obscuredContentInsets: splitPaneInsets(for: tab, in: store.activeSplitGroupTabs)
+            obscuredContentInsets: BrowserChromeInsets()
         )
             .id(tab.id)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -277,38 +270,6 @@ struct WebViewContainer: View {
                 .padding(.top, 2)
                 .id(tab.id)
             }
-    }
-}
-
-private struct BrowserChromeMaskModifier: ViewModifier {
-    let insets: BrowserChromeInsets
-    let surfaceCornerRadius: CGFloat
-    let surfacePadding: CGFloat
-
-    @ViewBuilder
-    func body(content: Content) -> some View {
-        if insets.leading > 0 || insets.trailing > 0 {
-            // Keep WebKit's frame stable and clip on the compositor. The
-            // pinned sidebar therefore reads as a pushed, contained surface
-            // without animating or repeatedly resizing remote web content.
-            content
-                .mask {
-                    RoundedRectangle(cornerRadius: surfaceCornerRadius, style: .continuous)
-                        .padding(.vertical, surfacePadding)
-                        .padding(.leading, insets.leading + surfacePadding)
-                        .padding(.trailing, insets.trailing + surfacePadding)
-                }
-                .overlay {
-                    RoundedRectangle(cornerRadius: surfaceCornerRadius, style: .continuous)
-                        .stroke(CandoaChromeStyle.surfaceBorder, lineWidth: 1)
-                        .padding(.vertical, surfacePadding)
-                        .padding(.leading, insets.leading + surfacePadding)
-                        .padding(.trailing, insets.trailing + surfacePadding)
-                        .allowsHitTesting(false)
-                }
-        } else {
-            content
-        }
     }
 }
 

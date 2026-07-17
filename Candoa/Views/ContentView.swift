@@ -69,6 +69,9 @@ struct ContentView: View {
 
     var body: some View {
         let currentAISidebarWidth = clampedAISidebarWidth(CGFloat(aiSidebarWidth))
+        let currentAISidebarInset = isAISidebarInsetApplied
+            ? currentAISidebarWidth + AISidebarLayout.contentGutter
+            : 0
 
         ZStack(alignment: .leading) {
             if isFullWindowOnboardingPresented {
@@ -80,7 +83,7 @@ struct ContentView: View {
                     store: store,
                     visibleChromeInsets: BrowserChromeInsets(
                         leading: isSidebarVisible ? sidebarTotalWidth : 0,
-                        trailing: isAISidebarInsetApplied ? currentAISidebarWidth : 0
+                        trailing: currentAISidebarInset
                     )
                 )
                     .ignoresSafeArea(.container, edges: .top)
@@ -90,10 +93,10 @@ struct ContentView: View {
                     // animating it would resize the WKWebView frame every frame
                     // (battery cost), so the content reflows once while the
                     // sidebar slides into the reserved gap.
-                    // WebKit reserves each chrome lane once through native
-                    // obscured-content insets while the WKWebView itself remains
-                    // full-window. Resizing its remote viewport here would expose
-                    // the opposite edge for a frame while WebKit repaints.
+                    // The visible browser surface receives the final available
+                    // frame in one layout transaction. This keeps WebKit's
+                    // native scroll indicator at the surface edge without
+                    // animating the remote viewport.
 
                 sidebarLayout
                     // This subtree also coordinates AppKit's native window controls.
@@ -105,7 +108,7 @@ struct ContentView: View {
                         hiddenOffset: -sidebarTotalWidth
                     ))
                     // A pinned show/hide must snap with the one-time WKWebView
-                    // inset above. Only the overlay hover reveal may slide;
+                    // frame update above. Only the overlay hover reveal may slide;
                     // otherwise the sidebar temporarily separates from content.
                     .animation(.easeOut(duration: 0.18), value: isSidebarHoverRevealed)
                     .zIndex(2)
@@ -137,7 +140,7 @@ struct ContentView: View {
                let mediaState = store.floatingMiniPlayerState {
                 GeometryReader { proxy in
                     let leadingInset = isSidebarVisible ? sidebarTotalWidth : 0
-                    let trailingInset = isAISidebarInsetApplied ? currentAISidebarWidth : 0
+                    let trailingInset = currentAISidebarInset
                     let availableSize = CGSize(
                         width: max(1, proxy.size.width - leadingInset - trailingInset),
                         height: proxy.size.height
