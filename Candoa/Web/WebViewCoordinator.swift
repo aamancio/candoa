@@ -10,6 +10,22 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
     }
 
     private static let pageZoomLevels: [CGFloat] = [0.5, 0.65, 0.8, 0.9, 1.0, 1.1, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0]
+    private static let browserUserAgentApplicationName: String = {
+        let safariVersion = NSWorkspace.shared
+            .urlForApplication(withBundleIdentifier: "com.apple.Safari")
+            .flatMap(Bundle.init(url:))?
+            .object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+        let appVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+
+        return "Version/\(safariVersion ?? fallbackSafariVersion) "
+            + "Safari/605.1.15 Candoa/\(appVersion ?? "0")"
+    }()
+
+    private static var fallbackSafariVersion: String {
+        let macOSMajorVersion = ProcessInfo.processInfo.operatingSystemVersion.majorVersion
+        let safariMajorVersion = macOSMajorVersion >= 26 ? macOSMajorVersion : macOSMajorVersion + 3
+        return "\(safariMajorVersion).0"
+    }
 
     private weak var store: BrowserStore?
     private var webViews: [UUID: WKWebView] = [:]
@@ -74,6 +90,9 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
 
         let configuration = WKWebViewConfiguration()
         configuration.allowsAirPlayForMediaPlayback = true
+        // WKWebView's embedded user agent omits Safari's compatibility tokens,
+        // causing sites such as Google to serve a reduced fallback experience.
+        configuration.applicationNameForUserAgent = Self.browserUserAgentApplicationName
         configuration.defaultWebpagePreferences.allowsContentJavaScript = true
         configuration.defaultWebpagePreferences.preferredContentMode = .desktop
         configuration.preferences.isElementFullscreenEnabled = true
