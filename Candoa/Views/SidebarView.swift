@@ -139,7 +139,7 @@ struct SidebarView: View {
     // MARK: - Header
 
     private var sidebarHeader: some View {
-        HStack(spacing: 6) {
+        HStack(alignment: .top, spacing: 6) {
             WindowControlsView(
                 hiddenOffset: windowControlsHiddenOffset
             )
@@ -148,6 +148,7 @@ struct SidebarView: View {
             Spacer(minLength: 8)
 
             navigationControls
+                .offset(y: -5)
                 .opacity(hidesNavigationChromeForAddressPalette ? 0 : 1)
                 .allowsHitTesting(!hidesNavigationChromeForAddressPalette)
 
@@ -157,6 +158,7 @@ struct SidebarView: View {
                 Image(systemName: "sidebar.left")
             }
             .toolbarIconButton()
+            .offset(y: -5)
             .help("Hide Sidebar")
             .accessibilityIdentifier("sidebar-toggle-button")
         }

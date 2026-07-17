@@ -24,7 +24,7 @@ struct ContentView: View {
     @State private var aiSidebarResizeStartWidth: CGFloat?
     @State private var miniPlayerOrigin: CGPoint?
     @State private var miniPlayerExpandedSize = MiniPlayerLayout.defaultExpandedSize
-    @SceneStorage("candoa.aiSidebarWidth") private var aiSidebarWidth = 480.0
+    @SceneStorage("candoa.aiSidebarWidth.diaLayout") private var aiSidebarWidth = 540.0
     private let sidebarWidth = CandoaChromeStyle.sidebarWidth
     private let sidebarDividerWidth: CGFloat = 0
 
@@ -423,14 +423,6 @@ struct ContentView: View {
             if isSidebarPresented {
                 CandoaSidebarBackdrop(store: store)
                     .ignoresSafeArea(.container, edges: .top)
-            }
-        }
-        .overlay(alignment: .trailing) {
-            if isSidebarPresented {
-                Rectangle()
-                    .fill(CandoaChromeStyle.sidebarSeparator)
-                    .frame(width: 1)
-                    .allowsHitTesting(false)
             }
         }
         .shadow(

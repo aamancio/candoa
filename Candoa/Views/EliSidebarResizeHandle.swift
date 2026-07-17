@@ -16,10 +16,12 @@ struct AISidebarResizeHandle: View {
         ZStack {
             Color.clear
 
-            RoundedRectangle(cornerRadius: 1.5, style: .continuous)
-                .fill(CandoaChromeStyle.sidebarTextSecondary.opacity(isActive ? 0.64 : 0.28))
-                .frame(width: isActive ? 3 : 1)
-                .padding(.vertical, 10)
+            if isActive {
+                RoundedRectangle(cornerRadius: 1.5, style: .continuous)
+                    .fill(CandoaChromeStyle.sidebarTextSecondary.opacity(0.64))
+                    .frame(width: 3)
+                    .padding(.vertical, 10)
+            }
         }
         .contentShape(Rectangle())
         .candoaAISidebarCursor(AISidebarResizeCursor.horizontal)

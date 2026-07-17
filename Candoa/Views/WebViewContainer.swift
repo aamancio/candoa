@@ -291,12 +291,21 @@ private struct BrowserChromeMaskModifier: ViewModifier {
             // Keep WebKit's frame stable and clip on the compositor. The
             // pinned sidebar therefore reads as a pushed, contained surface
             // without animating or repeatedly resizing remote web content.
-            content.mask {
-                RoundedRectangle(cornerRadius: surfaceCornerRadius, style: .continuous)
-                    .padding(.vertical, surfacePadding)
-                    .padding(.leading, insets.leading + surfacePadding)
-                    .padding(.trailing, insets.trailing + surfacePadding)
-            }
+            content
+                .mask {
+                    RoundedRectangle(cornerRadius: surfaceCornerRadius, style: .continuous)
+                        .padding(.vertical, surfacePadding)
+                        .padding(.leading, insets.leading + surfacePadding)
+                        .padding(.trailing, insets.trailing + surfacePadding)
+                }
+                .overlay {
+                    RoundedRectangle(cornerRadius: surfaceCornerRadius, style: .continuous)
+                        .stroke(CandoaChromeStyle.surfaceBorder, lineWidth: 1)
+                        .padding(.vertical, surfacePadding)
+                        .padding(.leading, insets.leading + surfacePadding)
+                        .padding(.trailing, insets.trailing + surfacePadding)
+                        .allowsHitTesting(false)
+                }
         } else {
             content
         }

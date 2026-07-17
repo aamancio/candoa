@@ -218,12 +218,6 @@ struct EliSidebarView: View {
             }
         }
         .background(panelBackgroundColor)
-        .overlay(alignment: .leading) {
-            Rectangle()
-                .fill(CandoaChromeStyle.sidebarBorder)
-                .frame(width: 1)
-        }
-        .ignoresSafeArea(.container, edges: .top)
         .onAppear {
             if store.initialOnboardingStep == .tour {
                 isTourPreviewSession = true
