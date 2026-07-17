@@ -45,9 +45,10 @@ extension BrowserStore {
     }
 
     func navigateNewTab(to url: URL) {
-        // Already sitting on an empty tab: fill it instead of stacking
-        // another "New Tab" in the sidebar.
-        if let activeTab, activeTab.url == nil {
+        // The Welcome page and legacy empty tabs are transient starting
+        // surfaces. Fill them instead of leaving a placeholder beside the
+        // real destination in the sidebar.
+        if let activeTab, activeTab.url == nil || activeTab.isWelcomePage {
             navigateActiveTab(to: url)
             return
         }

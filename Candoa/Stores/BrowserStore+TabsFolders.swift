@@ -112,7 +112,7 @@ extension BrowserStore {
 
     @discardableResult
     func newTab(
-        url: URL? = nil,
+        url: URL,
         favorite: Bool = false,
         pinned: Bool = false,
         folderID: UUID? = nil,
@@ -148,7 +148,7 @@ extension BrowserStore {
         tabs.insert(tab, at: 0)
         switchTab(to: tab.id)
 
-        if let url, !tab.isWelcomePage {
+        if !tab.isWelcomePage {
             webCoordinator.load(url, in: tab.id)
         }
 
@@ -295,9 +295,12 @@ extension BrowserStore {
     }
 
     func duplicateCurrentTab() {
-        guard let tab = activeTab else { return }
+        guard let tab = activeTab,
+              !tab.isWelcomePage,
+              let url = tab.isFavorite ? tab.favoriteURL ?? tab.url : tab.url
+        else { return }
         _ = newTab(
-            url: tab.isFavorite ? tab.favoriteURL ?? tab.url : tab.url,
+            url: url,
             favorite: tab.isFavorite,
             pinned: tab.isPinned,
             folderID: tab.folderID,
@@ -306,9 +309,12 @@ extension BrowserStore {
     }
 
     func duplicateTab(_ id: UUID) {
-        guard let tab = tabs.first(where: { $0.id == id }) else { return }
+        guard let tab = tabs.first(where: { $0.id == id }),
+              !tab.isWelcomePage,
+              let url = tab.isFavorite ? tab.favoriteURL ?? tab.url : tab.url
+        else { return }
         _ = newTab(
-            url: tab.isFavorite ? tab.favoriteURL ?? tab.url : tab.url,
+            url: url,
             favorite: tab.isFavorite,
             pinned: tab.isPinned,
             folderID: tab.folderID,

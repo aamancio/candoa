@@ -28,6 +28,24 @@ extension BrowserStore {
         }
         tabs = tabs.filter { spaceIDs.contains($0.spaceID) }
 
+        // Older builds persisted URL-less rows named "New Tab". New-tab is
+        // now an action/command-palette state, so these placeholders are not
+        // part of the workspace model and should not return after relaunch.
+        let emptyTabIDs = Set(tabs.filter { tab in
+            tab.url == nil && !tab.isFavorite && !tab.isPinned
+        }.map(\.id))
+        if !emptyTabIDs.isEmpty {
+            tabs.removeAll { emptyTabIDs.contains($0.id) }
+            for tabID in emptyTabIDs {
+                webCoordinator.removeWebView(for: tabID)
+                mediaStates[tabID] = nil
+            }
+            if activeTabID.map(emptyTabIDs.contains) == true {
+                activeTabID = nil
+            }
+            needsWorkspaceSaveAfterRepair = true
+        }
+
         for index in tabs.indices {
             if tabs[index].isFavorite {
                 tabs[index].folderID = nil
@@ -128,4 +146,3 @@ extension BrowserStore {
         return true
     }
 }
-

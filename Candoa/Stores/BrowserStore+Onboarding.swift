@@ -296,16 +296,30 @@ extension BrowserStore {
         setInitialOnboardingStep(nil)
 
         let welcomeTabIDs = Set(tabs.filter(\.isWelcomePage).map(\.id))
-        tabs.removeAll { welcomeTabIDs.contains($0.id) }
-        for tabID in welcomeTabIDs {
+        let emptyTabIDs = Set(tabs.filter { tab in
+            tab.url == nil && !tab.isFavorite && !tab.isPinned
+        }.map(\.id))
+        for tabID in emptyTabIDs {
             webCoordinator.removeWebView(for: tabID)
             mediaStates[tabID] = nil
         }
+        tabs.removeAll { emptyTabIDs.contains($0.id) }
 
         if let returnTabID, tabs.contains(where: { $0.id == returnTabID }) {
+            tabs.removeAll { welcomeTabIDs.contains($0.id) }
+            for tabID in welcomeTabIDs {
+                webCoordinator.removeWebView(for: tabID)
+                mediaStates[tabID] = nil
+            }
             switchTab(to: returnTabID)
-        } else {
-            newTab()
+        } else if let welcomeTabID = tabs.first(where: \.isWelcomePage)?.id {
+            // First-run onboarding leaves its single Welcome page in place.
+            // It is the initial surface, not a synthetic "New Tab" record,
+            // and the first navigation replaces it.
+            switchTab(to: welcomeTabID)
+        } else if activeTabID == nil || !tabs.contains(where: { $0.id == activeTabID }) {
+            activeTabID = visibleTabsForActiveSpace.first?.id
+            updateNavigationState()
         }
         flushSession()
     }

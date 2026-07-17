@@ -326,6 +326,35 @@ struct EliSidebarView: View {
             Text("Type @ to mention a tab")
                 .font(.system(size: 12.5))
                 .foregroundStyle(CandoaChromeStyle.sidebarTextSecondary)
+
+            VStack(spacing: 6) {
+                AISidebarExamplePromptButton(
+                    title: "Summarize this page",
+                    symbolName: "text.alignleft"
+                ) {
+                    submitPrompt("Summarize this page")
+                }
+                .accessibilityIdentifier("agent-example-summarize")
+
+                AISidebarExamplePromptButton(
+                    title: "Explain the key points",
+                    symbolName: "list.bullet"
+                ) {
+                    submitPrompt("Explain the key points")
+                }
+                .accessibilityIdentifier("agent-example-explain")
+
+                AISidebarExamplePromptButton(
+                    title: "Compare with another tab",
+                    symbolName: "square.on.square"
+                ) {
+                    beginComparisonPrompt()
+                }
+                .accessibilityIdentifier("agent-example-compare")
+            }
+            .frame(maxWidth: 260)
+            .padding(.top, 8)
+            .disabled(isRefreshingEliAccess)
         }
         .padding(.horizontal, 26)
         .frame(maxWidth: .infinity, alignment: .center)
@@ -686,6 +715,13 @@ struct EliSidebarView: View {
                 responseID: responseID
             )
         }
+    }
+
+    private func beginComparisonPrompt() {
+        prompt = "Compare this with @"
+        selectedMentionIndex = 0
+        isMentionMenuPresented = true
+        isPromptFocused = true
     }
 
     private func approvePendingPageAction() {

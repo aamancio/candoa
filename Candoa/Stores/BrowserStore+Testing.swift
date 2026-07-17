@@ -323,6 +323,10 @@ extension BrowserStore {
             return legacySavedTabNavigationFixtureState()
         }
 
+        if fixture == "legacy-empty-tabs" {
+            return legacyEmptyTabsFixtureState()
+        }
+
         if fixture == "inactive-favorites" {
             return inactiveFavoritesFixtureState()
         }
@@ -426,6 +430,43 @@ extension BrowserStore {
             tabs: [legacyFavorite],
             activeSpaceID: spaceID,
             activeTabID: tabID
+        )
+    }
+
+    static func legacyEmptyTabsFixtureState() -> BrowserWindowState {
+        let spaceID = UUID(uuidString: "78787878-7878-7878-7878-787878787878")!
+        let emptyTabID = UUID(uuidString: "79797979-7979-7979-7979-797979797979")!
+        let youtubeTabID = UUID(uuidString: "80808080-8080-8080-8080-808080808080")!
+        let fixtureDate = Date(timeIntervalSince1970: 1_800_000_000)
+        let space = BrowserSpace(
+            id: spaceID,
+            name: "TestingBot",
+            symbolName: "sparkles",
+            themeAppearance: BrowserSpace.defaultThemeAppearance
+        )
+        let tabs = [
+            BrowserTab(
+                id: emptyTabID,
+                title: BrowserDefaults.newTabTitle,
+                spaceID: spaceID,
+                lastAccessedAt: fixtureDate
+            ),
+            BrowserTab(
+                id: youtubeTabID,
+                title: "YouTube",
+                url: URL(string: "https://www.youtube.com/")!,
+                faviconSymbol: "play.rectangle.fill",
+                spaceID: spaceID,
+                lastAccessedAt: fixtureDate.addingTimeInterval(-60)
+            )
+        ]
+
+        return BrowserWindowState(
+            spaces: [space],
+            folders: [],
+            tabs: tabs,
+            activeSpaceID: spaceID,
+            activeTabID: emptyTabID
         )
     }
 

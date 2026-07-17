@@ -3,6 +3,38 @@ import AppKit
 @preconcurrency import Speech
 import SwiftUI
 
+struct AISidebarExamplePromptButton: View {
+    let title: String
+    let symbolName: String
+    let action: () -> Void
+
+    @Environment(\.isEnabled) private var isEnabled
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            Label(title, systemImage: symbolName)
+                .font(.system(size: 12.5, weight: .medium))
+                .foregroundStyle(CandoaChromeStyle.sidebarText.opacity(isEnabled ? 1 : 0.5))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 11)
+                .frame(height: 34)
+                .background {
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(
+                            isHovered && isEnabled
+                                ? CandoaChromeStyle.sidebarControlFillHover
+                                : CandoaChromeStyle.sidebarControlFill
+                        )
+                }
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            isHovered = hovering
+        }
+    }
+}
+
 struct AISidebarTopBarIconButton: View {
     let symbolName: String
     let helpText: String

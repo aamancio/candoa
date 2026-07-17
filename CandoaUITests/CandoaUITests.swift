@@ -233,9 +233,23 @@ final class CandoaUITests: XCTestCase {
             object: askTip
         )
         XCTAssertEqual(XCTWaiter.wait(for: [dismissed], timeout: 5), .completed)
-        XCTAssertFalse(element("welcome-to-candoa-page", in: app).exists)
-        XCTAssertTrue(waitForState(in: app, containing: "url=none", timeout: 5), currentState(in: app))
+        XCTAssertTrue(element("welcome-to-candoa-page", in: app).waitForExistence(timeout: 5))
+        XCTAssertTrue(
+            waitForState(in: app, containing: "url=candoa://welcome", timeout: 5),
+            currentState(in: app)
+        )
+        XCTAssertTrue(waitForState(in: app, containing: "Welcome to Candoa", timeout: 5))
+        XCTAssertFalse(currentState(in: app).contains("New Tab"), currentState(in: app))
         XCTAssertTrue(element("sidebar-new-tab-button", in: app).exists)
+
+        app.typeKey("t", modifierFlags: .command)
+        submitCommandPaletteText("https://example.com", in: app)
+        XCTAssertTrue(
+            waitForState(in: app, containing: "url=https://example.com/", timeout: 10),
+            currentState(in: app)
+        )
+        XCTAssertFalse(currentState(in: app).contains("Welcome to Candoa"), currentState(in: app))
+        XCTAssertFalse(element("welcome-to-candoa-page", in: app).exists)
     }
 
     func testTestingBotNewTabFindAndSidebarShortcuts() throws {
@@ -327,6 +341,17 @@ final class CandoaUITests: XCTestCase {
             currentState(in: app)
         )
         XCTAssertTrue(waitForState(in: app, containing: "tabs=YouTube|Google"), currentState(in: app))
+    }
+
+    func testRepairsLegacyEmptyTabsOutOfWorkspace() throws {
+        let app = launchApp(fixture: "legacy-empty-tabs")
+
+        XCTAssertTrue(
+            waitForState(in: app, containing: "active=YouTube;url=https://www.youtube.com/"),
+            currentState(in: app)
+        )
+        XCTAssertTrue(waitForState(in: app, containing: "tabs=YouTube"), currentState(in: app))
+        XCTAssertFalse(currentState(in: app).contains("New Tab"), currentState(in: app))
     }
 
     func testControlTabSkipsFavoritesThatHaveNotBeenActivated() throws {
