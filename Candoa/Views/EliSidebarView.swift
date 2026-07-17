@@ -1024,7 +1024,7 @@ private struct EliTourPreviewView: View {
                 Text(String(localized: "Turn a long page into clear next steps"))
                     .font(.system(size: 17, weight: .semibold))
 
-                Text(String(localized: "Ask works beside the page, so you can understand it and keep moving."))
+                Text(String(localized: "Eli works beside the page, so you can understand it and keep moving."))
                     .font(.system(size: 12.5))
                     .foregroundStyle(CandoaChromeStyle.sidebarTextSecondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -1065,7 +1065,7 @@ private struct EliTourPreviewView: View {
             .background(accentColor.opacity(0.10), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
 
             VStack(alignment: .leading, spacing: 10) {
-                Label(String(localized: "Candoa Ask"), systemImage: "sparkles")
+                Label(String(localized: "Eli"), systemImage: "sparkles")
                     .font(.system(size: 12.5, weight: .semibold))
                     .foregroundStyle(accentColor)
 
@@ -1085,7 +1085,7 @@ private struct EliTourPreviewView: View {
         .padding(.horizontal, 24)
         .frame(maxWidth: .infinity)
         .accessibilityElement(children: .contain)
-        .accessibilityLabel(Text(String(localized: "Candoa Ask example")))
+        .accessibilityLabel(Text(String(localized: "Eli example")))
         .accessibilityIdentifier("agent-tour-preview")
     }
 

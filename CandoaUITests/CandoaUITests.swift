@@ -446,7 +446,7 @@ final class CandoaUITests: XCTestCase {
             RunLoop.current.run(until: Date().addingTimeInterval(0.1))
         }
 
-        XCTContext.runActivity(named: "Current Ask UI testing state") { activity in
+        XCTContext.runActivity(named: "Current Eli UI testing state") { activity in
             let attachment = XCTAttachment(string: askState(in: app))
             attachment.lifetime = .keepAlways
             activity.add(attachment)
@@ -654,7 +654,7 @@ final class CandoaEliLiveUITests: XCTestCase {
             RunLoop.current.run(until: Date().addingTimeInterval(0.1))
         }
 
-        XCTContext.runActivity(named: "Current Ask UI testing state") { activity in
+        XCTContext.runActivity(named: "Current Eli UI testing state") { activity in
             let attachment = XCTAttachment(string: askState(in: app))
             attachment.lifetime = .keepAlways
             activity.add(attachment)

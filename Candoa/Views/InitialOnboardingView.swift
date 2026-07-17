@@ -46,7 +46,7 @@ extension InitialTourTip {
         case .spaces:
             String(localized: "Spaces separate work, projects, research, and personal browsing without losing your tabs.")
         case .ask:
-            String(localized: "Press Command-E to open Candoa Ask and summarize, explain, compare, or identify next steps without leaving the page.")
+            String(localized: "Press Command-E to open Eli and summarize, explain, compare, or identify next steps without leaving the page.")
         }
     }
 
@@ -205,7 +205,7 @@ struct WelcomeToCandoaPage: View {
                         )
                         welcomeFeature(
                             title: String(localized: "Understand any page"),
-                            detail: String(localized: "Open Candoa Ask with Command-E without changing apps."),
+                            detail: String(localized: "Open Eli with Command-E without changing apps."),
                             symbolName: "sparkles"
                         )
                     }
@@ -805,7 +805,7 @@ private struct OnboardingAccountPreview: View {
                 Text("From a long page to a clear next step")
                     .font(.system(size: 20, weight: .semibold))
 
-                Text("Candoa Ask works beside the page, so you can understand it and move forward without changing apps.")
+                Text("Eli works beside the page, so you can understand it and move forward without changing apps.")
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -848,7 +848,7 @@ private struct OnboardingAccountPreview: View {
             .background(CandoaColor.primary.opacity(0.10), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
 
             VStack(alignment: .leading, spacing: 11) {
-                Label("Candoa Ask", systemImage: "sparkles")
+                Label("Eli", systemImage: "sparkles")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(CandoaColor.primary)
 

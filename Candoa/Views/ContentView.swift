@@ -334,7 +334,7 @@ struct ContentView: View {
             openAISidebar()
 
             // The native popover needs an AppKit anchor that has completed a
-            // layout pass. Mount the Ask panel first, then present its tip on
+            // layout pass. Mount the Eli panel first, then present its tip on
             // the next committed SwiftUI pass.
             DispatchQueue.main.async {
                 DispatchQueue.main.async {
