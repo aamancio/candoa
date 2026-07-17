@@ -3,63 +3,6 @@ import AppKit
 @preconcurrency import Speech
 import SwiftUI
 
-struct AISidebarStarterHint: Identifiable, Equatable {
-    let title: String
-    let prompt: String
-    let symbolName: String
-
-    var id: String { prompt }
-}
-
-struct AISidebarStarterHintButton: View {
-    let hint: AISidebarStarterHint
-    let accentColor: Color
-    let action: () -> Void
-
-    @State private var isHovered = false
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 10) {
-                Image(systemName: hint.symbolName)
-                    .font(.system(size: 13, weight: .semibold))
-                    .symbolRenderingMode(.hierarchical)
-                    .foregroundStyle(accentColor)
-                    .frame(width: 24, height: 24)
-                    .background {
-                        RoundedRectangle(cornerRadius: 6, style: .continuous)
-                            .fill(accentColor.opacity(isHovered ? 0.18 : 0.12))
-                    }
-
-                Text(hint.title)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(CandoaChromeStyle.sidebarText)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.leading)
-
-                Spacer(minLength: 0)
-            }
-            .padding(.horizontal, 10)
-            .frame(minHeight: 42, alignment: .leading)
-            .background {
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(isHovered ? CandoaChromeStyle.sidebarControlFillHover : CandoaChromeStyle.sidebarControlFill)
-            }
-            .overlay {
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .stroke(CandoaChromeStyle.sidebarControlStroke, lineWidth: 1)
-            }
-            .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-        }
-        .buttonStyle(.plain)
-        .onHover { hovering in
-            withAnimation(.easeOut(duration: 0.10)) {
-                isHovered = hovering
-            }
-        }
-    }
-}
-
 struct AISidebarTopBarIconButton: View {
     let symbolName: String
     let helpText: String
@@ -94,6 +37,7 @@ struct AISidebarTopBarIconButton: View {
 struct AISidebarMessageRow: View {
     let message: AISidebarMessage
     let themeColorHex: String?
+    @EnvironmentObject private var userStore: UserStore
 
     private var isUser: Bool {
         message.role == .user
@@ -139,6 +83,16 @@ struct AISidebarMessageRow: View {
                         Text("No response.")
                             .font(.system(size: 13.5))
                             .foregroundStyle(CandoaChromeStyle.sidebarTextSecondary)
+                    }
+
+                    if message.action == .subscribe {
+                        Button("Subscribe to Candoa Pro") {
+                            Task { await userStore.startProCheckout() }
+                        }
+                        .buttonStyle(.link)
+                        .font(.system(size: 13, weight: .medium))
+                        .disabled(userStore.isWorking)
+                        .accessibilityIdentifier("agent-subscribe-link")
                     }
                 }
                 .padding(.horizontal, 12)
@@ -667,6 +621,11 @@ struct AISidebarMessage: Identifiable, Equatable {
     var text: String
     var isStreaming: Bool
     var contextChips: [AISidebarContextChip] = []
+    var action: AISidebarMessageAction? = nil
+}
+
+enum AISidebarMessageAction: Equatable {
+    case subscribe
 }
 
 enum AISidebarMessageRole: Equatable {

@@ -1,5 +1,4 @@
 import AppKit
-import AuthenticationServices
 import os
 import SwiftUI
 import UniformTypeIdentifiers
@@ -15,6 +14,7 @@ struct EliSidebarView: View {
     let onClose: () -> Void
 
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject private var userStore: UserStore
     @StateObject private var speechController = AISidebarSpeechController()
     @State private var prompt = ""
@@ -29,6 +29,7 @@ struct EliSidebarView: View {
     @State private var pendingPageAction: CandoaPageActionProposal?
     @State private var pendingActionTabID: UUID?
     @State private var isTourPreviewSession = false
+    @State private var isRefreshingEliAccess = true
     @FocusState private var isPromptFocused: Bool
 
     private var activePageTitle: String {
@@ -182,10 +183,6 @@ struct EliSidebarView: View {
                 Spacer(minLength: 44)
                 EliTourPreviewView(accentColor: eliAccentColor)
                 Spacer(minLength: 44)
-            } else if !hasEliAccess {
-                Spacer(minLength: 60)
-                subscriptionGate
-                Spacer(minLength: 60)
             } else if messages.isEmpty {
                 Spacer(minLength: 60)
                 emptyState
@@ -213,7 +210,7 @@ struct EliSidebarView: View {
                 }
             }
 
-            if hasEliAccess && !showsTourPreview {
+            if !showsTourPreview {
                 composer
             }
         }
@@ -231,7 +228,12 @@ struct EliSidebarView: View {
         }
         .task {
             guard !showsTourPreview else { return }
+            if hasPersonalEliAccess {
+                isRefreshingEliAccess = false
+                return
+            }
             await userStore.refresh()
+            isRefreshingEliAccess = false
         }
         .onDisappear {
             isTourPreviewSession = false
@@ -247,6 +249,14 @@ struct EliSidebarView: View {
         }
         .onChange(of: store.activeTab?.url) {
             includesCurrentPageContext = true
+        }
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active, !hasEliAccess else { return }
+            isRefreshingEliAccess = true
+            Task {
+                await userStore.refresh()
+                isRefreshingEliAccess = false
+            }
         }
         .fileImporter(
             isPresented: $isFileImporterPresented,
@@ -303,47 +313,23 @@ struct EliSidebarView: View {
     }
 
     private var emptyState: some View {
-        VStack(alignment: .leading, spacing: 9) {
-            Text("What can Eli do?")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(CandoaChromeStyle.sidebarTextSecondary)
-                .padding(.horizontal, 2)
+        VStack(spacing: 10) {
+            Image(systemName: "at")
+                .font(.system(size: 28, weight: .medium))
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(CandoaChromeStyle.sidebarIcon)
 
-            ForEach(starterHints) { hint in
-                AISidebarStarterHintButton(
-                    hint: hint,
-                    accentColor: eliAccentColor
-                ) {
-                    submitPrompt(hint.prompt)
-                }
-            }
+            Text("Ask about this page or another tab")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(CandoaChromeStyle.sidebarText)
+
+            Text("Type @ to mention a tab")
+                .font(.system(size: 12.5))
+                .foregroundStyle(CandoaChromeStyle.sidebarTextSecondary)
         }
         .padding(.horizontal, 26)
         .frame(maxWidth: .infinity, alignment: .center)
-    }
-
-    private var subscriptionGate: some View {
-        EliSubscriptionGateView(accentColor: eliAccentColor, userStore: userStore)
-    }
-
-    private var starterHints: [AISidebarStarterHint] {
-        [
-            AISidebarStarterHint(
-                title: "Summarize this page",
-                prompt: "Summarize this page.",
-                symbolName: "doc.text"
-            ),
-            AISidebarStarterHint(
-                title: "What are the key details?",
-                prompt: "What are the key details on this page?",
-                symbolName: "list.bullet"
-            ),
-            AISidebarStarterHint(
-                title: "What should I do next?",
-                prompt: "Based on this page, what should I do next?",
-                symbolName: "arrow.turn.down.right"
-            )
-        ]
+        .accessibilityIdentifier("agent-empty-state")
     }
 
     private var eliAccentColor: Color {
@@ -421,7 +407,8 @@ struct EliSidebarView: View {
                 }
 
                 AISidebarComposerSendButton(
-                    isEnabled: !prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    isEnabled: !isRefreshingEliAccess
+                        && !prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                 ) {
                     submitPrompt()
                 }
@@ -586,7 +573,42 @@ struct EliSidebarView: View {
 
     private func submitPrompt(_ promptOverride: String? = nil) {
         let submittedPrompt = (promptOverride ?? prompt).trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !isRefreshingEliAccess else { return }
         guard CandoaEliPromptPolicy.canSubmit(submittedPrompt, hasConversation: !messages.isEmpty) else { return }
+
+        if !hasEliAccess {
+            prompt = ""
+            cancelStream()
+
+            let submittedContextChips = contextChips.map {
+                AISidebarContextChip(
+                    id: $0.id,
+                    title: $0.title,
+                    subtitle: $0.subtitle,
+                    symbolName: $0.symbolName,
+                    faviconData: $0.faviconData,
+                    isRemovable: false
+                )
+            }
+
+            messages.append(AISidebarMessage(
+                role: .user,
+                text: submittedPrompt,
+                isStreaming: false,
+                contextChips: submittedContextChips
+            ))
+            messages.append(AISidebarMessage(
+                role: .assistant,
+                text: "Eli is available with Candoa Pro.",
+                isStreaming: false,
+                action: .subscribe
+            ))
+
+            mentionedContext = []
+            includesCurrentPageContext = false
+            isMentionMenuPresented = false
+            return
+        }
 
         if let action = CandoaPageActionProposal.parse(submittedPrompt) {
             prompt = ""
@@ -986,6 +1008,7 @@ struct EliSidebarView: View {
 
     private func recentTurns() -> [CandoaAIConversationTurn] {
         messages.compactMap { message in
+            guard message.action == nil else { return nil }
             let text = message.text.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !text.isEmpty else { return nil }
             return CandoaAIConversationTurn(role: message.role.conversationRole, text: text)
@@ -1088,209 +1111,4 @@ private struct EliTourPreviewView: View {
             .font(.system(size: 12, weight: .medium))
             .symbolRenderingMode(.hierarchical)
     }
-}
-
-private struct EliSubscriptionGateView: View {
-    private static let capabilities = [
-        EliSubscriptionCapability(
-            title: "Plan a trip",
-            detail: "Compare flights and stays, then build a simple itinerary.",
-            symbolName: "airplane"
-        ),
-        EliSubscriptionCapability(
-            title: "Shop with confidence",
-            detail: "Compare products, prices, and reviews before you buy.",
-            symbolName: "cart"
-        ),
-        EliSubscriptionCapability(
-            title: "Catch up on email",
-            detail: "Turn a long thread into key takeaways and a reply you can send.",
-            symbolName: "envelope"
-        ),
-        EliSubscriptionCapability(
-            title: "Finish the little tasks",
-            detail: "Fill a form, find the next step, and keep your day moving.",
-            symbolName: "checklist"
-        )
-    ]
-
-    let accentColor: Color
-
-    @ObservedObject var userStore: UserStore
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var selectedCapabilityIndex = 0
-
-    private var selectedCapability: EliSubscriptionCapability {
-        Self.capabilities[selectedCapabilityIndex]
-    }
-
-    var body: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "sparkles")
-                .font(.system(size: 28, weight: .medium))
-                .foregroundStyle(accentColor)
-
-            VStack(spacing: 6) {
-                Text("Meet Eli, your AI agent")
-                    .font(.system(size: 18, weight: .semibold))
-
-                Text("Plan, compare, and make progress on the everyday things you do online.")
-                    .font(.system(size: 13))
-                    .foregroundStyle(CandoaChromeStyle.sidebarTextSecondary)
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            capabilityCard
-            capabilityPageIndicator
-
-            authenticationOrSubscriptionAction
-
-            if let errorMessage = userStore.errorMessage {
-                Text(errorMessage)
-                    .font(.system(size: 11.5))
-                    .foregroundStyle(CandoaChromeStyle.sidebarTextSecondary)
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-        .frame(maxWidth: 310)
-        .padding(24)
-        .background {
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(CandoaChromeStyle.sidebarControlFill)
-        }
-        .overlay {
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(CandoaChromeStyle.sidebarControlStroke, lineWidth: 1)
-        }
-        .padding(.horizontal, 26)
-        .frame(maxWidth: .infinity)
-        .accessibilityIdentifier("agent-subscription-gate")
-        .task(id: reduceMotion) {
-            guard !reduceMotion else { return }
-
-            while !Task.isCancelled {
-                do {
-                    try await Task.sleep(for: .seconds(5))
-                } catch {
-                    return
-                }
-
-                withAnimation(.easeInOut(duration: 0.18)) {
-                    selectedCapabilityIndex = (selectedCapabilityIndex + 1) % Self.capabilities.count
-                }
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var authenticationOrSubscriptionAction: some View {
-        if userStore.isSignedIn {
-            VStack(spacing: 8) {
-                Button(userStore.isWorking ? "Opening checkout…" : "Subscribe to Candoa Pro") {
-                    Task { await userStore.startProCheckout() }
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(accentColor)
-                .disabled(userStore.isWorking)
-
-                Button("Refresh subscription") {
-                    Task { await userStore.refresh() }
-                }
-                .buttonStyle(.borderless)
-                .font(.system(size: 12, weight: .medium))
-                .disabled(userStore.isWorking)
-            }
-        } else {
-            VStack(spacing: 8) {
-#if DEBUG
-                SignInWithAppleButton(.continue) { request in
-                    userStore.configure(request)
-                } onCompletion: { result in
-                    userStore.completeAppleSignIn(result)
-                }
-                .signInWithAppleButtonStyle(.black)
-                .frame(height: 36)
-                .disabled(userStore.isWorking)
-#endif
-
-                Group {
-#if DEBUG
-                    Text("Sign in to connect your Candoa subscription and history to this browser.")
-#else
-                    Text("Account sign-in is not available in this direct-download build yet.")
-#endif
-                }
-                    .font(.system(size: 11.5))
-                    .foregroundStyle(CandoaChromeStyle.sidebarTextSecondary)
-                    .multilineTextAlignment(.center)
-            }
-        }
-    }
-
-    private var capabilityCard: some View {
-        ZStack {
-            HStack(alignment: .top, spacing: 12) {
-                Image(systemName: selectedCapability.symbolName)
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(accentColor)
-                    .frame(width: 30, height: 30)
-                    .background(accentColor.opacity(0.13), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(selectedCapability.title)
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(CandoaChromeStyle.sidebarText)
-
-                    Text(selectedCapability.detail)
-                        .font(.system(size: 11.5))
-                        .foregroundStyle(CandoaChromeStyle.sidebarTextSecondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-
-                Spacer(minLength: 0)
-            }
-            .id(selectedCapability.id)
-            .transition(
-                reduceMotion
-                    ? .identity
-                    : .asymmetric(
-                        insertion: .move(edge: .trailing).combined(with: .opacity),
-                        removal: .move(edge: .leading).combined(with: .opacity)
-                    )
-            )
-        }
-        .frame(maxWidth: .infinity, minHeight: 86, alignment: .topLeading)
-        .padding(14)
-        .background {
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(CandoaChromeStyle.sidebarControlFillHover)
-        }
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(CandoaChromeStyle.sidebarControlStroke, lineWidth: 1)
-        }
-        .accessibilityElement(children: .combine)
-    }
-
-    private var capabilityPageIndicator: some View {
-        HStack(spacing: 6) {
-            ForEach(Self.capabilities.indices, id: \.self) { index in
-                Circle()
-                    .fill(index == selectedCapabilityIndex ? accentColor : CandoaChromeStyle.sidebarIcon)
-                    .frame(width: 6, height: 6)
-            }
-        }
-        .accessibilityLabel("Eli capability \(selectedCapabilityIndex + 1) of \(Self.capabilities.count)")
-    }
-}
-
-private struct EliSubscriptionCapability: Identifiable {
-    let title: LocalizedStringKey
-    let detail: LocalizedStringKey
-    let symbolName: String
-
-    var id: String { symbolName }
 }
