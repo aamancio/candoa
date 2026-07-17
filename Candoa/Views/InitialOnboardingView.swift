@@ -802,10 +802,10 @@ private struct OnboardingAccountPreview: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 5) {
-                Text("From a long page to a clear next step")
+                Text("Get answers and take action")
                     .font(.system(size: 20, weight: .semibold))
 
-                Text("Eli works beside the page, so you can understand it and move forward without changing apps.")
+                Text("Ask about the page, draft a reply, or get help with a page action.")
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -813,17 +813,17 @@ private struct OnboardingAccountPreview: View {
 
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
-                    Label("Project Brief", systemImage: "doc.text")
+                    Label("Subscription Settings", systemImage: "gearshape")
                         .font(.system(size: 13, weight: .semibold))
 
                     Spacer()
 
-                    Text("8 min read")
+                    Text("$19.99/mo")
                         .font(.system(size: 11, weight: .medium))
                         .foregroundStyle(.secondary)
                 }
 
-                Text("The launch plan covers the revised timeline, owners, open decisions, and the work needed before the next review.")
+                Text("Your plan renews August 3. Manage or cancel it from your account.")
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
                     .lineSpacing(2)
@@ -840,7 +840,7 @@ private struct OnboardingAccountPreview: View {
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(CandoaColor.primary)
 
-                Text("Summarize this and give me the next steps.")
+                Text("How do I cancel this subscription?")
                     .font(.system(size: 13, weight: .medium))
             }
             .padding(14)
@@ -852,9 +852,9 @@ private struct OnboardingAccountPreview: View {
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(CandoaColor.primary)
 
-                outcomeRow("Launch moves to September 12")
-                outcomeRow("Maya owns the revised brief")
-                outcomeRow("Review the final plan on Friday")
+                stepRow("Open Account Settings", number: 1)
+                stepRow("Choose Billing", number: 2)
+                stepRow("Select Cancel Subscription", number: 3)
             }
             .padding(16)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -867,8 +867,8 @@ private struct OnboardingAccountPreview: View {
         .frame(maxWidth: 440)
     }
 
-    private func outcomeRow(_ title: String) -> some View {
-        Label(title, systemImage: "checkmark.circle.fill")
+    private func stepRow(_ title: String, number: Int) -> some View {
+        Label(title, systemImage: "\(number).circle.fill")
             .font(.system(size: 12, weight: .medium))
             .foregroundStyle(.primary)
             .symbolRenderingMode(.hierarchical)
