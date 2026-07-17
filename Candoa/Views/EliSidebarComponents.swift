@@ -69,6 +69,7 @@ struct AISidebarTopBarIconButton: View {
 struct AISidebarMessageRow: View {
     let message: AISidebarMessage
     let themeColorHex: String?
+    let showsTail: Bool
     @EnvironmentObject private var userStore: UserStore
 
     private var isUser: Bool {
@@ -104,7 +105,7 @@ struct AISidebarMessageRow: View {
                 VStack(alignment: .leading, spacing: 6) {
                     if !message.text.isEmpty {
                         Text(message.text)
-                            .font(.system(size: 13.5))
+                            .font(.system(size: 14))
                             .foregroundStyle(messageForeground)
                             .textSelection(.enabled)
                             .fixedSize(horizontal: false, vertical: true)
@@ -127,10 +128,21 @@ struct AISidebarMessageRow: View {
                         .accessibilityIdentifier("agent-subscribe-link")
                     }
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 9)
-                .background(messageBackground)
-                .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+                .padding(.horizontal, 11)
+                .padding(.vertical, 6)
+                .padding(.leading, showsTail && !isUser ? 7 : 0)
+                .padding(.trailing, showsTail && isUser ? 7 : 0)
+                .padding(.bottom, showsTail ? 4 : 0)
+                .frame(maxWidth: 350, alignment: .leading)
+                .background {
+                    bubbleLayer(color: messageBackground)
+
+                    if isUser, let readability = messageReadability {
+                        bubbleLayer(
+                            color: readability.overlayColor.opacity(readability.overlayOpacity)
+                        )
+                    }
+                }
             }
 
             if !isUser {
@@ -141,16 +153,83 @@ struct AISidebarMessageRow: View {
 
     private var messageBackground: Color {
         guard isUser else { return CandoaChromeStyle.sidebarControlFill }
-        guard let themeColorHex else { return CandoaChromeStyle.sidebarControlFillActive }
-        return Color(spaceHex: themeColorHex).opacity(0.82)
+        guard let themeColorHex else { return Color(nsColor: .controlAccentColor) }
+        return Color(spaceHex: themeColorHex)
     }
 
     private var messageForeground: Color {
         guard isUser else { return CandoaChromeStyle.sidebarText }
-        guard let themeColorHex else { return CandoaChromeStyle.sidebarText }
-        return CandoaChromeStyle.prefersDarkForeground(forSpaceHex: themeColorHex)
+        guard let readability = messageReadability else { return .white }
+        return readability.usesDarkForeground
             ? Color.black.opacity(0.84)
             : Color.white.opacity(0.92)
+    }
+
+    private var messageReadability: SpaceThemeReadability? {
+        themeColorHex.map { SpaceThemeReadability.resolved(for: [$0]) }
+    }
+
+    @ViewBuilder
+    private func bubbleLayer(color: Color) -> some View {
+        AISidebarMessageBubbleShape(isTrailing: isUser, showsTail: showsTail)
+            .fill(color)
+    }
+}
+
+private struct AISidebarMessageBubbleShape: Shape {
+    let isTrailing: Bool
+    let showsTail: Bool
+
+    func path(in rect: CGRect) -> Path {
+        guard showsTail else {
+            return Path(
+                roundedRect: rect,
+                cornerRadius: min(17, rect.height / 2),
+                style: .continuous
+            )
+        }
+
+        let tailWidth: CGFloat = 7
+        let tailDepth: CGFloat = 4
+        let bodyRect = CGRect(
+            x: isTrailing ? rect.minX : rect.minX + tailWidth,
+            y: rect.minY,
+            width: rect.width - tailWidth,
+            height: rect.height - tailDepth
+        )
+
+        var path = Path(
+            roundedRect: bodyRect,
+            cornerRadius: min(17, bodyRect.height / 2),
+            style: .continuous
+        )
+        var tail = Path()
+
+        if isTrailing {
+            tail.move(to: CGPoint(x: bodyRect.maxX - 4, y: bodyRect.maxY - 14))
+            tail.addQuadCurve(
+                to: CGPoint(x: rect.maxX, y: rect.maxY),
+                control: CGPoint(x: bodyRect.maxX - 1, y: bodyRect.maxY - 1)
+            )
+            tail.addQuadCurve(
+                to: CGPoint(x: bodyRect.maxX - 16, y: bodyRect.maxY - 1),
+                control: CGPoint(x: rect.maxX - 8, y: rect.maxY)
+            )
+        } else {
+            tail.move(to: CGPoint(x: bodyRect.minX + 4, y: bodyRect.maxY - 14))
+            tail.addQuadCurve(
+                to: CGPoint(x: rect.minX, y: rect.maxY),
+                control: CGPoint(x: bodyRect.minX + 1, y: bodyRect.maxY - 1)
+            )
+            tail.addQuadCurve(
+                to: CGPoint(x: bodyRect.minX + 16, y: bodyRect.maxY - 1),
+                control: CGPoint(x: rect.minX + 8, y: rect.maxY)
+            )
+        }
+
+        tail.closeSubpath()
+        path.addPath(tail)
+        return path
     }
 }
 

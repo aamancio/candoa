@@ -190,13 +190,15 @@ struct EliSidebarView: View {
             } else {
                 ScrollViewReader { proxy in
                     ScrollView(.vertical) {
-                        VStack(alignment: .leading, spacing: 14) {
+                        VStack(alignment: .leading, spacing: 0) {
                             ForEach(messages) { message in
                                 AISidebarMessageRow(
                                     message: message,
-                                    themeColorHex: store.activeThemeColorHexes.first
+                                    themeColorHex: store.activeThemeColorHexes.first,
+                                    showsTail: messageEndsRoleGroup(message)
                                 )
-                                    .id(message.id)
+                                .padding(.bottom, spacingAfterMessage(message))
+                                .id(message.id)
                             }
                         }
                         .padding(14)
@@ -279,6 +281,20 @@ struct EliSidebarView: View {
             Text(pendingPageAction?.confirmationDetail ?? "")
         }
         .accessibilityIdentifier("agent-sidebar")
+    }
+
+    private func messageEndsRoleGroup(_ message: AISidebarMessage) -> Bool {
+        guard let index = messages.firstIndex(where: { $0.id == message.id }) else { return true }
+        let nextIndex = messages.index(after: index)
+        guard nextIndex < messages.endIndex else { return true }
+        return messages[nextIndex].role != message.role
+    }
+
+    private func spacingAfterMessage(_ message: AISidebarMessage) -> CGFloat {
+        guard let index = messages.firstIndex(where: { $0.id == message.id }) else { return 0 }
+        let nextIndex = messages.index(after: index)
+        guard nextIndex < messages.endIndex else { return 0 }
+        return messages[nextIndex].role == message.role ? 3 : 13
     }
 
     private var topBar: some View {
