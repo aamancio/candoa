@@ -45,6 +45,7 @@
 		E2A2B3D4F5C60718293A4B5C /* EliSettingsPane.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2A2B3C4D5E60718293A4B5C /* EliSettingsPane.swift */; };
 		E3A2B3D4F5C60718293A4B5C /* ShortcutSettingsComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3A2B3C4D5E60718293A4B5C /* ShortcutSettingsComponents.swift */; };
 		010000000000000000000140 /* ContentBlockerService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000040 /* ContentBlockerService.swift */; };
+		AB1000000000000000000101 /* WebsiteAppearanceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB1000000000000000000001 /* WebsiteAppearanceService.swift */; };
 		010000000000000000000141 /* CopiedURLToastView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000041 /* CopiedURLToastView.swift */; };
 		010000000000000000000142 /* CandoaEliService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000042 /* CandoaEliService.swift */; };
 		010000000000000000000176 /* CandoaAccountService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000066 /* CandoaAccountService.swift */; };
@@ -145,6 +146,7 @@
 		F2A2B3C4D5E60718293A4B5C /* EliSettingsPane.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EliSettingsPane.swift; sourceTree = "<group>"; };
 		F3A2B3C4D5E60718293A4B5C /* ShortcutSettingsComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutSettingsComponents.swift; sourceTree = "<group>"; };
 		010000000000000000000040 /* ContentBlockerService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentBlockerService.swift; sourceTree = "<group>"; };
+		AB1000000000000000000001 /* WebsiteAppearanceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebsiteAppearanceService.swift; sourceTree = "<group>"; };
 		010000000000000000000041 /* CopiedURLToastView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CopiedURLToastView.swift; sourceTree = "<group>"; };
 		010000000000000000000042 /* CandoaEliService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CandoaEliService.swift; sourceTree = "<group>"; };
 		010000000000000000000066 /* CandoaAccountService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CandoaAccountService.swift; sourceTree = "<group>"; };
@@ -276,6 +278,7 @@
 				010000000000000000000007 /* PersistenceService.swift */,
 				010000000000000000000008 /* FaviconService.swift */,
 				010000000000000000000040 /* ContentBlockerService.swift */,
+				AB1000000000000000000001 /* WebsiteAppearanceService.swift */,
 				01000000000000000000001D /* AppUpdateService.swift */,
 				010000000000000000000042 /* CandoaEliService.swift */,
 				010000000000000000000066 /* CandoaAccountService.swift */,
@@ -522,6 +525,7 @@
 				E2A2B3D4F5C60718293A4B5C /* EliSettingsPane.swift in Sources */,
 				E3A2B3D4F5C60718293A4B5C /* ShortcutSettingsComponents.swift in Sources */,
 				010000000000000000000140 /* ContentBlockerService.swift in Sources */,
+				AB1000000000000000000101 /* WebsiteAppearanceService.swift in Sources */,
 				010000000000000000000141 /* CopiedURLToastView.swift in Sources */,
 				010000000000000000000142 /* CandoaEliService.swift in Sources */,
 				010000000000000000000176 /* CandoaAccountService.swift in Sources */,

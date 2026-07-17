@@ -279,7 +279,8 @@ extension BrowserStore {
             "folders=\(folderNames)",
             "popover=\(uiTestingVisibleFolderPopoverDescription)",
             "query=\(uiTestingCommandPaletteQuery)",
-            "command=\(uiTestingLastCommandDescription)"
+            "command=\(uiTestingLastCommandDescription)",
+            "pageScheme=\(uiTestingWebsiteAppearanceDescription)"
         ].joined(separator: ";")
     }
 
@@ -324,6 +325,24 @@ extension BrowserStore {
 
         if fixture == "inactive-favorites" {
             return inactiveFavoritesFixtureState()
+        }
+
+        if fixture == "website-appearance" {
+            let spaceID = UUID(uuidString: "ACACACAC-ACAC-ACAC-ACAC-ACACACACACAC")!
+            let dataStoreID = UUID(uuidString: "ADADADAD-ADAD-ADAD-ADAD-ADADADADADAD")!
+            let space = BrowserSpace(
+                id: spaceID,
+                name: "Appearance",
+                symbolName: "circle.lefthalf.filled",
+                dataStoreID: dataStoreID
+            )
+            return BrowserWindowState(
+                spaces: [space],
+                folders: [],
+                tabs: [],
+                activeSpaceID: spaceID,
+                activeTabID: nil
+            )
         }
 
         return testingBotFixtureState(includesSeedTabs: true)

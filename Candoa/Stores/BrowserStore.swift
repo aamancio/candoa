@@ -235,6 +235,7 @@ final class BrowserStore: ObservableObject {
     @Published var uiTestingVisibleFolderPopoverDescription = "none"
     @Published var uiTestingCommandPaletteQuery = ""
     @Published var uiTestingLastCommandDescription = "none"
+    @Published var uiTestingWebsiteAppearanceDescription = "pending"
 
     /// Deliberately not @Published: it's consumed by the mini player's mount
     /// (which the activeTabID change already triggers), and publishing it
@@ -354,6 +355,12 @@ final class BrowserStore: ObservableObject {
         }
 
         self.webCoordinator.attach(store: self)
+        self.webCoordinator.updateWebsiteAppearance(
+            WebsiteAppearance(
+                storedValue: UserDefaults.standard.string(forKey: CandoaSettingsOption.websiteAppearance)
+            ),
+            systemUsesDarkAppearance: NSApp.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+        )
         repairSessionState()
         markActiveTabAsActivated()
         shouldPresentInitialSpaceSetup = shouldPresentInitialSpaceSetup || needsInitialSpaceSetup()

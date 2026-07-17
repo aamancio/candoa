@@ -27,6 +27,9 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
     private var restoringTabIDs = Set<UUID>()
     private var restoreOverlays: [UUID: NSImageView] = [:]
     private var hibernationScanTask: Task<Void, Never>?
+    private var websiteAppearance = WebsiteAppearance.dark
+    private var systemUsesDarkAppearance = false
+    private var pendingAppearanceNavigationTokens: [UUID: UUID] = [:]
 
     func attach(store: BrowserStore) {
         self.store = store
@@ -88,11 +91,7 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         webView.allowsMagnification = true
         webView.isInspectable = WebInspectorConfiguration.isEnabled
         webView.underPageBackgroundColor = .textBackgroundColor
-
-        // Let web content inherit the window appearance so websites that honor
-        // `prefers-color-scheme` can follow the active system/space setting.
-        // Keep transparent document regions readable while matching the
-        // active macOS appearance instead of forcing a white page backing.
+        applyWebsiteAppearance(to: webView)
 
         let contentController = webView.configuration.userContentController
         if let contentRuleList {
@@ -106,9 +105,70 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
                 forMainFrameOnly: true
             )
         )
+        if BrowserStore.isUITesting {
+            contentController.addUserScript(
+                WKUserScript(
+                    source: "window.__candoaInitialDark = matchMedia('(prefers-color-scheme: dark)').matches",
+                    injectionTime: .atDocumentStart,
+                    forMainFrameOnly: true
+                )
+            )
+        }
         webViews[tabID] = webView
         tabIDsByWebView.setObject(tabID.uuidString as NSString, forKey: webView)
         observe(webView, tabID: tabID)
+    }
+
+    func updateWebsiteAppearance(
+        _ appearance: WebsiteAppearance,
+        systemUsesDarkAppearance: Bool
+    ) {
+        guard self.websiteAppearance != appearance
+                || self.systemUsesDarkAppearance != systemUsesDarkAppearance else {
+            return
+        }
+
+        self.websiteAppearance = appearance
+        self.systemUsesDarkAppearance = systemUsesDarkAppearance
+        webViews.values.forEach(applyWebsiteAppearance(to:))
+        refreshServerThemeOverrides()
+    }
+
+    private func applyWebsiteAppearance(to webView: WKWebView) {
+        let appearanceName: NSAppearance.Name = usesDarkWebsiteAppearance ? .darkAqua : .aqua
+        guard webView.appearance?.name != appearanceName else { return }
+        webView.appearance = NSAppearance(named: appearanceName)
+    }
+
+    private var usesDarkWebsiteAppearance: Bool {
+        switch websiteAppearance {
+        case .automatic:
+            return systemUsesDarkAppearance
+        case .light:
+            return false
+        case .dark:
+            return true
+        }
+    }
+
+    private func refreshServerThemeOverrides() {
+        for (tabID, webView) in webViews {
+            guard let url = webView.url, WebsiteAppearanceService.preparesServerTheme(for: url) else { continue }
+
+            let token = UUID()
+            pendingAppearanceNavigationTokens[tabID] = token
+            WebsiteAppearanceService.prepareServerTheme(
+                for: url,
+                in: webView.configuration.websiteDataStore,
+                usesDarkAppearance: usesDarkWebsiteAppearance
+            ) { [weak self, weak webView] in
+                guard let self,
+                      let webView,
+                      self.pendingAppearanceNavigationTokens[tabID] == token else { return }
+                self.pendingAppearanceNavigationTokens[tabID] = nil
+                webView.reload()
+            }
+        }
     }
 
     func ensureLoaded(_ tab: BrowserTab) {
@@ -160,7 +220,26 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
             )
         }
 
-        targetWebView.load(request(for: url))
+        let request = request(for: url)
+        guard WebsiteAppearanceService.preparesServerTheme(for: url) else {
+            pendingAppearanceNavigationTokens[tabID] = nil
+            targetWebView.load(request)
+            return
+        }
+
+        let token = UUID()
+        pendingAppearanceNavigationTokens[tabID] = token
+        WebsiteAppearanceService.prepareServerTheme(
+            for: url,
+            in: targetWebView.configuration.websiteDataStore,
+            usesDarkAppearance: usesDarkWebsiteAppearance
+        ) { [weak self, weak targetWebView] in
+            guard let self,
+                  let targetWebView,
+                  self.pendingAppearanceNavigationTokens[tabID] == token else { return }
+            self.pendingAppearanceNavigationTokens[tabID] = nil
+            targetWebView.load(request)
+        }
     }
 
     func removeWebView(for tabID: UUID) {
@@ -183,6 +262,7 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         guard let webView = webViews.removeValue(forKey: tabID) else { return }
         pendingWebAppPrompts[tabID] = nil
         observations[tabID] = nil
+        pendingAppearanceNavigationTokens[tabID] = nil
         popupTabIDsAwaitingFirstLoad.remove(tabID)
         webView.stopLoading()
         webView.navigationDelegate = nil
@@ -1416,6 +1496,22 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         recordHistoryVisit(for: webView)
         refreshFavicon(for: webView)
         forwardWebAppPromptIfNeeded(for: webView)
+        reportWebsiteAppearanceForUITesting(from: webView)
+    }
+
+    private func reportWebsiteAppearanceForUITesting(from webView: WKWebView) {
+        guard BrowserStore.isUITesting else { return }
+        webView.evaluateJavaScript(
+            "[window.__candoaInitialDark === true, matchMedia('(prefers-color-scheme: dark)').matches, "
+                + "document.documentElement.hasAttribute('dark')]"
+        ) { [weak self] result, _ in
+            guard let values = result as? [Bool], values.count == 3 else { return }
+            Task { @MainActor [weak self] in
+                self?.store?.uiTestingWebsiteAppearanceDescription =
+                    "initial-\(values[0] ? "dark" : "light")-media-\(values[1] ? "dark" : "light")-"
+                    + "html-\(values[2] ? "dark" : "light")"
+            }
+        }
     }
 
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {

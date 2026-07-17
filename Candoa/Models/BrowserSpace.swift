@@ -1,5 +1,17 @@
 import Foundation
 
+enum WebsiteAppearance: String, CaseIterable, Hashable, Identifiable {
+    case automatic
+    case light
+    case dark
+
+    var id: String { rawValue }
+
+    init(storedValue: String?) {
+        self = storedValue.flatMap(Self.init(rawValue:)) ?? .dark
+    }
+}
+
 enum SpaceThemeAppearance: String, CaseIterable, Codable, Hashable, Identifiable {
     case automatic
     case light
@@ -39,8 +51,8 @@ struct BrowserSpace: Identifiable, Codable, Hashable {
     static let defaultThemeColorHex = CandoaColor.primaryHex
 
     /// Chrome follows the macOS system appearance by default — the native
-    /// behavior (Safari/Finder track system light/dark). Web content inherits
-    /// the resolved window appearance so sites can honor `prefers-color-scheme`.
+    /// behavior used by Safari, Finder, and other platform apps. Website
+    /// appearance is configured independently in General settings.
     static let defaultThemeAppearance = SpaceThemeAppearance.automatic
 
     var id: UUID

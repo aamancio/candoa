@@ -14,6 +14,45 @@ final class CandoaUITests: XCTestCase {
         XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 10))
     }
 
+    func testWebsiteAppearanceRendersYouTubeInDarkMode() throws {
+        let app = launchApp(fixture: "website-appearance", websiteAppearance: "dark")
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
+
+        app.typeKey("t", modifierFlags: .command)
+        XCTAssertTrue(waitForState(in: app, containing: "newTabPalette=true"), currentState(in: app))
+        submitCommandPaletteText("youtube.com", in: app)
+        XCTAssertTrue(
+            waitForState(in: app, containing: "url=https://www.youtube.com/", timeout: 15),
+            currentState(in: app)
+        )
+
+        let pageLoaded = app.staticTexts["Try searching to get started"]
+        XCTAssertTrue(pageLoaded.waitForExistence(timeout: 15))
+        XCTAssertTrue(
+            waitForState(in: app, containing: "websiteAppearance=dark", timeout: 5),
+            currentState(in: app)
+        )
+        XCTAssertTrue(
+            waitForState(in: app, containing: "pageScheme=initial-dark-media-dark-html-dark", timeout: 5),
+            currentState(in: app)
+        )
+
+        let screenshot = app.windows.firstMatch.screenshot()
+        let attachment = XCTAttachment(screenshot: screenshot)
+        attachment.name = "YouTube with Website appearance set to Dark"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+
+        let bitmap = try XCTUnwrap(NSBitmapImageRep(data: screenshot.pngRepresentation))
+        let pageBackground = try XCTUnwrap(
+            bitmap.colorAt(x: bitmap.pixelsWide * 3 / 4, y: bitmap.pixelsHigh / 2)?.usingColorSpace(.sRGB)
+        )
+        let luminance = 0.2126 * pageBackground.redComponent
+            + 0.7152 * pageBackground.greenComponent
+            + 0.0722 * pageBackground.blueComponent
+        XCTAssertLessThan(luminance, 0.25, "Expected YouTube's page surface to render dark")
+    }
+
     func testExternalHTTPSURLIsOpenedDirectlyInANewTab() throws {
         let app = launchApp()
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
@@ -326,10 +365,14 @@ final class CandoaUITests: XCTestCase {
         fixture: String? = nil,
         onboardingStep: String? = nil,
         browserImportFixture: String? = nil,
-        appleSignInWorking: Bool = false
+        appleSignInWorking: Bool = false,
+        websiteAppearance: String? = nil
     ) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments += ["-ApplePersistenceIgnoreState", "YES"]
+        if let websiteAppearance {
+            app.launchArguments += ["-Candoa.Settings.ZenOption.WebsiteAppearance", websiteAppearance]
+        }
         app.launchEnvironment["CANDOA_UI_TESTING"] = "1"
         app.launchEnvironment["CANDOA_UI_TESTING_STORE_ID"] = "TestingBot"
         if let fixture {

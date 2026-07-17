@@ -6,7 +6,7 @@ internal struct GeneralSettingsPane: View {
     @AppStorage(CandoaSettingsOption.continueWhereLeftOff) private var continueWhereLeftOff = false
     @AppStorage(CandoaSettingsOption.checkDefaultBrowser) private var checkDefaultBrowser = false
     @AppStorage(CandoaSettingsOption.askBeforeQuitting) private var askBeforeQuitting = true
-    @AppStorage(CandoaSettingsOption.websiteAppearance) private var websiteAppearance = "dark"
+    @AppStorage(CandoaSettingsOption.websiteAppearance) private var websiteAppearance = WebsiteAppearance.dark.rawValue
     @AppStorage(CandoaSettingsOption.defaultSearchProvider) private var defaultSearchProvider = NavigationService.searchProviders.first?.id ?? "google"
     @AppStorage(CandoaSettingsOption.showSearchSuggestions) private var showSearchSuggestions = true
     @State private var syncsWorkspaceWithICloud = CandoaSyncPreferences.syncsWorkspaceWithICloud

@@ -10,6 +10,8 @@ struct ContentView: View {
     @StateObject private var updateService = AppUpdateService.shared
     @StateObject private var systemAppearance = SystemAppearanceObserver()
     @Environment(\.scenePhase) private var scenePhase
+    @AppStorage(CandoaSettingsOption.websiteAppearance) private var websiteAppearanceValue =
+        WebsiteAppearance.dark.rawValue
     @SceneStorage("candoa.windowAutosaveID") private var windowAutosaveID = UUID().uuidString
     @State private var isSidebarVisible = true
     @State private var isSidebarHoverRevealed = false
@@ -35,6 +37,10 @@ struct ContentView: View {
     // the live system appearance instead of nil — see SystemAppearanceObserver.
     private var resolvedColorScheme: ColorScheme {
         activeThemeAppearance.colorScheme ?? systemAppearance.colorScheme
+    }
+
+    private var websiteAppearance: WebsiteAppearance {
+        WebsiteAppearance(storedValue: websiteAppearanceValue)
     }
 
     private var activeThemeHexes: [String] {
@@ -184,6 +190,7 @@ struct ContentView: View {
             if BrowserStore.isUITesting {
                 let stateDescription = store.uiTestingStateDescription(sidebarVisible: isSidebarVisible)
                     + ";aiVisible=\(isAISidebarVisible);aiMounted=\(isAISidebarMounted)"
+                    + ";websiteAppearance=\(websiteAppearance.rawValue)"
 
                 VStack(spacing: 0) {
                     Text(stateDescription)
@@ -310,6 +317,7 @@ struct ContentView: View {
             Text(store.syncRestartMessage ?? "")
         }
         .onAppear {
+            applyWebsiteAppearance()
             updateService.startCheckingForUpdates()
         }
         .onOpenURL { url in
@@ -323,6 +331,13 @@ struct ContentView: View {
             if phase != .active {
                 store.flushSession()
             }
+        }
+        .onChange(of: websiteAppearanceValue) { _, _ in
+            applyWebsiteAppearance()
+        }
+        .onChange(of: systemAppearance.colorScheme) { _, _ in
+            guard websiteAppearance == .automatic else { return }
+            applyWebsiteAppearance()
         }
         .onChange(of: store.initialTourTip) { previousTip, currentTip in
             if previousTip == .ask, currentTip != .ask {
@@ -342,6 +357,13 @@ struct ContentView: View {
                 }
             }
         }
+    }
+
+    private func applyWebsiteAppearance() {
+        store.webCoordinator.updateWebsiteAppearance(
+            websiteAppearance,
+            systemUsesDarkAppearance: systemAppearance.colorScheme == .dark
+        )
     }
 
     private var browserCommandActions: BrowserCommandActions {
