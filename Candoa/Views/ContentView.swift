@@ -473,7 +473,7 @@ struct ContentView: View {
             )
         )
         .overlay(alignment: .leading) {
-            AISidebarResizeHandle(isResizing: aiSidebarResizeStartWidth != nil)
+            AISidebarResizeHandle()
                 .frame(width: AISidebarLayout.resizeHandleHitWidth)
                 .offset(x: -AISidebarLayout.resizeHandleHitWidth / 2)
                 .gesture(

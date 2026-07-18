@@ -10,30 +10,11 @@ enum AISidebarLayout {
 }
 
 struct AISidebarResizeHandle: View {
-    let isResizing: Bool
-    @State private var isHovering = false
-
     var body: some View {
-        ZStack {
-            Color.clear
-
-            if isActive {
-                RoundedRectangle(cornerRadius: 1.5, style: .continuous)
-                    .fill(CandoaChromeStyle.sidebarTextSecondary.opacity(0.64))
-                    .frame(width: 3)
-                    .padding(.vertical, 10)
-            }
-        }
-        .contentShape(Rectangle())
-        .candoaAISidebarCursor(AISidebarResizeCursor.horizontal)
-        .onHover { hovering in
-            isHovering = hovering
-        }
-        .help("Resize Eli Sidebar")
-    }
-
-    private var isActive: Bool {
-        isHovering || isResizing
+        Color.clear
+            .contentShape(Rectangle())
+            .candoaAISidebarCursor(AISidebarResizeCursor.horizontal)
+            .help("Resize Eli Sidebar")
     }
 }
 
