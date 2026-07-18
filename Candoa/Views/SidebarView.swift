@@ -41,6 +41,7 @@ internal struct SidebarFolderIcon: View {
 struct SidebarView: View {
     @ObservedObject var store: BrowserStore
     let availableUpdate: AppUpdate?
+    let automaticUpdatesEnabled: Binding<Bool>
     let windowControlsHiddenOffset: CGFloat
     let onUpdateBannerTapped: () -> Void
     let onToggleSidebar: () -> Void
@@ -119,7 +120,11 @@ struct SidebarView: View {
             }
 
             if let availableUpdate {
-                AppUpdateBanner(update: availableUpdate, action: onUpdateBannerTapped)
+                AppUpdateBanner(
+                    update: availableUpdate,
+                    automaticUpdatesEnabled: automaticUpdatesEnabled,
+                    action: onUpdateBannerTapped
+                )
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
 

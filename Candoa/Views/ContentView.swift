@@ -410,6 +410,12 @@ struct ContentView: View {
             SidebarView(
                 store: store,
                 availableUpdate: updateService.availableUpdate,
+                automaticUpdatesEnabled: Binding(
+                    get: { updateService.automaticUpdatesEnabled },
+                    set: { isEnabled in
+                        updateService.setAutomaticUpdatesEnabled(isEnabled)
+                    }
+                ),
                 windowControlsHiddenOffset: -sidebarTotalWidth,
                 onUpdateBannerTapped: {
                     updateService.openAvailableUpdate()
