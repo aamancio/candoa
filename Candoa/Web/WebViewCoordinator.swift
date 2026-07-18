@@ -451,6 +451,7 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         obscuredContentInsets: BrowserChromeInsets
     ) {
         guard let activeWebView = webViews[tabID] else { return }
+        syncHostBackground(in: container, with: activeWebView)
         applyObscuredContentInsets(obscuredContentInsets, to: activeWebView)
         if miniPlayerHostedTabID == tabID {
             restoreMiniPlayerPresentation(tabID: tabID)
@@ -511,6 +512,7 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         obscuredContentInsets: BrowserChromeInsets
     ) {
         guard let webView = webViews[tabID] else { return }
+        syncHostBackground(in: container, with: webView)
         applyObscuredContentInsets(obscuredContentInsets, to: webView)
         if miniPlayerHostedTabID == tabID {
             restoreMiniPlayerPresentation(tabID: tabID)
@@ -528,6 +530,14 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         if restoringTabIDs.contains(tabID), let snapshot = wakeSnapshots[tabID] {
             presentRestoreOverlay(snapshot, for: tabID, in: container)
         }
+    }
+
+    /// Match the host to the page-derived under-page color so any transient
+    /// unpainted edge during WebKit's one-time chrome-inset commit blends with
+    /// the page instead of flashing the unrelated window backdrop.
+    private func syncHostBackground(in container: NSView, with webView: WKWebView) {
+        container.wantsLayer = true
+        container.layer?.backgroundColor = webView.underPageBackgroundColor.cgColor
     }
 
     private func applyObscuredContentInsets(_ insets: BrowserChromeInsets, to webView: WKWebView) {

@@ -268,6 +268,10 @@ final class CandoaUITests: XCTestCase {
 
         XCTAssertTrue(waitForState(in: app, containing: "url=\(realURL)"), currentState(in: app))
         XCTAssertTrue(element("sidebar-address-button", in: app).waitForExistence(timeout: 5))
+        let webViewHost = element("active-webview-host", in: app)
+        XCTAssertTrue(webViewHost.waitForExistence(timeout: 5))
+        let expandedSidebarHostFrame = webViewHost.frame
+        XCTAssertFalse(expandedSidebarHostFrame.isEmpty)
 
         app.typeKey("f", modifierFlags: .command)
         XCTAssertTrue(waitForState(in: app, containing: "find=true"), currentState(in: app))
@@ -275,9 +279,11 @@ final class CandoaUITests: XCTestCase {
 
         app.typeKey("s", modifierFlags: .command)
         XCTAssertTrue(waitForState(in: app, containing: "sidebar=false"), currentState(in: app))
+        assertEqualFrame(webViewHost.frame, expandedSidebarHostFrame)
 
         app.typeKey("s", modifierFlags: .command)
         XCTAssertTrue(waitForState(in: app, containing: "sidebar=true"), currentState(in: app))
+        assertEqualFrame(webViewHost.frame, expandedSidebarHostFrame)
     }
 
     func testTestingBotFixtureCoversAddressAndCommandPaletteTabCreation() throws {
@@ -471,6 +477,19 @@ final class CandoaUITests: XCTestCase {
 
     private func element(_ identifier: String, in app: XCUIApplication) -> XCUIElement {
         app.descendants(matching: .any)[identifier]
+    }
+
+    private func assertEqualFrame(
+        _ actual: CGRect,
+        _ expected: CGRect,
+        accuracy: CGFloat = 0.5,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        XCTAssertEqual(actual.minX, expected.minX, accuracy: accuracy, file: file, line: line)
+        XCTAssertEqual(actual.minY, expected.minY, accuracy: accuracy, file: file, line: line)
+        XCTAssertEqual(actual.width, expected.width, accuracy: accuracy, file: file, line: line)
+        XCTAssertEqual(actual.height, expected.height, accuracy: accuracy, file: file, line: line)
     }
 
     private func submitCommandPaletteText(_ text: String, in app: XCUIApplication) {

@@ -82,7 +82,9 @@ struct ActiveWebViewHost: NSViewRepresentable {
     let obscuredContentInsets: BrowserChromeInsets
 
     func makeNSView(context: Context) -> NSView {
-        WebViewHostContainer()
+        let container = WebViewHostContainer()
+        container.setAccessibilityIdentifier("active-webview-host")
+        return container
     }
 
     func updateNSView(_ container: NSView, context: Context) {
