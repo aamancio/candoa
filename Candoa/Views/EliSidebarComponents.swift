@@ -69,86 +69,206 @@ struct AISidebarTopBarIconButton: View {
 struct AISidebarMessageRow: View {
     let message: AISidebarMessage
     let themeColorHex: String?
-    let showsTail: Bool
     @EnvironmentObject private var userStore: UserStore
+    @State private var selectedFeedback: AISidebarResponseFeedback?
 
     private var isUser: Bool {
         message.role == .user
     }
 
     var body: some View {
-        HStack(alignment: .top) {
-            if isUser {
+        if isUser {
+            HStack(alignment: .top) {
                 Spacer(minLength: 42)
-            }
 
-            VStack(alignment: isUser ? .trailing : .leading, spacing: 7) {
-                if isUser, !message.contextChips.isEmpty {
-                    HStack(spacing: 6) {
-                        ForEach(message.contextChips.prefix(2)) { chip in
-                            AISidebarSentContextChipView(chip: chip)
-                        }
-
-                        if message.contextChips.count > 2 {
-                            Text("+\(message.contextChips.count - 2)")
-                                .font(.system(size: 11, weight: .semibold))
-                                .foregroundStyle(CandoaChromeStyle.sidebarTextSecondary)
-                                .padding(.horizontal, 8)
-                                .frame(height: 24)
-                                .background(CandoaChromeStyle.sidebarControlFill)
-                                .clipShape(Capsule())
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-                }
-
-                VStack(alignment: .leading, spacing: 6) {
-                    if !message.text.isEmpty {
-                        Text(message.text)
-                            .font(.system(size: 14))
-                            .foregroundStyle(messageForeground)
-                            .textSelection(.enabled)
-                            .fixedSize(horizontal: false, vertical: true)
-                    } else if message.isStreaming {
-                        ProgressView()
-                            .controlSize(.small)
-                    } else {
-                        Text("No response.")
-                            .font(.system(size: 13.5))
-                            .foregroundStyle(CandoaChromeStyle.sidebarTextSecondary)
-                    }
-
-                    if message.action == .subscribe {
-                        Button("Subscribe to Candoa Pro") {
-                            Task { await userStore.startProCheckout() }
-                        }
-                        .buttonStyle(.link)
-                        .font(.system(size: 13, weight: .medium))
-                        .disabled(userStore.isWorking)
-                        .accessibilityIdentifier("agent-subscribe-link")
-                    }
-                }
-                .padding(.horizontal, 11)
-                .padding(.vertical, 6)
-                .padding(.leading, showsTail && !isUser ? 7 : 0)
-                .padding(.trailing, showsTail && isUser ? 7 : 0)
-                .padding(.bottom, showsTail ? 4 : 0)
-                .frame(maxWidth: 350, alignment: .leading)
-                .background {
-                    bubbleLayer(color: messageBackground)
-
-                    if isUser, let readability = messageReadability {
-                        bubbleLayer(
-                            color: readability.overlayColor.opacity(readability.overlayOpacity)
-                        )
-                    }
+                VStack(alignment: .trailing, spacing: 7) {
+                    sentContextChips
+                    userPrompt
                 }
             }
+        } else {
+            VStack(alignment: .leading, spacing: 8) {
+                messageContent
 
-            if !isUser {
-                Spacer(minLength: 42)
+                if showsFeedbackControls {
+                    feedbackControls
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.trailing, 8)
+        }
+    }
+
+    @ViewBuilder
+    private var sentContextChips: some View {
+        if !message.contextChips.isEmpty {
+            HStack(spacing: 6) {
+                ForEach(message.contextChips.prefix(2)) { chip in
+                    AISidebarSentContextChipView(chip: chip)
+                }
+
+                if message.contextChips.count > 2 {
+                    Text("+\(message.contextChips.count - 2)")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(CandoaChromeStyle.sidebarTextSecondary)
+                        .padding(.horizontal, 8)
+                        .frame(height: 24)
+                        .background(CandoaChromeStyle.sidebarControlFill)
+                        .clipShape(Capsule())
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .trailing)
+        }
+    }
+
+    private var userPrompt: some View {
+        messageContent
+            .padding(.horizontal, 11)
+            .padding(.vertical, 6)
+            .frame(maxWidth: 350, alignment: .leading)
+            .background {
+                RoundedRectangle(cornerRadius: 17, style: .continuous)
+                    .fill(messageBackground)
+
+                if let readability = messageReadability {
+                    RoundedRectangle(cornerRadius: 17, style: .continuous)
+                        .fill(readability.overlayColor.opacity(readability.overlayOpacity))
+                }
+            }
+    }
+
+    @ViewBuilder
+    private var messageContent: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            if !message.text.isEmpty {
+                Text(message.text)
+                    .font(.system(size: 14))
+                    .foregroundStyle(messageForeground)
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else if message.isStreaming {
+                ProgressView()
+                    .controlSize(.small)
+            } else {
+                Text("No response.")
+                    .font(.system(size: 13.5))
+                    .foregroundStyle(CandoaChromeStyle.sidebarTextSecondary)
+            }
+
+            if message.action == .subscribe {
+                Button("Subscribe to Candoa Pro") {
+                    Task { await userStore.startProCheckout() }
+                }
+                .buttonStyle(.link)
+                .font(.system(size: 13, weight: .medium))
+                .disabled(userStore.isWorking)
+                .accessibilityIdentifier("agent-subscribe-link")
             }
         }
+    }
+
+    private var showsFeedbackControls: Bool {
+        !message.isStreaming && !message.text.isEmpty
+    }
+
+    private var feedbackControls: some View {
+        HStack(spacing: 8) {
+            feedbackButton(
+                feedback: .positive,
+                symbolName: "hand.thumbsup",
+                helpText: "Good response",
+                identifier: "agent-feedback-up"
+            )
+
+            feedbackButton(
+                feedback: .negative,
+                symbolName: "hand.thumbsdown",
+                helpText: "Poor response",
+                identifier: "agent-feedback-down"
+            )
+
+            responseActionButton(
+                symbolName: "doc.on.doc",
+                helpText: "Copy as text",
+                accessibilityLabel: "Copy response as text",
+                identifier: "agent-copy-text",
+                action: copyResponseText
+            )
+
+            responseActionButton(
+                symbolName: "photo",
+                helpText: "Copy as image",
+                accessibilityLabel: "Copy response as image",
+                identifier: "agent-copy-image",
+                action: copyResponseImage
+            )
+        }
+    }
+
+    private func feedbackButton(
+        feedback: AISidebarResponseFeedback,
+        symbolName: String,
+        helpText: String,
+        identifier: String
+    ) -> some View {
+        AISidebarNativeIconButton(
+            symbolName: symbolName,
+            toolTip: helpText,
+            accessibilityLabel: feedback == .positive ? "Good response" : "Poor response",
+            identifier: identifier,
+            isSelected: selectedFeedback == feedback
+        ) {
+            selectedFeedback = selectedFeedback == feedback ? nil : feedback
+        }
+        .frame(width: 22, height: 22)
+    }
+
+    private func responseActionButton(
+        symbolName: String,
+        helpText: String,
+        accessibilityLabel: String,
+        identifier: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        AISidebarNativeIconButton(
+            symbolName: symbolName,
+            toolTip: helpText,
+            accessibilityLabel: accessibilityLabel,
+            identifier: identifier,
+            action: action
+        )
+        .frame(width: 22, height: 22)
+    }
+
+    private func copyResponseText() {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(message.text, forType: .string)
+    }
+
+    private func copyResponseImage() {
+        let responseView = Text(message.text)
+            .font(.system(size: 14))
+            .foregroundStyle(Color(nsColor: .labelColor))
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(14)
+            .frame(maxWidth: 420, alignment: .leading)
+            .background {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color(nsColor: .windowBackgroundColor))
+            }
+
+        let renderer = ImageRenderer(content: responseView)
+        renderer.scale = NSScreen.main?.backingScaleFactor ?? 2
+
+        guard let image = renderer.nsImage else {
+            NSSound.beep()
+            return
+        }
+
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.writeObjects([image])
     }
 
     private var messageBackground: Color {
@@ -169,67 +289,64 @@ struct AISidebarMessageRow: View {
         themeColorHex.map { SpaceThemeReadability.resolved(for: [$0]) }
     }
 
-    @ViewBuilder
-    private func bubbleLayer(color: Color) -> some View {
-        AISidebarMessageBubbleShape(isTrailing: isUser, showsTail: showsTail)
-            .fill(color)
-    }
 }
 
-private struct AISidebarMessageBubbleShape: Shape {
-    let isTrailing: Bool
-    let showsTail: Bool
+private enum AISidebarResponseFeedback {
+    case positive
+    case negative
+}
 
-    func path(in rect: CGRect) -> Path {
-        guard showsTail else {
-            return Path(
-                roundedRect: rect,
-                cornerRadius: min(17, rect.height / 2),
-                style: .continuous
-            )
+/// Wraps AppKit's `NSButton` so the response actions use the system's native
+/// tooltip mechanism even inside the SwiftUI chat scroll view.
+private struct AISidebarNativeIconButton: NSViewRepresentable {
+    let symbolName: String
+    let toolTip: String
+    let accessibilityLabel: String
+    let identifier: String
+    var isSelected = false
+    let action: () -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(action: action)
+    }
+
+    func makeNSView(context: Context) -> NSButton {
+        let button = NSButton()
+        button.isBordered = false
+        button.imagePosition = .imageOnly
+        button.target = context.coordinator
+        button.action = #selector(Coordinator.performAction)
+        configure(button)
+        return button
+    }
+
+    func updateNSView(_ button: NSButton, context: Context) {
+        context.coordinator.action = action
+        configure(button)
+    }
+
+    private func configure(_ button: NSButton) {
+        let configuration = NSImage.SymbolConfiguration(pointSize: 13, weight: .medium)
+        button.image = NSImage(
+            systemSymbolName: symbolName,
+            accessibilityDescription: accessibilityLabel
+        )?.withSymbolConfiguration(configuration)
+        button.contentTintColor = isSelected ? .controlAccentColor : .secondaryLabelColor
+        button.toolTip = toolTip
+        button.setAccessibilityLabel(accessibilityLabel)
+        button.identifier = NSUserInterfaceItemIdentifier(identifier)
+    }
+
+    final class Coordinator: NSObject {
+        var action: () -> Void
+
+        init(action: @escaping () -> Void) {
+            self.action = action
         }
 
-        let tailWidth: CGFloat = 7
-        let tailDepth: CGFloat = 4
-        let bodyRect = CGRect(
-            x: isTrailing ? rect.minX : rect.minX + tailWidth,
-            y: rect.minY,
-            width: rect.width - tailWidth,
-            height: rect.height - tailDepth
-        )
-
-        var path = Path(
-            roundedRect: bodyRect,
-            cornerRadius: min(17, bodyRect.height / 2),
-            style: .continuous
-        )
-        var tail = Path()
-
-        if isTrailing {
-            tail.move(to: CGPoint(x: bodyRect.maxX - 4, y: bodyRect.maxY - 14))
-            tail.addQuadCurve(
-                to: CGPoint(x: rect.maxX, y: rect.maxY),
-                control: CGPoint(x: bodyRect.maxX - 1, y: bodyRect.maxY - 1)
-            )
-            tail.addQuadCurve(
-                to: CGPoint(x: bodyRect.maxX - 16, y: bodyRect.maxY - 1),
-                control: CGPoint(x: rect.maxX - 8, y: rect.maxY)
-            )
-        } else {
-            tail.move(to: CGPoint(x: bodyRect.minX + 4, y: bodyRect.maxY - 14))
-            tail.addQuadCurve(
-                to: CGPoint(x: rect.minX, y: rect.maxY),
-                control: CGPoint(x: bodyRect.minX + 1, y: bodyRect.maxY - 1)
-            )
-            tail.addQuadCurve(
-                to: CGPoint(x: bodyRect.minX + 16, y: bodyRect.maxY - 1),
-                control: CGPoint(x: rect.minX + 8, y: rect.maxY)
-            )
+        @objc func performAction() {
+            action()
         }
-
-        tail.closeSubpath()
-        path.addPath(tail)
-        return path
     }
 }
 

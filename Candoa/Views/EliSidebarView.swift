@@ -194,8 +194,7 @@ struct EliSidebarView: View {
                             ForEach(messages) { message in
                                 AISidebarMessageRow(
                                     message: message,
-                                    themeColorHex: store.activeThemeColorHexes.first,
-                                    showsTail: messageEndsRoleGroup(message)
+                                    themeColorHex: store.activeThemeColorHexes.first
                                 )
                                 .padding(.bottom, spacingAfterMessage(message))
                                 .id(message.id)
@@ -281,13 +280,6 @@ struct EliSidebarView: View {
             Text(pendingPageAction?.confirmationDetail ?? "")
         }
         .accessibilityIdentifier("agent-sidebar")
-    }
-
-    private func messageEndsRoleGroup(_ message: AISidebarMessage) -> Bool {
-        guard let index = messages.firstIndex(where: { $0.id == message.id }) else { return true }
-        let nextIndex = messages.index(after: index)
-        guard nextIndex < messages.endIndex else { return true }
-        return messages[nextIndex].role != message.role
     }
 
     private func spacingAfterMessage(_ message: AISidebarMessage) -> CGFloat {

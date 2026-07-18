@@ -386,6 +386,23 @@ final class CandoaUITests: XCTestCase {
         )
     }
 
+    func testEliProPromptRendersSubscriptionResponse() throws {
+        let app = launchApp(fixture: "ask")
+
+        app.typeKey("e", modifierFlags: .command)
+        XCTAssertTrue(element("agent-sidebar", in: app).waitForExistence(timeout: 5), currentState(in: app))
+
+        submitAskText("What is this page about?", in: app)
+
+        let subscribeLink = element("agent-subscribe-link", in: app)
+        XCTAssertTrue(subscribeLink.waitForExistence(timeout: 5), askState(in: app))
+
+        let attachment = XCTAttachment(screenshot: app.windows.firstMatch.screenshot())
+        attachment.name = "Eli Pro subscription response"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+
     private func launchApp(
         fixture: String? = nil,
         onboardingStep: String? = nil,

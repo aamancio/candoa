@@ -5,7 +5,13 @@ enum CandoaAccountKeychain {
     private static let service = "app.candoa.browser.Account"
     private static let account = "cloud-session"
 
+    private static var isUITesting: Bool {
+        ProcessInfo.processInfo.environment["CANDOA_UI_TESTING"] == "1"
+    }
+
     static var accessToken: String? {
+        guard !isUITesting else { return nil }
+
         var result: CFTypeRef?
         let status = SecItemCopyMatching(
             baseQuery.merging([
