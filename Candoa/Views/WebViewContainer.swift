@@ -31,7 +31,7 @@ struct WebViewContainer: View {
     var body: some View {
         ZStack {
             if store.isInitialSpaceSetupPresented || store.isCreateSpacePresented {
-                browserSurface {
+                browserSurface(drawsBorder: false) {
                     SpaceSetupCanvas(
                         hexes: store.activeThemeColorHexes,
                         intensity: store.activeThemeIntensityMultiplier,
@@ -54,13 +54,13 @@ struct WebViewContainer: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                     .padding(containedSurfaceInsets)
                 } else {
-                    browserSurface {
+                    browserSurface(drawsBorder: false) {
                         singleTabContent(for: tab)
                     }
                     .padding(containedSurfaceInsets)
                 }
             } else {
-                browserSurface {
+                browserSurface(drawsBorder: false) {
                     SpaceSetupCanvas(
                         hexes: store.activeThemeColorHexes,
                         intensity: store.activeThemeIntensityMultiplier,
@@ -88,7 +88,8 @@ struct WebViewContainer: View {
             BrowserChromeMaskModifier(
                 insets: visibleChromeInsets,
                 surfaceCornerRadius: surfaceCornerRadius,
-                surfacePadding: surfacePadding
+                surfacePadding: surfacePadding,
+                drawsFullSurfaceBorder: store.activeSplitGroupTabs.count < 2
             )
         )
     }
@@ -123,7 +124,10 @@ struct WebViewContainer: View {
         }
     }
 
-    private func browserSurface<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+    private func browserSurface<Content: View>(
+        drawsBorder: Bool = true,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
         let shape = UnevenRoundedRectangle(
             topLeadingRadius: surfaceCornerRadius,
             bottomLeadingRadius: surfaceCornerRadius,
@@ -135,8 +139,10 @@ struct WebViewContainer: View {
         return content()
             .clipShape(shape)
             .overlay {
-                shape
-                    .stroke(CandoaChromeStyle.surfaceBorder, lineWidth: 1)
+                if drawsBorder {
+                    shape
+                        .stroke(CandoaChromeStyle.surfaceBorder, lineWidth: 1)
+                }
             }
             .background(
                 shape
@@ -313,27 +319,74 @@ private struct BrowserChromeMaskModifier: ViewModifier {
     let insets: BrowserChromeInsets
     let surfaceCornerRadius: CGFloat
     let surfacePadding: CGFloat
+    let drawsFullSurfaceBorder: Bool
 
     func body(content: Content) -> some View {
         content
             .mask {
                 if insets.leading > 0 || insets.trailing > 0 {
-                    RoundedRectangle(cornerRadius: surfaceCornerRadius, style: .continuous)
-                        .padding(.vertical, surfacePadding)
-                        .padding(.leading, insets.leading + surfacePadding)
-                        .padding(.trailing, insets.trailing + surfacePadding)
+                    ZStack {
+                        RoundedRectangle(cornerRadius: surfaceCornerRadius, style: .continuous)
+                            .padding(.vertical, surfacePadding)
+                            .padding(.leading, insets.leading + surfacePadding)
+                            .padding(.trailing, insets.trailing + surfacePadding)
+
+                        // Preserve the surface's existing top, trailing, and
+                        // bottom shadow. Only the chrome lanes need clipping.
+                        Rectangle()
+                            .padding(
+                                .leading,
+                                insets.leading > 0
+                                    ? insets.leading + surfacePadding + surfaceCornerRadius
+                                    : 0
+                            )
+                            .padding(
+                                .trailing,
+                                insets.trailing > 0
+                                    ? insets.trailing + surfacePadding + surfaceCornerRadius
+                                    : 0
+                            )
+                    }
                 } else {
                     Rectangle()
                 }
             }
             .overlay {
-                if insets.leading > 0 || insets.trailing > 0 {
+                if drawsFullSurfaceBorder {
                     RoundedRectangle(cornerRadius: surfaceCornerRadius, style: .continuous)
                         .stroke(CandoaChromeStyle.surfaceBorder, lineWidth: 1)
                         .padding(.vertical, surfacePadding)
                         .padding(.leading, insets.leading + surfacePadding)
                         .padding(.trailing, insets.trailing + surfacePadding)
                         .allowsHitTesting(false)
+                } else {
+                    // Split panes own their individual borders. Add only sides
+                    // introduced by this mask so shared edges are not repainted.
+                    if insets.leading > 0 {
+                        RoundedRectangle(cornerRadius: surfaceCornerRadius, style: .continuous)
+                            .stroke(CandoaChromeStyle.surfaceBorder, lineWidth: 1)
+                            .mask(alignment: .leading) {
+                                Rectangle()
+                                    .frame(width: surfaceCornerRadius + 1)
+                            }
+                            .padding(.vertical, surfacePadding)
+                            .padding(.leading, insets.leading + surfacePadding)
+                            .padding(.trailing, insets.trailing + surfacePadding)
+                            .allowsHitTesting(false)
+                    }
+
+                    if insets.trailing > 0 {
+                        RoundedRectangle(cornerRadius: surfaceCornerRadius, style: .continuous)
+                            .stroke(CandoaChromeStyle.surfaceBorder, lineWidth: 1)
+                            .mask(alignment: .trailing) {
+                                Rectangle()
+                                    .frame(width: surfaceCornerRadius + 1)
+                            }
+                            .padding(.vertical, surfacePadding)
+                            .padding(.leading, insets.leading + surfacePadding)
+                            .padding(.trailing, insets.trailing + surfacePadding)
+                            .allowsHitTesting(false)
+                    }
                 }
             }
     }
