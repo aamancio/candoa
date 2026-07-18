@@ -80,19 +80,16 @@ struct ContentView: View {
                     .transition(.opacity)
             } else {
                 HStack(spacing: 0) {
-                    // Keep the pinned sidebar's reservation outside the web
-                    // surface. Changing the sidebar must not mutate the web
-                    // container's own chrome insets: doing so invalidates that
-                    // subtree and makes the independently mounted Ask lane
-                    // appear to toggle with it. This zero-cost layout lane also
-                    // stays present at width zero, preserving child identity.
-                    Color.clear
-                        .frame(width: isSidebarVisible ? sidebarTotalWidth : 0)
-                        .allowsHitTesting(false)
-
+                    // Keep the WebKit host at one stable width when the left
+                    // sidebar toggles. WebKit paints through a remote layer;
+                    // resizing that host exposes or stretches the previous
+                    // frame before the WebContent process catches up. The
+                    // sidebar lane is reserved inside WebViewContainer instead.
                     WebViewContainer(
                         store: store,
-                        visibleChromeInsets: BrowserChromeInsets(),
+                        visibleChromeInsets: BrowserChromeInsets(
+                            leading: isSidebarVisible ? sidebarTotalWidth : 0
+                        ),
                         attachesToTrailingPanel: isAISidebarMounted
                     )
 

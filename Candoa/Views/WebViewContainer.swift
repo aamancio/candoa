@@ -84,6 +84,13 @@ struct WebViewContainer: View {
             }
         }
         .animation(.easeOut(duration: 0.14), value: store.isFindBarPresented)
+        .modifier(
+            BrowserChromeMaskModifier(
+                insets: visibleChromeInsets,
+                surfaceCornerRadius: surfaceCornerRadius,
+                surfacePadding: surfacePadding
+            )
+        )
     }
 
     @ViewBuilder
@@ -143,9 +150,23 @@ struct WebViewContainer: View {
     private var containedSurfaceInsets: EdgeInsets {
         EdgeInsets(
             top: surfacePadding,
-            leading: visibleChromeInsets.leading + surfacePadding,
+            leading: surfacePadding,
             bottom: surfacePadding,
             trailing: visibleChromeInsets.trailing + (attachesToTrailingPanel ? 0 : surfacePadding)
+        )
+    }
+
+    private var webContentInsets: BrowserChromeInsets {
+        BrowserChromeInsets(
+            leading: max(0, visibleChromeInsets.leading - surfacePadding),
+            trailing: max(0, visibleChromeInsets.trailing - surfacePadding)
+        )
+    }
+
+    private func splitPaneInsets(for tab: BrowserTab, in tabs: [BrowserTab]) -> BrowserChromeInsets {
+        BrowserChromeInsets(
+            leading: tab.id == tabs.first?.id ? webContentInsets.leading : 0,
+            trailing: tab.id == tabs.last?.id ? webContentInsets.trailing : 0
         )
     }
 
@@ -155,6 +176,8 @@ struct WebViewContainer: View {
             if tab.isWelcomePage {
                 WelcomeToCandoaPage(store: store)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .padding(.leading, visibleChromeInsets.leading)
+                    .padding(.trailing, visibleChromeInsets.trailing)
             } else if let url = tab.url,
                DeveloperModeConfiguration.isEnabled(
                    for: url,
@@ -185,7 +208,7 @@ struct WebViewContainer: View {
                 ActiveWebViewHost(
                     tab: tab,
                     store: store,
-                    obscuredContentInsets: BrowserChromeInsets()
+                    obscuredContentInsets: webContentInsets
                 )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(CandoaChromeStyle.surfaceFill.opacity(0.72))
@@ -265,7 +288,7 @@ struct WebViewContainer: View {
         return SplitWebViewHost(
             tab: tab,
             store: store,
-            obscuredContentInsets: BrowserChromeInsets()
+            obscuredContentInsets: splitPaneInsets(for: tab, in: store.activeSplitGroupTabs)
         )
             .id(tab.id)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -278,6 +301,40 @@ struct WebViewContainer: View {
                 )
                 .padding(.top, 2)
                 .id(tab.id)
+            }
+    }
+}
+
+/// Reserves native chrome without ever changing the live WKWebView's frame.
+/// Keep this at the WebViewContainer boundary: moving the reservation into a
+/// parent HStack makes WebKit stretch a stale remote-layer frame on every
+/// sidebar toggle.
+private struct BrowserChromeMaskModifier: ViewModifier {
+    let insets: BrowserChromeInsets
+    let surfaceCornerRadius: CGFloat
+    let surfacePadding: CGFloat
+
+    func body(content: Content) -> some View {
+        content
+            .mask {
+                if insets.leading > 0 || insets.trailing > 0 {
+                    RoundedRectangle(cornerRadius: surfaceCornerRadius, style: .continuous)
+                        .padding(.vertical, surfacePadding)
+                        .padding(.leading, insets.leading + surfacePadding)
+                        .padding(.trailing, insets.trailing + surfacePadding)
+                } else {
+                    Rectangle()
+                }
+            }
+            .overlay {
+                if insets.leading > 0 || insets.trailing > 0 {
+                    RoundedRectangle(cornerRadius: surfaceCornerRadius, style: .continuous)
+                        .stroke(CandoaChromeStyle.surfaceBorder, lineWidth: 1)
+                        .padding(.vertical, surfacePadding)
+                        .padding(.leading, insets.leading + surfacePadding)
+                        .padding(.trailing, insets.trailing + surfacePadding)
+                        .allowsHitTesting(false)
+                }
             }
     }
 }
