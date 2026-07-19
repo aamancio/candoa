@@ -192,6 +192,10 @@ final class CandoaUITests: XCTestCase {
 
         XCTAssertTrue(accountOnboarding.waitForExistence(timeout: 10))
         XCTAssertEqual(accountOnboarding.value as? String, "signing-in")
+
+        let signInButton = element("onboarding-apple-sign-in", in: app).firstMatch
+        XCTAssertTrue(signInButton.waitForExistence(timeout: 5))
+        XCTAssertGreaterThanOrEqual(signInButton.frame.height, 42)
     }
 
     func testInitialTourStartsOnLocalWelcomePage() throws {
@@ -407,6 +411,33 @@ final class CandoaUITests: XCTestCase {
         attachment.name = "Eli Pro subscription response"
         attachment.lifetime = .keepAlways
         add(attachment)
+    }
+
+    func testEliConversationAndFeedbackPersistWhenSidebarReopens() throws {
+        let app = launchApp(fixture: "ask")
+
+        app.typeKey("e", modifierFlags: .command)
+        XCTAssertTrue(element("agent-sidebar", in: app).waitForExistence(timeout: 5), currentState(in: app))
+
+        submitAskText("Remember this conversation", in: app)
+        XCTAssertTrue(element("agent-subscribe-link", in: app).waitForExistence(timeout: 5), askState(in: app))
+
+        let positiveFeedback = element("agent-feedback-up", in: app)
+        XCTAssertTrue(positiveFeedback.waitForExistence(timeout: 5), askState(in: app))
+        XCTAssertTrue(element("agent-copy-text", in: app).exists)
+        XCTAssertFalse(element("agent-copy-image", in: app).exists)
+        positiveFeedback.click()
+        XCTAssertEqual(positiveFeedback.value as? String, "selected")
+        XCTAssertTrue(waitForAskState(in: app, containing: "feedback=positive"), askState(in: app))
+
+        app.typeKey("e", modifierFlags: .command)
+        XCTAssertTrue(waitForState(in: app, containing: "aiVisible=false"), currentState(in: app))
+
+        app.typeKey("e", modifierFlags: .command)
+        XCTAssertTrue(element("agent-sidebar", in: app).waitForExistence(timeout: 5), currentState(in: app))
+        XCTAssertTrue(element("agent-subscribe-link", in: app).waitForExistence(timeout: 5), askState(in: app))
+        XCTAssertTrue(waitForAskState(in: app, containing: "Remember this conversation"), askState(in: app))
+        XCTAssertEqual(element("agent-feedback-up", in: app).value as? String, "selected")
     }
 
     private func launchApp(

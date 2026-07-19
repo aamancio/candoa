@@ -11,7 +11,7 @@ XCODEBUILD_ARGS=(
   -scheme Candoa
   -configuration Debug
   -destination "$DESTINATION"
-  -only-testing:CandoaUITests/CandoaAskLiveUITests
+  -only-testing:CandoaUITests/CandoaEliLiveUITests
 )
 
 if [[ "${CANDOA_E2E_ADHOC_SIGNING:-0}" == "1" ]]; then

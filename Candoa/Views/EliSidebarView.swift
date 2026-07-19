@@ -11,6 +11,7 @@ struct EliSidebarView: View {
 
     @ObservedObject var store: BrowserStore
     @Binding var uiTestingState: String
+    @Binding var messages: [AISidebarMessage]
     let onClose: () -> Void
 
     @Environment(\.colorScheme) private var colorScheme
@@ -18,7 +19,6 @@ struct EliSidebarView: View {
     @EnvironmentObject private var userStore: UserStore
     @StateObject private var speechController = AISidebarSpeechController()
     @State private var prompt = ""
-    @State private var messages: [AISidebarMessage] = []
     @State private var mentionedContext: [AISidebarContextMention] = []
     @State private var isMentionMenuPresented = false
     @State private var isFileImporterPresented = false
@@ -141,6 +141,7 @@ struct EliSidebarView: View {
                 subtitle: activePageSubtitle,
                 symbolName: store.activeTab?.faviconSymbol ?? "safari",
                 faviconData: store.activeTab?.faviconData,
+                previewImageData: nil,
                 isRemovable: true
             )
         ] : []
@@ -191,9 +192,9 @@ struct EliSidebarView: View {
                 ScrollViewReader { proxy in
                     ScrollView(.vertical) {
                         VStack(alignment: .leading, spacing: 0) {
-                            ForEach(messages) { message in
+                            ForEach($messages) { $message in
                                 AISidebarMessageRow(
-                                    message: message,
+                                    message: $message,
                                     themeColorHex: store.activeThemeColorHexes.first
                                 )
                                 .padding(.bottom, spacingAfterMessage(message))
@@ -413,14 +414,6 @@ struct EliSidebarView: View {
                     .onChange(of: prompt) { _, _ in
                         syncMentionMenu()
                     }
-                    .onKeyPress(.return) {
-                        if performSelectedMention() {
-                            return .handled
-                        }
-
-                        submitPrompt()
-                        return .handled
-                    }
                     .onKeyPress(.downArrow) {
                         guard isMentionMenuPresented else { return .ignored }
                         moveMentionSelection(by: 1)
@@ -598,10 +591,15 @@ struct EliSidebarView: View {
         let messageText = messages.enumerated()
             .map { index, message in
                 let role = message.role == .user ? "user" : "assistant"
+                let feedback = switch message.feedback {
+                case .positive: "positive"
+                case .negative: "negative"
+                case nil: "none"
+                }
                 let sentChipText = message.contextChips
                     .map { "\($0.title)|\($0.subtitle)" }
                     .joined(separator: ",")
-                return "\(index):\(role):chips=[\(sentChipText)]:text=\(message.text)"
+                return "\(index):\(role):feedback=\(feedback):chips=[\(sentChipText)]:text=\(message.text)"
             }
             .joined(separator: "||")
 
@@ -614,36 +612,7 @@ struct EliSidebarView: View {
         guard CandoaEliPromptPolicy.canSubmit(submittedPrompt, hasConversation: !messages.isEmpty) else { return }
 
         if !hasEliAccess {
-            prompt = ""
-            cancelStream()
-
-            let submittedContextChips = contextChips.map {
-                AISidebarContextChip(
-                    id: $0.id,
-                    title: $0.title,
-                    subtitle: $0.subtitle,
-                    symbolName: $0.symbolName,
-                    faviconData: $0.faviconData,
-                    isRemovable: false
-                )
-            }
-
-            messages.append(AISidebarMessage(
-                role: .user,
-                text: submittedPrompt,
-                isStreaming: false,
-                contextChips: submittedContextChips
-            ))
-            messages.append(AISidebarMessage(
-                role: .assistant,
-                text: "Eli is available with Candoa Pro.",
-                isStreaming: false,
-                action: .subscribe
-            ))
-
-            mentionedContext = []
-            includesCurrentPageContext = false
-            isMentionMenuPresented = false
+            refreshEliAccessThenSubmit(submittedPrompt)
             return
         }
 
@@ -666,6 +635,7 @@ struct EliSidebarView: View {
                 subtitle: $0.subtitle,
                 symbolName: $0.symbolName,
                 faviconData: $0.faviconData,
+                previewImageData: $0.previewImageData,
                 isRemovable: false
             )
         }
@@ -725,6 +695,52 @@ struct EliSidebarView: View {
         }
     }
 
+    private func refreshEliAccessThenSubmit(_ submittedPrompt: String) {
+        isRefreshingEliAccess = true
+
+        Task {
+            await userStore.refresh()
+            isRefreshingEliAccess = false
+
+            if hasEliAccess {
+                submitPrompt(submittedPrompt)
+                return
+            }
+
+            prompt = ""
+            cancelStream()
+
+            let submittedContextChips = contextChips.map {
+                AISidebarContextChip(
+                    id: $0.id,
+                    title: $0.title,
+                    subtitle: $0.subtitle,
+                    symbolName: $0.symbolName,
+                    faviconData: $0.faviconData,
+                    previewImageData: $0.previewImageData,
+                    isRemovable: false
+                )
+            }
+
+            messages.append(AISidebarMessage(
+                role: .user,
+                text: submittedPrompt,
+                isStreaming: false,
+                contextChips: submittedContextChips
+            ))
+            messages.append(AISidebarMessage(
+                role: .assistant,
+                text: "Eli is available with Candoa Pro.",
+                isStreaming: false,
+                action: .subscribe
+            ))
+
+            mentionedContext = []
+            includesCurrentPageContext = false
+            isMentionMenuPresented = false
+        }
+    }
+
     private func beginComparisonPrompt() {
         prompt = "Compare this with @"
         selectedMentionIndex = 0
@@ -761,7 +777,10 @@ struct EliSidebarView: View {
             ) {
                 guard !Task.isCancelled else { return }
                 response += fragment
-                guard response.count - displayedCharacterCount >= 24 else { continue }
+                let shouldDisplayImmediately = displayedCharacterCount == 0
+                guard shouldDisplayImmediately || response.count - displayedCharacterCount >= 24 else {
+                    continue
+                }
 
                 await MainActor.run {
                     guard let index = messages.firstIndex(where: { $0.id == responseID }) else { return }
@@ -967,6 +986,7 @@ struct EliSidebarView: View {
                 subtitle: tab?.url?.host(percentEncoded: false) ?? "",
                 symbolName: tab?.faviconSymbol ?? "macwindow",
                 faviconData: tab?.faviconData,
+                previewImageData: nil,
                 isRemovable: true
             )
         case .history(let historyContext):
@@ -976,6 +996,7 @@ struct EliSidebarView: View {
                 subtitle: historyContext.url.host(percentEncoded: false) ?? "History",
                 symbolName: FaviconService.shared.placeholderSymbol(for: historyContext.url),
                 faviconData: nil,
+                previewImageData: nil,
                 isRemovable: true
             )
         case .file(let fileContext):
@@ -983,8 +1004,9 @@ struct EliSidebarView: View {
                 id: "file-\(fileContext.id.uuidString)",
                 title: fileContext.name,
                 subtitle: "Uploaded file",
-                symbolName: "doc.text",
+                symbolName: fileContext.previewImageData == nil ? "doc.text" : "photo",
                 faviconData: nil,
+                previewImageData: fileContext.previewImageData,
                 isRemovable: true
             )
         }
@@ -1033,7 +1055,8 @@ struct EliSidebarView: View {
                 .file(
                     AISidebarFileContext(
                         name: url.lastPathComponent,
-                        text: "Uploaded image OCR text:\n\(recognizedText)"
+                        text: "Uploaded image OCR text:\n\(recognizedText)",
+                        previewImageData: attachmentThumbnailData(for: image)
                     )
                 )
             )
@@ -1050,13 +1073,44 @@ struct EliSidebarView: View {
         addMention(.file(AISidebarFileContext(name: url.lastPathComponent, text: excerpt)))
     }
 
+    private func attachmentThumbnailData(for image: NSImage) -> Data? {
+        let sourceSize = image.size
+        guard sourceSize.width > 0, sourceSize.height > 0 else { return nil }
+
+        let maximumDimension: CGFloat = 96
+        let scale = min(1, maximumDimension / max(sourceSize.width, sourceSize.height))
+        let targetSize = NSSize(
+            width: max(1, sourceSize.width * scale),
+            height: max(1, sourceSize.height * scale)
+        )
+        let thumbnail = NSImage(size: targetSize)
+        thumbnail.lockFocus()
+        NSGraphicsContext.current?.imageInterpolation = .high
+        image.draw(
+            in: NSRect(origin: .zero, size: targetSize),
+            from: NSRect(origin: .zero, size: sourceSize),
+            operation: .copy,
+            fraction: 1
+        )
+        thumbnail.unlockFocus()
+
+        guard
+            let tiffData = thumbnail.tiffRepresentation,
+            let representation = NSBitmapImageRep(data: tiffData)
+        else {
+            return nil
+        }
+        return representation.representation(using: .png, properties: [:])
+    }
+
     private func recentTurns() -> [CandoaAIConversationTurn] {
-        messages.compactMap { message in
+        let turns: [CandoaAIConversationTurn] = messages.compactMap { message in
             guard message.action == nil else { return nil }
             let text = message.text.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !text.isEmpty else { return nil }
             return CandoaAIConversationTurn(role: message.role.conversationRole, text: text)
         }
+        return Array(turns.suffix(6))
     }
 
     private func cancelStream() {

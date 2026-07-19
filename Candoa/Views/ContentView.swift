@@ -23,6 +23,7 @@ struct ContentView: View {
     @State private var reservedAISidebarInset: CGFloat = 0
     @State private var aiSidebarTransitionGeneration = 0
     @State private var aiSidebarUITestingState = ""
+    @State private var aiSidebarMessages: [AISidebarMessage] = []
     @State private var aiSidebarResizeStartWidth: CGFloat?
     @State private var miniPlayerOrigin: CGPoint?
     @State private var miniPlayerExpandedSize = MiniPlayerLayout.defaultExpandedSize
@@ -459,7 +460,11 @@ struct ContentView: View {
     }
 
     private func aiSidebarPanel(width: CGFloat) -> some View {
-        EliSidebarView(store: store, uiTestingState: $aiSidebarUITestingState) {
+        EliSidebarView(
+            store: store,
+            uiTestingState: $aiSidebarUITestingState,
+            messages: $aiSidebarMessages
+        ) {
             toggleAISidebar()
         }
         .frame(width: width)

@@ -67,10 +67,9 @@ struct AISidebarTopBarIconButton: View {
 }
 
 struct AISidebarMessageRow: View {
-    let message: AISidebarMessage
+    @Binding var message: AISidebarMessage
     let themeColorHex: String?
     @EnvironmentObject private var userStore: UserStore
-    @State private var selectedFeedback: AISidebarResponseFeedback?
 
     private var isUser: Bool {
         message.role == .user
@@ -146,10 +145,20 @@ struct AISidebarMessageRow: View {
                     .foregroundStyle(messageForeground)
                     .textSelection(.enabled)
                     .fixedSize(horizontal: false, vertical: true)
-            } else if message.isStreaming {
+            }
+
+            if let image = message.responseImage {
+                Image(nsImage: image)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(maxWidth: 420)
+                    .accessibilityLabel("Response image")
+            }
+
+            if !message.hasCopyableContent && message.isStreaming {
                 ProgressView()
                     .controlSize(.small)
-            } else {
+            } else if !message.hasCopyableContent {
                 Text("No response.")
                     .font(.system(size: 13.5))
                     .foregroundStyle(CandoaChromeStyle.sidebarTextSecondary)
@@ -168,7 +177,7 @@ struct AISidebarMessageRow: View {
     }
 
     private var showsFeedbackControls: Bool {
-        !message.isStreaming && !message.text.isEmpty
+        !message.isStreaming && message.hasCopyableContent
     }
 
     private var feedbackControls: some View {
@@ -187,21 +196,25 @@ struct AISidebarMessageRow: View {
                 identifier: "agent-feedback-down"
             )
 
-            responseActionButton(
-                symbolName: "doc.on.doc",
-                helpText: "Copy as text",
-                accessibilityLabel: "Copy response as text",
-                identifier: "agent-copy-text",
-                action: copyResponseText
-            )
+            if !message.text.isEmpty {
+                responseActionButton(
+                    symbolName: "doc.on.doc",
+                    helpText: "Copy as text",
+                    accessibilityLabel: "Copy response as text",
+                    identifier: "agent-copy-text",
+                    action: copyResponseText
+                )
+            }
 
-            responseActionButton(
-                symbolName: "photo",
-                helpText: "Copy as image",
-                accessibilityLabel: "Copy response as image",
-                identifier: "agent-copy-image",
-                action: copyResponseImage
-            )
+            if message.responseImage != nil {
+                responseActionButton(
+                    symbolName: "photo",
+                    helpText: "Copy image",
+                    accessibilityLabel: "Copy response image",
+                    identifier: "agent-copy-image",
+                    action: copyResponseImage
+                )
+            }
         }
     }
 
@@ -216,9 +229,9 @@ struct AISidebarMessageRow: View {
             toolTip: helpText,
             accessibilityLabel: feedback == .positive ? "Good response" : "Poor response",
             identifier: identifier,
-            isSelected: selectedFeedback == feedback
+            isSelected: message.feedback == feedback
         ) {
-            selectedFeedback = selectedFeedback == feedback ? nil : feedback
+            message.feedback = message.feedback == feedback ? nil : feedback
         }
         .frame(width: 22, height: 22)
     }
@@ -247,21 +260,7 @@ struct AISidebarMessageRow: View {
     }
 
     private func copyResponseImage() {
-        let responseView = Text(message.text)
-            .font(.system(size: 14))
-            .foregroundStyle(Color(nsColor: .labelColor))
-            .fixedSize(horizontal: false, vertical: true)
-            .padding(14)
-            .frame(maxWidth: 420, alignment: .leading)
-            .background {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(Color(nsColor: .windowBackgroundColor))
-            }
-
-        let renderer = ImageRenderer(content: responseView)
-        renderer.scale = NSScreen.main?.backingScaleFactor ?? 2
-
-        guard let image = renderer.nsImage else {
+        guard let image = message.responseImage else {
             NSSound.beep()
             return
         }
@@ -291,7 +290,7 @@ struct AISidebarMessageRow: View {
 
 }
 
-private enum AISidebarResponseFeedback {
+enum AISidebarResponseFeedback: Equatable {
     case positive
     case negative
 }
@@ -334,6 +333,7 @@ private struct AISidebarNativeIconButton: NSViewRepresentable {
         button.contentTintColor = isSelected ? .controlAccentColor : .secondaryLabelColor
         button.toolTip = toolTip
         button.setAccessibilityLabel(accessibilityLabel)
+        button.setAccessibilityValue(isSelected ? "selected" : "not selected")
         button.identifier = NSUserInterfaceItemIdentifier(identifier)
     }
 
@@ -355,7 +355,12 @@ struct AISidebarSentContextChipView: View {
 
     var body: some View {
         HStack(spacing: 6) {
-            AISidebarMentionIcon(symbolName: chip.symbolName, faviconData: chip.faviconData)
+            AISidebarMentionIcon(
+                symbolName: chip.symbolName,
+                faviconData: chip.faviconData,
+                previewImageData: chip.previewImageData,
+                size: 22
+            )
                 .frame(width: 18, height: 18)
 
             VStack(alignment: .leading, spacing: 0) {
@@ -718,8 +723,13 @@ struct AISidebarContextChipView: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            AISidebarMentionIcon(symbolName: chip.symbolName, faviconData: chip.faviconData)
-                .frame(width: 28, height: 28)
+            AISidebarMentionIcon(
+                symbolName: chip.symbolName,
+                faviconData: chip.faviconData,
+                previewImageData: chip.previewImageData,
+                size: chip.previewImageData == nil ? 22 : 34
+            )
+            .frame(width: chip.previewImageData == nil ? 28 : 36, height: 36)
 
             VStack(alignment: .leading, spacing: 1) {
                 Text(chip.title)
@@ -784,11 +794,19 @@ struct AISidebarContextChipView: View {
 struct AISidebarMentionIcon: View {
     let symbolName: String
     var faviconData: Data?
+    var previewImageData: Data? = nil
     var isSelected = false
+    var size: CGFloat = 22
 
     var body: some View {
         Group {
-            if let faviconData, let image = NSImage(data: faviconData) {
+            if let previewImageData, let image = NSImage(data: previewImageData) {
+                Image(nsImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                    .accessibilityLabel("Attachment preview")
+            } else if let faviconData, let image = NSImage(data: faviconData) {
                 Image(nsImage: image)
                     .resizable()
                     .scaledToFit()
@@ -798,7 +816,7 @@ struct AISidebarMentionIcon: View {
                     .foregroundStyle(isSelected ? Color.white.opacity(0.86) : CandoaChromeStyle.sidebarIcon)
             }
         }
-        .frame(width: 22, height: 22)
+        .frame(width: size, height: size)
     }
 }
 
@@ -822,6 +840,7 @@ struct AISidebarContextChip: Identifiable, Equatable {
     let subtitle: String
     let symbolName: String
     let faviconData: Data?
+    var previewImageData: Data? = nil
     let isRemovable: Bool
 }
 
@@ -841,6 +860,7 @@ struct AISidebarFileContext: Equatable {
     var id = UUID()
     let name: String
     let text: String
+    var previewImageData: Data? = nil
 }
 
 struct AISidebarMessage: Identifiable, Equatable {
@@ -850,6 +870,16 @@ struct AISidebarMessage: Identifiable, Equatable {
     var isStreaming: Bool
     var contextChips: [AISidebarContextChip] = []
     var action: AISidebarMessageAction? = nil
+    var feedback: AISidebarResponseFeedback? = nil
+    var responseImageData: Data? = nil
+
+    var responseImage: NSImage? {
+        responseImageData.flatMap(NSImage.init(data:))
+    }
+
+    var hasCopyableContent: Bool {
+        !text.isEmpty || responseImageData != nil
+    }
 }
 
 enum AISidebarMessageAction: Equatable {

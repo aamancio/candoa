@@ -358,7 +358,7 @@ private struct AccountOnboardingStep: View {
 
                                 Text("Signing in…")
                             }
-                            .frame(maxWidth: .infinity)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
                         }
                         .buttonStyle(.borderedProminent)
                         .tint(.black)

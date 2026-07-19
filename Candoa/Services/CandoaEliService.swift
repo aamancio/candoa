@@ -175,12 +175,13 @@ enum CandoaRemoteEliService {
                     request.httpMethod = "POST"
                     request.timeoutInterval = 60
                     request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                    request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
                     request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
                     request.httpBody = try JSONEncoder().encode(payload)
 
                     let (bytes, response) = try await URLSession.shared.bytes(for: request)
                     try await validate(response: response, bytes: bytes)
-                    try await yieldPlainText(bytes, to: continuation)
+                    try await yieldCandoaEvents(bytes, to: continuation)
                     continuation.finish()
                 } catch {
                     continuation.finish(throwing: error)
@@ -247,21 +248,21 @@ enum CandoaRemoteEliService {
         }
     }
 
-    private static func yieldPlainText(
+    private static func yieldCandoaEvents(
         _ bytes: URLSession.AsyncBytes,
         to continuation: AsyncThrowingStream<String, Error>.Continuation
     ) async throws {
-        var pendingBytes = Data()
+        for try await line in bytes.lines {
+            guard line.hasPrefix("data: ") else { continue }
+            let payload = String(line.dropFirst("data: ".count))
+            guard let data = payload.data(using: .utf8) else { continue }
 
-        for try await byte in bytes {
-            pendingBytes.append(byte)
-            guard let text = String(data: pendingBytes, encoding: .utf8) else { continue }
-            continuation.yield(text)
-            pendingBytes.removeAll(keepingCapacity: true)
-        }
-
-        if !pendingBytes.isEmpty {
-            continuation.yield(String(decoding: pendingBytes, as: UTF8.self))
+            let event = try JSONDecoder().decode(CandoaStreamEvent.self, from: data)
+            if let delta = event.delta {
+                continuation.yield(delta)
+            } else if let error = event.error {
+                throw CandoaRemoteEliError.server(error)
+            }
         }
     }
 
@@ -329,6 +330,11 @@ enum CandoaRemoteEliService {
         let message: String
         let context: PageContext
         let history: [ConversationTurn]
+    }
+
+    private struct CandoaStreamEvent: Decodable {
+        let delta: String?
+        let error: String?
     }
 
     private struct OpenAIRequestPayload: Encodable {
