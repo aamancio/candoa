@@ -6,7 +6,7 @@ enum AISidebarLayout {
     static let maxWidth: CGFloat = 720
     static let containerPadding: CGFloat = 8
     static let resizeHandleHitWidth: CGFloat = 12
-    static let slideAnimationDuration: TimeInterval = 0.18
+    static let slideAnimationDuration: TimeInterval = 0.22
 }
 
 struct AISidebarResizeHandle: View {

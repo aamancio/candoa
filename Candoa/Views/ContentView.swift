@@ -19,6 +19,8 @@ struct ContentView: View {
     @State private var isSidebarRevealSuppressed = false
     @State private var isAISidebarVisible = false
     @State private var isAISidebarMounted = false
+    @State private var isAISidebarReservingWebLayout = false
+    @State private var reservedAISidebarInset: CGFloat = 0
     @State private var aiSidebarTransitionGeneration = 0
     @State private var aiSidebarUITestingState = ""
     @State private var aiSidebarResizeStartWidth: CGFloat?
@@ -79,12 +81,13 @@ struct ContentView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .transition(.opacity)
             } else {
-                HStack(spacing: 0) {
+                ZStack(alignment: .topTrailing) {
                     // Keep the WebKit host at one stable width when the left
-                    // sidebar toggles. WebKit paints through a remote layer;
-                    // resizing that host exposes or stretches the previous
-                    // frame before the WebContent process catches up. The
-                    // sidebar lane is reserved inside WebViewContainer instead.
+                    // or right sidebar toggles. WebKit paints through a remote
+                    // layer; resizing that host exposes or stretches the
+                    // previous frame before the WebContent process catches up
+                    // and makes pages flash their scrollbars. Both sidebar
+                    // lanes are reserved inside WebViewContainer instead.
                     WebViewContainer(
                         store: store,
                         visibleChromeInsets: BrowserChromeInsets(
@@ -92,10 +95,23 @@ struct ContentView: View {
                         ),
                         attachesToTrailingPanel: isAISidebarMounted
                     )
+                    // Resize WebKit once, after Eli has finished sliding over
+                    // this lane. Keeping this out of the animation avoids
+                    // per-frame web layout while placing WebKit's own overlay
+                    // scroller at the visible page edge.
+                    .padding(
+                        .trailing,
+                        isAISidebarReservingWebLayout ? reservedAISidebarInset : 0
+                    )
 
                     if isAISidebarMounted {
                         aiSidebarLayout(width: currentAISidebarWidth)
-                            .transition(.identity)
+                            .transition(
+                                reduceMotion
+                                    ? .identity
+                                    : .move(edge: .trailing)
+                            )
+                            .zIndex(1)
                     }
                 }
                 // The web surface and attached Ask panel form one window row.
@@ -454,12 +470,6 @@ struct ContentView: View {
             Color(nsColor: .windowBackgroundColor)
 
             aiSidebarPanel(width: width)
-                .offset(x: isAISidebarVisible || reduceMotion ? 0 : 12)
-                .opacity(isAISidebarVisible ? 1 : 0)
-                .animation(
-                    reduceMotion ? nil : .easeInOut(duration: AISidebarLayout.slideAnimationDuration),
-                    value: isAISidebarVisible
-                )
         }
         .frame(width: width)
         .frame(maxHeight: .infinity)
@@ -487,6 +497,10 @@ struct ContentView: View {
                         }
                         .onEnded { _ in
                             aiSidebarResizeStartWidth = nil
+                            // Keep pointer-driven resizing compositor-only, then
+                            // commit the WebKit viewport once when dragging ends.
+                            reservedAISidebarInset = clampedAISidebarWidth(CGFloat(aiSidebarWidth))
+                                + AISidebarLayout.containerPadding
                         }
                 )
         }
@@ -531,36 +545,49 @@ struct ContentView: View {
         aiSidebarTransitionGeneration += 1
         let generation = aiSidebarTransitionGeneration
 
-        // Reserve the panel's lane in one layout transaction, then reveal its
-        // contents within that lane. The live WKWebView is never animated or
-        // covered by a separately floating panel.
-        isAISidebarMounted = true
-
-        DispatchQueue.main.async {
-            guard aiSidebarTransitionGeneration == generation,
-                  isAISidebarMounted else { return }
+        // Mount the panel in a trailing overlay, then reveal it. The live
+        // WKWebView stays at its current size for the animated portion.
+        isAISidebarReservingWebLayout = false
+        reservedAISidebarInset = clampedAISidebarWidth(CGFloat(aiSidebarWidth))
+            + AISidebarLayout.containerPadding
+        withAnimation(aiSidebarAnimation) {
+            isAISidebarMounted = true
             isAISidebarVisible = true
+        }
+
+        let delay = reduceMotion ? 0 : AISidebarLayout.slideAnimationDuration
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+            guard aiSidebarTransitionGeneration == generation,
+                  isAISidebarVisible else { return }
+            // The panel now fully covers the changing edge. Commit one native
+            // WebKit resize without animation so its system overlay scroller
+            // belongs to the page instead of a synthetic chrome gutter.
+            isAISidebarReservingWebLayout = true
         }
     }
 
     private func closeAISidebar() {
         guard isAISidebarVisible else { return }
         aiSidebarTransitionGeneration += 1
-        let generation = aiSidebarTransitionGeneration
 
         aiSidebarResizeStartWidth = nil
-        isAISidebarVisible = false
-
-        let delay = reduceMotion ? 0 : AISidebarLayout.slideAnimationDuration
-        DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
-            guard aiSidebarTransitionGeneration == generation,
-                  !isAISidebarVisible else { return }
+        // Expand the page once while Eli still covers the changing edge, then
+        // move only the sidebar surface.
+        isAISidebarReservingWebLayout = false
+        withAnimation(aiSidebarAnimation) {
+            isAISidebarVisible = false
             isAISidebarMounted = false
         }
     }
 
     private func clampedAISidebarWidth(_ width: CGFloat) -> CGFloat {
         min(max(width, AISidebarLayout.minWidth), AISidebarLayout.maxWidth)
+    }
+
+    private var aiSidebarAnimation: Animation? {
+        reduceMotion
+            ? nil
+            : .easeInOut(duration: AISidebarLayout.slideAnimationDuration)
     }
 
     private func openNewTabFlow() {

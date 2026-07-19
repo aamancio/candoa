@@ -158,7 +158,9 @@ struct WebViewContainer: View {
             top: surfacePadding,
             leading: surfacePadding,
             bottom: surfacePadding,
-            trailing: visibleChromeInsets.trailing + (attachesToTrailingPanel ? 0 : surfacePadding)
+            // Eli owns the adjacent trailing lane after its transition. It
+            // must not add a second inset inside the page surface.
+            trailing: attachesToTrailingPanel ? 0 : surfacePadding
         )
     }
 
