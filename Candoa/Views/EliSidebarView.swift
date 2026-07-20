@@ -211,8 +211,7 @@ struct EliSidebarView: View {
                         VStack(alignment: .leading, spacing: 0) {
                             ForEach($messages) { $message in
                                 AISidebarMessageRow(
-                                    message: $message,
-                                    themeColorHex: store.activeThemeColorHexes.first
+                                    message: $message
                                 )
                                 .padding(.bottom, spacingAfterMessage(message))
                                 .id(message.id)

@@ -68,7 +68,6 @@ struct AISidebarTopBarIconButton: View {
 
 struct AISidebarMessageRow: View {
     @Binding var message: AISidebarMessage
-    let themeColorHex: String?
     @EnvironmentObject private var userStore: UserStore
     @State private var didCopyText = false
 
@@ -129,11 +128,6 @@ struct AISidebarMessageRow: View {
             .background {
                 RoundedRectangle(cornerRadius: 17, style: .continuous)
                     .fill(messageBackground)
-
-                if let readability = messageReadability {
-                    RoundedRectangle(cornerRadius: 17, style: .continuous)
-                        .fill(readability.overlayColor.opacity(readability.overlayOpacity))
-                }
             }
     }
 
@@ -283,20 +277,12 @@ struct AISidebarMessageRow: View {
 
     private var messageBackground: Color {
         guard isUser else { return CandoaInterfaceStyle.sidebarControlFill }
-        guard let themeColorHex else { return Color(nsColor: .controlAccentColor) }
-        return Color(spaceHex: themeColorHex)
+        return CandoaInterfaceStyle.primaryActionFill
     }
 
     private var messageForeground: Color {
         guard isUser else { return CandoaInterfaceStyle.sidebarText }
-        guard let readability = messageReadability else { return .white }
-        return readability.usesDarkForeground
-            ? Color.black.opacity(0.84)
-            : Color.white.opacity(0.92)
-    }
-
-    private var messageReadability: SpaceThemeReadability? {
-        themeColorHex.map { SpaceThemeReadability.resolved(for: [$0]) }
+        return CandoaInterfaceStyle.primaryActionText
     }
 
 }

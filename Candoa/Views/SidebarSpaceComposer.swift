@@ -105,17 +105,18 @@ internal struct UpsertSpaceSidebarComposer: View {
     }
 
     private var createButtonTextColor: Color {
+        if trimmedName.isEmpty {
+            return isThemePreviewActive
+                ? secondaryTextColor
+                : CandoaInterfaceStyle.primaryActionDisabledText
+        }
+
         guard themeColorHex != nil else {
-            return CandoaInterfaceStyle.neutralPrimaryText
-                .opacity(trimmedName.isEmpty ? 0.38 : 1)
+            return CandoaInterfaceStyle.primaryActionText
         }
 
         if usesCandoaPrimary {
-            return CandoaColor.primaryForeground.opacity(trimmedName.isEmpty ? 0.42 : 0.92)
-        }
-
-        if trimmedName.isEmpty {
-            return primaryButtonForegroundBase.opacity(primaryButtonUsesDarkForeground ? 0.38 : 0.42)
+            return CandoaColor.primaryForeground.opacity(0.92)
         }
 
         return primaryButtonForegroundBase.opacity(primaryButtonUsesDarkForeground ? 0.82 : 0.92)
@@ -131,20 +132,25 @@ internal struct UpsertSpaceSidebarComposer: View {
     }
 
     private var createButtonBackground: Color {
+        if trimmedName.isEmpty {
+            return isThemePreviewActive
+                ? secondaryControlFill
+                : CandoaInterfaceStyle.primaryActionDisabledFill
+        }
+
         guard themeColorHex != nil else {
-            return CandoaInterfaceStyle.neutralPrimaryFill
-                .opacity(trimmedName.isEmpty ? 0.40 : (isHoveringPrimaryButton ? 1 : 0.88))
+            return CandoaInterfaceStyle.primaryActionFill.opacity(isHoveringPrimaryButton ? 1 : 0.88)
         }
 
         if usesCandoaPrimary {
-            return (isHoveringPrimaryButton && !trimmedName.isEmpty
+            return (isHoveringPrimaryButton
                 ? CandoaColor.primaryHover
                 : CandoaColor.primary)
-                .opacity(trimmedName.isEmpty ? 0.52 : 1)
+                .opacity(1)
         }
 
         return Color(spaceHex: primaryButtonTintHex)
-            .opacity(trimmedName.isEmpty ? 0.52 : 0.86)
+            .opacity(0.86)
     }
 
     init(store: BrowserStore, mode: SpaceComposerMode = .create) {
@@ -184,7 +190,7 @@ internal struct UpsertSpaceSidebarComposer: View {
                     .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                     .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(CandoaPrimaryActionButtonStyle())
             .frame(maxWidth: .infinity)
             .disabled(trimmedName.isEmpty)
             .onHover { isHoveringPrimaryButton = $0 }
@@ -218,6 +224,11 @@ internal struct UpsertSpaceSidebarComposer: View {
                 themeTexture = space.themeTexture
             }
             publishCurrentThemePreview()
+
+            guard mode != .initial else { return }
+            DispatchQueue.main.async {
+                isNameFocused = true
+            }
         }
         .onChange(of: isIconPickerPresented) { _, isPresented in
             guard !isPresented else { return }

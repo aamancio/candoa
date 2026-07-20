@@ -74,11 +74,19 @@ enum CandoaInterfaceStyle {
     static var spaceSetupPillFill: Color {
         tertiaryTone.opacity(increasesContrast ? 0.64 : 0.40)
     }
-    static var neutralPrimaryFill: Color {
+    /// Adaptive neutral treatment for app-owned primary actions. Space themes,
+    /// selections, focus rings, and status colors keep their own semantic color.
+    static var primaryActionFill: Color {
         Color(nsColor: .labelColor).opacity(increasesContrast ? 0.80 : 0.64)
     }
-    static var neutralPrimaryText: Color {
+    static var primaryActionText: Color {
         windowBackground
+    }
+    static var primaryActionDisabledFill: Color {
+        sidebarControlFill
+    }
+    static var primaryActionDisabledText: Color {
+        sidebarTextSecondary
     }
     static var updateBannerFill: Color { subtleTone.opacity(increasesContrast ? 1 : 0.92) }
     static var updateBannerFillHover: Color { tertiaryTone.opacity(increasesContrast ? 1 : 0.48) }
@@ -113,6 +121,15 @@ enum CandoaInterfaceStyle {
 
     static func prefersDarkForeground(forSpaceHexes hexes: [String]) -> Bool {
         SpaceThemeReadability.resolved(for: hexes).usesDarkForeground
+    }
+}
+
+/// Keeps custom primary-action colors authoritative while `Button.disabled`
+/// continues to provide native interaction and accessibility semantics.
+struct CandoaPrimaryActionButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .opacity(configuration.isPressed ? 0.86 : 1)
     }
 }
 
