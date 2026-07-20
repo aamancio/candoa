@@ -17,6 +17,8 @@
 		010000000000000000000108 /* FaviconService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000008 /* FaviconService.swift */; };
 		010000000000000000000109 /* WKWebViewRepresentable.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000009 /* WKWebViewRepresentable.swift */; };
 		010000000000000000000110 /* WebViewCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000010 /* WebViewCoordinator.swift */; };
+		EF0000000000000000000105 /* WebPageScripts.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000000000000005 /* WebPageScripts.swift */; };
+		EF0000000000000000000107 /* WebViewCoordinator+Permissions.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000000000000007 /* WebViewCoordinator+Permissions.swift */; };
 		010000000000000000000111 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000011 /* ContentView.swift */; };
 		010000000000000000000112 /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000012 /* SidebarView.swift */; };
 		C1A2B3D4E5F60718293A4B5C /* SidebarSpaceComposer.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A2B3C4E5F60718293A4B5C /* SidebarSpaceComposer.swift */; };
@@ -56,6 +58,10 @@
 		AB1000000000000000000101 /* WebsiteAppearanceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB1000000000000000000001 /* WebsiteAppearanceService.swift */; };
 		010000000000000000000141 /* CopiedURLToastView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000041 /* CopiedURLToastView.swift */; };
 		010000000000000000000142 /* CandoaEliService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000042 /* CandoaEliService.swift */; };
+		EF0000000000000000000101 /* CandoaEliModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000000000000001 /* CandoaEliModels.swift */; };
+		EF0000000000000000000102 /* CandoaEliCredentials.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000000000000002 /* CandoaEliCredentials.swift */; };
+		EF0000000000000000000103 /* CandoaBrowserAgent.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000000000000003 /* CandoaBrowserAgent.swift */; };
+		EF0000000000000000000104 /* CandoaContextualNavigation.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000000000000004 /* CandoaContextualNavigation.swift */; };
 		010000000000000000000176 /* CandoaAccountService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000066 /* CandoaAccountService.swift */; };
 		010000000000000000000177 /* InitialOnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000067 /* InitialOnboardingView.swift */; };
 		010000000000000000000178 /* BrowserImportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000068 /* BrowserImportService.swift */; };
@@ -64,6 +70,7 @@
 		010000000000000000000144 /* CandoaEliDrafts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000044 /* CandoaEliDrafts.swift */; };
 		010000000000000000000145 /* EliSidebarResizeHandle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000045 /* EliSidebarResizeHandle.swift */; };
 		010000000000000000000146 /* EliSidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000046 /* EliSidebarView.swift */; };
+		EF0000000000000000000106 /* EliSidebarSupportingViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000000000000006 /* EliSidebarSupportingViews.swift */; };
 		010000000000000000000147 /* EliSidebarComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000047 /* EliSidebarComponents.swift */; };
 		010000000000000000000148 /* CandoaEliContextCompactor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000048 /* CandoaEliContextCompactor.swift */; };
 		010000000000000000000151 /* HistoryVisit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000051 /* HistoryVisit.swift */; };
@@ -123,6 +130,8 @@
 		010000000000000000000008 /* FaviconService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FaviconService.swift; sourceTree = "<group>"; };
 		010000000000000000000009 /* WKWebViewRepresentable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WKWebViewRepresentable.swift; sourceTree = "<group>"; };
 		010000000000000000000010 /* WebViewCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebViewCoordinator.swift; sourceTree = "<group>"; };
+		EF0000000000000000000005 /* WebPageScripts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebPageScripts.swift; sourceTree = "<group>"; };
+		EF0000000000000000000007 /* WebViewCoordinator+Permissions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WebViewCoordinator+Permissions.swift"; sourceTree = "<group>"; };
 		010000000000000000000011 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		010000000000000000000012 /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
 		D1A2B3C4E5F60718293A4B5C /* SidebarSpaceComposer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarSpaceComposer.swift; sourceTree = "<group>"; };
@@ -165,6 +174,10 @@
 		AB1000000000000000000001 /* WebsiteAppearanceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebsiteAppearanceService.swift; sourceTree = "<group>"; };
 		010000000000000000000041 /* CopiedURLToastView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CopiedURLToastView.swift; sourceTree = "<group>"; };
 		010000000000000000000042 /* CandoaEliService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CandoaEliService.swift; sourceTree = "<group>"; };
+		EF0000000000000000000001 /* CandoaEliModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CandoaEliModels.swift; sourceTree = "<group>"; };
+		EF0000000000000000000002 /* CandoaEliCredentials.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CandoaEliCredentials.swift; sourceTree = "<group>"; };
+		EF0000000000000000000003 /* CandoaBrowserAgent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CandoaBrowserAgent.swift; sourceTree = "<group>"; };
+		EF0000000000000000000004 /* CandoaContextualNavigation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CandoaContextualNavigation.swift; sourceTree = "<group>"; };
 		010000000000000000000066 /* CandoaAccountService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CandoaAccountService.swift; sourceTree = "<group>"; };
 		010000000000000000000067 /* InitialOnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InitialOnboardingView.swift; sourceTree = "<group>"; };
 		010000000000000000000068 /* BrowserImportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserImportService.swift; sourceTree = "<group>"; };
@@ -173,6 +186,7 @@
 		010000000000000000000044 /* CandoaEliDrafts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CandoaEliDrafts.swift; sourceTree = "<group>"; };
 		010000000000000000000045 /* EliSidebarResizeHandle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EliSidebarResizeHandle.swift; sourceTree = "<group>"; };
 		010000000000000000000046 /* EliSidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EliSidebarView.swift; sourceTree = "<group>"; };
+		EF0000000000000000000006 /* EliSidebarSupportingViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EliSidebarSupportingViews.swift; sourceTree = "<group>"; };
 		010000000000000000000047 /* EliSidebarComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EliSidebarComponents.swift; sourceTree = "<group>"; };
 		010000000000000000000048 /* CandoaEliContextCompactor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CandoaEliContextCompactor.swift; sourceTree = "<group>"; };
 		010000000000000000000050 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -257,6 +271,7 @@
 				010000000000000000000067 /* InitialOnboardingView.swift */,
 				010000000000000000000045 /* EliSidebarResizeHandle.swift */,
 				010000000000000000000046 /* EliSidebarView.swift */,
+				EF0000000000000000000006 /* EliSidebarSupportingViews.swift */,
 				010000000000000000000047 /* EliSidebarComponents.swift */,
 				010000000000000000000012 /* SidebarView.swift */,
 				E50000000000000000000001 /* AppUpdateBanner.swift */,
@@ -305,6 +320,10 @@
 				AB1000000000000000000001 /* WebsiteAppearanceService.swift */,
 				01000000000000000000001D /* AppUpdateService.swift */,
 				010000000000000000000042 /* CandoaEliService.swift */,
+				EF0000000000000000000001 /* CandoaEliModels.swift */,
+				EF0000000000000000000002 /* CandoaEliCredentials.swift */,
+				EF0000000000000000000003 /* CandoaBrowserAgent.swift */,
+				EF0000000000000000000004 /* CandoaContextualNavigation.swift */,
 				010000000000000000000066 /* CandoaAccountService.swift */,
 				010000000000000000000068 /* BrowserImportService.swift */,
 				BB0000000000000000000001 /* BrowserPasskeyAuthorizationService.swift */,
@@ -352,6 +371,8 @@
 			children = (
 				010000000000000000000009 /* WKWebViewRepresentable.swift */,
 				010000000000000000000010 /* WebViewCoordinator.swift */,
+				EF0000000000000000000005 /* WebPageScripts.swift */,
+				EF0000000000000000000007 /* WebViewCoordinator+Permissions.swift */,
 			);
 			path = Web;
 			sourceTree = "<group>";
@@ -521,6 +542,8 @@
 				010000000000000000000108 /* FaviconService.swift in Sources */,
 				010000000000000000000109 /* WKWebViewRepresentable.swift in Sources */,
 				010000000000000000000110 /* WebViewCoordinator.swift in Sources */,
+				EF0000000000000000000105 /* WebPageScripts.swift in Sources */,
+				EF0000000000000000000107 /* WebViewCoordinator+Permissions.swift in Sources */,
 				010000000000000000000111 /* ContentView.swift in Sources */,
 				010000000000000000000112 /* SidebarView.swift in Sources */,
 				C1A2B3D4E5F60718293A4B5C /* SidebarSpaceComposer.swift in Sources */,
@@ -560,6 +583,10 @@
 				AB1000000000000000000101 /* WebsiteAppearanceService.swift in Sources */,
 				010000000000000000000141 /* CopiedURLToastView.swift in Sources */,
 				010000000000000000000142 /* CandoaEliService.swift in Sources */,
+				EF0000000000000000000101 /* CandoaEliModels.swift in Sources */,
+				EF0000000000000000000102 /* CandoaEliCredentials.swift in Sources */,
+				EF0000000000000000000103 /* CandoaBrowserAgent.swift in Sources */,
+				EF0000000000000000000104 /* CandoaContextualNavigation.swift in Sources */,
 				010000000000000000000176 /* CandoaAccountService.swift in Sources */,
 				010000000000000000000177 /* InitialOnboardingView.swift in Sources */,
 				010000000000000000000178 /* BrowserImportService.swift in Sources */,
@@ -568,6 +595,7 @@
 				010000000000000000000144 /* CandoaEliDrafts.swift in Sources */,
 				010000000000000000000145 /* EliSidebarResizeHandle.swift in Sources */,
 				010000000000000000000146 /* EliSidebarView.swift in Sources */,
+				EF0000000000000000000106 /* EliSidebarSupportingViews.swift in Sources */,
 				010000000000000000000147 /* EliSidebarComponents.swift in Sources */,
 				010000000000000000000148 /* CandoaEliContextCompactor.swift in Sources */,
 				010000000000000000000151 /* HistoryVisit.swift in Sources */,
