@@ -315,6 +315,144 @@ extension BrowserStore {
             return testingBotFixtureState(includesSeedTabs: false)
         }
 
+        if fixture.map({
+            ["ask-contextual-purchase", "ask-contextual-followup", "ask-contextual-unsafe-followup"]
+                .contains($0)
+        }) == true {
+            let spaceID = UUID(uuidString: "ABABABAB-ABAB-ABAB-ABAB-ABABABABABAB")!
+            let tabID = UUID(uuidString: "CDCDCDCD-CDCD-CDCD-CDCD-CDCDCDCDCDCD")!
+            let space = BrowserSpace(
+                id: spaceID,
+                name: "TestingBot",
+                symbolName: "sparkles",
+                themeAppearance: BrowserSpace.defaultThemeAppearance
+            )
+            let isUnsafeFollowUp = fixture == "ask-contextual-unsafe-followup"
+            let tab = BrowserTab(
+                id: tabID,
+                title: isUnsafeFollowUp ? "Buy MacBook Air" : "Apple Education Store",
+                url: URL(string: isUnsafeFollowUp
+                    ? "https://www.apple.com/us-edu/shop/buy-mac/macbook-air"
+                    : "https://www.apple.com/us-edu/store")!,
+                faviconSymbol: "apple.logo",
+                spaceID: spaceID,
+                hasBeenActivated: true
+            )
+            return BrowserWindowState(
+                spaces: [space],
+                folders: [],
+                tabs: [tab],
+                activeSpaceID: spaceID,
+                activeTabID: tabID
+            )
+        }
+
+        if fixture == "ask-agent-navigation" {
+            let spaceID = UUID(uuidString: "AEAEAEAE-AEAE-AEAE-AEAE-AEAEAEAEAEAE")!
+            let tabID = UUID(uuidString: "BFBFBFBF-BFBF-BFBF-BFBF-BFBFBFBFBFBF")!
+            let space = BrowserSpace(
+                id: spaceID,
+                name: "TestingBot",
+                symbolName: "sparkles",
+                themeAppearance: BrowserSpace.defaultThemeAppearance
+            )
+            let tab = BrowserTab(
+                id: tabID,
+                title: "Membership Home",
+                url: URL(string: "https://fixture.candoa.test/home")!,
+                faviconSymbol: "person.crop.circle",
+                spaceID: spaceID,
+                hasBeenActivated: true
+            )
+            return BrowserWindowState(
+                spaces: [space],
+                folders: [],
+                tabs: [tab],
+                activeSpaceID: spaceID,
+                activeTabID: tabID
+            )
+        }
+
+        if fixture == "ask-agent-normalized-navigation" {
+            let spaceID = UUID(uuidString: "ACACACAC-ACAC-ACAC-ACAC-ACACACACACAC")!
+            let tabID = UUID(uuidString: "BDBDBDBD-BDBD-BDBD-BDBD-BDBDBDBDBDBD")!
+            let space = BrowserSpace(
+                id: spaceID,
+                name: "TestingBot",
+                symbolName: "sparkles",
+                themeAppearance: BrowserSpace.defaultThemeAppearance
+            )
+            let tab = BrowserTab(
+                id: tabID,
+                title: "MacBook Air",
+                url: URL(string: "https://fixture.candoa.test/air")!,
+                faviconSymbol: "laptopcomputer",
+                spaceID: spaceID,
+                hasBeenActivated: true
+            )
+            return BrowserWindowState(
+                spaces: [space],
+                folders: [],
+                tabs: [tab],
+                activeSpaceID: spaceID,
+                activeTabID: tabID
+            )
+        }
+
+        if fixture == "ask-agent-selection" {
+            let spaceID = UUID(uuidString: "EFEFEFEF-EFEF-EFEF-EFEF-EFEFEFEFEFEF")!
+            let tabID = UUID(uuidString: "FAFAFAFA-FAFA-FAFA-FAFA-FAFAFAFAFAFA")!
+            let space = BrowserSpace(
+                id: spaceID,
+                name: "TestingBot",
+                symbolName: "sparkles",
+                themeAppearance: BrowserSpace.defaultThemeAppearance
+            )
+            let tab = BrowserTab(
+                id: tabID,
+                title: "Configure MacBook Air",
+                url: URL(string: "https://fixture.candoa.test/configure")!,
+                faviconSymbol: "laptopcomputer",
+                spaceID: spaceID,
+                hasBeenActivated: true
+            )
+            return BrowserWindowState(
+                spaces: [space],
+                folders: [],
+                tabs: [tab],
+                activeSpaceID: spaceID,
+                activeTabID: tabID
+            )
+        }
+
+        if ["ask-model-selector-context", "ask-live-model-selector-context"].contains(fixture) {
+            let spaceID = UUID(uuidString: "CECECECE-CECE-CECE-CECE-CECECECECECE")!
+            let tabID = UUID(uuidString: "DFDFDFDF-DFDF-DFDF-DFDF-DFDFDFDFDFDF")!
+            let space = BrowserSpace(
+                id: spaceID,
+                name: "TestingBot",
+                symbolName: "sparkles",
+                themeAppearance: BrowserSpace.defaultThemeAppearance
+            )
+            let tab = BrowserTab(
+                id: tabID,
+                title: "Buy MacBook Air",
+                url: URL(string: fixture == "ask-live-model-selector-context"
+                    ? "https://www.apple.com/us-edu/shop/buy-mac/macbook-air"
+                    : "https://fixture.candoa.test/macbook-air")!,
+                faviconSymbol: "laptopcomputer",
+                spaceID: spaceID,
+                hasBeenActivated: true
+            )
+            return BrowserWindowState(
+                spaces: [space],
+                folders: [],
+                tabs: [tab],
+                activeSpaceID: spaceID,
+                activeTabID: tabID
+            )
+        }
+
         if fixture == "cross-space-duplicate-url" {
             return crossSpaceDuplicateURLFixtureState()
         }
@@ -369,7 +507,7 @@ extension BrowserStore {
             id: activeSpaceID,
             name: "TestingBot",
             symbolName: "sparkles",
-            themeColorHex: BrowserSpace.defaultThemeColorHex,
+            themeColorHex: BrowserSpace.blueThemeColorHex,
             themeAppearance: BrowserSpace.defaultThemeAppearance
         )
         let tabs = [
@@ -409,7 +547,7 @@ extension BrowserStore {
             id: spaceID,
             name: "TestingBot",
             symbolName: "sparkles",
-            themeColorHex: BrowserSpace.defaultThemeColorHex,
+            themeColorHex: BrowserSpace.blueThemeColorHex,
             themeAppearance: BrowserSpace.defaultThemeAppearance
         )
         let legacyFavorite = BrowserTab(
@@ -530,7 +668,7 @@ extension BrowserStore {
             id: testingBotSpaceID,
             name: "TestingBot",
             symbolName: "sparkles",
-            themeColorHex: BrowserSpace.defaultThemeColorHex,
+            themeColorHex: BrowserSpace.blueThemeColorHex,
             themeAppearance: BrowserSpace.defaultThemeAppearance
         )
 

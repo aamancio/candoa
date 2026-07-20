@@ -45,7 +45,7 @@ extension CommandPaletteView {
             .padding(.vertical, paletteHeaderVerticalPadding)
 
             Rectangle()
-                .fill(CandoaChromeStyle.popoverBorder)
+                .fill(CandoaInterfaceStyle.popoverBorder)
                 .frame(height: 1)
 
             ScrollView(.vertical, showsIndicators: false) {
@@ -76,7 +76,7 @@ extension CommandPaletteView {
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .strokeBorder(CandoaChromeStyle.popoverBorder, lineWidth: 1)
+                .strokeBorder(CandoaInterfaceStyle.popoverBorder, lineWidth: 1)
         }
         .shadow(color: Color(nsColor: .shadowColor).opacity(0.24), radius: 46, y: 24)
     }

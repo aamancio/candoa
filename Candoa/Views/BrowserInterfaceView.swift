@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-struct BrowserChromeView: View {
+struct BrowserInterfaceView: View {
     @ObservedObject var store: BrowserStore
     @FocusState private var isAddressFocused: Bool
     @State private var addressText = ""

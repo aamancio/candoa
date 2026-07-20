@@ -83,6 +83,18 @@ enum CandoaCloudAPI {
         return endpoint("ai/chat")
     }
 
+    static var aiAgentStepURL: URL {
+        if let override = ProcessInfo.processInfo.environment["CANDOA_AGENT_API_URL"],
+           let url = URL(string: override) {
+            return url
+        }
+        if let chatOverride = ProcessInfo.processInfo.environment["CANDOA_ASK_API_URL"],
+           let chatURL = URL(string: chatOverride) {
+            return chatURL.deletingLastPathComponent().appending(path: "agent/step")
+        }
+        return endpoint("ai/agent/step")
+    }
+
     static func authenticateWithApple(identityToken: String, nonce: String) async throws -> String {
         let response: CandoaSessionResponse = try await request(
             endpoint("auth/apple"),

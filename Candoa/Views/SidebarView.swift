@@ -78,9 +78,9 @@ struct SidebarView: View {
     }
 
     private var sidebarIconColor: Color {
-        guard isSetupThemePreviewActive else { return CandoaChromeStyle.sidebarIcon }
+        guard isSetupThemePreviewActive else { return CandoaInterfaceStyle.sidebarIcon }
 
-        let usesDarkForeground = CandoaChromeStyle.prefersDarkForeground(
+        let usesDarkForeground = CandoaInterfaceStyle.prefersDarkForeground(
             forSpaceHexes: store.activeThemeColorHexes
         )
         return (usesDarkForeground ? Color.black : Color.white).opacity(0.42)
@@ -154,8 +154,8 @@ struct SidebarView: View {
 
             navigationControls
                 .offset(y: -5)
-                .opacity(hidesNavigationChromeForAddressPalette ? 0 : 1)
-                .allowsHitTesting(!hidesNavigationChromeForAddressPalette)
+                .opacity(hidesNavigationControlsForAddressPalette ? 0 : 1)
+                .allowsHitTesting(!hidesNavigationControlsForAddressPalette)
 
             Button {
                 onToggleSidebar()
@@ -173,7 +173,7 @@ struct SidebarView: View {
         .frame(height: 34)
     }
 
-    private var hidesNavigationChromeForAddressPalette: Bool {
+    private var hidesNavigationControlsForAddressPalette: Bool {
         store.isInitialOnboardingPresented
             || (store.isCommandPalettePresented && store.commandPaletteWasOpenedFromSidebarAddress)
     }
@@ -218,7 +218,7 @@ struct SidebarView: View {
                 Image(systemName: isDeveloperModeEnabled ? "info.circle" : "magnifyingglass")
                     .font(.system(size: 15, weight: .medium))
                     .frame(width: 18)
-                    .foregroundStyle(CandoaChromeStyle.sidebarIcon)
+                    .foregroundStyle(CandoaInterfaceStyle.sidebarIcon)
 
                 Text(sidebarAddressText)
                     .lineLimit(1)
@@ -228,13 +228,13 @@ struct SidebarView: View {
                             ? .system(size: 13, weight: .medium, design: .monospaced)
                             : .system(size: 14, weight: .semibold)
                     )
-                    .foregroundStyle(CandoaChromeStyle.sidebarTextSecondary)
+                    .foregroundStyle(CandoaInterfaceStyle.sidebarTextSecondary)
 
                 Spacer(minLength: 0)
             }
             .padding(.horizontal, 11)
             .frame(height: 40)
-            .background(CandoaChromeStyle.sidebarControlFill)
+            .background(CandoaInterfaceStyle.sidebarControlFill)
             .overlay {
                 RoundedRectangle(cornerRadius: 11, style: .continuous)
                     .fill(Color.primary.opacity(isHoveringAddressPill ? 0.07 : 0))
@@ -412,7 +412,7 @@ struct SidebarView: View {
 
                 if showsPinnedAreaDivider {
                     Rectangle()
-                        .fill(CandoaChromeStyle.sidebarSeparator)
+                        .fill(CandoaInterfaceStyle.sidebarSeparator)
                         .frame(height: 1)
                         .padding(.horizontal, 8)
                 }
@@ -531,13 +531,13 @@ struct SidebarView: View {
 
                 Spacer(minLength: 0)
             }
-            .foregroundStyle(CandoaChromeStyle.sidebarTextSecondary)
+            .foregroundStyle(CandoaInterfaceStyle.sidebarTextSecondary)
             .padding(.horizontal, 8)
             .padding(.vertical, 5)
             .frame(minHeight: 32)
             .background(
                 isSpaceDropTargeted
-                    ? CandoaChromeStyle.sidebarControlFillDropTarget
+                    ? CandoaInterfaceStyle.sidebarControlFillDropTarget
                     : Color.clear
             )
             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
@@ -684,13 +684,13 @@ struct SidebarView: View {
             HStack(spacing: 8) {
                 Image(systemName: "plus")
                     .font(.system(size: 14.5, weight: .medium))
-                    .foregroundStyle(isArmed ? CandoaChromeStyle.sidebarText : CandoaChromeStyle.sidebarIcon)
+                    .foregroundStyle(isArmed ? CandoaInterfaceStyle.sidebarText : CandoaInterfaceStyle.sidebarIcon)
                     .frame(width: 16, height: 16)
 
                 Text(BrowserCommandTitles.newTab)
                     .lineLimit(1)
                     .font(.system(size: 13.5, weight: .semibold))
-                    .foregroundStyle(isArmed ? CandoaChromeStyle.sidebarText : CandoaChromeStyle.sidebarTextSecondary)
+                    .foregroundStyle(isArmed ? CandoaInterfaceStyle.sidebarText : CandoaInterfaceStyle.sidebarTextSecondary)
 
                 Spacer(minLength: 8)
             }
@@ -708,7 +708,7 @@ struct SidebarView: View {
         .overlay {
             if isHoveringNewTab && !isArmed && store.draggedTabID == nil {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .stroke(CandoaChromeStyle.sidebarControlStroke, lineWidth: 1)
+                    .stroke(CandoaInterfaceStyle.sidebarControlStroke, lineWidth: 1)
                     .allowsHitTesting(false)
             }
         }
@@ -721,7 +721,7 @@ struct SidebarView: View {
             return activeSpaceTint.opacity(0.18)
         }
         if isHoveringNewTab && store.draggedTabID == nil {
-            return CandoaChromeStyle.sidebarControlFillHover
+            return CandoaInterfaceStyle.sidebarControlFillHover
         }
         return Color.clear
     }

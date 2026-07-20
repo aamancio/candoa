@@ -47,10 +47,12 @@ struct BrowserSpace: Identifiable, Codable, Hashable {
     /// persisted field a single string alongside SF Symbol names.
     static let emojiSymbolPrefix = "emoji:"
 
-    /// Apple's system-blue reference used when persisting a blue Space theme.
-    static let defaultThemeColorHex = CandoaColor.primaryHex
+    /// Apple's system-blue reference used when persisting an explicitly
+    /// selected blue Space theme. The default theme has no color value.
+    static let blueThemeColorHex = CandoaColor.primaryHex
+    static let currentThemeStorageVersion = 1
 
-    /// Chrome follows the macOS system appearance by default — the native
+    /// The interface follows the macOS system appearance by default — the native
     /// behavior used by Safari, Finder, and other platform apps. Website
     /// appearance is configured independently in General settings.
     static let defaultThemeAppearance = SpaceThemeAppearance.automatic
@@ -62,6 +64,7 @@ struct BrowserSpace: Identifiable, Codable, Hashable {
     var themeAppearance: SpaceThemeAppearance
     var themeOpacity: Double
     var themeTexture: Double
+    var themeStorageVersion: Int
     var dataStoreID: UUID
     var createdAt: Date
 
@@ -73,6 +76,7 @@ struct BrowserSpace: Identifiable, Codable, Hashable {
         themeAppearance: SpaceThemeAppearance = .automatic,
         themeOpacity: Double = 0.5,
         themeTexture: Double = 0,
+        themeStorageVersion: Int = BrowserSpace.currentThemeStorageVersion,
         dataStoreID: UUID? = nil,
         createdAt: Date = Date()
     ) {
@@ -83,6 +87,7 @@ struct BrowserSpace: Identifiable, Codable, Hashable {
         self.themeAppearance = themeAppearance
         self.themeOpacity = min(0.9, max(0.3, themeOpacity))
         self.themeTexture = min(1, max(0, themeTexture))
+        self.themeStorageVersion = themeStorageVersion
         self.dataStoreID = dataStoreID ?? id
         self.createdAt = createdAt
     }
@@ -100,6 +105,7 @@ struct BrowserSpace: Identifiable, Codable, Hashable {
         case themeAppearance
         case themeOpacity
         case themeTexture
+        case themeStorageVersion
         case dataStoreID
         case createdAt
     }
@@ -113,6 +119,7 @@ struct BrowserSpace: Identifiable, Codable, Hashable {
         themeAppearance = try container.decodeIfPresent(SpaceThemeAppearance.self, forKey: .themeAppearance) ?? .automatic
         themeOpacity = min(0.9, max(0.3, try container.decodeIfPresent(Double.self, forKey: .themeOpacity) ?? 0.5))
         themeTexture = min(1, max(0, try container.decodeIfPresent(Double.self, forKey: .themeTexture) ?? 0))
+        themeStorageVersion = try container.decodeIfPresent(Int.self, forKey: .themeStorageVersion) ?? 0
         dataStoreID = try container.decodeIfPresent(UUID.self, forKey: .dataStoreID) ?? id
         createdAt = try container.decodeIfPresent(Date.self, forKey: .createdAt) ?? Date()
     }

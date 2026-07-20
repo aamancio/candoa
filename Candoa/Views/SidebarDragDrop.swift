@@ -429,7 +429,7 @@ internal func dropEdge(for info: DropInfo, axis: SidebarDropAxis = .vertical) ->
 internal func splitDropSide(for info: DropInfo, axis: SidebarDropAxis = .vertical) -> SplitTabDropSide {
     switch axis {
     case .vertical:
-        let rowWidth = max(1, CandoaChromeStyle.sidebarWidth - 16)
+        let rowWidth = max(1, CandoaInterfaceStyle.sidebarWidth - 16)
         return info.location.x < rowWidth / 2 ? .leading : .trailing
     case .horizontal:
         return info.location.x < 44 ? .leading : .trailing

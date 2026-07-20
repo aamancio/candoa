@@ -17,7 +17,7 @@ struct WKWebViewRepresentable: NSViewRepresentable {
 struct SplitWebViewHost: NSViewRepresentable {
     let tab: BrowserTab
     @ObservedObject var store: BrowserStore
-    let obscuredContentInsets: BrowserChromeInsets
+    let obscuredContentInsets: BrowserInterfaceInsets
 
     func makeNSView(context: Context) -> NSView {
         SplitWebViewHostContainer()
@@ -36,12 +36,12 @@ struct SplitWebViewHost: NSViewRepresentable {
 
 private final class SplitWebViewHostContainer: NSView {
     private var tabID: UUID?
-    private var obscuredContentInsets = BrowserChromeInsets()
+    private var obscuredContentInsets = BrowserInterfaceInsets()
     private weak var coordinator: WebViewCoordinator?
 
     func configure(
         tabID: UUID,
-        obscuredContentInsets: BrowserChromeInsets,
+        obscuredContentInsets: BrowserInterfaceInsets,
         coordinator: WebViewCoordinator
     ) {
         self.tabID = tabID
@@ -79,7 +79,7 @@ private final class SplitWebViewHostContainer: NSView {
 struct ActiveWebViewHost: NSViewRepresentable {
     let tab: BrowserTab
     @ObservedObject var store: BrowserStore
-    let obscuredContentInsets: BrowserChromeInsets
+    let obscuredContentInsets: BrowserInterfaceInsets
 
     func makeNSView(context: Context) -> NSView {
         let container = WebViewHostContainer()
@@ -106,13 +106,13 @@ struct ActiveWebViewHost: NSViewRepresentable {
 private final class WebViewHostContainer: NSView {
     private var tabID: UUID?
     private var excludingTabIDs = Set<UUID>()
-    private var obscuredContentInsets = BrowserChromeInsets()
+    private var obscuredContentInsets = BrowserInterfaceInsets()
     private weak var coordinator: WebViewCoordinator?
 
     func configure(
         tabID: UUID,
         excludingTabIDs: Set<UUID>,
-        obscuredContentInsets: BrowserChromeInsets,
+        obscuredContentInsets: BrowserInterfaceInsets,
         coordinator: WebViewCoordinator
     ) {
         self.tabID = tabID

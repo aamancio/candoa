@@ -26,8 +26,13 @@ struct EliSidebarView: View {
     @State private var streamTask: Task<Void, Never>?
     @State private var includesCurrentPageContext = true
     @State private var lastSubmittedPageContext: CandoaAIPageContext?
-    @State private var pendingPageAction: CandoaPageActionProposal?
-    @State private var pendingActionTabID: UUID?
+    @State private var pendingBrowserControl: PendingBrowserControl?
+    @State private var pendingSensitiveAgentAction: PendingSensitiveAgentAction?
+    @State private var suggestedPageAction: SuggestedPageAction?
+    @State private var browserAgentTask: Task<Void, Never>?
+    @State private var isResolvingPageAction = false
+    @State private var attachmentPreviewData: [UUID: Data] = [:]
+    @State private var presentedImagePreview: AISidebarImagePreview?
     @State private var isTourPreviewSession = false
     @State private var isRefreshingEliAccess = true
     @FocusState private var isPromptFocused: Bool
@@ -153,7 +158,7 @@ struct EliSidebarView: View {
         guard let appearance = NSAppearance(
             named: colorScheme == .dark ? .darkAqua : .aqua
         ) else {
-            return CandoaChromeStyle.windowBackground
+            return CandoaInterfaceStyle.windowBackground
         }
 
         var resolvedColor = NSColor.windowBackgroundColor
@@ -169,7 +174,19 @@ struct EliSidebarView: View {
     }
 
     private var hasEliAccess: Bool {
-        hasPersonalEliAccess || userStore.hasActiveSubscription
+        hasPersonalEliAccess || userStore.hasActiveSubscription || isEliControlUITest
+    }
+
+    private var isEliControlUITest: Bool {
+        BrowserStore.isUITesting
+            && [
+                "ask-contextual-purchase", "ask-contextual-followup",
+                "ask-contextual-unsafe-followup", "ask-agent-navigation",
+                "ask-agent-normalized-navigation", "ask-agent-selection",
+                "ask-model-selector-context", "ask-live-model-selector-context"
+            ].contains(
+                ProcessInfo.processInfo.environment["CANDOA_UI_TESTING_FIXTURE"]
+            )
     }
 
     private var showsTourPreview: Bool {
@@ -218,6 +235,7 @@ struct EliSidebarView: View {
         }
         .background(panelBackgroundColor)
         .onAppear {
+            configureUITestingConversationIfNeeded()
             if store.initialOnboardingStep == .tour {
                 isTourPreviewSession = true
             }
@@ -230,7 +248,7 @@ struct EliSidebarView: View {
         }
         .task {
             guard !showsTourPreview else { return }
-            if hasPersonalEliAccess {
+            if hasPersonalEliAccess || isEliControlUITest {
                 isRefreshingEliAccess = false
                 return
             }
@@ -267,18 +285,40 @@ struct EliSidebarView: View {
         ) { result in
             handleFileImport(result)
         }
+        .sheet(item: $presentedImagePreview) { preview in
+            AISidebarImagePreviewSheet(preview: preview) {
+                presentedImagePreview = nil
+            }
+        }
         .confirmationDialog(
-            pendingPageAction?.confirmationTitle ?? "Allow Eli to act?",
+            "Let Eli take control of this browser tab?",
             isPresented: Binding(
-                get: { pendingPageAction != nil },
-                set: { if !$0 { pendingPageAction = nil; pendingActionTabID = nil } }
+                get: { pendingBrowserControl != nil },
+                set: { if !$0 { clearPendingControlPermission() } }
             ),
             titleVisibility: .visible
         ) {
-            Button("Allow Once") { approvePendingPageAction() }
-            Button("Cancel", role: .cancel) { pendingPageAction = nil; pendingActionTabID = nil }
+            Button("Allow for Session") { approvePendingControl() }
+            Button("Cancel", role: .cancel) { clearPendingControlPermission() }
         } message: {
-            Text(pendingPageAction?.confirmationDetail ?? "")
+            Text("Eli can control browser tabs until you quit Candoa. Sensitive actions still require confirmation.")
+                .accessibilityIdentifier("eli-page-action-permission-message")
+        }
+        .confirmationDialog(
+            "Confirm this action?",
+            isPresented: Binding(
+                get: { pendingSensitiveAgentAction != nil },
+                set: { if !$0 { stopPendingSensitiveAgentAction() } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("Continue", role: .destructive) { approveSensitiveAgentAction() }
+            Button("Stop", role: .cancel) { stopPendingSensitiveAgentAction() }
+        } message: {
+            if let pendingSensitiveAgentAction {
+                Text(CandoaBrowserAgentPolicy.sensitiveConfirmationMessage(for: pendingSensitiveAgentAction.action))
+                    .accessibilityIdentifier("eli-sensitive-action-message")
+            }
         }
         .accessibilityIdentifier("agent-sidebar")
     }
@@ -298,6 +338,8 @@ struct EliSidebarView: View {
             ) {
                 prompt = ""
                 mentionedContext = []
+                attachmentPreviewData = [:]
+                presentedImagePreview = nil
                 messages = []
                 includesCurrentPageContext = true
                 lastSubmittedPageContext = nil
@@ -326,15 +368,15 @@ struct EliSidebarView: View {
             Image(systemName: "at")
                 .font(.system(size: 28, weight: .medium))
                 .symbolRenderingMode(.hierarchical)
-                .foregroundStyle(CandoaChromeStyle.sidebarIcon)
+                .foregroundStyle(CandoaInterfaceStyle.sidebarIcon)
 
             Text("Ask about this page or another tab")
                 .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(CandoaChromeStyle.sidebarText)
+                .foregroundStyle(CandoaInterfaceStyle.sidebarText)
 
             Text("Type @ to mention a tab")
                 .font(.system(size: 12.5))
-                .foregroundStyle(CandoaChromeStyle.sidebarTextSecondary)
+                .foregroundStyle(CandoaInterfaceStyle.sidebarTextSecondary)
 
             VStack(spacing: 6) {
                 AISidebarExamplePromptButton(
@@ -424,6 +466,13 @@ struct EliSidebarView: View {
                         moveMentionSelection(by: -1)
                         return .handled
                     }
+                    .onKeyPress("v", phases: .down) { keyPress in
+                        guard keyPress.modifiers.contains(.command), canPasteImage else {
+                            return .ignored
+                        }
+                        handleImagePaste()
+                        return .handled
+                    }
 
                 AISidebarComposerIconButton(symbolName: "plus", helpText: "Add Context") {
                     showMentionMenuFromButton()
@@ -454,11 +503,11 @@ struct EliSidebarView: View {
         .padding(.bottom, hasContext ? 10 : 9)
         .background {
             RoundedRectangle(cornerRadius: hasContext ? 16 : 14, style: .continuous)
-                .fill(CandoaChromeStyle.sidebarControlFill)
+                .fill(CandoaInterfaceStyle.sidebarControlFill)
         }
         .overlay {
             RoundedRectangle(cornerRadius: hasContext ? 16 : 14, style: .continuous)
-                .stroke(CandoaChromeStyle.sidebarControlStroke, lineWidth: 1)
+                .stroke(CandoaInterfaceStyle.sidebarControlStroke, lineWidth: 1)
         }
     }
 
@@ -466,7 +515,7 @@ struct EliSidebarView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(speechController.displayText)
                 .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(CandoaChromeStyle.sidebarTextSecondary)
+                .foregroundStyle(CandoaInterfaceStyle.sidebarTextSecondary)
                 .lineLimit(1)
                 .padding(.leading, 4)
 
@@ -476,7 +525,7 @@ struct EliSidebarView: View {
                 } label: {
                     Image(systemName: "xmark")
                         .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(CandoaChromeStyle.sidebarIcon)
+                        .foregroundStyle(CandoaInterfaceStyle.sidebarIcon)
                         .frame(width: 22, height: 22)
                 }
                 .buttonStyle(.borderless)
@@ -488,7 +537,7 @@ struct EliSidebarView: View {
 
                 Text(speechController.elapsedText)
                     .font(.system(size: 12, weight: .semibold, design: .monospaced))
-                    .foregroundStyle(CandoaChromeStyle.sidebarIcon)
+                    .foregroundStyle(CandoaInterfaceStyle.sidebarIcon)
                     .frame(width: 38, alignment: .trailing)
 
                 Button {
@@ -497,7 +546,7 @@ struct EliSidebarView: View {
                     Image(systemName: "stop.circle.fill")
                         .font(.system(size: 17, weight: .semibold))
                         .symbolRenderingMode(.hierarchical)
-                        .foregroundStyle(speechController.isListening ? CandoaChromeStyle.sidebarTextSecondary : CandoaChromeStyle.sidebarIcon)
+                        .foregroundStyle(speechController.isListening ? CandoaInterfaceStyle.sidebarTextSecondary : CandoaInterfaceStyle.sidebarIcon)
                         .frame(width: 22, height: 22)
                 }
                 .buttonStyle(.borderless)
@@ -515,9 +564,15 @@ struct EliSidebarView: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
                 ForEach(contextChips) { chip in
-                    AISidebarContextChipView(chip: chip) {
-                        removeMention(chip.id)
-                    }
+                    AISidebarContextChipView(
+                        chip: chip,
+                        onPreview: chip.previewImageData == nil ? nil : {
+                            presentImagePreview(for: chip)
+                        },
+                        onRemove: {
+                            removeMention(chip.id)
+                        }
+                    )
                 }
             }
             .padding(.top, 10)
@@ -529,7 +584,7 @@ struct EliSidebarView: View {
         VStack(alignment: .leading, spacing: 7) {
             Text("TABS")
                 .font(.system(size: 11, weight: .bold))
-                .foregroundStyle(CandoaChromeStyle.sidebarTextSecondary)
+                .foregroundStyle(CandoaInterfaceStyle.sidebarTextSecondary)
                 .padding(.horizontal, 10)
 
             ForEach(Array(tabMentionOptions.enumerated()), id: \.element.id) { index, option in
@@ -544,7 +599,7 @@ struct EliSidebarView: View {
 
                 Text("FILES")
                     .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(CandoaChromeStyle.sidebarTextSecondary)
+                    .foregroundStyle(CandoaInterfaceStyle.sidebarTextSecondary)
                     .padding(.horizontal, 10)
 
                 ForEach(Array(fileMentionOptions.enumerated()), id: \.element.id) { index, option in
@@ -557,11 +612,11 @@ struct EliSidebarView: View {
         }
         .padding(8)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(CandoaChromeStyle.popoverBackground)
+        .background(CandoaInterfaceStyle.popoverBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(CandoaChromeStyle.popoverBorder, lineWidth: 1)
+                .stroke(CandoaInterfaceStyle.popoverBorder, lineWidth: 1)
         }
         .shadow(color: Color(nsColor: .shadowColor).opacity(0.18), radius: 16, y: 8)
     }
@@ -608,7 +663,7 @@ struct EliSidebarView: View {
 
     private func submitPrompt(_ promptOverride: String? = nil) {
         let submittedPrompt = (promptOverride ?? prompt).trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !isRefreshingEliAccess else { return }
+        guard !isRefreshingEliAccess, !isResolvingPageAction else { return }
         guard CandoaEliPromptPolicy.canSubmit(submittedPrompt, hasConversation: !messages.isEmpty) else { return }
 
         if !hasEliAccess {
@@ -616,12 +671,35 @@ struct EliSidebarView: View {
             return
         }
 
+        if let purchaseIntent = CandoaPurchaseNavigationIntent.parse(submittedPrompt) {
+            preparePurchaseNavigation(purchaseIntent, submittedPrompt: submittedPrompt)
+            return
+        }
+
+        if let agentIntent = CandoaBrowserAgentIntent.parse(submittedPrompt) {
+            prepareBrowserAgent(agentIntent, submittedPrompt: submittedPrompt)
+            return
+        }
+
+        if let suggestion = suggestedPageAction,
+           suggestion.tabID == store.activeTabID,
+           suggestion.pageURL == store.activeTab?.url?.absoluteString,
+           CandoaContextualActionFollowUp.isApproval(submittedPrompt) {
+            suggestedPageAction = nil
+            preparePageAction(suggestion.action, submittedPrompt: submittedPrompt)
+            return
+        }
+
+        if let followUpAction = CandoaContextualActionFollowUp.parse(
+            submittedPrompt,
+            recentTurns: recentTurns()
+        ) {
+            preparePageAction(followUpAction, submittedPrompt: submittedPrompt)
+            return
+        }
+
         if let action = CandoaPageActionProposal.parse(submittedPrompt) {
-            prompt = ""
-            messages.append(AISidebarMessage(role: .user, text: submittedPrompt, isStreaming: false))
-            messages.append(AISidebarMessage(role: .assistant, text: "I can \(action.confirmationTitle.lowercased()). Please confirm first.", isStreaming: false))
-            pendingActionTabID = store.activeTabID
-            pendingPageAction = action
+            preparePageAction(action, submittedPrompt: submittedPrompt)
             return
         }
 
@@ -664,6 +742,8 @@ struct EliSidebarView: View {
         messages.append(AISidebarMessage(id: responseID, role: .assistant, text: "", isStreaming: true))
 
         mentionedContext = []
+        attachmentPreviewData = [:]
+        presentedImagePreview = nil
         includesCurrentPageContext = false
         isMentionMenuPresented = false
 
@@ -682,6 +762,25 @@ struct EliSidebarView: View {
                 }
             }
 
+            if let result = CandoaEliDrafts.priceComparisonResult(
+                for: submittedPrompt,
+                context: pageContext
+            ) {
+                await MainActor.run {
+                    guard let index = messages.firstIndex(where: { $0.id == responseID }) else { return }
+                    messages[index].text = result.answer
+                    messages[index].isStreaming = false
+                    suggestedPageAction = result.suggestedAction.map {
+                        SuggestedPageAction(
+                            action: $0,
+                            tabID: currentPageTabID,
+                            pageURL: pageContext.url
+                        )
+                    }
+                    streamTask = nil
+                }
+                return
+            }
             let remoteContext = CandoaEliContextCompactor.compactedContextIfNeeded(
                 from: pageContext,
                 prompt: submittedPrompt
@@ -693,6 +792,175 @@ struct EliSidebarView: View {
                 responseID: responseID
             )
         }
+    }
+
+    private func preparePurchaseNavigation(
+        _ intent: CandoaPurchaseNavigationIntent,
+        submittedPrompt: String
+    ) {
+        prompt = ""
+        messages.append(AISidebarMessage(role: .user, text: submittedPrompt, isStreaming: false))
+        let tabID = store.activeTabID
+        isResolvingPageAction = true
+
+        Task {
+            let candidates = await store.pagePurchaseCandidates(for: tabID)
+            let resolvedAction = CandoaContextualNavigationResolver.resolve(
+                intent,
+                candidates: candidates,
+                currentPageURL: store.activeTab?.url?.absoluteString
+            )
+
+            await MainActor.run {
+                isResolvingPageAction = false
+                guard let resolvedAction else {
+                    messages.append(AISidebarMessage(
+                        role: .assistant,
+                        text: "I couldn’t verify a visible computer price and buying link on this page. I won’t guess a product or destination.",
+                        isStreaming: false
+                    ))
+                    return
+                }
+                presentPageAction(resolvedAction, in: tabID)
+            }
+        }
+    }
+
+    private func configureUITestingConversationIfNeeded() {
+        guard BrowserStore.isUITesting, messages.isEmpty else { return }
+
+        switch ProcessInfo.processInfo.environment["CANDOA_UI_TESTING_FIXTURE"] {
+        case "ask-agent-selection":
+            messages = [
+                AISidebarMessage(
+                    role: .user,
+                    text: "whats the cheapest computer",
+                    isStreaming: false
+                ),
+                AISidebarMessage(
+                    role: .assistant,
+                    text: "The 13-inch model is the cheapest option shown at $1199.",
+                    isStreaming: false
+                )
+            ]
+            suggestedPageAction = SuggestedPageAction(
+                action: CandoaPageActionProposal(kind: .select, target: "13-inch", value: nil),
+                tabID: store.activeTabID,
+                pageURL: store.activeTab?.url?.absoluteString
+            )
+        case "ask-contextual-followup":
+            messages = [
+                AISidebarMessage(
+                    role: .user,
+                    text: "which computer is the cheapest?",
+                    isStreaming: false
+                ),
+                AISidebarMessage(
+                    role: .assistant,
+                    text: "The cheapest listed computer is the MacBook Air.",
+                    isStreaming: false
+                )
+            ]
+        case "ask-contextual-unsafe-followup":
+            messages = [
+                AISidebarMessage(
+                    role: .user,
+                    text: "what savings are on this page?",
+                    isStreaming: false
+                ),
+                AISidebarMessage(
+                    role: .assistant,
+                    text: "You can buy a Mac or iPad with education savings and get a gift card.",
+                    isStreaming: false
+                ),
+                AISidebarMessage(
+                    role: .user,
+                    text: "which one is the most powerful?",
+                    isStreaming: false
+                ),
+                AISidebarMessage(
+                    role: .assistant,
+                    text: "The most powerful option appears to be the MacBook Air with the M5 chip.",
+                    isStreaming: false
+                )
+            ]
+        default:
+            break
+        }
+    }
+
+    private func preparePageAction(_ action: CandoaPageActionProposal, submittedPrompt: String) {
+        prompt = ""
+        messages.append(AISidebarMessage(role: .user, text: submittedPrompt, isStreaming: false))
+
+        guard action.needsVisibleLinkResolution else {
+            presentPageAction(action, in: store.activeTabID)
+            return
+        }
+
+        let tabID = store.activeTabID
+        let activeURL = store.activeTab?.url?.absoluteString
+        let cachedContext = lastSubmittedPageContext?.url == activeURL ? lastSubmittedPageContext : nil
+        let conversation = recentTurns()
+        isResolvingPageAction = true
+
+        Task {
+            let pageContext = if let cachedContext {
+                cachedContext
+            } else {
+                await store.aiPageContext(for: tabID)
+            }
+            let resolvedAction = CandoaContextualNavigationResolver.resolve(
+                action,
+                recentTurns: conversation,
+                pageContext: pageContext
+            )
+
+            await MainActor.run {
+                isResolvingPageAction = false
+                guard let resolvedAction else {
+                    messages.append(AISidebarMessage(
+                        role: .assistant,
+                        text: "I couldn’t identify one exact link on this page from our conversation. Tell me the product or destination name, and I’ll confirm it before navigating.",
+                        isStreaming: false
+                    ))
+                    return
+                }
+                presentPageAction(resolvedAction, in: tabID)
+            }
+        }
+    }
+
+    private func presentPageAction(_ action: CandoaPageActionProposal, in tabID: UUID?) {
+        if store.hasGrantedEliBrowserControlForSession {
+            performApprovedPageAction(action, in: tabID)
+            return
+        }
+        messages.append(AISidebarMessage(
+            role: .assistant,
+            text: "I can take control of this browser tab to complete your request. Please confirm first.",
+            isStreaming: false
+        ))
+        pendingBrowserControl = .action(action, tabID: tabID)
+    }
+
+    private func prepareBrowserAgent(
+        _ intent: CandoaBrowserAgentIntent,
+        submittedPrompt: String
+    ) {
+        prompt = ""
+        cancelStream()
+        messages.append(AISidebarMessage(role: .user, text: submittedPrompt, isStreaming: false))
+        if store.hasGrantedEliBrowserControlForSession {
+            startBrowserAgent(goal: intent.goal, tabID: store.activeTabID)
+            return
+        }
+        messages.append(AISidebarMessage(
+            role: .assistant,
+            text: "I can take control of this browser tab to complete your request. Please confirm first.",
+            isStreaming: false
+        ))
+        pendingBrowserControl = .agent(goal: intent.goal, tabID: store.activeTabID)
     }
 
     private func refreshEliAccessThenSubmit(_ submittedPrompt: String) {
@@ -736,6 +1004,8 @@ struct EliSidebarView: View {
             ))
 
             mentionedContext = []
+            attachmentPreviewData = [:]
+            presentedImagePreview = nil
             includesCurrentPageContext = false
             isMentionMenuPresented = false
         }
@@ -748,17 +1018,176 @@ struct EliSidebarView: View {
         isPromptFocused = true
     }
 
-    private func approvePendingPageAction() {
-        guard let action = pendingPageAction else { return }
-        let tabID = pendingActionTabID
-        pendingPageAction = nil
-        pendingActionTabID = nil
+    private func approvePendingControl() {
+        store.hasGrantedEliBrowserControlForSession = true
+        guard let pendingBrowserControl else { return }
+        clearPendingControlPermission()
+        switch pendingBrowserControl {
+        case let .action(action, tabID):
+            performApprovedPageAction(action, in: tabID)
+        case let .agent(goal, tabID):
+            startBrowserAgent(goal: goal, tabID: tabID)
+        }
+    }
+
+    private func performApprovedPageAction(_ action: CandoaPageActionProposal, in tabID: UUID?) {
         Task {
             let result = await store.performAIPageAction(action, in: tabID)
             await MainActor.run {
                 messages.append(AISidebarMessage(role: .assistant, text: result, isStreaming: false))
             }
         }
+    }
+
+    private func clearPendingControlPermission() {
+        pendingBrowserControl = nil
+    }
+
+    private func startBrowserAgent(goal: String, tabID: UUID?) {
+        guard let tabID else {
+            messages.append(AISidebarMessage(
+                role: .assistant,
+                text: "That browser tab is no longer open.",
+                isStreaming: false
+            ))
+            return
+        }
+        let responseID = UUID()
+        messages.append(AISidebarMessage(id: responseID, role: .assistant, text: "", isStreaming: true))
+        isResolvingPageAction = true
+        launchBrowserAgent(BrowserAgentRunState(
+            goal: goal,
+            tabID: tabID,
+            history: [],
+            stepCount: 0,
+            responseID: responseID
+        ))
+    }
+
+    private func launchBrowserAgent(
+        _ initialState: BrowserAgentRunState,
+        approvedAction: CandoaPageActionProposal? = nil
+    ) {
+        browserAgentTask?.cancel()
+        browserAgentTask = Task {
+            var state = initialState
+
+            if let approvedAction {
+                guard let page = await store.browserAgentPage(for: state.tabID) else {
+                    finishBrowserAgent(state, message: "That browser tab is no longer available.")
+                    return
+                }
+                let result = await store.performAIPageAction(approvedAction, in: state.tabID)
+                let historyItem = CandoaBrowserAgentHistoryItem(
+                    kind: approvedAction.kind,
+                    target: approvedAction.target,
+                    result: result
+                )
+                state.history.append(historyItem)
+                state.stepCount += 1
+                await store.waitForBrowserAgentPageSettled(in: state.tabID, previousURL: page.url)
+            }
+
+            do {
+                while state.stepCount < CandoaBrowserAgentPolicy.maximumSteps {
+                    try Task.checkCancellation()
+                    guard store.activeTabID == state.tabID else {
+                        finishBrowserAgent(state, message: "I stopped because you switched to another tab.")
+                        return
+                    }
+                    guard let page = await store.browserAgentPage(for: state.tabID) else {
+                        finishBrowserAgent(state, message: "That browser tab is no longer available.")
+                        return
+                    }
+
+                    let decision = try await store.nextBrowserAgentStep(
+                        goal: state.goal,
+                        page: page,
+                        history: state.history
+                    )
+                    switch decision.status {
+                    case .complete:
+                        finishBrowserAgent(
+                            state,
+                            message: decision.message.isEmpty ? "Done." : decision.message
+                        )
+                        return
+                    case .blocked:
+                        finishBrowserAgent(
+                            state,
+                            message: decision.message.isEmpty
+                                ? "I need your help before I can continue."
+                                : decision.message
+                        )
+                        return
+                    case .act:
+                        guard let proposedAction = decision.action else {
+                            finishBrowserAgent(
+                                state,
+                                message: "I stopped because the proposed control was not verified on this page."
+                            )
+                            return
+                        }
+                        guard let action = CandoaBrowserAgentPolicy.validatedAction(decision, on: page) else {
+                            let rejection = CandoaBrowserAgentHistoryItem(
+                                kind: proposedAction.kind,
+                                target: proposedAction.target,
+                                result: "Candoa rejected this proposal because it was not grounded in the current page snapshot. Choose a listed control or a valid scroll direction."
+                            )
+                            state.history.append(rejection)
+                            state.stepCount += 1
+                            continue
+                        }
+                        if CandoaBrowserAgentPolicy.requiresSensitiveConfirmation(action, goal: state.goal) {
+                            pendingSensitiveAgentAction = PendingSensitiveAgentAction(action: action, state: state)
+                            browserAgentTask = nil
+                            return
+                        }
+
+                        let result = await store.performAIPageAction(action, in: state.tabID)
+                        let historyItem = CandoaBrowserAgentHistoryItem(
+                            kind: action.kind,
+                            target: action.target,
+                            result: result
+                        )
+                        state.history.append(historyItem)
+                        state.stepCount += 1
+                        await store.waitForBrowserAgentPageSettled(in: state.tabID, previousURL: page.url)
+                    }
+                }
+
+                finishBrowserAgent(
+                    state,
+                    message: "I stopped after several steps without being able to verify completion."
+                )
+            } catch is CancellationError {
+                return
+            } catch {
+                Self.eliLogger.error("Browser agent failed: \(error.localizedDescription, privacy: .public)")
+                finishBrowserAgent(state, message: error.localizedDescription)
+            }
+        }
+    }
+
+    private func approveSensitiveAgentAction() {
+        guard let pending = pendingSensitiveAgentAction else { return }
+        pendingSensitiveAgentAction = nil
+        launchBrowserAgent(pending.state, approvedAction: pending.action)
+    }
+
+    private func stopPendingSensitiveAgentAction() {
+        guard let pending = pendingSensitiveAgentAction else { return }
+        pendingSensitiveAgentAction = nil
+        finishBrowserAgent(pending.state, message: "I stopped before making that change.")
+    }
+
+    private func finishBrowserAgent(_ state: BrowserAgentRunState, message: String) {
+        if let index = messages.firstIndex(where: { $0.id == state.responseID }) {
+            messages[index].text = message
+            messages[index].isStreaming = false
+        }
+        isResolvingPageAction = false
+        browserAgentTask = nil
     }
 
     private func streamRemoteAIResponse(
@@ -972,7 +1401,30 @@ struct EliSidebarView: View {
             return
         }
 
+        let removedFileIDs = mentionedContext.compactMap { mention -> UUID? in
+            guard chip(for: mention).id == chipID, case .file(let fileContext) = mention else {
+                return nil
+            }
+            return fileContext.id
+        }
         mentionedContext.removeAll { chip(for: $0).id == chipID }
+        for fileID in removedFileIDs {
+            attachmentPreviewData[fileID] = nil
+        }
+    }
+
+    private func presentImagePreview(for chip: AISidebarContextChip) {
+        guard
+            case .file(let fileContext) = mentionedContext.first(where: { self.chip(for: $0).id == chip.id }),
+            let imageData = attachmentPreviewData[fileContext.id] ?? fileContext.previewImageData
+        else {
+            return
+        }
+
+        presentedImagePreview = AISidebarImagePreview(
+            title: fileContext.name,
+            imageData: imageData
+        )
     }
 
     private func chip(for mention: AISidebarContextMention) -> AISidebarContextChip {
@@ -1044,22 +1496,8 @@ struct EliSidebarView: View {
 
         let contentType = try? url.resourceValues(forKeys: [.contentTypeKey]).contentType
         if contentType?.conforms(to: .image) == true {
-            guard
-                let image = NSImage(contentsOf: url),
-                let recognizedText = CandoaImageTextRecognizer.recognizedText(in: image)
-            else {
-                return
-            }
-
-            addMention(
-                .file(
-                    AISidebarFileContext(
-                        name: url.lastPathComponent,
-                        text: "Uploaded image OCR text:\n\(recognizedText)",
-                        previewImageData: attachmentThumbnailData(for: image)
-                    )
-                )
-            )
+            guard let image = NSImage(contentsOf: url) else { return }
+            addImageAttachment(image, name: url.lastPathComponent)
             return
         }
 
@@ -1071,6 +1509,74 @@ struct EliSidebarView: View {
         guard !excerpt.isEmpty else { return }
 
         addMention(.file(AISidebarFileContext(name: url.lastPathComponent, text: excerpt)))
+    }
+
+    private func handleImagePaste() {
+        let options: [NSPasteboard.ReadingOptionKey: Any] = [
+            .urlReadingContentsConformToTypes: [UTType.image.identifier]
+        ]
+        let pastedImage = NSPasteboard.general
+            .readObjects(forClasses: [NSImage.self], options: options)?
+            .compactMap { $0 as? NSImage }
+            .first
+
+        guard let pastedImage else { return }
+        addImageAttachment(pastedImage, name: "Pasted Image")
+    }
+
+    private var canPasteImage: Bool {
+        NSPasteboard.general.canReadObject(
+            forClasses: [NSImage.self],
+            options: [.urlReadingContentsConformToTypes: [UTType.image.identifier]]
+        )
+    }
+
+    private func addImageAttachment(_ image: NSImage, name: String) {
+        let recognizedText = CandoaImageTextRecognizer.recognizedText(in: image)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let attachmentText = recognizedText.flatMap { text in
+            text.isEmpty ? nil : "Uploaded image OCR text:\n\(text)"
+        } ?? "Uploaded image with no recognized text."
+
+        let fileContext = AISidebarFileContext(
+            name: name,
+            text: attachmentText,
+            previewImageData: attachmentThumbnailData(for: image)
+        )
+        if let imageData = attachmentPreviewData(for: image) {
+            attachmentPreviewData[fileContext.id] = imageData
+        }
+        addMention(.file(fileContext))
+    }
+
+    private func attachmentPreviewData(for image: NSImage) -> Data? {
+        let sourceSize = image.size
+        guard sourceSize.width > 0, sourceSize.height > 0 else { return nil }
+
+        let maximumDimension: CGFloat = 1_600
+        let scale = min(1, maximumDimension / max(sourceSize.width, sourceSize.height))
+        let targetSize = NSSize(
+            width: max(1, sourceSize.width * scale),
+            height: max(1, sourceSize.height * scale)
+        )
+        let preview = NSImage(size: targetSize)
+        preview.lockFocus()
+        NSGraphicsContext.current?.imageInterpolation = .high
+        image.draw(
+            in: NSRect(origin: .zero, size: targetSize),
+            from: NSRect(origin: .zero, size: sourceSize),
+            operation: .copy,
+            fraction: 1
+        )
+        preview.unlockFocus()
+
+        guard
+            let tiffData = preview.tiffRepresentation,
+            let representation = NSBitmapImageRep(data: tiffData)
+        else {
+            return nil
+        }
+        return representation.representation(using: .png, properties: [:])
     }
 
     private func attachmentThumbnailData(for image: NSImage) -> Data? {
@@ -1116,10 +1622,88 @@ struct EliSidebarView: View {
     private func cancelStream() {
         streamTask?.cancel()
         streamTask = nil
+        browserAgentTask?.cancel()
+        browserAgentTask = nil
+        pendingSensitiveAgentAction = nil
+        clearPendingControlPermission()
+        isResolvingPageAction = false
 
         for index in messages.indices where messages[index].isStreaming {
             messages[index].isStreaming = false
         }
+    }
+}
+
+private struct BrowserAgentRunState: Sendable {
+    let goal: String
+    let tabID: UUID
+    var history: [CandoaBrowserAgentHistoryItem]
+    var stepCount: Int
+    let responseID: UUID
+}
+
+private enum PendingBrowserControl: Sendable {
+    case action(CandoaPageActionProposal, tabID: UUID?)
+    case agent(goal: String, tabID: UUID?)
+}
+
+private struct PendingSensitiveAgentAction: Identifiable, Sendable {
+    let id = UUID()
+    let action: CandoaPageActionProposal
+    let state: BrowserAgentRunState
+}
+
+private struct SuggestedPageAction {
+    let action: CandoaPageActionProposal
+    let tabID: UUID?
+    let pageURL: String?
+}
+
+private struct AISidebarImagePreview: Identifiable {
+    let id = UUID()
+    let title: String
+    let imageData: Data
+}
+
+private struct AISidebarImagePreviewSheet: View {
+    let preview: AISidebarImagePreview
+    let onClose: () -> Void
+
+    var body: some View {
+        VStack(spacing: 14) {
+            HStack {
+                Text(preview.title)
+                    .font(.headline)
+                    .lineLimit(1)
+
+                Spacer()
+
+                Button(action: onClose) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 18, weight: .semibold))
+                        .symbolRenderingMode(.monochrome)
+                        .foregroundStyle(Color(nsColor: .secondaryLabelColor))
+                }
+                .buttonStyle(.plain)
+                .help("Close Preview")
+                .keyboardShortcut(.cancelAction)
+                .accessibilityLabel("Close image preview")
+            }
+
+            if let image = NSImage(data: preview.imageData) {
+                Image(nsImage: image)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color.black.opacity(0.92))
+                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    .accessibilityLabel("Attached image preview")
+            }
+        }
+        .padding(16)
+        .frame(width: 720, height: 560)
+        .background(Color(nsColor: .windowBackgroundColor))
+        .accessibilityIdentifier("agent-image-preview-dialog")
     }
 }
 
@@ -1141,7 +1725,7 @@ private struct EliTourPreviewView: View {
 
                 Text(String(localized: "Ask about the page, draft a reply, or get help with a page action."))
                     .font(.system(size: 12.5))
-                    .foregroundStyle(CandoaChromeStyle.sidebarTextSecondary)
+                    .foregroundStyle(CandoaInterfaceStyle.sidebarTextSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
@@ -1190,10 +1774,10 @@ private struct EliTourPreviewView: View {
             }
             .padding(14)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(CandoaChromeStyle.sidebarControlFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .background(CandoaInterfaceStyle.sidebarControlFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .stroke(CandoaChromeStyle.sidebarControlStroke, lineWidth: 1)
+                    .stroke(CandoaInterfaceStyle.sidebarControlStroke, lineWidth: 1)
             }
         }
         .frame(maxWidth: 340)

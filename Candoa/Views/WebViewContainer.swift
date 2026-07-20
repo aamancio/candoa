@@ -2,14 +2,14 @@ import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
 
-struct BrowserChromeInsets: Equatable {
+struct BrowserInterfaceInsets: Equatable {
     var leading: CGFloat = 0
     var trailing: CGFloat = 0
 }
 
 struct WebViewContainer: View {
     @ObservedObject var store: BrowserStore
-    let visibleChromeInsets: BrowserChromeInsets
+    let visibleInterfaceInsets: BrowserInterfaceInsets
     let attachesToTrailingPanel: Bool
     @AppStorage(DeveloperModeConfiguration.storageKey) private var developerModeOverrides = ""
     private let surfaceCornerRadius: CGFloat = 12
@@ -19,13 +19,13 @@ struct WebViewContainer: View {
         Color(spaceHex: store.activeThemeColorHexes.first ?? "#8A8F98")
     }
 
-    /// Zen resolves the loading pill's light-dark() from the chrome theme,
-    /// not the system: a dark space theme means dark chrome. Nil when the
+    /// Zen resolves the loading pill's light-dark() from the interface theme,
+    /// not the system: a dark Space theme means a dark interface. Nil when the
     /// space is unthemed, falling back to the system appearance.
-    private var themeIsDarkChrome: Bool? {
+    private var themeUsesDarkInterface: Bool? {
         let hexes = store.activeThemeColorHexes
         guard !hexes.isEmpty else { return nil }
-        return !CandoaChromeStyle.prefersDarkForeground(forSpaceHexes: hexes)
+        return !CandoaInterfaceStyle.prefersDarkForeground(forSpaceHexes: hexes)
     }
 
     var body: some View {
@@ -79,14 +79,14 @@ struct WebViewContainer: View {
             if store.isFindBarPresented {
                 FindBarView(store: store)
                     .padding(.top, surfacePadding + 10)
-                    .padding(.trailing, visibleChromeInsets.trailing + surfacePadding + 14)
+                    .padding(.trailing, visibleInterfaceInsets.trailing + surfacePadding + 14)
                     .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
         .animation(.easeOut(duration: 0.14), value: store.isFindBarPresented)
         .modifier(
-            BrowserChromeMaskModifier(
-                insets: visibleChromeInsets,
+            BrowserInterfaceMaskModifier(
+                insets: visibleInterfaceInsets,
                 surfaceCornerRadius: surfaceCornerRadius,
                 surfacePadding: surfacePadding,
                 drawsFullSurfaceBorder: store.activeSplitGroupTabs.count < 2
@@ -141,12 +141,12 @@ struct WebViewContainer: View {
             .overlay {
                 if drawsBorder {
                     shape
-                        .stroke(CandoaChromeStyle.surfaceBorder, lineWidth: 1)
+                        .stroke(CandoaInterfaceStyle.surfaceBorder, lineWidth: 1)
                 }
             }
             .background(
                 shape
-                    .fill(CandoaChromeStyle.surfaceFill.opacity(0.74))
+                    .fill(CandoaInterfaceStyle.surfaceFill.opacity(0.74))
             )
             .compositingGroup()
             .shadow(color: Color.black.opacity(0.10), radius: 16, x: -2, y: 2)
@@ -164,15 +164,15 @@ struct WebViewContainer: View {
         )
     }
 
-    private var webContentInsets: BrowserChromeInsets {
-        BrowserChromeInsets(
-            leading: max(0, visibleChromeInsets.leading - surfacePadding),
-            trailing: max(0, visibleChromeInsets.trailing - surfacePadding)
+    private var webContentInsets: BrowserInterfaceInsets {
+        BrowserInterfaceInsets(
+            leading: max(0, visibleInterfaceInsets.leading - surfacePadding),
+            trailing: max(0, visibleInterfaceInsets.trailing - surfacePadding)
         )
     }
 
-    private func splitPaneInsets(for tab: BrowserTab, in tabs: [BrowserTab]) -> BrowserChromeInsets {
-        BrowserChromeInsets(
+    private func splitPaneInsets(for tab: BrowserTab, in tabs: [BrowserTab]) -> BrowserInterfaceInsets {
+        BrowserInterfaceInsets(
             leading: tab.id == tabs.first?.id ? webContentInsets.leading : 0,
             trailing: tab.id == tabs.last?.id ? webContentInsets.trailing : 0
         )
@@ -184,8 +184,8 @@ struct WebViewContainer: View {
             if tab.isWelcomePage {
                 WelcomeToCandoaPage(store: store)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .padding(.leading, visibleChromeInsets.leading)
-                    .padding(.trailing, visibleChromeInsets.trailing)
+                    .padding(.leading, visibleInterfaceInsets.leading)
+                    .padding(.trailing, visibleInterfaceInsets.trailing)
             } else if let url = tab.url,
                DeveloperModeConfiguration.isEnabled(
                    for: url,
@@ -211,7 +211,7 @@ struct WebViewContainer: View {
                     store.openNewTabCommandPalette()
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(CandoaChromeStyle.surfaceFill.opacity(0.72))
+                .background(CandoaInterfaceStyle.surfaceFill.opacity(0.72))
             } else {
                 ActiveWebViewHost(
                     tab: tab,
@@ -219,12 +219,12 @@ struct WebViewContainer: View {
                     obscuredContentInsets: webContentInsets
                 )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(CandoaChromeStyle.surfaceFill.opacity(0.72))
+                    .background(CandoaInterfaceStyle.surfaceFill.opacity(0.72))
                     .overlay(alignment: .top) {
                         PageLoadingPill(
                             isLoading: tab.isLoading,
                             tint: spaceTint,
-                            themeIsDark: themeIsDarkChrome
+                            themeIsDark: themeUsesDarkInterface
                         )
                         .padding(.top, 2)
                         .id(tab.id)
@@ -279,10 +279,10 @@ struct WebViewContainer: View {
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
-            .background(CandoaChromeStyle.popoverBackground, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .background(CandoaInterfaceStyle.popoverBackground, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .stroke(CandoaChromeStyle.popoverBorder, lineWidth: 1)
+                    .stroke(CandoaInterfaceStyle.popoverBorder, lineWidth: 1)
             }
             .onAppear { isFieldFocused = true }
             .onExitCommand { store.dismissFindBar() }
@@ -300,12 +300,12 @@ struct WebViewContainer: View {
         )
             .id(tab.id)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(CandoaChromeStyle.surfaceFill.opacity(0.72))
+            .background(CandoaInterfaceStyle.surfaceFill.opacity(0.72))
             .overlay(alignment: .top) {
                 PageLoadingPill(
                     isLoading: tab.isLoading,
                     tint: spaceTint,
-                    themeIsDark: themeIsDarkChrome
+                    themeIsDark: themeUsesDarkInterface
                 )
                 .padding(.top, 2)
                 .id(tab.id)
@@ -313,12 +313,12 @@ struct WebViewContainer: View {
     }
 }
 
-/// Reserves native chrome without ever changing the live WKWebView's frame.
+/// Reserves native interface space without ever changing the live WKWebView's frame.
 /// Keep this at the WebViewContainer boundary: moving the reservation into a
 /// parent HStack makes WebKit stretch a stale remote-layer frame on every
 /// sidebar toggle.
-private struct BrowserChromeMaskModifier: ViewModifier {
-    let insets: BrowserChromeInsets
+private struct BrowserInterfaceMaskModifier: ViewModifier {
+    let insets: BrowserInterfaceInsets
     let surfaceCornerRadius: CGFloat
     let surfacePadding: CGFloat
     let drawsFullSurfaceBorder: Bool
@@ -334,7 +334,7 @@ private struct BrowserChromeMaskModifier: ViewModifier {
                             .padding(.trailing, insets.trailing + surfacePadding)
 
                         // Preserve the surface's existing top, trailing, and
-                        // bottom shadow. Only the chrome lanes need clipping.
+                        // bottom shadow. Only the interface regions need clipping.
                         Rectangle()
                             .padding(
                                 .leading,
@@ -356,7 +356,7 @@ private struct BrowserChromeMaskModifier: ViewModifier {
             .overlay {
                 if drawsFullSurfaceBorder {
                     RoundedRectangle(cornerRadius: surfaceCornerRadius, style: .continuous)
-                        .stroke(CandoaChromeStyle.surfaceBorder, lineWidth: 1)
+                        .stroke(CandoaInterfaceStyle.surfaceBorder, lineWidth: 1)
                         .padding(.vertical, surfacePadding)
                         .padding(.leading, insets.leading + surfacePadding)
                         .padding(.trailing, insets.trailing + surfacePadding)
@@ -366,7 +366,7 @@ private struct BrowserChromeMaskModifier: ViewModifier {
                     // introduced by this mask so shared edges are not repainted.
                     if insets.leading > 0 {
                         RoundedRectangle(cornerRadius: surfaceCornerRadius, style: .continuous)
-                            .stroke(CandoaChromeStyle.surfaceBorder, lineWidth: 1)
+                            .stroke(CandoaInterfaceStyle.surfaceBorder, lineWidth: 1)
                             .mask(alignment: .leading) {
                                 Rectangle()
                                     .frame(width: surfaceCornerRadius + 1)
@@ -379,7 +379,7 @@ private struct BrowserChromeMaskModifier: ViewModifier {
 
                     if insets.trailing > 0 {
                         RoundedRectangle(cornerRadius: surfaceCornerRadius, style: .continuous)
-                            .stroke(CandoaChromeStyle.surfaceBorder, lineWidth: 1)
+                            .stroke(CandoaInterfaceStyle.surfaceBorder, lineWidth: 1)
                             .mask(alignment: .trailing) {
                                 Rectangle()
                                     .frame(width: surfaceCornerRadius + 1)
@@ -586,7 +586,7 @@ private struct DeveloperToolbar: View {
     }
 
     private var foreground: Color {
-        CandoaChromeStyle.prefersDarkForeground(forSpaceHex: resolvedTintHex) ? .black : .white
+        CandoaInterfaceStyle.prefersDarkForeground(forSpaceHex: resolvedTintHex) ? .black : .white
     }
 
     private var selectedControlIDs: [String] {
@@ -979,7 +979,7 @@ private enum DeveloperToolbarControlKind: String, CaseIterable, Identifiable {
 /// the tint, marking the page as a dev server at a glance. Measured from
 /// Arc: dark band and gap are equal width (~1:1) at a broad period, kept low
 /// contrast so the texture stays a whisper. Static geometry only — drawn
-/// with the chrome, never animated.
+/// with the interface, never animated.
 private struct DiagonalStripes: Shape {
     var period: CGFloat = 44
 
@@ -1113,7 +1113,7 @@ internal struct SpaceSetupCanvas: View {
                 .fill(canvasFill)
 
             // Whisper-level sheen when themed: anything stronger visibly
-            // darkens the card against the identically-tinted chrome.
+            // darkens the card against the identically tinted interface.
             LinearGradient(
                 colors: [
                     Color.white.opacity(hexes.isEmpty ? 0.10 : 0.03),
@@ -1163,11 +1163,11 @@ internal struct SpaceSetupCanvas: View {
 
     private var canvasFill: Color {
         guard let firstHex = hexes.first else {
-            return CandoaChromeStyle.surfaceFill.opacity(0.88)
+            return CandoaInterfaceStyle.surfaceFill.opacity(0.88)
         }
 
         // The window backdrop already carries the theme color at full
-        // strength; keep the card nearly transparent so chrome and canvas
+        // strength; keep the card nearly transparent so interface and canvas
         // read as one continuous surface (Zen-style).
         return Color(spaceHex: firstHex).opacity(0.08)
     }

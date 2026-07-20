@@ -237,6 +237,10 @@ final class BrowserStore: ObservableObject {
     @Published var uiTestingLastCommandDescription = "none"
     @Published var uiTestingWebsiteAppearanceDescription = "pending"
 
+    /// Ephemeral permission for Eli to control tabs in this browser-window session.
+    /// This deliberately is not persisted across app launches.
+    var hasGrantedEliBrowserControlForSession = false
+
     /// Deliberately not @Published: it's consumed by the mini player's mount
     /// (which the activeTabID change already triggers), and publishing it
     /// would cause a redundant view update per tab switch.
@@ -283,7 +287,7 @@ final class BrowserStore: ObservableObject {
         "leaf"
     ]
     let spaceThemeColors = [
-        BrowserSpace.defaultThemeColorHex,
+        BrowserSpace.blueThemeColorHex,
         "#74E0AA",
         "#E0A84F",
         "#DA6A72",
@@ -338,7 +342,7 @@ final class BrowserStore: ObservableObject {
             isSplitViewEnabled = restoredState.isSplitViewEnabled && splitTabIDs.count >= 2
         } else {
             // New workspaces start neutral while following the system's
-            // light or dark appearance. Candoa blue is the action accent.
+            // light or dark appearance. Blue remains an optional Space theme.
             let defaultSpace = BrowserSpace(
                 name: "",
                 symbolName: "circle.grid.2x2",

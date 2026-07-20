@@ -349,6 +349,7 @@ struct PersistenceService: @unchecked Sendable {
             object.setValue(space.themeAppearance.rawValue, forKey: Key.themeAppearance)
             object.setValue(space.themeOpacity, forKey: Key.themeOpacity)
             object.setValue(space.themeTexture, forKey: Key.themeTexture)
+            object.setValue(space.themeStorageVersion, forKey: Key.themeStorageVersion)
             object.setValue(space.dataStoreID, forKey: Key.dataStoreID)
             object.setValue(space.createdAt, forKey: Key.createdAt)
             spacesByID[space.id] = nil
@@ -517,6 +518,7 @@ struct PersistenceService: @unchecked Sendable {
                 .flatMap(SpaceThemeAppearance.init(rawValue:)) ?? .automatic,
             themeOpacity: object.optionalDouble(for: Key.themeOpacity) ?? 0.5,
             themeTexture: object.optionalDouble(for: Key.themeTexture) ?? 0,
+            themeStorageVersion: object.optionalInteger(for: Key.themeStorageVersion) ?? 0,
             dataStoreID: object.uuid(for: Key.dataStoreID) ?? id,
             createdAt: object.date(for: Key.createdAt) ?? Date()
         )
@@ -647,6 +649,7 @@ struct PersistenceService: @unchecked Sendable {
                 attribute(Key.themeAppearance, .stringAttributeType),
                 attribute(Key.themeOpacity, .doubleAttributeType),
                 attribute(Key.themeTexture, .doubleAttributeType),
+                attribute(Key.themeStorageVersion, .integer64AttributeType),
                 attribute(Key.dataStoreID, .UUIDAttributeType),
                 attribute(Key.createdAt, .dateAttributeType, optional: false)
             ]
@@ -773,6 +776,7 @@ private enum Key {
     static let themeAppearance = "themeAppearance"
     static let themeOpacity = "themeOpacity"
     static let themeTexture = "themeTexture"
+    static let themeStorageVersion = "themeStorageVersion"
     static let dataStoreID = "dataStoreID"
     static let createdAt = "createdAt"
     static let title = "title"
@@ -815,6 +819,10 @@ private extension NSManagedObject {
 
     func optionalDouble(for key: String) -> Double? {
         value(forKey: key) as? Double
+    }
+
+    func optionalInteger(for key: String) -> Int? {
+        (value(forKey: key) as? NSNumber)?.intValue
     }
 
     func string(for key: String) -> String? {

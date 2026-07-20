@@ -15,7 +15,7 @@ struct AISidebarExamplePromptButton: View {
         Button(action: action) {
             Label(title, systemImage: symbolName)
                 .font(.system(size: 12.5, weight: .medium))
-                .foregroundStyle(CandoaChromeStyle.sidebarText.opacity(isEnabled ? 1 : 0.5))
+                .foregroundStyle(CandoaInterfaceStyle.sidebarText.opacity(isEnabled ? 1 : 0.5))
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 11)
                 .frame(height: 34)
@@ -23,8 +23,8 @@ struct AISidebarExamplePromptButton: View {
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
                         .fill(
                             isHovered && isEnabled
-                                ? CandoaChromeStyle.sidebarControlFillHover
-                                : CandoaChromeStyle.sidebarControlFill
+                                ? CandoaInterfaceStyle.sidebarControlFillHover
+                                : CandoaInterfaceStyle.sidebarControlFill
                         )
                 }
         }
@@ -48,11 +48,11 @@ struct AISidebarTopBarIconButton: View {
             Image(systemName: symbolName)
                 .font(.system(size: iconSize, weight: .medium))
                 .symbolRenderingMode(.hierarchical)
-                .foregroundStyle(CandoaChromeStyle.sidebarIcon.opacity(isHovered ? 0.92 : 0.72))
+                .foregroundStyle(CandoaInterfaceStyle.sidebarIcon.opacity(isHovered ? 0.92 : 0.72))
                 .frame(width: 34, height: 34)
                 .background {
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(isHovered ? CandoaChromeStyle.sidebarControlFillHover : Color.clear)
+                        .fill(isHovered ? CandoaInterfaceStyle.sidebarControlFillHover : Color.clear)
                 }
                 .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         }
@@ -70,6 +70,7 @@ struct AISidebarMessageRow: View {
     @Binding var message: AISidebarMessage
     let themeColorHex: String?
     @EnvironmentObject private var userStore: UserStore
+    @State private var didCopyText = false
 
     private var isUser: Bool {
         message.role == .user
@@ -109,10 +110,10 @@ struct AISidebarMessageRow: View {
                 if message.contextChips.count > 2 {
                     Text("+\(message.contextChips.count - 2)")
                         .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(CandoaChromeStyle.sidebarTextSecondary)
+                        .foregroundStyle(CandoaInterfaceStyle.sidebarTextSecondary)
                         .padding(.horizontal, 8)
                         .frame(height: 24)
-                        .background(CandoaChromeStyle.sidebarControlFill)
+                        .background(CandoaInterfaceStyle.sidebarControlFill)
                         .clipShape(Capsule())
                 }
             }
@@ -161,7 +162,7 @@ struct AISidebarMessageRow: View {
             } else if !message.hasCopyableContent {
                 Text("No response.")
                     .font(.system(size: 13.5))
-                    .foregroundStyle(CandoaChromeStyle.sidebarTextSecondary)
+                    .foregroundStyle(CandoaInterfaceStyle.sidebarTextSecondary)
             }
 
             if message.action == .subscribe {
@@ -198,12 +199,19 @@ struct AISidebarMessageRow: View {
 
             if !message.text.isEmpty {
                 responseActionButton(
-                    symbolName: "doc.on.doc",
-                    helpText: "Copy as text",
-                    accessibilityLabel: "Copy response as text",
+                    symbolName: didCopyText ? "checkmark" : "doc.on.doc",
+                    helpText: didCopyText ? "Copied" : "Copy as text",
+                    accessibilityLabel: didCopyText ? "Response copied as text" : "Copy response as text",
                     identifier: "agent-copy-text",
+                    isSelected: didCopyText,
                     action: copyResponseText
                 )
+                .task(id: didCopyText) {
+                    guard didCopyText else { return }
+                    try? await Task.sleep(for: .seconds(1.5))
+                    guard !Task.isCancelled else { return }
+                    didCopyText = false
+                }
             }
 
             if message.responseImage != nil {
@@ -241,6 +249,7 @@ struct AISidebarMessageRow: View {
         helpText: String,
         accessibilityLabel: String,
         identifier: String,
+        isSelected: Bool = false,
         action: @escaping () -> Void
     ) -> some View {
         AISidebarNativeIconButton(
@@ -248,6 +257,7 @@ struct AISidebarMessageRow: View {
             toolTip: helpText,
             accessibilityLabel: accessibilityLabel,
             identifier: identifier,
+            isSelected: isSelected,
             action: action
         )
         .frame(width: 22, height: 22)
@@ -257,6 +267,7 @@ struct AISidebarMessageRow: View {
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
         pasteboard.setString(message.text, forType: .string)
+        didCopyText = true
     }
 
     private func copyResponseImage() {
@@ -271,13 +282,13 @@ struct AISidebarMessageRow: View {
     }
 
     private var messageBackground: Color {
-        guard isUser else { return CandoaChromeStyle.sidebarControlFill }
+        guard isUser else { return CandoaInterfaceStyle.sidebarControlFill }
         guard let themeColorHex else { return Color(nsColor: .controlAccentColor) }
         return Color(spaceHex: themeColorHex)
     }
 
     private var messageForeground: Color {
-        guard isUser else { return CandoaChromeStyle.sidebarText }
+        guard isUser else { return CandoaInterfaceStyle.sidebarText }
         guard let readability = messageReadability else { return .white }
         return readability.usesDarkForeground
             ? Color.black.opacity(0.84)
@@ -309,8 +320,8 @@ private struct AISidebarNativeIconButton: NSViewRepresentable {
         Coordinator(action: action)
     }
 
-    func makeNSView(context: Context) -> NSButton {
-        let button = NSButton()
+    func makeNSView(context: Context) -> AISidebarTooltipButton {
+        let button = AISidebarTooltipButton()
         button.isBordered = false
         button.imagePosition = .imageOnly
         button.target = context.coordinator
@@ -319,19 +330,19 @@ private struct AISidebarNativeIconButton: NSViewRepresentable {
         return button
     }
 
-    func updateNSView(_ button: NSButton, context: Context) {
+    func updateNSView(_ button: AISidebarTooltipButton, context: Context) {
         context.coordinator.action = action
         configure(button)
     }
 
-    private func configure(_ button: NSButton) {
+    private func configure(_ button: AISidebarTooltipButton) {
         let configuration = NSImage.SymbolConfiguration(pointSize: 13, weight: .medium)
         button.image = NSImage(
             systemSymbolName: symbolName,
             accessibilityDescription: accessibilityLabel
         )?.withSymbolConfiguration(configuration)
         button.contentTintColor = isSelected ? .controlAccentColor : .secondaryLabelColor
-        button.toolTip = toolTip
+        button.tooltipText = toolTip
         button.setAccessibilityLabel(accessibilityLabel)
         button.setAccessibilityValue(isSelected ? "selected" : "not selected")
         button.identifier = NSUserInterfaceItemIdentifier(identifier)
@@ -347,6 +358,43 @@ private struct AISidebarNativeIconButton: NSViewRepresentable {
         @objc func performAction() {
             action()
         }
+    }
+}
+
+/// Keeps the native AppKit tooltip hit region aligned with the button after
+/// SwiftUI assigns or changes the representable's bounds.
+private final class AISidebarTooltipButton: NSButton, NSViewToolTipOwner {
+    var tooltipText = "" {
+        didSet {
+            guard tooltipText != oldValue else { return }
+            updateToolTipRect()
+        }
+    }
+
+    private var tooltipTag: NSView.ToolTipTag?
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        updateToolTipRect()
+    }
+
+    func view(
+        _ view: NSView,
+        stringForToolTip tag: NSView.ToolTipTag,
+        point: NSPoint,
+        userData data: UnsafeMutableRawPointer?
+    ) -> String {
+        tooltipText
+    }
+
+    private func updateToolTipRect() {
+        if let tooltipTag {
+            removeToolTip(tooltipTag)
+            self.tooltipTag = nil
+        }
+
+        guard !tooltipText.isEmpty, !bounds.isEmpty else { return }
+        tooltipTag = addToolTip(bounds, owner: self, userData: nil)
     }
 }
 
@@ -366,13 +414,13 @@ struct AISidebarSentContextChipView: View {
             VStack(alignment: .leading, spacing: 0) {
                 Text(chip.title)
                     .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(CandoaChromeStyle.sidebarText)
+                    .foregroundStyle(CandoaInterfaceStyle.sidebarText)
                     .lineLimit(1)
 
                 if !chip.subtitle.isEmpty {
                     Text(chip.subtitle)
                         .font(.system(size: 10, weight: .medium))
-                        .foregroundStyle(CandoaChromeStyle.sidebarTextSecondary)
+                        .foregroundStyle(CandoaInterfaceStyle.sidebarTextSecondary)
                         .lineLimit(1)
                 }
             }
@@ -380,7 +428,7 @@ struct AISidebarSentContextChipView: View {
         .padding(.horizontal, 8)
         .frame(height: 30)
         .frame(maxWidth: 150, alignment: .leading)
-        .background(CandoaChromeStyle.sidebarControlFill)
+        .background(CandoaInterfaceStyle.sidebarControlFill)
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
 }
@@ -587,13 +635,13 @@ struct AISidebarComposerIconButton: View {
     }
 
     private var foregroundStyle: Color {
-        guard isEnabled else { return CandoaChromeStyle.sidebarIcon.opacity(0.55) }
-        return isHovered ? CandoaChromeStyle.sidebarTextSecondary : CandoaChromeStyle.sidebarIcon
+        guard isEnabled else { return CandoaInterfaceStyle.sidebarIcon.opacity(0.55) }
+        return isHovered ? CandoaInterfaceStyle.sidebarTextSecondary : CandoaInterfaceStyle.sidebarIcon
     }
 
     private var backgroundFill: Color {
         guard isEnabled, isHovered else { return Color.clear }
-        return CandoaChromeStyle.sidebarControlFillHover
+        return CandoaInterfaceStyle.sidebarControlFillHover
     }
 }
 
@@ -625,11 +673,11 @@ struct AISidebarComposerSendButton: View {
     }
 
     private var iconColor: Color {
-        isEnabled ? Color.black.opacity(0.88) : CandoaChromeStyle.sidebarIcon.opacity(0.58)
+        isEnabled ? Color.black.opacity(0.88) : CandoaInterfaceStyle.sidebarIcon.opacity(0.58)
     }
 
     private var backgroundFill: Color {
-        guard isEnabled else { return CandoaChromeStyle.sidebarControlFillHover }
+        guard isEnabled else { return CandoaInterfaceStyle.sidebarControlFillHover }
         return isHovered ? Color.white.opacity(0.82) : Color.white.opacity(0.96)
     }
 }
@@ -647,7 +695,7 @@ struct AISidebarSpeechWaveformView: View {
             HStack(alignment: .center, spacing: 2.5) {
                 ForEach(levels.indices, id: \.self) { index in
                     Capsule(style: .continuous)
-                        .fill(CandoaChromeStyle.sidebarTextSecondary.opacity(index % 5 == 0 ? 0.86 : 0.72))
+                        .fill(CandoaInterfaceStyle.sidebarTextSecondary.opacity(index % 5 == 0 ? 0.86 : 0.72))
                         .frame(width: 1.5, height: max(2, proxy.size.height * levels[index]))
                 }
 
@@ -678,13 +726,13 @@ struct AISidebarMentionButton: View {
                 VStack(alignment: .leading, spacing: 1) {
                     Text(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Untitled" : title)
                         .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(isSelected ? Color.white : CandoaChromeStyle.sidebarText)
+                        .foregroundStyle(isSelected ? Color.white : CandoaInterfaceStyle.sidebarText)
                         .lineLimit(1)
 
                     if let detail, !detail.isEmpty {
                         Text(detail)
                             .font(.system(size: 11))
-                            .foregroundStyle(isSelected ? Color.white.opacity(0.72) : CandoaChromeStyle.sidebarTextSecondary)
+                            .foregroundStyle(isSelected ? Color.white.opacity(0.72) : CandoaInterfaceStyle.sidebarTextSecondary)
                             .lineLimit(1)
                     }
                 }
@@ -710,54 +758,32 @@ struct AISidebarMentionButton: View {
             return CandoaColor.primary
         }
 
-        return isHovered ? CandoaChromeStyle.sidebarControlFillHover : Color.clear
+        return isHovered ? CandoaInterfaceStyle.sidebarControlFillHover : Color.clear
     }
 }
 
 struct AISidebarContextChipView: View {
     let chip: AISidebarContextChip
+    let onPreview: (() -> Void)?
     let onRemove: () -> Void
 
     @State private var isHovered = false
     @State private var isRemoveHovered = false
 
     var body: some View {
-        HStack(spacing: 10) {
-            AISidebarMentionIcon(
-                symbolName: chip.symbolName,
-                faviconData: chip.faviconData,
-                previewImageData: chip.previewImageData,
-                size: chip.previewImageData == nil ? 22 : 34
-            )
-            .frame(width: chip.previewImageData == nil ? 28 : 36, height: 36)
-
-            VStack(alignment: .leading, spacing: 1) {
-                Text(chip.title)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(CandoaChromeStyle.sidebarText)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-
-                if !chip.subtitle.isEmpty {
-                    Text(chip.subtitle)
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(CandoaChromeStyle.sidebarTextSecondary)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
+        ZStack(alignment: .topTrailing) {
+            if let onPreview, chip.previewImageData != nil {
+                Button(action: onPreview) {
+                    chipBody
                 }
+                .buttonStyle(.plain)
+                .help("Preview Image")
+                .accessibilityLabel("Preview attached image")
+                .accessibilityIdentifier("agent-attachment-preview")
+            } else {
+                chipBody
             }
-            .frame(maxWidth: 130, alignment: .leading)
-        }
-        .padding(.leading, 8)
-        .padding(.trailing, 12)
-        .frame(height: 46)
-        .background(Color.primary.opacity(0.075))
-        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .stroke(CandoaChromeStyle.sidebarControlStroke, lineWidth: 1)
-        }
-        .overlay(alignment: .topTrailing) {
+
             if chip.isRemovable && isHovered {
                 Button(action: onRemove) {
                     Image(systemName: "xmark")
@@ -789,6 +815,48 @@ struct AISidebarContextChipView: View {
             }
         }
     }
+
+    private var chipBody: some View {
+        HStack(spacing: 10) {
+            chipIcon
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text(chip.title)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(CandoaInterfaceStyle.sidebarText)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+
+                if !chip.subtitle.isEmpty {
+                    Text(chip.subtitle)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(CandoaInterfaceStyle.sidebarTextSecondary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                }
+            }
+            .frame(maxWidth: 130, alignment: .leading)
+        }
+        .padding(.leading, 8)
+        .padding(.trailing, 12)
+        .frame(height: 46)
+        .background(Color.primary.opacity(0.075))
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .stroke(CandoaInterfaceStyle.sidebarControlStroke, lineWidth: 1)
+        }
+    }
+
+    private var chipIcon: some View {
+        AISidebarMentionIcon(
+            symbolName: chip.symbolName,
+            faviconData: chip.faviconData,
+            previewImageData: chip.previewImageData,
+            size: chip.previewImageData == nil ? 22 : 34
+        )
+        .frame(width: chip.previewImageData == nil ? 28 : 36, height: 36)
+    }
 }
 
 struct AISidebarMentionIcon: View {
@@ -813,7 +881,7 @@ struct AISidebarMentionIcon: View {
             } else {
                 Image(systemName: symbolName)
                     .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(isSelected ? Color.white.opacity(0.86) : CandoaChromeStyle.sidebarIcon)
+                    .foregroundStyle(isSelected ? Color.white.opacity(0.86) : CandoaInterfaceStyle.sidebarIcon)
             }
         }
         .frame(width: size, height: size)

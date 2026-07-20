@@ -107,7 +107,7 @@ struct FloatingMiniPlayerContainer: View {
                 tab: tab,
                 state: state,
                 size: size,
-                hidesChrome: isMorphing,
+                hidesControls: isMorphing,
                 isProgressScrubbing: $isProgressScrubbing
             )
 
@@ -309,7 +309,7 @@ private struct FloatingMiniPlayerView: View {
     let tab: BrowserTab
     let state: TabMediaState
     let size: CGSize
-    let hidesChrome: Bool
+    let hidesControls: Bool
     @Binding var isProgressScrubbing: Bool
 
     @State private var isHovering = false
@@ -328,7 +328,7 @@ private struct FloatingMiniPlayerView: View {
                     .scaledToFill()
             }
 
-            // Chrome stays invisible while morphing so the page-anchored
+            // Controls stay invisible while morphing so the page-anchored
             // frame reads as the page's own video, not a floating panel.
             LinearGradient(
                 colors: [
@@ -339,10 +339,10 @@ private struct FloatingMiniPlayerView: View {
                 startPoint: .top,
                 endPoint: .bottom
             )
-            .opacity(hidesChrome ? 0 : 1)
+            .opacity(hidesControls ? 0 : 1)
 
             expandedControls
-                .opacity(isHovering && !hidesChrome ? 1 : 0)
+                .opacity(isHovering && !hidesControls ? 1 : 0)
         }
         .frame(width: size.width, height: size.height)
         .background(Color.black)
@@ -350,11 +350,11 @@ private struct FloatingMiniPlayerView: View {
         .overlay {
             RoundedRectangle(cornerRadius: 9, style: .continuous)
                 .stroke(
-                    Color.white.opacity(hidesChrome ? 0 : (isHovering ? 0.18 : 0.12)),
+                    Color.white.opacity(hidesControls ? 0 : (isHovering ? 0.18 : 0.12)),
                     lineWidth: 1
                 )
         }
-        .shadow(color: .black.opacity(hidesChrome ? 0 : 0.26), radius: 18, y: 8)
+        .shadow(color: .black.opacity(hidesControls ? 0 : 0.26), radius: 18, y: 8)
         .onHover { isHovering = $0 }
         .animation(.easeOut(duration: 0.20), value: isHovering)
     }
@@ -362,17 +362,17 @@ private struct FloatingMiniPlayerView: View {
     private var expandedControls: some View {
         VStack(spacing: 0) {
             HStack(spacing: 10) {
-                MiniPlayerChromeButton(title: "Back to Tab", systemImage: "arrow.up.left") {
+                MiniPlayerControlButton(title: "Back to Tab", systemImage: "arrow.up.left") {
                     store.focusMediaTab()
                 }
 
                 Spacer(minLength: 8)
 
-                MiniPlayerChromeButton(title: "Minimize", systemImage: "minus") {
+                MiniPlayerControlButton(title: "Minimize", systemImage: "minus") {
                     store.minimizeMiniPlayer()
                 }
 
-                MiniPlayerChromeButton(title: "Close", systemImage: "xmark") {
+                MiniPlayerControlButton(title: "Close", systemImage: "xmark") {
                     store.dismissMiniPlayer()
                 }
             }
@@ -410,7 +410,7 @@ private struct FloatingMiniPlayerView: View {
 
 }
 
-private struct MiniPlayerChromeButton: View {
+private struct MiniPlayerControlButton: View {
     let title: String
     let systemImage: String
     let action: () -> Void

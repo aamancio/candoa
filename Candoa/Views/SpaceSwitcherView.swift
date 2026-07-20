@@ -57,7 +57,7 @@ struct SpaceSwitcherView: View {
             Image(systemName: "arrow.down.to.line.compact")
                 .font(.system(size: 15.5, weight: .medium))
                 .frame(width: 28, height: 28)
-                .foregroundStyle(CandoaChromeStyle.sidebarIcon)
+                .foregroundStyle(CandoaInterfaceStyle.sidebarIcon)
                 .background(bottomButtonBackground(isActive: isDownloadsPresented, isHovering: isHoveringDownloads))
                 .contentShape(Rectangle())
         }
@@ -79,7 +79,7 @@ struct SpaceSwitcherView: View {
             Image(systemName: "plus")
                 .font(.system(size: 18, weight: .regular))
                 .frame(width: 28, height: 28)
-                .foregroundStyle(CandoaChromeStyle.sidebarTextSecondary)
+                .foregroundStyle(CandoaInterfaceStyle.sidebarTextSecondary)
                 .background(bottomButtonBackground(isActive: isActionMenuPresented, isHovering: isHoveringAddSpace))
                 .contentShape(Rectangle())
         }
@@ -97,10 +97,10 @@ struct SpaceSwitcherView: View {
 
     private func bottomButtonBackground(isActive: Bool, isHovering: Bool) -> some View {
         RoundedRectangle(cornerRadius: 8, style: .continuous)
-            .fill(isActive ? CandoaChromeStyle.sidebarControlFillActive : (isHovering ? CandoaChromeStyle.sidebarControlFillHover : Color.clear))
+            .fill(isActive ? CandoaInterfaceStyle.sidebarControlFillActive : (isHovering ? CandoaInterfaceStyle.sidebarControlFillHover : Color.clear))
             .overlay {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .stroke(isActive || isHovering ? CandoaChromeStyle.sidebarControlStroke : Color.clear, lineWidth: 1)
+                    .stroke(isActive || isHovering ? CandoaInterfaceStyle.sidebarControlStroke : Color.clear, lineWidth: 1)
             }
     }
 
@@ -298,13 +298,13 @@ private struct DownloadItemRow: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(item.name)
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(CandoaChromeStyle.sidebarText)
+                        .foregroundStyle(CandoaInterfaceStyle.sidebarText)
                         .lineLimit(1)
                         .truncationMode(.middle)
 
                     Text(Self.relativeDateFormatter.localizedString(for: item.date, relativeTo: Date()))
                         .font(.system(size: 12.5, weight: .semibold))
-                        .foregroundStyle(CandoaChromeStyle.sidebarTextSecondary)
+                        .foregroundStyle(CandoaInterfaceStyle.sidebarTextSecondary)
                         .lineLimit(1)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)

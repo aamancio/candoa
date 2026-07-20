@@ -6,6 +6,20 @@ extension BrowserStore {
             spaces = [BrowserSpace(name: "", symbolName: "circle.grid.2x2")]
         }
 
+        // Blue was historically stored as the implicit default. Migrate that
+        // legacy state once to the new semantic, untinted macOS chassis. The
+        // version marker lets a subsequently selected blue theme stay blue.
+        for index in spaces.indices
+        where spaces[index].themeStorageVersion < BrowserSpace.currentThemeStorageVersion {
+            if spaces[index].themeColorHex?.caseInsensitiveCompare(
+                BrowserSpace.blueThemeColorHex
+            ) == .orderedSame {
+                spaces[index].themeColorHex = nil
+            }
+            spaces[index].themeStorageVersion = BrowserSpace.currentThemeStorageVersion
+            needsWorkspaceSaveAfterRepair = true
+        }
+
         for index in spaces.indices where !spaces[index].name.isEmpty {
             spaces[index].name = Self.normalizedSpaceName(spaces[index].name)
         }

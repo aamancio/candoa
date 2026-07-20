@@ -218,7 +218,7 @@ struct WelcomeToCandoaPage: View {
                 .offset(y: reduceMotion || revealsContent ? 0 : 8)
             }
         }
-        .background(CandoaChromeStyle.surfaceFill.opacity(0.72))
+        .background(CandoaInterfaceStyle.surfaceFill.opacity(0.72))
         .accessibilityIdentifier("welcome-to-candoa-page")
         .onAppear {
             guard !revealsContent else { return }
@@ -303,7 +303,7 @@ private struct WelcomeOnboardingStep: View {
                 .padding(.bottom, 62)
             }
         }
-        .background(CandoaChromeStyle.surfaceFill)
+        .background(CandoaInterfaceStyle.surfaceFill)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .accessibilityIdentifier("initial-onboarding-welcome")
         .task {
@@ -714,16 +714,16 @@ private struct OnboardingSurface<Leading: View, Preview: View>: View {
                 previewRail
             }
             .frame(width: cardWidth, height: cardHeight)
-            .background(CandoaChromeStyle.surfaceFill)
+            .background(CandoaInterfaceStyle.surfaceFill)
             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(CandoaChromeStyle.surfaceBorder, lineWidth: 1)
+                    .stroke(CandoaInterfaceStyle.surfaceBorder, lineWidth: 1)
             }
             .shadow(color: Color.black.opacity(0.16), radius: 30, y: 14)
             .position(x: proxy.size.width / 2, y: proxy.size.height / 2)
         }
-        .background(CandoaChromeStyle.surfaceFill.opacity(0.72))
+        .background(CandoaInterfaceStyle.surfaceFill.opacity(0.72))
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .accessibilityIdentifier("initial-onboarding-\(step.rawValue)")
         .accessibilityValue("Step \(step.position) of \(step.count)")
@@ -771,7 +771,7 @@ private struct OnboardingSurface<Leading: View, Preview: View>: View {
         preview
             .padding(36)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(CandoaChromeStyle.sidebarControlFill.opacity(0.50))
+            .background(CandoaInterfaceStyle.sidebarControlFill.opacity(0.50))
     }
 }
 
@@ -832,7 +832,7 @@ private struct OnboardingAccountPreview: View {
             .background(.background.opacity(0.48), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .stroke(CandoaChromeStyle.surfaceBorder, lineWidth: 1)
+                    .stroke(CandoaInterfaceStyle.surfaceBorder, lineWidth: 1)
             }
 
             HStack(alignment: .top, spacing: 10) {
@@ -861,7 +861,7 @@ private struct OnboardingAccountPreview: View {
             .background(.background.opacity(0.62), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .stroke(CandoaChromeStyle.surfaceBorder, lineWidth: 1)
+                    .stroke(CandoaInterfaceStyle.surfaceBorder, lineWidth: 1)
             }
         }
         .frame(maxWidth: 440)
@@ -940,7 +940,7 @@ private struct OnboardingImportPreview: View {
             .background(.background.opacity(0.62), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .stroke(CandoaChromeStyle.surfaceBorder, lineWidth: 1)
+                    .stroke(CandoaInterfaceStyle.surfaceBorder, lineWidth: 1)
             }
         }
     }

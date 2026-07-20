@@ -21,9 +21,17 @@
 		010000000000000000000112 /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000012 /* SidebarView.swift */; };
 		C1A2B3D4E5F60718293A4B5C /* SidebarSpaceComposer.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A2B3C4E5F60718293A4B5C /* SidebarSpaceComposer.swift */; };
 		C2A2B3D4E5F60718293A4B5C /* SidebarTabSections.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A2B3C4E5F60718293A4B5C /* SidebarTabSections.swift */; };
-		C3A2B3D4E5F60718293A4B5C /* SidebarChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3A2B3C4E5F60718293A4B5C /* SidebarChrome.swift */; };
+		C3A2B3D4E5F60718293A4B5C /* SidebarWindowControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3A2B3C4E5F60718293A4B5C /* SidebarWindowControls.swift */; };
 		C4A2B3D4E5F60718293A4B5C /* SidebarDragDrop.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4A2B3C4E5F60718293A4B5C /* SidebarDragDrop.swift */; };
-		010000000000000000000113 /* BrowserChromeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000013 /* BrowserChromeView.swift */; };
+		E50000000000000000000101 /* AppUpdateBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = E50000000000000000000001 /* AppUpdateBanner.swift */; };
+		E50000000000000000000102 /* CandoaInterfaceStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = E50000000000000000000002 /* CandoaInterfaceStyle.swift */; };
+		E50000000000000000000103 /* SpaceThemeBackdrop.swift in Sources */ = {isa = PBXBuildFile; fileRef = E50000000000000000000003 /* SpaceThemeBackdrop.swift */; };
+		E50000000000000000000104 /* SidebarDropIndicators.swift in Sources */ = {isa = PBXBuildFile; fileRef = E50000000000000000000004 /* SidebarDropIndicators.swift */; };
+		E50000000000000000000105 /* SpaceIconPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = E50000000000000000000005 /* SpaceIconPicker.swift */; };
+		E50000000000000000000106 /* SpaceThemePanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E50000000000000000000006 /* SpaceThemePanel.swift */; };
+		E50000000000000000000107 /* SpaceThemeControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = E50000000000000000000007 /* SpaceThemeControls.swift */; };
+		E50000000000000000000108 /* SpaceComposerModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = E50000000000000000000008 /* SpaceComposerModels.swift */; };
+		010000000000000000000113 /* BrowserInterfaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000013 /* BrowserInterfaceView.swift */; };
 		010000000000000000000114 /* WebViewContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000014 /* WebViewContainer.swift */; };
 		010000000000000000000115 /* CommandPaletteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000015 /* CommandPaletteView.swift */; };
 		010000000000000000000171 /* CommandPaletteView+Layout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000061 /* CommandPaletteView+Layout.swift */; };
@@ -119,9 +127,17 @@
 		010000000000000000000012 /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
 		D1A2B3C4E5F60718293A4B5C /* SidebarSpaceComposer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarSpaceComposer.swift; sourceTree = "<group>"; };
 		D2A2B3C4E5F60718293A4B5C /* SidebarTabSections.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarTabSections.swift; sourceTree = "<group>"; };
-		D3A2B3C4E5F60718293A4B5C /* SidebarChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarChrome.swift; sourceTree = "<group>"; };
+		D3A2B3C4E5F60718293A4B5C /* SidebarWindowControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarWindowControls.swift; sourceTree = "<group>"; };
 		D4A2B3C4E5F60718293A4B5C /* SidebarDragDrop.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarDragDrop.swift; sourceTree = "<group>"; };
-		010000000000000000000013 /* BrowserChromeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserChromeView.swift; sourceTree = "<group>"; };
+		E50000000000000000000001 /* AppUpdateBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppUpdateBanner.swift; sourceTree = "<group>"; };
+		E50000000000000000000002 /* CandoaInterfaceStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CandoaInterfaceStyle.swift; sourceTree = "<group>"; };
+		E50000000000000000000003 /* SpaceThemeBackdrop.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpaceThemeBackdrop.swift; sourceTree = "<group>"; };
+		E50000000000000000000004 /* SidebarDropIndicators.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarDropIndicators.swift; sourceTree = "<group>"; };
+		E50000000000000000000005 /* SpaceIconPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpaceIconPicker.swift; sourceTree = "<group>"; };
+		E50000000000000000000006 /* SpaceThemePanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpaceThemePanel.swift; sourceTree = "<group>"; };
+		E50000000000000000000007 /* SpaceThemeControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpaceThemeControls.swift; sourceTree = "<group>"; };
+		E50000000000000000000008 /* SpaceComposerModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpaceComposerModels.swift; sourceTree = "<group>"; };
+		010000000000000000000013 /* BrowserInterfaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserInterfaceView.swift; sourceTree = "<group>"; };
 		010000000000000000000014 /* WebViewContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebViewContainer.swift; sourceTree = "<group>"; };
 		010000000000000000000015 /* CommandPaletteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandPaletteView.swift; sourceTree = "<group>"; };
 		010000000000000000000061 /* CommandPaletteView+Layout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CommandPaletteView+Layout.swift"; sourceTree = "<group>"; };
@@ -243,11 +259,19 @@
 				010000000000000000000046 /* EliSidebarView.swift */,
 				010000000000000000000047 /* EliSidebarComponents.swift */,
 				010000000000000000000012 /* SidebarView.swift */,
+				E50000000000000000000001 /* AppUpdateBanner.swift */,
 				D1A2B3C4E5F60718293A4B5C /* SidebarSpaceComposer.swift */,
+				E50000000000000000000005 /* SpaceIconPicker.swift */,
+				E50000000000000000000006 /* SpaceThemePanel.swift */,
+				E50000000000000000000007 /* SpaceThemeControls.swift */,
+				E50000000000000000000008 /* SpaceComposerModels.swift */,
 				D2A2B3C4E5F60718293A4B5C /* SidebarTabSections.swift */,
-				D3A2B3C4E5F60718293A4B5C /* SidebarChrome.swift */,
+				D3A2B3C4E5F60718293A4B5C /* SidebarWindowControls.swift */,
+				E50000000000000000000002 /* CandoaInterfaceStyle.swift */,
+				E50000000000000000000003 /* SpaceThemeBackdrop.swift */,
+				E50000000000000000000004 /* SidebarDropIndicators.swift */,
 				D4A2B3C4E5F60718293A4B5C /* SidebarDragDrop.swift */,
-				010000000000000000000013 /* BrowserChromeView.swift */,
+				010000000000000000000013 /* BrowserInterfaceView.swift */,
 				010000000000000000000014 /* WebViewContainer.swift */,
 				010000000000000000000015 /* CommandPaletteView.swift */,
 				010000000000000000000061 /* CommandPaletteView+Layout.swift */,
@@ -501,9 +525,17 @@
 				010000000000000000000112 /* SidebarView.swift in Sources */,
 				C1A2B3D4E5F60718293A4B5C /* SidebarSpaceComposer.swift in Sources */,
 				C2A2B3D4E5F60718293A4B5C /* SidebarTabSections.swift in Sources */,
-				C3A2B3D4E5F60718293A4B5C /* SidebarChrome.swift in Sources */,
+				C3A2B3D4E5F60718293A4B5C /* SidebarWindowControls.swift in Sources */,
 				C4A2B3D4E5F60718293A4B5C /* SidebarDragDrop.swift in Sources */,
-				010000000000000000000113 /* BrowserChromeView.swift in Sources */,
+				E50000000000000000000101 /* AppUpdateBanner.swift in Sources */,
+				E50000000000000000000102 /* CandoaInterfaceStyle.swift in Sources */,
+				E50000000000000000000103 /* SpaceThemeBackdrop.swift in Sources */,
+				E50000000000000000000104 /* SidebarDropIndicators.swift in Sources */,
+				E50000000000000000000105 /* SpaceIconPicker.swift in Sources */,
+				E50000000000000000000106 /* SpaceThemePanel.swift in Sources */,
+				E50000000000000000000107 /* SpaceThemeControls.swift in Sources */,
+				E50000000000000000000108 /* SpaceComposerModels.swift in Sources */,
+				010000000000000000000113 /* BrowserInterfaceView.swift in Sources */,
 				010000000000000000000114 /* WebViewContainer.swift in Sources */,
 				010000000000000000000115 /* CommandPaletteView.swift in Sources */,
 				010000000000000000000171 /* CommandPaletteView+Layout.swift in Sources */,

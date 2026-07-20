@@ -153,7 +153,7 @@ enum DeveloperModeConfiguration {
 
 extension URL {
     /// Arc's local-development detection: localhost, loopback addresses, and
-    /// *.localhost hosts get developer chrome (info icon, full URL, dev bar).
+    /// *.localhost hosts get developer controls (info icon, full URL, dev bar).
     var isLocalDevelopment: Bool {
         guard let host = host(percentEncoded: false) else { return false }
         let normalizedHost = host.lowercased()
@@ -164,7 +164,7 @@ extension URL {
             || normalizedHost.hasPrefix("127.")
     }
 
-    /// Full URL text for developer chrome — scheme, port, and path, with a
+    /// Full URL text for developer controls — scheme, port, and path, with a
     /// bare trailing slash trimmed.
     var localDevelopmentDisplayText: String {
         var text = absoluteString

@@ -235,7 +235,7 @@ internal struct LookAndFeelSettingsPane: View {
                     SettingsToggleRow(
                         systemImage: "toolbar",
                         title: "Hide the top toolbar as well in compact mode",
-                        subtitle: "Keep browser chrome minimized until you need it.",
+                        subtitle: "Keep browser controls minimized until you need them.",
                         isOn: $hideTopToolbarInCompactMode
                     )
 
@@ -886,7 +886,7 @@ internal struct AdvancedSettingsPane: View {
                     SettingsPickerRow(
                         systemImage: "sidebar.left",
                         title: "Browser layout",
-                        subtitle: "Choose the chrome layout for browsing.",
+                        subtitle: "Choose the interface layout for browsing.",
                         selection: $browserLayout,
                         options: [
                             SettingsPickerOption(id: "single", title: "Only Sidebar"),
@@ -900,7 +900,7 @@ internal struct AdvancedSettingsPane: View {
                     SettingsToggleRow(
                         systemImage: "rectangle.compress.vertical",
                         title: "Compact mode",
-                        subtitle: "Keep browser chrome minimized until you need it.",
+                        subtitle: "Keep browser controls minimized until you need them.",
                         isOn: $enableCompactMode
                     )
 
@@ -909,7 +909,7 @@ internal struct AdvancedSettingsPane: View {
                     SettingsToggleRow(
                         systemImage: "toolbar",
                         title: "Hide top toolbar in compact mode",
-                        subtitle: "Use the sidebar as the primary chrome.",
+                        subtitle: "Use the sidebar as the primary navigation.",
                         isOn: $hideTopToolbarInCompactMode
                     )
                 }

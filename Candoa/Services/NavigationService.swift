@@ -312,6 +312,20 @@ struct NavigationService {
         let input = rawInput.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !input.isEmpty else { return nil }
 
+        if let explicitDestination = explicitDestinationURL(for: input) {
+            return explicitDestination
+        }
+
+        let provider = Self.defaultSearchProvider(for: defaultSearchProviderID)
+        return provider.searchURL(for: input)
+    }
+
+    /// Resolves only destinations the person or a trusted page link specified exactly.
+    /// Agent actions use this path so unresolved conversational text never becomes a search.
+    func explicitDestinationURL(for rawInput: String) -> URL? {
+        let input = rawInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !input.isEmpty else { return nil }
+
         if let directURL = directURL(from: input) {
             return directURL
         }
@@ -320,12 +334,7 @@ struct NavigationService {
             return url
         }
 
-        if let provider = Self.searchProviders.first(where: { $0.exactlyMatches(input) }) {
-            return provider.homeURL
-        }
-
-        let provider = Self.defaultSearchProvider(for: defaultSearchProviderID)
-        return provider.searchURL(for: input)
+        return Self.searchProviders.first(where: { $0.exactlyMatches(input) })?.homeURL
     }
 
     func searchProvider(matching rawInput: String) -> SearchProvider? {

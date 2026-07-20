@@ -49,7 +49,7 @@ struct WindowInteractionConfigurator: NSViewRepresentable {
 
         func configure(window: NSWindow?, autosaveName: String) {
             guard let window else { return }
-            configureChrome(for: window)
+            configureWindowInterface(for: window)
 
             guard configuredWindow !== window || configuredAutosaveName != autosaveName else {
                 return
@@ -68,7 +68,7 @@ struct WindowInteractionConfigurator: NSViewRepresentable {
             _ = window.setFrameAutosaveName(autosaveName)
         }
 
-        private func configureChrome(for window: NSWindow) {
+        private func configureWindowInterface(for window: NSWindow) {
             window.minSize = Self.minimumWindowSize
             window.titleVisibility = .hidden
             window.titlebarAppearsTransparent = true

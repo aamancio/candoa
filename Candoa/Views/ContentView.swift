@@ -28,7 +28,7 @@ struct ContentView: View {
     @State private var miniPlayerOrigin: CGPoint?
     @State private var miniPlayerExpandedSize = MiniPlayerLayout.defaultExpandedSize
     @SceneStorage("candoa.aiSidebarWidth.diaLayout") private var aiSidebarWidth = 540.0
-    private let sidebarWidth = CandoaChromeStyle.sidebarWidth
+    private let sidebarWidth = CandoaInterfaceStyle.sidebarWidth
     private let sidebarDividerWidth: CGFloat = 0
 
     private var activeThemeAppearance: SpaceThemeAppearance {
@@ -91,7 +91,7 @@ struct ContentView: View {
                     // lanes are reserved inside WebViewContainer instead.
                     WebViewContainer(
                         store: store,
-                        visibleChromeInsets: BrowserChromeInsets(
+                        visibleInterfaceInsets: BrowserInterfaceInsets(
                             leading: isSidebarVisible ? sidebarTotalWidth : 0
                         ),
                         attachesToTrailingPanel: isAISidebarMounted
@@ -566,7 +566,7 @@ struct ContentView: View {
                   isAISidebarVisible else { return }
             // The panel now fully covers the changing edge. Commit one native
             // WebKit resize without animation so its system overlay scroller
-            // belongs to the page instead of a synthetic chrome gutter.
+            // belongs to the page instead of a synthetic interface gutter.
             isAISidebarReservingWebLayout = true
         }
     }
