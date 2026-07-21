@@ -237,10 +237,6 @@ final class BrowserStore: ObservableObject {
     @Published var uiTestingLastCommandDescription = "none"
     @Published var uiTestingWebsiteAppearanceDescription = "pending"
 
-    /// Ephemeral permission for Eli to control tabs in this browser-window session.
-    /// This deliberately is not persisted across app launches.
-    var hasGrantedEliBrowserControlForSession = false
-
     /// Deliberately not @Published: it's consumed by the mini player's mount
     /// (which the activeTabID change already triggers), and publishing it
     /// would cause a redundant view update per tab switch.

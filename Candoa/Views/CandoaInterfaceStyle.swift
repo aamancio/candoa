@@ -40,18 +40,10 @@ enum CandoaColor {
 
 enum CandoaInterfaceStyle {
     static let sidebarWidth: CGFloat = 234
-    static var setupNeutralTint: Color { subtleTone }
     static let windowBackground = Color(nsColor: .windowBackgroundColor)
-    static let workspaceBackground = Color(nsColor: .controlBackgroundColor)
+    static let workspaceBackground = Color(nsColor: .underPageBackgroundColor)
     static var neutralWindowBackdrop: some View {
         workspaceBackground
-            .overlay {
-                LinearGradient(
-                    colors: [shadowTone.opacity(0.04), shadowTone.opacity(0.07)],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-            }
     }
     static let sidebarBackground = Color(nsColor: .windowBackgroundColor)
     static var sidebarSurfaceOverlay: Color {
@@ -65,7 +57,7 @@ enum CandoaInterfaceStyle {
     static var sidebarControlFillActive: Color { CandoaColor.selectedFill }
     static var sidebarControlStroke: Color { separatorTone.opacity(increasesContrast ? 1 : 0.80) }
     static var spaceSetupInputFill: Color {
-        increasesContrast ? tertiaryTone.opacity(0.56) : subtleTone.opacity(0.82)
+        spaceSetupSecondaryFill
     }
     static var spaceSetupSecondaryFill: Color {
         subtleTone.opacity(increasesContrast ? 1 : 0.42)
@@ -83,10 +75,17 @@ enum CandoaInterfaceStyle {
         windowBackground
     }
     static var primaryActionDisabledFill: Color {
-        sidebarControlFill
+        let control = NSColor.controlColor
+        let label = NSColor.labelColor
+        return Color(
+            nsColor: control.blended(
+                withFraction: increasesContrast ? 0.08 : 0.05,
+                of: label
+            ) ?? control
+        )
     }
     static var primaryActionDisabledText: Color {
-        sidebarTextSecondary
+        primaryActionText
     }
     static var updateBannerFill: Color { subtleTone.opacity(increasesContrast ? 1 : 0.92) }
     static var updateBannerFillHover: Color { tertiaryTone.opacity(increasesContrast ? 1 : 0.48) }

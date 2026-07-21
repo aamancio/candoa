@@ -42,8 +42,10 @@ struct CandoaWindowBackdrop: View {
     var body: some View {
         ZStack {
             CandoaInterfaceStyle.neutralWindowBackdrop
-            Color(spaceHex: store.activeThemeColorHexes.first ?? "#8A8F98")
-                .opacity(spaceTintOpacity)
+            if let themeHex = store.activeThemeColorHexes.first {
+                Color(spaceHex: themeHex)
+                    .opacity(spaceTintOpacity)
+            }
             SpaceThemeBackdrop(
                 hexes: store.activeThemeColorHexes,
                 intensity: backdropIntensity * store.activeThemeIntensityMultiplier,
@@ -52,7 +54,6 @@ struct CandoaWindowBackdrop: View {
             if isSetupThemePreviewActive, setupReadability.overlayOpacity > 0 {
                 setupReadability.overlayColor.opacity(setupReadability.overlayOpacity)
             }
-            CandoaInterfaceStyle.setupNeutralTint.opacity(usesSetupInterface && !isSetupThemePreviewActive ? 0.18 : 0)
         }
     }
 }
@@ -65,8 +66,12 @@ struct CandoaSidebarBackdrop: View {
     @ObservedObject var store: BrowserStore
 
     var body: some View {
-        CandoaWindowBackdrop(store: store)
-            .overlay(CandoaInterfaceStyle.sidebarSurfaceOverlay)
+        if store.activeThemeColorHexes.isEmpty {
+            CandoaInterfaceStyle.sidebarBackground
+        } else {
+            CandoaWindowBackdrop(store: store)
+                .overlay(CandoaInterfaceStyle.sidebarSurfaceOverlay)
+        }
     }
 }
 

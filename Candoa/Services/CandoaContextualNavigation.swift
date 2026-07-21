@@ -5,6 +5,28 @@ struct CandoaPageActionProposal: Identifiable, Sendable {
     let kind: CandoaPageActionKind
     let target: String
     let value: String?
+    let browserAgentReference: String?
+    let browserAgentSnapshotID: UUID?
+    let browserAgentPageURL: String?
+    let browserAgentControlKind: CandoaBrowserAgentControl.Kind?
+
+    init(
+        kind: CandoaPageActionKind,
+        target: String,
+        value: String?,
+        browserAgentReference: String? = nil,
+        browserAgentSnapshotID: UUID? = nil,
+        browserAgentPageURL: String? = nil,
+        browserAgentControlKind: CandoaBrowserAgentControl.Kind? = nil
+    ) {
+        self.kind = kind
+        self.target = target
+        self.value = value
+        self.browserAgentReference = browserAgentReference
+        self.browserAgentSnapshotID = browserAgentSnapshotID
+        self.browserAgentPageURL = browserAgentPageURL
+        self.browserAgentControlKind = browserAgentControlKind
+    }
 
     var needsVisibleLinkResolution: Bool {
         kind == .navigate && !Self.looksLikeDestination(target)
@@ -75,6 +97,18 @@ struct CandoaPageActionProposal: Identifiable, Sendable {
 }
 
 enum CandoaContextualActionFollowUp {
+    static func isSimpleApproval(_ prompt: String) -> Bool {
+        guard isApproval(prompt) else { return false }
+
+        let normalizedPrompt = " \(CandoaEliPromptPolicy.normalizedText(prompt)) "
+        let compoundCues = [
+            " and ", " then ", " add ", " remove ", " delete ", " buy ", " purchase ",
+            " checkout ", " cancel ", " unsubscribe ", " book ", " reserve ", " send ",
+            " post ", " change ", " update ", " enable ", " disable ", " fill ", " type "
+        ]
+        return !compoundCues.contains(where: normalizedPrompt.contains)
+    }
+
     static func isApproval(_ prompt: String) -> Bool {
         let normalizedPrompt = CandoaEliPromptPolicy.normalizedText(prompt)
         let affirmativePhrases: Set<String> = [
@@ -354,4 +388,3 @@ enum CandoaContextualNavigationResolver {
             .contains { normalized.contains($0) }
     }
 }
-

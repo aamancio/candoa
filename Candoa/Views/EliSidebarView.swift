@@ -33,7 +33,6 @@ struct EliSidebarView: View {
     @State private var isResolvingPageAction = false
     @State private var attachmentPreviewData: [UUID: Data] = [:]
     @State private var presentedImagePreview: AISidebarImagePreview?
-    @State private var isTourPreviewSession = false
     @State private var isRefreshingEliAccess = true
     @FocusState private var isPromptFocused: Bool
 
@@ -189,19 +188,11 @@ struct EliSidebarView: View {
             )
     }
 
-    private var showsTourPreview: Bool {
-        isTourPreviewSession || store.initialOnboardingStep == .tour
-    }
-
     var body: some View {
         VStack(spacing: 0) {
             topBar
 
-            if showsTourPreview {
-                Spacer(minLength: 44)
-                EliTourPreviewView(accentColor: eliAccentColor)
-                Spacer(minLength: 44)
-            } else if messages.isEmpty {
+            if messages.isEmpty {
                 Spacer(minLength: 60)
                 emptyState
                 Spacer(minLength: 60)
@@ -228,25 +219,17 @@ struct EliSidebarView: View {
                 }
             }
 
-            if !showsTourPreview {
-                composer
-            }
+            composer
         }
         .background(panelBackgroundColor)
         .onAppear {
             configureUITestingConversationIfNeeded()
-            if store.initialOnboardingStep == .tour {
-                isTourPreviewSession = true
-            }
             uiTestingState = uiTestingAgentState
             DispatchQueue.main.async {
-                if !showsTourPreview {
-                    isPromptFocused = true
-                }
+                isPromptFocused = true
             }
         }
         .task {
-            guard !showsTourPreview else { return }
             if hasPersonalEliAccess || isEliControlUITest {
                 isRefreshingEliAccess = false
                 return
@@ -255,7 +238,6 @@ struct EliSidebarView: View {
             isRefreshingEliAccess = false
         }
         .onDisappear {
-            isTourPreviewSession = false
             uiTestingState = ""
             cancelStream()
             speechController.cancelListening()
@@ -293,21 +275,21 @@ struct EliSidebarView: View {
             "Let Eli take control of this browser tab?",
             isPresented: Binding(
                 get: { pendingBrowserControl != nil },
-                set: { if !$0 { clearPendingControlPermission() } }
+                set: { _ in }
             ),
             titleVisibility: .visible
         ) {
-            Button("Allow for Session") { approvePendingControl() }
+            Button("Allow This Task") { approvePendingControl() }
             Button("Cancel", role: .cancel) { clearPendingControlPermission() }
         } message: {
-            Text("Eli can control browser tabs until you quit Candoa. Sensitive actions still require confirmation.")
+            Text("Eli can control this tab only for the task you just requested. Sensitive actions still require confirmation.")
                 .accessibilityIdentifier("eli-page-action-permission-message")
         }
         .confirmationDialog(
             "Confirm this action?",
             isPresented: Binding(
                 get: { pendingSensitiveAgentAction != nil },
-                set: { if !$0 { stopPendingSensitiveAgentAction() } }
+                set: { _ in }
             ),
             titleVisibility: .visible
         ) {
@@ -675,30 +657,38 @@ struct EliSidebarView: View {
             return
         }
 
-        if let agentIntent = CandoaBrowserAgentIntent.parse(submittedPrompt) {
-            prepareBrowserAgent(agentIntent, submittedPrompt: submittedPrompt)
-            return
-        }
-
         if let suggestion = suggestedPageAction,
            suggestion.tabID == store.activeTabID,
            suggestion.pageURL == store.activeTab?.url?.absoluteString,
-           CandoaContextualActionFollowUp.isApproval(submittedPrompt) {
+           CandoaContextualActionFollowUp.isSimpleApproval(submittedPrompt) {
             suggestedPageAction = nil
             preparePageAction(suggestion.action, submittedPrompt: submittedPrompt)
             return
         }
 
-        if let followUpAction = CandoaContextualActionFollowUp.parse(
-            submittedPrompt,
-            recentTurns: recentTurns()
-        ) {
+        if CandoaContextualActionFollowUp.isSimpleApproval(submittedPrompt),
+           let followUpAction = CandoaContextualActionFollowUp.parse(
+               submittedPrompt,
+               recentTurns: recentTurns()
+           ) {
             preparePageAction(followUpAction, submittedPrompt: submittedPrompt)
             return
         }
 
-        if let action = CandoaPageActionProposal.parse(submittedPrompt) {
-            preparePageAction(action, submittedPrompt: submittedPrompt)
+        let directAction = CandoaPageActionProposal.parse(submittedPrompt)
+        if let directAction,
+           directAction.kind != .navigate || !directAction.needsVisibleLinkResolution {
+            preparePageAction(directAction, submittedPrompt: submittedPrompt)
+            return
+        }
+
+        if let agentIntent = CandoaBrowserAgentIntent.parse(submittedPrompt) {
+            prepareBrowserAgent(agentIntent, submittedPrompt: submittedPrompt)
+            return
+        }
+
+        if let directAction {
+            preparePageAction(directAction, submittedPrompt: submittedPrompt)
             return
         }
 
@@ -931,10 +921,6 @@ struct EliSidebarView: View {
     }
 
     private func presentPageAction(_ action: CandoaPageActionProposal, in tabID: UUID?) {
-        if store.hasGrantedEliBrowserControlForSession {
-            performApprovedPageAction(action, in: tabID)
-            return
-        }
         messages.append(AISidebarMessage(
             role: .assistant,
             text: "I can take control of this browser tab to complete your request. Please confirm first.",
@@ -950,10 +936,6 @@ struct EliSidebarView: View {
         prompt = ""
         cancelStream()
         messages.append(AISidebarMessage(role: .user, text: submittedPrompt, isStreaming: false))
-        if store.hasGrantedEliBrowserControlForSession {
-            startBrowserAgent(goal: intent.goal, tabID: store.activeTabID)
-            return
-        }
         messages.append(AISidebarMessage(
             role: .assistant,
             text: "I can take control of this browser tab to complete your request. Please confirm first.",
@@ -997,9 +979,11 @@ struct EliSidebarView: View {
             ))
             messages.append(AISidebarMessage(
                 role: .assistant,
-                text: "Eli is available with Candoa Pro.",
+                text: userStore.isSignedIn && userStore.errorMessage != nil
+                    ? "I couldn’t verify your Candoa subscription. Check the Cloud connection and try again."
+                    : "Eli is available with Candoa Pro.",
                 isStreaming: false,
-                action: .subscribe
+                action: userStore.isSignedIn && userStore.errorMessage != nil ? nil : .subscribe
             ))
 
             mentionedContext = []
@@ -1018,7 +1002,6 @@ struct EliSidebarView: View {
     }
 
     private func approvePendingControl() {
-        store.hasGrantedEliBrowserControlForSession = true
         guard let pendingBrowserControl else { return }
         clearPendingControlPermission()
         switch pendingBrowserControl {
@@ -1052,113 +1035,33 @@ struct EliSidebarView: View {
             return
         }
         let responseID = UUID()
-        messages.append(AISidebarMessage(id: responseID, role: .assistant, text: "", isStreaming: true))
+        messages.append(AISidebarMessage(
+            id: responseID,
+            role: .assistant,
+            text: "",
+            isStreaming: true,
+            transientStatus: "Looking at this page…"
+        ))
         isResolvingPageAction = true
-        launchBrowserAgent(BrowserAgentRunState(
+        let state = BrowserAgentRunState(
+            runID: UUID(),
             goal: goal,
             tabID: tabID,
-            history: [],
-            stepCount: 0,
             responseID: responseID
-        ))
-    }
-
-    private func launchBrowserAgent(
-        _ initialState: BrowserAgentRunState,
-        approvedAction: CandoaPageActionProposal? = nil
-    ) {
+        )
         browserAgentTask?.cancel()
         browserAgentTask = Task {
-            var state = initialState
-
-            if let approvedAction {
+            do {
                 guard let page = await store.browserAgentPage(for: state.tabID) else {
                     finishBrowserAgent(state, message: "That browser tab is no longer available.")
                     return
                 }
-                let result = await store.performAIPageAction(approvedAction, in: state.tabID)
-                let historyItem = CandoaBrowserAgentHistoryItem(
-                    kind: approvedAction.kind,
-                    target: approvedAction.target,
-                    result: result
+                let response = try await store.startBrowserAgentRun(
+                    runID: state.runID,
+                    goal: state.goal,
+                    page: page
                 )
-                state.history.append(historyItem)
-                state.stepCount += 1
-                await store.waitForBrowserAgentPageSettled(in: state.tabID, previousURL: page.url)
-            }
-
-            do {
-                while state.stepCount < CandoaBrowserAgentPolicy.maximumSteps {
-                    try Task.checkCancellation()
-                    guard store.activeTabID == state.tabID else {
-                        finishBrowserAgent(state, message: "I stopped because you switched to another tab.")
-                        return
-                    }
-                    guard let page = await store.browserAgentPage(for: state.tabID) else {
-                        finishBrowserAgent(state, message: "That browser tab is no longer available.")
-                        return
-                    }
-
-                    let decision = try await store.nextBrowserAgentStep(
-                        goal: state.goal,
-                        page: page,
-                        history: state.history
-                    )
-                    switch decision.status {
-                    case .complete:
-                        finishBrowserAgent(
-                            state,
-                            message: decision.message.isEmpty ? "Done." : decision.message
-                        )
-                        return
-                    case .blocked:
-                        finishBrowserAgent(
-                            state,
-                            message: decision.message.isEmpty
-                                ? "I need your help before I can continue."
-                                : decision.message
-                        )
-                        return
-                    case .act:
-                        guard let proposedAction = decision.action else {
-                            finishBrowserAgent(
-                                state,
-                                message: "I stopped because the proposed control was not verified on this page."
-                            )
-                            return
-                        }
-                        guard let action = CandoaBrowserAgentPolicy.validatedAction(decision, on: page) else {
-                            let rejection = CandoaBrowserAgentHistoryItem(
-                                kind: proposedAction.kind,
-                                target: proposedAction.target,
-                                result: "Candoa rejected this proposal because it was not grounded in the current page snapshot. Choose a listed control or a valid scroll direction."
-                            )
-                            state.history.append(rejection)
-                            state.stepCount += 1
-                            continue
-                        }
-                        if CandoaBrowserAgentPolicy.requiresSensitiveConfirmation(action, goal: state.goal) {
-                            pendingSensitiveAgentAction = PendingSensitiveAgentAction(action: action, state: state)
-                            browserAgentTask = nil
-                            return
-                        }
-
-                        let result = await store.performAIPageAction(action, in: state.tabID)
-                        let historyItem = CandoaBrowserAgentHistoryItem(
-                            kind: action.kind,
-                            target: action.target,
-                            result: result
-                        )
-                        state.history.append(historyItem)
-                        state.stepCount += 1
-                        await store.waitForBrowserAgentPageSettled(in: state.tabID, previousURL: page.url)
-                    }
-                }
-
-                finishBrowserAgent(
-                    state,
-                    message: "I stopped after several steps without being able to verify completion."
-                )
+                try await continueBrowserAgent(response, page: page, state: state)
             } catch is CancellationError {
                 return
             } catch {
@@ -1168,25 +1071,169 @@ struct EliSidebarView: View {
         }
     }
 
+    private func continueBrowserAgent(
+        _ response: CandoaBrowserAgentRunResponse,
+        page: CandoaBrowserAgentPage,
+        state: BrowserAgentRunState
+    ) async throws {
+        try Task.checkCancellation()
+        guard store.activeTabID == state.tabID else {
+            finishBrowserAgent(state, message: "I stopped because you switched to another tab.")
+            return
+        }
+
+        switch response.status {
+        case .complete:
+            finishBrowserAgent(state, message: response.message.isEmpty ? "Done." : response.message)
+        case .blocked:
+            finishBrowserAgent(
+                state,
+                message: response.message.isEmpty
+                    ? "I need your help before I can continue."
+                    : response.message
+            )
+        case .action:
+            guard let pendingAction = response.action,
+                  let action = pendingAction.validatedAction(on: page) else {
+                updateBrowserAgentStatus(state, text: "Refreshing the page controls…")
+                let outcome = CandoaBrowserAgentActionOutcome(
+                    status: .failed,
+                    result: "Candoa rejected the action because its page reference was stale or unverified.",
+                    page: page
+                )
+                let next = try await store.resumeBrowserAgentRun(
+                    runID: state.runID,
+                    goal: state.goal,
+                    outcome: outcome
+                )
+                try await continueBrowserAgent(next, page: page, state: state)
+                return
+            }
+
+            updateBrowserAgentStatus(state, text: browserAgentStatus(for: pendingAction))
+
+            let needsApproval = pendingAction.requiresApproval
+                || CandoaBrowserAgentPolicy.requiresSensitiveConfirmation(action, goal: state.goal)
+            if needsApproval {
+                pendingSensitiveAgentAction = PendingSensitiveAgentAction(
+                    action: action,
+                    state: state,
+                    previousURL: page.url
+                )
+                browserAgentTask = nil
+                return
+            }
+            try await executeBrowserAgentAction(action, previousURL: page.url, state: state)
+        }
+    }
+
+    private func executeBrowserAgentAction(
+        _ action: CandoaPageActionProposal,
+        previousURL: String,
+        state: BrowserAgentRunState
+    ) async throws {
+        let result = await store.performAIPageAction(action, in: state.tabID)
+        updateBrowserAgentStatus(state, text: "Checking the result…")
+        await store.waitForBrowserAgentPageSettled(in: state.tabID, previousURL: previousURL)
+        guard let page = await store.browserAgentPage(for: state.tabID) else {
+            finishBrowserAgent(state, message: "That browser tab is no longer available.")
+            return
+        }
+        let normalizedResult = result.folding(
+            options: [.caseInsensitive, .diacriticInsensitive],
+            locale: .current
+        ).lowercased()
+        let failed = ["could not", "stopped because", "not ready", "no longer"]
+            .contains(where: normalizedResult.contains)
+        let response = try await store.resumeBrowserAgentRun(
+            runID: state.runID,
+            goal: state.goal,
+            outcome: CandoaBrowserAgentActionOutcome(
+                status: failed ? .failed : .executed,
+                result: result,
+                page: page
+            )
+        )
+        try await continueBrowserAgent(response, page: page, state: state)
+    }
+
     private func approveSensitiveAgentAction() {
         guard let pending = pendingSensitiveAgentAction else { return }
         pendingSensitiveAgentAction = nil
-        launchBrowserAgent(pending.state, approvedAction: pending.action)
+        browserAgentTask = Task {
+            do {
+                try await executeBrowserAgentAction(
+                    pending.action,
+                    previousURL: pending.previousURL,
+                    state: pending.state
+                )
+            } catch is CancellationError {
+                return
+            } catch {
+                Self.eliLogger.error("Browser agent failed: \(error.localizedDescription, privacy: .public)")
+                finishBrowserAgent(pending.state, message: error.localizedDescription)
+            }
+        }
     }
 
     private func stopPendingSensitiveAgentAction() {
         guard let pending = pendingSensitiveAgentAction else { return }
         pendingSensitiveAgentAction = nil
-        finishBrowserAgent(pending.state, message: "I stopped before making that change.")
+        browserAgentTask = Task {
+            do {
+                let response = try await store.resumeBrowserAgentRun(
+                    runID: pending.state.runID,
+                    goal: pending.state.goal,
+                    outcome: CandoaBrowserAgentActionOutcome(
+                        status: .rejected,
+                        result: "The user did not approve this action.",
+                        page: nil
+                    )
+                )
+                finishBrowserAgent(pending.state, message: response.message)
+            } catch {
+                finishBrowserAgent(pending.state, message: "I stopped before making that change.")
+            }
+        }
     }
 
     private func finishBrowserAgent(_ state: BrowserAgentRunState, message: String) {
         if let index = messages.firstIndex(where: { $0.id == state.responseID }) {
             messages[index].text = message
             messages[index].isStreaming = false
+            messages[index].transientStatus = nil
         }
         isResolvingPageAction = false
         browserAgentTask = nil
+    }
+
+    private func updateBrowserAgentStatus(_ state: BrowserAgentRunState, text: String) {
+        guard let index = messages.firstIndex(where: { $0.id == state.responseID }),
+              messages[index].isStreaming else { return }
+        messages[index].transientStatus = text
+    }
+
+    private func browserAgentStatus(for action: CandoaBrowserAgentAction) -> String {
+        let message = action.message.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !message.isEmpty {
+            return message
+        }
+
+        switch action.kind {
+        case .navigate:
+            return "Opening \(action.label)…"
+        case .click:
+            return "Using \(action.label)…"
+        case .select:
+            let choice = action.value.trimmingCharacters(in: .whitespacesAndNewlines)
+            return choice.isEmpty
+                ? "Selecting \(action.label)…"
+                : "Selecting \(choice)…"
+        case .fill:
+            return "Entering information in \(action.label)…"
+        case .scroll:
+            return "Scrolling the page…"
+        }
     }
 
     private func streamRemoteAIResponse(
@@ -1629,6 +1676,7 @@ struct EliSidebarView: View {
 
         for index in messages.indices where messages[index].isStreaming {
             messages[index].isStreaming = false
+            messages[index].transientStatus = nil
         }
     }
 }

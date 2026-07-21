@@ -19,6 +19,12 @@
 		010000000000000000000110 /* WebViewCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000010 /* WebViewCoordinator.swift */; };
 		EF0000000000000000000105 /* WebPageScripts.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000000000000005 /* WebPageScripts.swift */; };
 		EF0000000000000000000107 /* WebViewCoordinator+Permissions.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000000000000007 /* WebViewCoordinator+Permissions.swift */; };
+		EF0000000000000000000108 /* WebViewCoordinator+Hosting.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000000000000008 /* WebViewCoordinator+Hosting.swift */; };
+		EF0000000000000000000109 /* WebViewCoordinator+Hibernation.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000000000000009 /* WebViewCoordinator+Hibernation.swift */; };
+		EF000000000000000000010A /* WebViewCoordinator+Media.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF000000000000000000000A /* WebViewCoordinator+Media.swift */; };
+		EF000000000000000000010B /* WebViewCoordinator+Delegates.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF000000000000000000000B /* WebViewCoordinator+Delegates.swift */; };
+		EF000000000000000000010C /* WebViewCoordinator+Downloads.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF000000000000000000000C /* WebViewCoordinator+Downloads.swift */; };
+		EF000000000000000000010D /* WebViewCoordinator+PageIntegration.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF000000000000000000000D /* WebViewCoordinator+PageIntegration.swift */; };
 		010000000000000000000111 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000011 /* ContentView.swift */; };
 		010000000000000000000112 /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000012 /* SidebarView.swift */; };
 		C1A2B3D4E5F60718293A4B5C /* SidebarSpaceComposer.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A2B3C4E5F60718293A4B5C /* SidebarSpaceComposer.swift */; };
@@ -132,6 +138,12 @@
 		010000000000000000000010 /* WebViewCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebViewCoordinator.swift; sourceTree = "<group>"; };
 		EF0000000000000000000005 /* WebPageScripts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebPageScripts.swift; sourceTree = "<group>"; };
 		EF0000000000000000000007 /* WebViewCoordinator+Permissions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WebViewCoordinator+Permissions.swift"; sourceTree = "<group>"; };
+		EF0000000000000000000008 /* WebViewCoordinator+Hosting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WebViewCoordinator+Hosting.swift"; sourceTree = "<group>"; };
+		EF0000000000000000000009 /* WebViewCoordinator+Hibernation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WebViewCoordinator+Hibernation.swift"; sourceTree = "<group>"; };
+		EF000000000000000000000A /* WebViewCoordinator+Media.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WebViewCoordinator+Media.swift"; sourceTree = "<group>"; };
+		EF000000000000000000000B /* WebViewCoordinator+Delegates.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WebViewCoordinator+Delegates.swift"; sourceTree = "<group>"; };
+		EF000000000000000000000C /* WebViewCoordinator+Downloads.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WebViewCoordinator+Downloads.swift"; sourceTree = "<group>"; };
+		EF000000000000000000000D /* WebViewCoordinator+PageIntegration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WebViewCoordinator+PageIntegration.swift"; sourceTree = "<group>"; };
 		010000000000000000000011 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		010000000000000000000012 /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
 		D1A2B3C4E5F60718293A4B5C /* SidebarSpaceComposer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarSpaceComposer.swift; sourceTree = "<group>"; };
@@ -373,6 +385,12 @@
 				010000000000000000000010 /* WebViewCoordinator.swift */,
 				EF0000000000000000000005 /* WebPageScripts.swift */,
 				EF0000000000000000000007 /* WebViewCoordinator+Permissions.swift */,
+				EF0000000000000000000008 /* WebViewCoordinator+Hosting.swift */,
+				EF0000000000000000000009 /* WebViewCoordinator+Hibernation.swift */,
+				EF000000000000000000000A /* WebViewCoordinator+Media.swift */,
+				EF000000000000000000000B /* WebViewCoordinator+Delegates.swift */,
+				EF000000000000000000000C /* WebViewCoordinator+Downloads.swift */,
+				EF000000000000000000000D /* WebViewCoordinator+PageIntegration.swift */,
 			);
 			path = Web;
 			sourceTree = "<group>";
@@ -544,6 +562,12 @@
 				010000000000000000000110 /* WebViewCoordinator.swift in Sources */,
 				EF0000000000000000000105 /* WebPageScripts.swift in Sources */,
 				EF0000000000000000000107 /* WebViewCoordinator+Permissions.swift in Sources */,
+				EF0000000000000000000108 /* WebViewCoordinator+Hosting.swift in Sources */,
+				EF0000000000000000000109 /* WebViewCoordinator+Hibernation.swift in Sources */,
+				EF000000000000000000010A /* WebViewCoordinator+Media.swift in Sources */,
+				EF000000000000000000010B /* WebViewCoordinator+Delegates.swift in Sources */,
+				EF000000000000000000010C /* WebViewCoordinator+Downloads.swift in Sources */,
+				EF000000000000000000010D /* WebViewCoordinator+PageIntegration.swift in Sources */,
 				010000000000000000000111 /* ContentView.swift in Sources */,
 				010000000000000000000112 /* SidebarView.swift in Sources */,
 				C1A2B3D4E5F60718293A4B5C /* SidebarSpaceComposer.swift in Sources */,

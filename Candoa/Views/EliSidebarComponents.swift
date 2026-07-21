@@ -126,7 +126,7 @@ struct AISidebarMessageRow: View {
             .padding(.vertical, 6)
             .frame(maxWidth: 350, alignment: .leading)
             .background {
-                RoundedRectangle(cornerRadius: 17, style: .continuous)
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
                     .fill(messageBackground)
             }
     }
@@ -151,8 +151,19 @@ struct AISidebarMessageRow: View {
             }
 
             if !message.hasCopyableContent && message.isStreaming {
-                ProgressView()
-                    .controlSize(.small)
+                HStack(spacing: 8) {
+                    ProgressView()
+                        .controlSize(.small)
+
+                    if let transientStatus = message.transientStatus {
+                        Text(transientStatus)
+                            .font(.system(size: 13.5))
+                            .foregroundStyle(CandoaInterfaceStyle.sidebarTextSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityIdentifier("agent-activity-status")
             } else if !message.hasCopyableContent {
                 Text("No response.")
                     .font(.system(size: 13.5))
@@ -922,6 +933,7 @@ struct AISidebarMessage: Identifiable, Equatable {
     let role: AISidebarMessageRole
     var text: String
     var isStreaming: Bool
+    var transientStatus: String? = nil
     var contextChips: [AISidebarContextChip] = []
     var action: AISidebarMessageAction? = nil
     var feedback: AISidebarResponseFeedback? = nil

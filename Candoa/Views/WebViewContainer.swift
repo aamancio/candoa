@@ -16,7 +16,10 @@ struct WebViewContainer: View {
     private let surfacePadding: CGFloat = 8
 
     private var spaceTint: Color {
-        Color(spaceHex: store.activeThemeColorHexes.first ?? "#8A8F98")
+        guard let themeHex = store.activeThemeColorHexes.first else {
+            return CandoaColor.primary
+        }
+        return Color(spaceHex: themeHex)
     }
 
     /// Zen resolves the loading pill's light-dark() from the interface theme,
@@ -1108,62 +1111,59 @@ internal struct SpaceSetupCanvas: View {
     let texture: Double
 
     var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(canvasFill)
+        if hexes.isEmpty {
+            neutralCanvas
+        } else {
+            themedCanvas
+        }
+    }
 
-            // Whisper-level sheen when themed: anything stronger visibly
-            // darkens the card against the identically tinted interface.
+    private var neutralCanvas: some View {
+        RoundedRectangle(cornerRadius: 12, style: .continuous)
+            .fill(CandoaInterfaceStyle.workspaceBackground)
+            .overlay {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(CandoaInterfaceStyle.surfaceBorder, lineWidth: 1)
+            }
+    }
+
+    private var themedCanvas: some View {
+        let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
+        let highlight = Color(nsColor: .highlightColor)
+        let shadow = Color(nsColor: .shadowColor)
+
+        return ZStack {
+            shape.fill(canvasFill)
+
             LinearGradient(
-                colors: [
-                    Color.white.opacity(hexes.isEmpty ? 0.10 : 0.03),
-                    Color.black.opacity(hexes.isEmpty ? 0.035 : 0.012)
-                ],
+                colors: [highlight.opacity(0.03), shadow.opacity(0.012)],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
-            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .clipShape(shape)
 
             LinearGradient(
-                colors: [
-                    Color.white.opacity(hexes.isEmpty ? 0.10 : 0.04),
-                    Color.clear,
-                    Color.black.opacity(hexes.isEmpty ? 0.08 : 0.03)
-                ],
+                colors: [highlight.opacity(0.04), .clear, shadow.opacity(0.03)],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
             .blendMode(.overlay)
-            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .clipShape(shape)
         }
         .overlay {
-            ZStack {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .stroke(Color.black.opacity(hexes.isEmpty ? 0.08 : 0.12), lineWidth: 1)
-
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .stroke(Color.white.opacity(hexes.isEmpty ? 0.08 : 0.10), lineWidth: 1)
-                    .blendMode(.overlay)
-            }
+            shape.stroke(CandoaInterfaceStyle.surfaceBorder, lineWidth: 1)
         }
         .compositingGroup()
-        .shadow(
-            color: Color.black.opacity(hexes.isEmpty ? 0.10 : 0.18),
-            radius: hexes.isEmpty ? 22 : 30,
-            x: 0,
-            y: hexes.isEmpty ? 8 : 10
-        )
-        .shadow(
-            color: Color.black.opacity(hexes.isEmpty ? 0.05 : 0.10),
-            radius: hexes.isEmpty ? 10 : 14,
-            x: -4,
-            y: 1
-        )
+        .shadow(color: shadow.opacity(0.18), radius: 30, y: 10)
+        .shadow(color: shadow.opacity(0.10), radius: 14, x: -4, y: 1)
     }
 
     private var canvasFill: Color {
         guard let firstHex = hexes.first else {
-            return CandoaInterfaceStyle.surfaceFill.opacity(0.88)
+            // This is the visible empty-workspace surface. Keep it on the
+            // semantic under-page role instead of compositing the darker
+            // control background over the window backdrop.
+            return CandoaInterfaceStyle.workspaceBackground
         }
 
         // The window backdrop already carries the theme color at full

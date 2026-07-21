@@ -4,13 +4,14 @@ import WebKit
 
 @MainActor
 final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKDownloadDelegate, WKScriptMessageHandler {
-    private struct PendingWebAppPrompt {
+    struct PendingWebAppPrompt {
         let providerID: String
         let query: String
     }
 
-    private static let pageZoomLevels: [CGFloat] = [0.5, 0.65, 0.8, 0.9, 1.0, 1.1, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0]
-    private static let browserUserAgentApplicationName: String = {
+    static let pageZoomLevels: [CGFloat] = [0.5, 0.65, 0.8, 0.9, 1.0, 1.1, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0]
+    static let browserAgentContentWorld = WKContentWorld.world(name: "CandoaBrowserAgent")
+    static let browserUserAgentApplicationName: String = {
         let safariVersion = NSWorkspace.shared
             .urlForApplication(withBundleIdentifier: "com.apple.Safari")
             .flatMap(Bundle.init(url:))?
@@ -21,31 +22,31 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
             + "Safari/605.1.15 Candoa/\(appVersion ?? "0")"
     }()
 
-    private static var fallbackSafariVersion: String {
+    static var fallbackSafariVersion: String {
         let macOSMajorVersion = ProcessInfo.processInfo.operatingSystemVersion.majorVersion
         let safariMajorVersion = macOSMajorVersion >= 26 ? macOSMajorVersion : macOSMajorVersion + 3
         return "\(safariMajorVersion).0"
     }
 
-    private weak var store: BrowserStore?
-    private var webViews: [UUID: WKWebView] = [:]
-    private var tabIDsByWebView = NSMapTable<WKWebView, NSString>.weakToStrongObjects()
-    private var observations: [UUID: [NSKeyValueObservation]] = [:]
-    private var pendingWebAppPrompts: [UUID: PendingWebAppPrompt] = [:]
-    private var popupTabIDsAwaitingFirstLoad = Set<UUID>()
-    private var activeDownloads = Set<WKDownload>()
-    private var downloadDestinations: [WKDownload: URL] = [:]
-    private var hostedActiveTabID: UUID?
-    private var miniPlayerHostedTabID: UUID?
-    private var contentRuleList: WKContentRuleList?
-    private var hibernatedInteractionStates: [UUID: Data] = [:]
-    private var wakeSnapshots: [UUID: NSImage] = [:]
-    private var restoringTabIDs = Set<UUID>()
-    private var restoreOverlays: [UUID: NSImageView] = [:]
-    private var hibernationScanTask: Task<Void, Never>?
-    private var websiteAppearance = WebsiteAppearance.dark
-    private var systemUsesDarkAppearance = false
-    private var pendingAppearanceNavigationTokens: [UUID: UUID] = [:]
+    weak var store: BrowserStore?
+    var webViews: [UUID: WKWebView] = [:]
+    var tabIDsByWebView = NSMapTable<WKWebView, NSString>.weakToStrongObjects()
+    var observations: [UUID: [NSKeyValueObservation]] = [:]
+    var pendingWebAppPrompts: [UUID: PendingWebAppPrompt] = [:]
+    var popupTabIDsAwaitingFirstLoad = Set<UUID>()
+    var activeDownloads = Set<WKDownload>()
+    var downloadDestinations: [WKDownload: URL] = [:]
+    var hostedActiveTabID: UUID?
+    var miniPlayerHostedTabID: UUID?
+    var contentRuleList: WKContentRuleList?
+    var hibernatedInteractionStates: [UUID: Data] = [:]
+    var wakeSnapshots: [UUID: NSImage] = [:]
+    var restoringTabIDs = Set<UUID>()
+    var restoreOverlays: [UUID: NSImageView] = [:]
+    var hibernationScanTask: Task<Void, Never>?
+    var websiteAppearance = WebsiteAppearance.dark
+    var systemUsesDarkAppearance = false
+    var pendingAppearanceNavigationTokens: [UUID: UUID] = [:]
 
     func attach(store: BrowserStore) {
         self.store = store
@@ -84,7 +85,7 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         return webView
     }
 
-    private func makeWebView(for tab: BrowserTab) -> WKWebView {
+    func makeWebView(for tab: BrowserTab) -> WKWebView {
         let dataStoreID = store?.dataStoreID(for: tab.spaceID) ?? tab.spaceID
         let dataStore = WKWebsiteDataStore(forIdentifier: dataStoreID)
 
@@ -103,7 +104,7 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         return webView
     }
 
-    private func register(_ webView: WKWebView, for tabID: UUID) {
+    func register(_ webView: WKWebView, for tabID: UUID) {
         webView.navigationDelegate = self
         webView.uiDelegate = self
         webView.allowsBackForwardNavigationGestures = true
@@ -155,13 +156,13 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         refreshServerThemeOverrides()
     }
 
-    private func applyWebsiteAppearance(to webView: WKWebView) {
+    func applyWebsiteAppearance(to webView: WKWebView) {
         let appearanceName: NSAppearance.Name = usesDarkWebsiteAppearance ? .darkAqua : .aqua
         guard webView.appearance?.name != appearanceName else { return }
         webView.appearance = NSAppearance(named: appearanceName)
     }
 
-    private var usesDarkWebsiteAppearance: Bool {
+    var usesDarkWebsiteAppearance: Bool {
         switch websiteAppearance {
         case .automatic:
             return systemUsesDarkAppearance
@@ -172,7 +173,7 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         }
     }
 
-    private func refreshServerThemeOverrides() {
+    func refreshServerThemeOverrides() {
         for (tabID, webView) in webViews {
             guard let url = webView.url, WebsiteAppearanceService.preparesServerTheme(for: url) else { continue }
 
@@ -242,9 +243,9 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         }
 
         if BrowserStore.isUITesting,
-           ProcessInfo.processInfo.environment["CANDOA_UI_TESTING_FIXTURE"] == "ask-model-selector-context",
-           url.host == "fixture.candoa.test" {
-            targetWebView.loadHTMLString(Self.modelSelectorFixtureHTML, baseURL: url)
+           url.host == "fixture.candoa.test",
+           let fixtureHTML = ProcessInfo.processInfo.environment["CANDOA_UI_TESTING_PAGE_HTML"] {
+            targetWebView.loadHTMLString(fixtureHTML, baseURL: url)
             return
         }
 
@@ -278,7 +279,7 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         webViews[tabID] != nil
     }
 
-    private func removeWebView(for tabID: UUID, keepingHibernationData: Bool) {
+    func removeWebView(for tabID: UUID, keepingHibernationData: Bool) {
         store?.setLoading(false, for: tabID)
         if !keepingHibernationData {
             hibernatedInteractionStates[tabID] = nil
@@ -404,16 +405,24 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         }
     }
 
-    func browserAgentControls(for tabID: UUID) async -> [CandoaBrowserAgentControl] {
-        guard let webView = webViews[tabID] else { return [] }
+    func browserAgentSnapshot(for tabID: UUID) async -> CandoaBrowserAgentSnapshot? {
+        guard let webView = webViews[tabID] else { return nil }
+        let snapshotID = UUID()
 
-        let value: String? = await withCheckedContinuation { continuation in
-            webView.evaluateJavaScript(WebPageScripts.browserAgentControlsScript) { value, error in
-                continuation.resume(returning: error == nil ? value as? String : nil)
-            }
+        do {
+            let script = """
+            (() => {
+              const snapshotID = \(javaScriptStringLiteral(for: snapshotID.uuidString.lowercased()));
+              \(WebPageScripts.browserAgentControlsScript)
+            })();
+            """
+            let value = try await evaluateBrowserAgentJavaScript(script, in: webView)
+            guard let data = value.data(using: String.Encoding.utf8) else { return nil }
+            let controls = try JSONDecoder().decode([CandoaBrowserAgentControl].self, from: data)
+            return CandoaBrowserAgentSnapshot(id: snapshotID, controls: controls)
+        } catch {
+            return nil
         }
-        guard let value, let data = value.data(using: .utf8) else { return [] }
-        return (try? JSONDecoder().decode([CandoaBrowserAgentControl].self, from: data)) ?? []
     }
 
     func waitForBrowserAgentPageSettled(for tabID: UUID, previousURL: String) async {
@@ -447,6 +456,59 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
 
     func performAIPageAction(_ action: CandoaPageActionProposal, for tabID: UUID) async -> String {
         guard let webView = webViews[tabID] else { return "That page is not ready for an action." }
+        if let expectedURL = action.browserAgentPageURL,
+           webView.url?.absoluteString != expectedURL {
+            return "Candoa stopped because the page changed after it was inspected."
+        }
+        if action.kind == .scroll, let snapshotID = action.browserAgentSnapshotID {
+            do {
+                let value = try await webView.callAsyncJavaScript(
+                    """
+                    return (() => {
+                      if (window.__candoaAgentSnapshotID !== snapshotID) {
+                        return "Candoa stopped because the page changed after it was inspected.";
+                      }
+                      const distance = Math.max(300, innerHeight * 0.8);
+                      window.scrollBy({
+                        top: direction === "up" ? -distance : distance,
+                        behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth"
+                      });
+                      return `Scrolled ${direction}.`;
+                    })();
+                    """,
+                    arguments: [
+                        "snapshotID": snapshotID.uuidString.lowercased(),
+                        "direction": action.target,
+                    ],
+                    in: nil,
+                    contentWorld: Self.browserAgentContentWorld
+                )
+                return value as? String ?? "Action completed."
+            } catch {
+                return "Candoa could not complete that referenced action."
+            }
+        }
+        if let ref = action.browserAgentReference,
+           let snapshotID = action.browserAgentSnapshotID,
+           let controlKind = action.browserAgentControlKind {
+            do {
+                let script = """
+                (() => {
+                  const snapshotID = \(javaScriptStringLiteral(for: snapshotID.uuidString.lowercased()));
+                  const ref = \(javaScriptStringLiteral(for: ref));
+                  const expectedLabel = \(javaScriptStringLiteral(for: action.target));
+                  const expectedKind = \(javaScriptStringLiteral(for: controlKind.rawValue));
+                  const kind = \(javaScriptStringLiteral(for: action.kind.rawValue));
+                  const value = \(javaScriptStringLiteral(for: action.value ?? ""));
+                  \(WebPageScripts.browserAgentActionScript)
+                })();
+                """
+                let value = try await evaluateBrowserAgentJavaScript(script, in: webView)
+                return value
+            } catch {
+                return "Candoa could not complete that referenced action."
+            }
+        }
         let payload = ["kind": action.kind.rawValue, "target": action.target, "value": action.value ?? ""]
         guard let data = try? JSONSerialization.data(withJSONObject: payload),
               let payloadJSON = String(data: data, encoding: .utf8) else {
@@ -512,6 +574,23 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         }
     }
 
+    private func evaluateBrowserAgentJavaScript(_ script: String, in webView: WKWebView) async throws -> String {
+        try await withCheckedThrowingContinuation { continuation in
+            webView.evaluateJavaScript(
+                script,
+                in: nil,
+                in: Self.browserAgentContentWorld
+            ) { result in
+                switch result {
+                case .success(let value):
+                    continuation.resume(returning: value as? String ?? "")
+                case .failure(let error):
+                    continuation.resume(throwing: error)
+                }
+            }
+        }
+    }
+
     func captureVisiblePage(for tabID: UUID, completion: @escaping (NSImage?) -> Void) {
         guard let webView = webViews[tabID], !webView.bounds.isEmpty else {
             completion(nil)
@@ -539,7 +618,7 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         webViews[tabID]?.pageZoom = 1
     }
 
-    private func adjustZoom(tabID: UUID, direction: Int) {
+    func adjustZoom(tabID: UUID, direction: Int) {
         guard let webView = webViews[tabID] else { return }
         let levels = Self.pageZoomLevels
         let currentIndex = levels.enumerated().min {
@@ -549,380 +628,9 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         webView.pageZoom = levels[nextIndex]
     }
 
-    // MARK: - Web View Hosting
-
-    /// Hosts the active tab's web view inside a persistent container while
-    /// keeping background tabs' web views parented (hidden) underneath it.
-    /// Unparenting a web view tears down media presentation and throttles
-    /// playback, so the floating mini player explicitly rehosts its tab.
-    func hostActiveWebView(
-        for tabID: UUID,
-        in container: NSView,
-        excludingTabIDs: Set<UUID>,
-        obscuredContentInsets: BrowserInterfaceInsets
-    ) {
-        guard let activeWebView = webViews[tabID] else { return }
-        syncHostBackground(in: container, with: activeWebView)
-        applyObscuredContentInsets(obscuredContentInsets, to: activeWebView)
-        if miniPlayerHostedTabID == tabID {
-            restoreMiniPlayerPresentation(tabID: tabID)
-            miniPlayerHostedTabID = nil
-        }
-
-        for (id, webView) in webViews where id != tabID && !excludingTabIDs.contains(id) && id != miniPlayerHostedTabID {
-            if keepsBackgroundWebViewParented(id) {
-                guard webView.superview !== container else { continue }
-                webView.frame = container.bounds
-                webView.autoresizingMask = [.width, .height]
-                webView.isHidden = true
-                container.addSubview(webView, positioned: .below, relativeTo: nil)
-            } else if webView.superview === container, webView.isHidden {
-                // Idle background pages leave the hierarchy entirely so WebKit
-                // can throttle their timers and rendering toward zero.
-                webView.removeFromSuperview()
-            }
-        }
-
-        guard hostedActiveTabID != tabID || activeWebView.superview !== container else { return }
-        let previousActiveTabID = hostedActiveTabID
-        hostedActiveTabID = tabID
-
-        activeWebView.frame = container.bounds
-        activeWebView.autoresizingMask = [.width, .height]
-        activeWebView.isHidden = false
-        activeWebView.removeFromSuperview()
-        container.addSubview(activeWebView)
-
-        if restoringTabIDs.contains(tabID), let snapshot = wakeSnapshots[tabID] {
-            presentRestoreOverlay(snapshot, for: tabID, in: container)
-        }
-
-        // The outgoing web view stays visible (covered by the new active one)
-        // for a beat so media keeps rendering while the mini player attaches.
-        guard let previousActiveTabID, previousActiveTabID != tabID else { return }
-        captureWakeSnapshot(for: previousActiveTabID)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
-            guard
-                let self,
-                self.hostedActiveTabID != previousActiveTabID,
-                // The mini player may have adopted this web view in the
-                // meantime; hiding it would blank the floating player.
-                self.miniPlayerHostedTabID != previousActiveTabID,
-                let webView = self.webViews[previousActiveTabID],
-                webView.superview != nil
-            else {
-                return
-            }
-            webView.isHidden = true
-        }
-    }
-
-    func hostSplitWebView(
-        for tabID: UUID,
-        in container: NSView,
-        obscuredContentInsets: BrowserInterfaceInsets
-    ) {
-        guard let webView = webViews[tabID] else { return }
-        syncHostBackground(in: container, with: webView)
-        applyObscuredContentInsets(obscuredContentInsets, to: webView)
-        if miniPlayerHostedTabID == tabID {
-            restoreMiniPlayerPresentation(tabID: tabID)
-            miniPlayerHostedTabID = nil
-        }
-
-        webView.frame = container.bounds
-        webView.autoresizingMask = [.width, .height]
-        webView.isHidden = false
-
-        guard webView.superview !== container else { return }
-        webView.removeFromSuperview()
-        container.addSubview(webView)
-
-        if restoringTabIDs.contains(tabID), let snapshot = wakeSnapshots[tabID] {
-            presentRestoreOverlay(snapshot, for: tabID, in: container)
-        }
-    }
-
-    /// Match the host to the page-derived under-page color so any transient
-    /// unpainted edge during WebKit's one-time interface-inset commit blends with
-    /// the page instead of flashing the unrelated window backdrop.
-    private func syncHostBackground(in container: NSView, with webView: WKWebView) {
-        container.wantsLayer = true
-        container.layer?.backgroundColor = webView.underPageBackgroundColor.cgColor
-    }
-
-    private func applyObscuredContentInsets(_ insets: BrowserInterfaceInsets, to webView: WKWebView) {
-        guard #available(macOS 26.0, *) else { return }
-        let edgeInsets = NSEdgeInsets(top: 0, left: insets.leading, bottom: 0, right: insets.trailing)
-        let currentInsets = webView.obscuredContentInsets
-        guard currentInsets.left != edgeInsets.left || currentInsets.right != edgeInsets.right else { return }
-        webView.obscuredContentInsets = edgeInsets
-    }
-
-    func hostMiniPlayerWebView(for tabID: UUID, in container: NSView) {
-        guard let webView = webViews[tabID] else { return }
-        // Adopting a different tab must first restore the previously hosted
-        // tab's page; otherwise that page is left stripped down to its video
-        // element and shows a black shell when reopened from the sidebar.
-        if let previousID = miniPlayerHostedTabID, previousID != tabID {
-            detachMiniPlayerWebView(for: previousID)
-        }
-        coverActiveContainerWhileAdopting(webView)
-        miniPlayerHostedTabID = tabID
-        // Activate before shrinking the web view: media selection scores
-        // element rects, and at mini player size no video can meet the
-        // area thresholds — the page would keep its full layout (the X bug).
-        activateMiniPlayerPresentation(tabID: tabID)
-        webView.frame = container.bounds
-        webView.autoresizingMask = [.width, .height]
-        webView.isHidden = false
-
-        guard webView.superview !== container else { return }
-        webView.removeFromSuperview()
-        container.addSubview(webView)
-    }
-
-    func detachMiniPlayerWebView(for tabID: UUID) {
-        guard miniPlayerHostedTabID == tabID else { return }
-        restoreMiniPlayerPresentation(tabID: tabID)
-        miniPlayerHostedTabID = nil
-        webViews[tabID]?.isHidden = true
-    }
-
-    /// Summoning steals the page that was covering the content area before
-    /// the incoming web view has painted, leaving a black void for a beat.
-    /// Bridge it with the incoming tab's wake snapshot — the same cover a
-    /// hibernation wake uses — released as soon as the page is up.
-    private func coverActiveContainerWhileAdopting(_ stolenWebView: WKWebView) {
-        guard
-            let activeID = hostedActiveTabID,
-            let activeWebView = webViews[activeID],
-            activeWebView !== stolenWebView,
-            let activeContainer = activeWebView.superview,
-            stolenWebView.superview === activeContainer,
-            restoreOverlays[activeID] == nil,
-            let snapshot = wakeSnapshots[activeID]
-        else { return }
-
-        presentRestoreOverlay(snapshot, for: activeID, in: activeContainer)
-        // Same beat the outgoing web view normally stays visible for after
-        // a switch; the overlay then fades onto the painted page.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
-            self?.removeRestoreOverlay(for: activeID, animated: true)
-        }
-    }
-
-    /// Starts the return-to-tab handoff: captures a freeze frame of the
-    /// hosted web view for the floating player to morph with, then hands the
-    /// page back and lays it out at the active container's full size while
-    /// hidden — so the final swap reveals an already-settled page instead of
-    /// the mini-sized layout flashing in the top-left corner.
-    func prepareMiniPlayerReturn(for tabID: UUID, completion: @escaping (NSImage?) -> Void) {
-        guard miniPlayerHostedTabID == tabID, let webView = webViews[tabID] else {
-            completion(nil)
-            return
-        }
-
-        let configuration = WKSnapshotConfiguration()
-        configuration.afterScreenUpdates = false
-        webView.takeSnapshot(with: configuration) { [weak self] image, _ in
-            guard let self, self.miniPlayerHostedTabID == tabID else {
-                completion(image)
-                return
-            }
-
-            self.miniPlayerHostedTabID = nil
-            webView.isHidden = true
-            // Adopt the destination size before restoring so the page
-            // relayouts (and restores its scroll position) at full layout.
-            if let activeID = self.hostedActiveTabID,
-                let activeFrame = self.webViews[activeID]?.frame,
-                activeFrame.size != .zero {
-                webView.frame = activeFrame
-            }
-            self.restoreMiniPlayerPresentation(tabID: tabID)
-            completion(image)
-        }
-    }
-
-    /// Unparenting tears down media presentation, so tabs with media stay
-    /// parented (hidden); everything else is throttled by WebKit once removed.
-    private func keepsBackgroundWebViewParented(_ tabID: UUID) -> Bool {
-        store?.mediaStates[tabID] != nil
-    }
-
-    // MARK: - Tab Hibernation
-
-    private func hibernateIdleWebViews() {
-        guard let store else { return }
-        let cutoff = Date().addingTimeInterval(-TabHibernationConfiguration.idleInterval)
-
-        for tab in store.tabs where webViews[tab.id] != nil && isHibernatable(tab, idleBefore: cutoff) {
-            hibernateIfNoUnsavedInput(tab.id)
-        }
-    }
-
-    private func isHibernatable(_ tab: BrowserTab, idleBefore cutoff: Date) -> Bool {
-        guard let store else { return false }
-        return tab.id != store.activeTabID
-            && !store.activeSplitGroupTabIDs.contains(tab.id)
-            && tab.id != miniPlayerHostedTabID
-            && tab.id != store.mediaControllerTabID
-            && !tab.isPinned
-            && !tab.isLoading
-            && tab.url != nil
-            && tab.lastAccessedAt < cutoff
-            && store.mediaStates[tab.id] == nil
-            && !popupTabIDsAwaitingFirstLoad.contains(tab.id)
-            && !restoringTabIDs.contains(tab.id)
-    }
-
-    private func hibernateIfNoUnsavedInput(_ tabID: UUID, idleBefore cutoff: Date = Date()) {
-        guard let webView = webViews[tabID] else { return }
-
-        webView.evaluateJavaScript(WebPageScripts.unsavedInputCheckScript) { [weak self] value, error in
-            Task { @MainActor in
-                guard error == nil, (value as? Bool) == false else { return }
-                self?.hibernate(tabID, idleBefore: cutoff)
-            }
-        }
-    }
-
-    private func hibernate(_ tabID: UUID, idleBefore cutoff: Date = Date()) {
-        guard
-            let store,
-            let webView = webViews[tabID],
-            let tab = store.tabs.first(where: { $0.id == tabID }),
-            // State may have changed while the unsaved-input check ran.
-            isHibernatable(tab, idleBefore: cutoff)
-        else { return }
-
-        if let interactionState = webView.interactionState as? Data {
-            hibernatedInteractionStates[tabID] = interactionState
-        }
-        removeWebView(for: tabID, keepingHibernationData: true)
-    }
-
-    private static let modelSelectorFixtureHTML = """
-    <!doctype html>
-    <html>
-      <head>
-        <meta charset="utf-8">
-        <title>Buy MacBook Air</title>
-        <style>
-          body { font: 16px -apple-system; padding: 40px; }
-          fieldset { border: 0; }
-          input { position: absolute; opacity: 0; width: 1px; height: 1px; }
-          label { display: block; width: 280px; padding: 18px; margin: 12px; border: 1px solid #777; }
-        </style>
-      </head>
-      <body>
-        <h1>Buy MacBook Air</h1>
-        <fieldset>
-          <legend>Model. Choose your size.</legend>
-          <input id="model-13" type="radio" name="model" value="13inch" onchange="document.title='13-inch selected'">
-          <label for="model-13">13-inch From $1199</label>
-          <input id="model-15" type="radio" name="model" value="15inch" onchange="document.title='15-inch selected'">
-          <label for="model-15">15-inch From $1399</label>
-        </fieldset>
-      </body>
-    </html>
-    """
-
-    // MARK: - Wake Snapshots & Restore Overlay
-
-    private func captureWakeSnapshot(for tabID: UUID) {
-        guard
-            let webView = webViews[tabID],
-            !webView.bounds.isEmpty,
-            !webView.isHidden,
-            webView.window != nil
-        else { return }
-
-        let configuration = WKSnapshotConfiguration()
-        configuration.rect = CGRect(origin: .zero, size: webView.bounds.size)
-        configuration.snapshotWidth = NSNumber(
-            value: Double(min(webView.bounds.width, TabHibernationConfiguration.snapshotMaxWidth))
-        )
-
-        webView.takeSnapshot(with: configuration) { [weak self] image, _ in
-            DispatchQueue.main.async {
-                guard let self, let image else { return }
-                self.storeWakeSnapshot(image, for: tabID)
-            }
-        }
-    }
-
-    private func storeWakeSnapshot(_ image: NSImage, for tabID: UUID) {
-        wakeSnapshots[tabID] = image
-        guard wakeSnapshots.count > TabHibernationConfiguration.snapshotCacheLimit else { return }
-
-        // Evict live tabs' snapshots first; hibernated tabs need theirs to
-        // cover the wake-up reload.
-        let evictableID = wakeSnapshots.keys.first { hibernatedInteractionStates[$0] == nil && $0 != tabID }
-            ?? wakeSnapshots.keys.first { $0 != tabID }
-        if let evictableID {
-            wakeSnapshots[evictableID] = nil
-        }
-    }
-
-    private func presentRestoreOverlay(_ snapshot: NSImage, for tabID: UUID, in container: NSView) {
-        removeRestoreOverlay(for: tabID)
-
-        let overlay = NSImageView(frame: container.bounds)
-        overlay.autoresizingMask = [.width, .height]
-        overlay.imageScaling = .scaleProportionallyUpOrDown
-        overlay.image = snapshot
-        overlay.wantsLayer = true
-        overlay.layer?.backgroundColor = NSColor.textBackgroundColor.cgColor
-        container.addSubview(overlay)
-        restoreOverlays[tabID] = overlay
-
-        // Failsafe: never leave a stale snapshot covering a live page.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) { [weak self] in
-            self?.removeRestoreOverlay(for: tabID, animated: true)
-        }
-    }
-
-    private func scheduleRestoreOverlayRemoval(for tabID: UUID) {
-        // Commit precedes first paint; hold the snapshot a beat longer so the
-        // swap lands on rendered content instead of a flash.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
-            self?.removeRestoreOverlay(for: tabID, animated: true)
-        }
-    }
-
-    private func removeRestoreOverlay(for tabID: UUID, animated: Bool = false) {
-        guard let overlay = restoreOverlays.removeValue(forKey: tabID) else { return }
-        guard animated else {
-            overlay.removeFromSuperview()
-            return
-        }
-
-        NSAnimationContext.runAnimationGroup({ context in
-            context.duration = 0.18
-            overlay.animator().alphaValue = 0
-        }, completionHandler: {
-            // The completion handler is nonisolated in the SDK signature but
-            // always runs on the main thread.
-            MainActor.assumeIsolated {
-                overlay.removeFromSuperview()
-            }
-        })
-    }
-
-    private func finishRestoreIfNeeded(for webView: WKWebView, failed: Bool = false) {
-        guard let tabID = tabID(for: webView), restoringTabIDs.remove(tabID) != nil else { return }
-        if failed {
-            removeRestoreOverlay(for: tabID, animated: true)
-        } else {
-            scheduleRestoreOverlayRemoval(for: tabID)
-        }
-    }
-
     // MARK: - Content Blocking
 
-    private func applyContentRuleList() async {
+    func applyContentRuleList() async {
         guard contentRuleList == nil, let ruleList = await ContentBlockerService.shared.ruleList() else { return }
         contentRuleList = ruleList
 
@@ -931,167 +639,6 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         for webView in webViews.values {
             webView.configuration.userContentController.add(ruleList)
         }
-    }
-
-    // MARK: - Media Playback State & Controls
-
-    func userContentController(
-        _ userContentController: WKUserContentController,
-        didReceive message: WKScriptMessage
-    ) {
-        guard
-            message.name == WebPageScripts.mediaStateMessageName,
-            let webView = message.webView,
-            let tabID = tabID(for: webView),
-            let body = message.body as? [String: Any]
-        else {
-            return
-        }
-
-        let state = TabMediaState(
-            hasMedia: body["hasMedia"] as? Bool ?? false,
-            isPlaying: body["isPlaying"] as? Bool ?? false,
-            isMuted: body["isMuted"] as? Bool ?? false,
-            isMiniPlayerEligible: body["isMiniPlayerEligible"] as? Bool ?? false,
-            currentTime: body["currentTime"] as? Double ?? 0,
-            duration: body["duration"] as? Double ?? 0,
-            pageVideoFrame: Self.videoFrame(from: body["videoRect"])
-        )
-        store?.updateMediaState(tabID: tabID, state: state)
-    }
-
-    private static func videoFrame(from value: Any?) -> CGRect? {
-        guard
-            let rect = value as? [String: Any],
-            let x = rect["x"] as? Double,
-            let y = rect["y"] as? Double,
-            let width = rect["width"] as? Double,
-            let height = rect["height"] as? Double,
-            width > 0, height > 0,
-            [x, y, width, height].allSatisfy(\.isFinite)
-        else {
-            return nil
-        }
-
-        return CGRect(x: x, y: y, width: width, height: height)
-    }
-
-    private func activateMiniPlayerPresentation(tabID: UUID) {
-        webViews[tabID]?.evaluateJavaScript("window.__candoaActivateMiniPlayerPresentation?.()")
-    }
-
-    private func restoreMiniPlayerPresentation(tabID: UUID) {
-        webViews[tabID]?.evaluateJavaScript("window.__candoaDeactivateMiniPlayerPresentation?.()")
-    }
-
-    func toggleMediaPlayback(tabID: UUID) {
-        webViews[tabID]?.evaluateJavaScript("""
-        (() => {
-          const selected = window.__candoaSelectMedia?.();
-          const medias = selected ? [selected] : Array.from(document.querySelectorAll("video, audio"));
-          const playing = medias.filter((media) => !media.paused && !media.ended);
-          if (playing.length > 0) {
-            playing.forEach((media) => media.pause());
-            return;
-          }
-
-          const resumable = medias.find((media) => media.currentTime > 0 && !media.ended)
-            || medias.find((media) => media.readyState >= 2);
-          if (resumable) { resumable.play(); }
-        })();
-        """)
-    }
-
-    func pauseMediaPlayback(tabID: UUID) {
-        webViews[tabID]?.evaluateJavaScript("""
-        (() => {
-          const selected = window.__candoaSelectMedia?.();
-          const medias = selected ? [selected] : Array.from(document.querySelectorAll("video, audio"));
-          medias
-            .filter((media) => !media.paused && !media.ended)
-            .forEach((media) => media.pause());
-          window.__candoaReportMediaState?.();
-        })();
-        """)
-    }
-
-    func toggleMediaMute(tabID: UUID) {
-        webViews[tabID]?.evaluateJavaScript("""
-        (() => {
-          const selected = window.__candoaSelectMedia?.();
-          const medias = (selected ? [selected] : Array.from(document.querySelectorAll("video, audio")))
-            .filter((media) => media.readyState >= 1 || media.currentTime > 0);
-          if (medias.length === 0) { return; }
-
-          const shouldMute = medias.some((media) => !media.muted);
-          medias.forEach((media) => { media.muted = shouldMute; });
-        })();
-        """)
-    }
-
-    func skipMediaTrack(tabID: UUID, forward: Bool) {
-        let buttonSelectors = forward
-            ? ".ytp-next-button, [aria-label='Next'], [data-testid='control-button-skip-forward']"
-            : ".ytp-prev-button, [aria-label='Previous'], [data-testid='control-button-skip-back']"
-        let seekDelta = forward ? 15.0 : -15.0
-
-        webViews[tabID]?.evaluateJavaScript("""
-        (() => {
-          const button = document.querySelector("\(buttonSelectors)");
-          if (button) {
-            button.click();
-            return;
-          }
-
-          // No track controls on this page: nudge the timeline instead.
-          const media = window.__candoaSelectMedia?.()
-            || Array.from(document.querySelectorAll("video, audio"))
-            .find((candidate) => !candidate.paused && !candidate.ended)
-            || Array.from(document.querySelectorAll("video, audio")).find((candidate) => candidate.currentTime > 0);
-          if (!media) { return; }
-
-          const target = media.currentTime + (\(seekDelta));
-          media.currentTime = Math.max(0, Number.isFinite(media.duration) ? Math.min(media.duration, target) : target);
-        })();
-        """)
-    }
-
-    func seekMedia(tabID: UUID, by seconds: Double) {
-        webViews[tabID]?.evaluateJavaScript("""
-        (() => {
-          const media = window.__candoaSelectMedia?.()
-            || Array.from(document.querySelectorAll("video, audio"))
-            .find((candidate) => !candidate.paused && !candidate.ended)
-            || Array.from(document.querySelectorAll("video, audio")).find((candidate) => candidate.currentTime > 0);
-          if (!media) { return; }
-
-          const target = media.currentTime + (\(seconds));
-          media.currentTime = Math.max(0, Number.isFinite(media.duration) ? Math.min(media.duration, target) : target);
-          window.__candoaReportMediaState?.();
-        })();
-        """)
-    }
-
-    func seekMedia(tabID: UUID, to time: Double) {
-        let targetTime = max(0, time)
-
-        webViews[tabID]?.evaluateJavaScript("""
-        (() => {
-          const media = window.__candoaSelectMedia?.()
-            || Array.from(document.querySelectorAll("video, audio"))
-            .find((candidate) => !candidate.paused && !candidate.ended)
-            || Array.from(document.querySelectorAll("video, audio")).find((candidate) => candidate.currentTime > 0);
-          if (!media) { return; }
-
-          const target = \(targetTime);
-          media.currentTime = Number.isFinite(media.duration) ? Math.min(media.duration, target) : target;
-          window.__candoaReportMediaState?.();
-        })();
-        """)
-    }
-
-    func refreshMediaState(tabID: UUID) {
-        webViews[tabID]?.evaluateJavaScript("window.__candoaReportMediaState?.()")
     }
 
     func navigationState(for tabID: UUID) -> (canGoBack: Bool, canGoForward: Bool) {
@@ -1122,489 +669,5 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         }
     }
 
-    func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
-        updateStore(from: webView, isLoading: true)
-    }
-
-    func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
-        finishRestoreIfNeeded(for: webView)
-        updateStore(from: webView, isLoading: webView.isLoading)
-    }
-
-    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        updateStore(from: webView, isLoading: false)
-        recordHistoryVisit(for: webView)
-        refreshFavicon(for: webView)
-        forwardWebAppPromptIfNeeded(for: webView)
-        reportWebsiteAppearanceForUITesting(from: webView)
-    }
-
-    private func reportWebsiteAppearanceForUITesting(from webView: WKWebView) {
-        guard BrowserStore.isUITesting else { return }
-        webView.evaluateJavaScript(
-            "[window.__candoaInitialDark === true, matchMedia('(prefers-color-scheme: dark)').matches, "
-                + "document.documentElement.hasAttribute('dark')]"
-        ) { [weak self] result, _ in
-            guard let values = result as? [Bool], values.count == 3 else { return }
-            Task { @MainActor [weak self] in
-                self?.store?.uiTestingWebsiteAppearanceDescription =
-                    "initial-\(values[0] ? "dark" : "light")-media-\(values[1] ? "dark" : "light")-"
-                    + "html-\(values[2] ? "dark" : "light")"
-            }
-        }
-    }
-
-    func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
-        finishRestoreIfNeeded(for: webView, failed: true)
-        updateStore(from: webView, isLoading: false)
-    }
-
-    func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
-        finishRestoreIfNeeded(for: webView, failed: true)
-        updateStore(from: webView, isLoading: false)
-    }
-
-    func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
-        updateStore(from: webView, isLoading: false)
-    }
-
-    func webView(
-        _ webView: WKWebView,
-        decidePolicyFor navigationAction: WKNavigationAction
-    ) async -> WKNavigationActionPolicy {
-        navigationAction.shouldPerformDownload ? .download : .allow
-    }
-
-    func webView(
-        _ webView: WKWebView,
-        decidePolicyFor navigationResponse: WKNavigationResponse
-    ) async -> WKNavigationResponsePolicy {
-        navigationResponse.canShowMIMEType ? .allow : .download
-    }
-
-    func webView(_ webView: WKWebView, navigationAction: WKNavigationAction, didBecome download: WKDownload) {
-        configureDownload(download)
-    }
-
-    func webView(_ webView: WKWebView, navigationResponse: WKNavigationResponse, didBecome download: WKDownload) {
-        configureDownload(download)
-    }
-
-    // MARK: - WKUIDelegate
-
-    func webView(
-        _ webView: WKWebView,
-        createWebViewWith configuration: WKWebViewConfiguration,
-        for navigationAction: WKNavigationAction,
-        windowFeatures: WKWindowFeatures
-    ) -> WKWebView? {
-        guard let store else { return nil }
-
-        let sourceSpaceID = tabID(for: webView)
-            .flatMap { sourceTabID in store.tabs.first { $0.id == sourceTabID }?.spaceID }
-            ?? store.activeSpaceID
-        let popupTab = store.createPopupTab(url: navigationAction.request.url, in: sourceSpaceID)
-
-        // WebKit drives the popup's first navigation through the returned web view,
-        // which must be created with the configuration it hands us.
-        let popupWebView = WKWebView(frame: .zero, configuration: configuration)
-        register(popupWebView, for: popupTab.id)
-        popupTabIDsAwaitingFirstLoad.insert(popupTab.id)
-        return popupWebView
-    }
-
-    func webViewDidClose(_ webView: WKWebView) {
-        guard let tabID = tabID(for: webView) else { return }
-        store?.closeTab(tabID)
-    }
-
-    func webView(
-        _ webView: WKWebView,
-        runJavaScriptAlertPanelWithMessage message: String,
-        initiatedByFrame frame: WKFrameInfo
-    ) async {
-        let alert = javaScriptPanelAlert(message: message, frame: frame)
-        _ = await presentPanel(alert, for: webView)
-    }
-
-    func webView(
-        _ webView: WKWebView,
-        runJavaScriptConfirmPanelWithMessage message: String,
-        initiatedByFrame frame: WKFrameInfo
-    ) async -> Bool {
-        let alert = javaScriptPanelAlert(message: message, frame: frame)
-        alert.addButton(withTitle: "Cancel")
-        return await presentPanel(alert, for: webView) == .alertFirstButtonReturn
-    }
-
-    func webView(
-        _ webView: WKWebView,
-        runJavaScriptTextInputPanelWithPrompt prompt: String,
-        defaultText: String?,
-        initiatedByFrame frame: WKFrameInfo
-    ) async -> String? {
-        let alert = javaScriptPanelAlert(message: prompt, frame: frame)
-        alert.addButton(withTitle: "Cancel")
-
-        let inputField = NSTextField(frame: NSRect(x: 0, y: 0, width: 240, height: 24))
-        inputField.stringValue = defaultText ?? ""
-        alert.accessoryView = inputField
-        alert.window.initialFirstResponder = inputField
-
-        let response = await presentPanel(alert, for: webView)
-        return response == .alertFirstButtonReturn ? inputField.stringValue : nil
-    }
-
-    func webView(
-        _ webView: WKWebView,
-        runOpenPanelWith parameters: WKOpenPanelParameters,
-        initiatedByFrame frame: WKFrameInfo
-    ) async -> [URL]? {
-        let panel = NSOpenPanel()
-        panel.canChooseFiles = true
-        panel.canChooseDirectories = parameters.allowsDirectories
-        panel.allowsMultipleSelection = parameters.allowsMultipleSelection
-
-        let response: NSApplication.ModalResponse
-        if let window = webView.window {
-            response = await panel.beginSheetModal(for: window)
-        } else {
-            response = panel.runModal()
-        }
-
-        return response == .OK ? panel.urls : nil
-    }
-
-    private func javaScriptPanelAlert(message: String, frame: WKFrameInfo) -> NSAlert {
-        let alert = NSAlert()
-        let host = frame.securityOrigin.host
-        alert.messageText = host.isEmpty ? "This page says:" : "\(host) says:"
-        alert.informativeText = message
-        alert.addButton(withTitle: "OK")
-        return alert
-    }
-
-    private func presentPanel(_ alert: NSAlert, for webView: WKWebView) async -> NSApplication.ModalResponse {
-        if let window = webView.window {
-            return await alert.beginSheetModal(for: window)
-        }
-        return alert.runModal()
-    }
-
-    // MARK: - Downloads
-
-    private func configureDownload(_ download: WKDownload) {
-        download.delegate = self
-        activeDownloads.insert(download)
-    }
-
-    func download(
-        _ download: WKDownload,
-        decideDestinationUsing response: URLResponse,
-        suggestedFilename: String
-    ) async -> URL? {
-        guard let downloadsDirectory = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first else {
-            return nil
-        }
-
-        let destination = Self.uniqueDestination(for: suggestedFilename, in: downloadsDirectory)
-        downloadDestinations[download] = destination
-        return destination
-    }
-
-    func downloadDidFinish(_ download: WKDownload) {
-        activeDownloads.remove(download)
-        guard let destination = downloadDestinations.removeValue(forKey: download) else { return }
-
-        // Bounces the Downloads stack in the Dock, matching native browser behavior.
-        DistributedNotificationCenter.default().postNotificationName(
-            Notification.Name("com.apple.DownloadFileFinished"),
-            object: destination.path,
-            userInfo: nil,
-            deliverImmediately: true
-        )
-    }
-
-    func download(_ download: WKDownload, didFailWithError error: Error, resumeData: Data?) {
-        activeDownloads.remove(download)
-        downloadDestinations[download] = nil
-    }
-
-    private static func uniqueDestination(for suggestedFilename: String, in directory: URL) -> URL {
-        let baseName = (suggestedFilename as NSString).deletingPathExtension
-        let fileExtension = (suggestedFilename as NSString).pathExtension
-        var candidate = directory.appendingPathComponent(suggestedFilename)
-        var attempt = 2
-
-        while FileManager.default.fileExists(atPath: candidate.path) {
-            let numberedName = fileExtension.isEmpty
-                ? "\(baseName) \(attempt)"
-                : "\(baseName) \(attempt).\(fileExtension)"
-            candidate = directory.appendingPathComponent(numberedName)
-            attempt += 1
-        }
-
-        return candidate
-    }
-
-    private func tabID(for webView: WKWebView) -> UUID? {
-        guard let tabIDString = tabIDsByWebView.object(forKey: webView) as String? else { return nil }
-        return UUID(uuidString: tabIDString)
-    }
-
-    private func updateStore(from webView: WKWebView, isLoading: Bool) {
-        guard
-            let tabIDString = tabIDsByWebView.object(forKey: webView) as String?,
-            let tabID = UUID(uuidString: tabIDString)
-        else {
-            return
-        }
-
-        if webView.url != nil {
-            popupTabIDsAwaitingFirstLoad.remove(tabID)
-        }
-
-        let progress = webView.estimatedProgress
-        let resolvedIsLoading = isLoading && progress < 0.999
-
-        store?.updateTabFromWebView(
-            tabID: tabID,
-            title: webView.title,
-            url: webView.url,
-            isLoading: resolvedIsLoading,
-            loadingProgress: resolvedIsLoading ? progress : 1,
-            canGoBack: webView.canGoBack,
-            canGoForward: webView.canGoForward
-        )
-    }
-
-    private func recordHistoryVisit(for webView: WKWebView) {
-        guard
-            let tabIDString = tabIDsByWebView.object(forKey: webView) as String?,
-            let tabID = UUID(uuidString: tabIDString)
-        else {
-            return
-        }
-
-        store?.recordHistoryVisit(tabID: tabID, title: webView.title, url: webView.url)
-    }
-
-    private func observe(_ webView: WKWebView, tabID: UUID) {
-        observations[tabID] = [
-            webView.observe(\.title, options: [.new]) { [weak self, weak webView] _, _ in
-                Task { @MainActor in
-                    guard let webView else { return }
-                    self?.updateStore(from: webView, isLoading: webView.isLoading)
-                }
-            },
-            webView.observe(\.url, options: [.new]) { [weak self, weak webView] _, _ in
-                Task { @MainActor in
-                    guard let webView else { return }
-                    self?.updateStore(from: webView, isLoading: webView.isLoading)
-                }
-            },
-            webView.observe(\.isLoading, options: [.new]) { [weak self, weak webView] _, _ in
-                Task { @MainActor in
-                    guard let webView else { return }
-                    self?.updateStore(from: webView, isLoading: webView.isLoading)
-                }
-            },
-            webView.observe(\.estimatedProgress, options: [.new]) { [weak self, weak webView] _, _ in
-                Task { @MainActor in
-                    guard let webView else { return }
-                    self?.updateStore(from: webView, isLoading: webView.isLoading)
-                }
-            }
-        ]
-    }
-
-    private func request(for url: URL) -> URLRequest {
-        var request = URLRequest(url: url)
-        request.setValue(Self.preferredAcceptLanguageHeader, forHTTPHeaderField: "Accept-Language")
-        return request
-    }
-
-    /// Mirrors macOS's language priority list so websites can choose their
-    /// localized experience. The header is created for each navigation to keep
-    /// it in sync with language changes made while the app is running.
-    private static var preferredAcceptLanguageHeader: String {
-        let languages = Locale.preferredLanguages
-            .map { $0.replacingOccurrences(of: "_", with: "-") }
-            .reduce(into: [String]()) { result, language in
-                guard !language.isEmpty, !result.contains(language) else { return }
-                result.append(language)
-            }
-            .prefix(10)
-
-        guard !languages.isEmpty else { return "en-US" }
-
-        return languages.enumerated().map { index, language in
-            guard index > 0 else { return language }
-            return "\(language);q=\(String(format: "%.1f", max(0.1, 1.0 - (Double(index) * 0.1))))"
-        }
-        .joined(separator: ", ")
-    }
-
-    private func refreshFavicon(for webView: WKWebView) {
-        guard
-            let tabIDString = tabIDsByWebView.object(forKey: webView) as String?,
-            let tabID = UUID(uuidString: tabIDString)
-        else {
-            return
-        }
-
-        let script = """
-        (() => {
-          const links = Array.from(document.querySelectorAll("link[rel*='icon'], link[rel='mask-icon']"));
-          const first = links.map(link => link.href).find(Boolean);
-          return first || "";
-        })();
-        """
-
-        webView.evaluateJavaScript(script) { [weak self, weak webView] value, _ in
-            Task { @MainActor in
-                guard let self, let webView else { return }
-                let candidateString = (value as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
-                let candidateURL = candidateString.flatMap { $0.isEmpty ? nil : URL(string: $0) }
-                let data = await FaviconService.shared.faviconData(for: webView.url, candidateURL: candidateURL)
-                self.store?.updateFavicon(tabID: tabID, data: data)
-            }
-        }
-    }
-
-    private func forwardWebAppPromptIfNeeded(for webView: WKWebView) {
-        guard
-            let tabIDString = tabIDsByWebView.object(forKey: webView) as String?,
-            let tabID = UUID(uuidString: tabIDString),
-            let pendingPrompt = pendingWebAppPrompts[tabID],
-            store?.navigationService.canForwardWebAppPrompt(to: webView.url, providerID: pendingPrompt.providerID) == true
-        else {
-            return
-        }
-
-        let promptLiteral = javaScriptStringLiteral(for: pendingPrompt.query)
-        let script = """
-        (() => {
-          const prompt = \(promptLiteral);
-          const selectors = [
-            "textarea",
-            "[contenteditable='true']",
-            "[role='textbox']"
-          ];
-
-          const isVisible = (element) => {
-            const rect = element.getBoundingClientRect();
-            const style = window.getComputedStyle(element);
-            return rect.width > 0 && rect.height > 0 && style.visibility !== "hidden" && style.display !== "none";
-          };
-
-          const setPlainInputValue = (element, value) => {
-            const prototype = Object.getPrototypeOf(element);
-            const descriptor = Object.getOwnPropertyDescriptor(prototype, "value");
-            if (descriptor && descriptor.set) {
-              descriptor.set.call(element, value);
-            } else {
-              element.value = value;
-            }
-          };
-
-          const setPromptText = (element) => {
-            element.focus();
-            if (element.isContentEditable) {
-              const selection = window.getSelection();
-              const range = document.createRange();
-              range.selectNodeContents(element);
-              selection.removeAllRanges();
-              selection.addRange(range);
-              document.execCommand("insertText", false, prompt);
-            } else {
-              setPlainInputValue(element, prompt);
-            }
-
-            element.dispatchEvent(new InputEvent("input", {
-              bubbles: true,
-              cancelable: true,
-              data: prompt,
-              inputType: "insertText"
-            }));
-            element.dispatchEvent(new Event("change", { bubbles: true }));
-          };
-
-          const submitPrompt = (element) => {
-            const buttons = Array.from(document.querySelectorAll("button, [role='button']"));
-            const sendButton = buttons.find((button) => {
-              const label = [
-                button.getAttribute("aria-label"),
-                button.getAttribute("data-tooltip"),
-                button.title,
-                button.textContent
-              ].filter(Boolean).join(" ").toLowerCase();
-              return !button.disabled && !button.getAttribute("aria-disabled") && /send|submit/.test(label);
-            });
-
-            if (sendButton) {
-              sendButton.click();
-              return;
-            }
-
-            element.dispatchEvent(new KeyboardEvent("keydown", {
-              bubbles: true,
-              cancelable: true,
-              key: "Enter",
-              code: "Enter"
-            }));
-          };
-
-          const findPromptBox = () => {
-            return selectors
-              .flatMap((selector) => Array.from(document.querySelectorAll(selector)))
-              .filter(isVisible)
-              .find((element) => !element.closest("[aria-hidden='true']"));
-          };
-
-          const deadline = Date.now() + 10000;
-          return new Promise((resolve) => {
-            const attempt = () => {
-              const promptBox = findPromptBox();
-              if (!promptBox) {
-                if (Date.now() < deadline) {
-                  window.setTimeout(attempt, 250);
-                } else {
-                  resolve(false);
-                }
-                return;
-              }
-
-              setPromptText(promptBox);
-              window.setTimeout(() => {
-                submitPrompt(promptBox);
-                resolve(true);
-              }, 200);
-            };
-
-            attempt();
-          });
-        })();
-        """
-
-        webView.evaluateJavaScript(script) { [weak self] value, error in
-            Task { @MainActor in
-                self?.pendingWebAppPrompts[tabID] = nil
-            }
-        }
-    }
-
-    private func javaScriptStringLiteral(for value: String) -> String {
-        guard
-            let data = try? JSONSerialization.data(withJSONObject: [value]),
-            let arrayLiteral = String(data: data, encoding: .utf8),
-            arrayLiteral.first == "[",
-            arrayLiteral.last == "]"
-        else {
-            return "\"\""
-        }
-
-        return String(arrayLiteral.dropFirst().dropLast())
-    }
 
 }

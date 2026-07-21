@@ -2,9 +2,20 @@ import Foundation
 
 extension BrowserStore {
     func browserAgentPage(for tabID: UUID?) async -> CandoaBrowserAgentPage? {
-        guard let tabID, let tab = tabs.first(where: { $0.id == tabID }), let url = tab.url else {
-            return nil
+        guard let tabID else { return nil }
+        var resolvedTab = tabs.first(where: { $0.id == tabID && $0.url != nil })
+        if resolvedTab == nil {
+            // Dismissing a native confirmation can coincide with WebKit publishing
+            // a transient nil URL during its first load. Wait only for this
+            // user-initiated capture; no observer or recurring work is retained.
+            for _ in 0..<20 {
+                guard !Task.isCancelled else { return nil }
+                try? await Task.sleep(for: .milliseconds(100))
+                resolvedTab = tabs.first(where: { $0.id == tabID && $0.url != nil })
+                if resolvedTab != nil { break }
+            }
         }
+        guard let tab = resolvedTab, let url = tab.url else { return nil }
 
         if Self.isUITesting,
            ProcessInfo.processInfo.environment["CANDOA_UI_TESTING_FIXTURE"] == "ask-agent-navigation" {
@@ -19,12 +30,14 @@ extension BrowserStore {
             default:
                 labels = []
             }
+            let snapshotID = UUID()
             return CandoaBrowserAgentPage(
+                snapshotID: snapshotID,
                 title: tab.title,
                 url: url.absoluteString,
                 text: labels.joined(separator: "\n"),
-                controls: labels.map {
-                    CandoaBrowserAgentControl(kind: .button, label: $0, url: nil, disabled: false)
+                controls: labels.enumerated().map {
+                    CandoaBrowserAgentControl(ref: "e\($0.offset)", kind: .button, label: $0.element, url: nil, disabled: false)
                 }
             )
         }
@@ -33,6 +46,7 @@ extension BrowserStore {
            ProcessInfo.processInfo.environment["CANDOA_UI_TESTING_FIXTURE"] == "ask-agent-normalized-navigation" {
             let controls: [CandoaBrowserAgentControl] = URL(string: url.absoluteString)?.path == "/air"
                 ? [CandoaBrowserAgentControl(
+                    ref: "e0",
                     kind: .link,
                     label: "Buy MacBook Air",
                     url: "https://fixture.candoa.test/buy",
@@ -40,6 +54,7 @@ extension BrowserStore {
                 )]
                 : []
             return CandoaBrowserAgentPage(
+                snapshotID: UUID(),
                 title: tab.title,
                 url: url.absoluteString,
                 text: controls.map(\.label).joined(separator: "\n"),
@@ -47,129 +62,158 @@ extension BrowserStore {
             )
         }
 
-        if Self.isUITesting,
-           ProcessInfo.processInfo.environment["CANDOA_UI_TESTING_FIXTURE"] == "ask-agent-selection" {
-            let controls: [CandoaBrowserAgentControl] = switch url.path {
-            case "/configure": [
-                CandoaBrowserAgentControl(kind: .choice, label: "Sky Blue", url: nil, disabled: false)
-            ]
-            case "/configured": [
-                CandoaBrowserAgentControl(kind: .button, label: "Add to Cart", url: nil, disabled: false)
-            ]
-            case "/cart": [
-                CandoaBrowserAgentControl(kind: .button, label: "Remove", url: nil, disabled: false)
-            ]
-            default: []
-            }
-            return CandoaBrowserAgentPage(
-                title: tab.title,
-                url: url.absoluteString,
-                text: url.path == "/cart" ? "MacBook Air is in your cart." : controls.map(\.label).joined(separator: "\n"),
-                controls: controls
-            )
-        }
-
         let pageText = await webCoordinator.readablePageText(for: tabID) ?? ""
-        let controls = await webCoordinator.browserAgentControls(for: tabID)
+        guard let snapshot = await webCoordinator.browserAgentSnapshot(for: tabID) else { return nil }
         return CandoaBrowserAgentPage(
+            snapshotID: snapshot.id,
             title: tab.title.trimmingCharacters(in: .whitespacesAndNewlines),
             url: url.absoluteString,
             text: String(pageText.prefix(16_000)),
-            controls: controls
+            controls: snapshot.controls
         )
     }
 
-    func nextBrowserAgentStep(
+    func startBrowserAgentRun(
+        runID: UUID,
+        goal: String,
+        page: CandoaBrowserAgentPage
+    ) async throws -> CandoaBrowserAgentRunResponse {
+        if let fixture = fixtureBrowserAgentResponse(runID: runID, goal: goal, page: page, outcome: nil) {
+            return fixture
+        }
+        return try await CandoaBrowserAgentRemoteService.start(runID: runID, goal: goal, page: page)
+    }
+
+    func resumeBrowserAgentRun(
+        runID: UUID,
+        goal: String,
+        outcome: CandoaBrowserAgentActionOutcome
+    ) async throws -> CandoaBrowserAgentRunResponse {
+        if let page = outcome.page,
+           let fixture = fixtureBrowserAgentResponse(runID: runID, goal: goal, page: page, outcome: outcome) {
+            return fixture
+        }
+        return try await CandoaBrowserAgentRemoteService.resume(runID: runID, outcome: outcome)
+    }
+
+    private func fixtureBrowserAgentResponse(
+        runID: UUID,
         goal: String,
         page: CandoaBrowserAgentPage,
-        history: [CandoaBrowserAgentHistoryItem]
-    ) async throws -> CandoaBrowserAgentDecision {
-        if Self.isUITesting,
-           ProcessInfo.processInfo.environment["CANDOA_UI_TESTING_FIXTURE"] == "ask-agent-navigation" {
-            switch URL(string: page.url)?.path {
-            case "/home":
-                return .init(status: .act, kind: .click, target: "Account", value: "", message: "")
-            case "/account":
-                return .init(status: .act, kind: .click, target: "Manage Membership", value: "", message: "")
-            case "/membership":
-                return .init(status: .act, kind: .click, target: "Cancel Membership", value: "", message: "")
-            default:
-                return .init(
-                    status: .complete,
-                    kind: .none,
-                    target: "",
-                    value: "",
-                    message: "Your membership has been cancelled."
-                )
-            }
-        }
+        outcome: CandoaBrowserAgentActionOutcome?
+    ) -> CandoaBrowserAgentRunResponse? {
+        guard Self.isUITesting,
+              let fixture = ProcessInfo.processInfo.environment["CANDOA_UI_TESTING_FIXTURE"],
+              ["ask-agent-navigation", "ask-agent-normalized-navigation", "ask-agent-selection"]
+                .contains(fixture) else { return nil }
+        let path = URL(string: page.url)?.path
 
-        if Self.isUITesting,
-           ProcessInfo.processInfo.environment["CANDOA_UI_TESTING_FIXTURE"] == "ask-agent-normalized-navigation" {
-            if URL(string: page.url)?.path == "/air" {
-                return .init(
-                    status: .act,
+        if fixture == "ask-agent-normalized-navigation" {
+            if path == "/air", let control = page.controls.first {
+                return fixtureActionResponse(
+                    runID: runID,
+                    page: page,
+                    control: control,
                     kind: .navigate,
-                    target: "Buy MacBook Air",
-                    value: "https://fixture.candoa.test/buy",
                     message: "Opening the MacBook Air buying page."
                 )
             }
-            if history.last?.kind == .navigate {
-                return .init(
-                    status: .act,
-                    kind: .scroll,
-                    target: "page",
-                    value: "",
-                    message: "Scroll to reveal the remaining laptop configuration options."
+            if outcome?.result.hasPrefix("Navigated") == true {
+                return CandoaBrowserAgentRunResponse(
+                    runID: runID,
+                    status: .action,
+                    message: "Scroll to reveal the remaining laptop configuration options.",
+                    action: CandoaBrowserAgentAction(
+                        snapshotID: page.snapshotID,
+                        kind: .scroll,
+                        target: "down",
+                        value: "",
+                        label: "Scroll down",
+                        url: nil,
+                        requiresApproval: false,
+                        message: "Scroll to reveal the remaining laptop configuration options."
+                    )
                 )
             }
             return .init(
+                runID: runID,
                 status: .complete,
-                kind: .none,
-                target: "",
-                value: "",
-                message: "The MacBook Air buying page is open."
+                message: "The MacBook Air buying page is open.",
+                action: nil
             )
         }
 
-
-        if Self.isUITesting,
-           ProcessInfo.processInfo.environment["CANDOA_UI_TESTING_FIXTURE"] == "ask-agent-selection" {
-            switch URL(string: page.url)?.path {
-            case "/configure":
-                return .init(status: .act, kind: .click, target: "Sky Blue", value: "", message: "")
-            case "/configured":
-                return .init(status: .act, kind: .click, target: "Add to Cart", value: "", message: "")
-            case "/cart" where CandoaEliPromptPolicy.normalizedText(goal).contains("remove"):
-                return .init(status: .act, kind: .click, target: "Remove", value: "", message: "")
-            default:
-                return .init(
-                    status: .complete,
-                    kind: .none,
-                    target: "",
-                    value: "",
-                    message: URL(string: page.url)?.path == "/removed"
-                        ? "The MacBook Air was removed from your cart."
-                        : "The MacBook Air is in your cart."
+        if fixture == "ask-agent-selection" {
+            let normalizedGoal = CandoaEliPromptPolicy.normalizedText(goal)
+            let control = page.controls.first(where: { $0.label == "Add to Cart" })
+                ?? page.controls.first(where: { $0.label == "Remove" && normalizedGoal.contains("remove") })
+                ?? page.controls.first(where: { $0.label == "Sky Blue" && !$0.selected })
+            if let control {
+                return fixtureActionResponse(
+                    runID: runID,
+                    page: page,
+                    control: control,
+                    kind: .click,
+                    requiresApproval: control.label == "Remove"
                 )
             }
+            let removed = page.text.localizedCaseInsensitiveContains("empty")
+            return .init(
+                runID: runID,
+                status: .complete,
+                message: removed
+                    ? "The MacBook Air was removed from your cart."
+                    : "The MacBook Air is in your cart.",
+                action: nil
+            )
         }
 
-        return try await CandoaBrowserAgentRemoteService.nextStep(
-            goal: goal,
-            page: page,
-            history: history
+        let shouldAct = ["/home", "/account", "/membership"].contains(path)
+        if shouldAct, let control = page.controls.first {
+            return fixtureActionResponse(
+                runID: runID,
+                page: page,
+                control: control,
+                kind: .click,
+                requiresApproval: control.label.localizedCaseInsensitiveContains("cancel")
+                    || control.label.localizedCaseInsensitiveContains("remove")
+            )
+        }
+
+        return .init(
+            runID: runID,
+            status: .complete,
+            message: "Your membership has been cancelled.",
+            action: nil
+        )
+    }
+
+    private func fixtureActionResponse(
+        runID: UUID,
+        page: CandoaBrowserAgentPage,
+        control: CandoaBrowserAgentControl,
+        kind: CandoaPageActionKind,
+        message: String = "",
+        requiresApproval: Bool = false
+    ) -> CandoaBrowserAgentRunResponse {
+        CandoaBrowserAgentRunResponse(
+            runID: runID,
+            status: .action,
+            message: message,
+            action: CandoaBrowserAgentAction(
+                snapshotID: page.snapshotID,
+                kind: kind,
+                target: control.ref,
+                value: "",
+                label: control.label,
+                url: control.url,
+                requiresApproval: requiresApproval,
+                message: message
+            )
         )
     }
 
     func waitForBrowserAgentPageSettled(in tabID: UUID, previousURL: String) async {
-        if Self.isUITesting,
-           ["ask-agent-navigation", "ask-agent-normalized-navigation", "ask-agent-selection"].contains(
-               ProcessInfo.processInfo.environment["CANDOA_UI_TESTING_FIXTURE"]
-           ) {
-            return
-        }
         await webCoordinator.waitForBrowserAgentPageSettled(for: tabID, previousURL: previousURL)
     }
 
@@ -273,6 +317,10 @@ extension BrowserStore {
         guard let tabID, tabs.contains(where: { $0.id == tabID }) else {
             return "That page is no longer open."
         }
+        if let expectedURL = action.browserAgentPageURL,
+           tabs.first(where: { $0.id == tabID })?.url?.absoluteString != expectedURL {
+            return "Candoa stopped because the page changed after it was inspected."
+        }
 
         if action.kind == .navigate {
             guard let url = navigationService.explicitDestinationURL(for: action.target) else {
@@ -296,25 +344,8 @@ extension BrowserStore {
             if let destination,
                let url = URL(string: "https://fixture.candoa.test\(destination.path)") {
                 setURL(url, title: destination.title, for: tabID)
+                webCoordinator.load(url, in: tabID)
                 return "Activated \"\(action.target)\"."
-            }
-        }
-
-        if Self.isUITesting,
-           ProcessInfo.processInfo.environment["CANDOA_UI_TESTING_FIXTURE"] == "ask-agent-selection" {
-            let destination: (path: String, title: String)? = switch (action.kind, action.target) {
-            case (.select, "Sky Blue"): ("/configured", "Configured MacBook Air")
-            case (.click, "Sky Blue"): ("/configured", "Configured MacBook Air")
-            case (.click, "Add to Cart"): ("/cart", "Shopping Cart")
-            case (.click, "Remove"): ("/removed", "Empty Shopping Cart")
-            default: nil
-            }
-            if let destination,
-               let url = URL(string: "https://fixture.candoa.test\(destination.path)") {
-                setURL(url, title: destination.title, for: tabID)
-                return action.kind == .select
-                    ? "Selected \"\(action.target)\"."
-                    : "Clicked \"\(action.target)\"."
             }
         }
 

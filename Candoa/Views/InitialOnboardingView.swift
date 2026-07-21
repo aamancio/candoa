@@ -800,78 +800,29 @@ private struct OnboardingPageHeader: View {
 
 private struct OnboardingAccountPreview: View {
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            VStack(alignment: .leading, spacing: 5) {
-                Text("Get answers and take action")
+        VStack(spacing: 22) {
+            Image(systemName: "person.crop.circle.badge.checkmark")
+                .font(.system(size: 54, weight: .regular))
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(CandoaColor.primary)
+
+            VStack(spacing: 7) {
+                Text("Your Candoa account")
                     .font(.system(size: 20, weight: .semibold))
 
-                Text("Ask about the page, draft a reply, or get help with a page action.")
-                    .font(.system(size: 12))
+                Text("Continue with Apple to restore your plan and use Eli across your Macs.")
+                    .font(.system(size: 13))
                     .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            VStack(alignment: .leading, spacing: 10) {
-                HStack {
-                    Label("Subscription Settings", systemImage: "gearshape")
-                        .font(.system(size: 13, weight: .semibold))
-
-                    Spacer()
-
-                    Text("$19.99/mo")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(.secondary)
-                }
-
-                Text("Your plan renews August 3. Manage or cancel it from your account.")
-                    .font(.system(size: 12))
-                    .foregroundStyle(.secondary)
-                    .lineSpacing(2)
-            }
-            .padding(16)
-            .background(.background.opacity(0.48), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .stroke(CandoaInterfaceStyle.surfaceBorder, lineWidth: 1)
-            }
-
-            HStack(alignment: .top, spacing: 10) {
-                Image(systemName: "sparkles")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(CandoaColor.primary)
-
-                Text("How do I cancel this subscription?")
-                    .font(.system(size: 13, weight: .medium))
-            }
-            .padding(14)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(CandoaColor.primary.opacity(0.10), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-
-            VStack(alignment: .leading, spacing: 11) {
-                Label("Eli", systemImage: "sparkles")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(CandoaColor.primary)
-
-                stepRow("Open Account Settings", number: 1)
-                stepRow("Choose Billing", number: 2)
-                stepRow("Select Cancel Subscription", number: 3)
-            }
-            .padding(16)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.background.opacity(0.62), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .stroke(CandoaInterfaceStyle.surfaceBorder, lineWidth: 1)
-            }
+            Label("Your existing account is restored automatically", systemImage: "checkmark.circle.fill")
+                .font(.system(size: 12.5, weight: .medium))
+                .foregroundStyle(.secondary)
         }
-        .frame(maxWidth: 440)
-    }
-
-    private func stepRow(_ title: String, number: Int) -> some View {
-        Label(title, systemImage: "\(number).circle.fill")
-            .font(.system(size: 12, weight: .medium))
-            .foregroundStyle(.primary)
-            .symbolRenderingMode(.hierarchical)
+        .frame(maxWidth: 360)
+        .padding(32)
     }
 }
 
