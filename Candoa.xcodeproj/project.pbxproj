@@ -82,6 +82,8 @@
 		010000000000000000000151 /* HistoryVisit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000051 /* HistoryVisit.swift */; };
 		010000000000000000000152 /* WorkspaceRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000052 /* WorkspaceRepository.swift */; };
 		010000000000000000000153 /* HistoryRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000053 /* HistoryRepository.swift */; };
+		A90000000000000000000101 /* HistoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A90000000000000000000001 /* HistoryStore.swift */; };
+		A90000000000000000000102 /* HistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A90000000000000000000002 /* HistoryView.swift */; };
 		010000000000000000000154 /* BrowserStore+Eli.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000054 /* BrowserStore+Eli.swift */; };
 		010000000000000000000155 /* BrowserStore+Media.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000055 /* BrowserStore+Media.swift */; };
 		AA0000000000000000000101 /* UserStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000001 /* UserStore.swift */; };
@@ -205,6 +207,8 @@
 		010000000000000000000051 /* HistoryVisit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryVisit.swift; sourceTree = "<group>"; };
 		010000000000000000000052 /* WorkspaceRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceRepository.swift; sourceTree = "<group>"; };
 		010000000000000000000053 /* HistoryRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryRepository.swift; sourceTree = "<group>"; };
+		A90000000000000000000001 /* HistoryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryStore.swift; sourceTree = "<group>"; };
+		A90000000000000000000002 /* HistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryView.swift; sourceTree = "<group>"; };
 		010000000000000000000054 /* BrowserStore+Eli.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+Eli.swift"; sourceTree = "<group>"; };
 		010000000000000000000055 /* BrowserStore+Media.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+Media.swift"; sourceTree = "<group>"; };
 		010000000000000000000060 /* CandoaUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CandoaUITests.swift; sourceTree = "<group>"; };
@@ -280,6 +284,7 @@
 			isa = PBXGroup;
 			children = (
 				010000000000000000000011 /* ContentView.swift */,
+				A90000000000000000000002 /* HistoryView.swift */,
 				010000000000000000000067 /* InitialOnboardingView.swift */,
 				010000000000000000000045 /* EliSidebarResizeHandle.swift */,
 				010000000000000000000046 /* EliSidebarView.swift */,
@@ -351,6 +356,7 @@
 			isa = PBXGroup;
 			children = (
 				010000000000000000000005 /* BrowserStore.swift */,
+				A90000000000000000000001 /* HistoryStore.swift */,
 				010000000000000000000054 /* BrowserStore+Eli.swift */,
 				010000000000000000000055 /* BrowserStore+Media.swift */,
 				AA0000000000000000000001 /* UserStore.swift */,
@@ -542,6 +548,7 @@
 				010000000000000000000103 /* BrowserSpace.swift in Sources */,
 				010000000000000000000104 /* BrowserWindowState.swift in Sources */,
 				010000000000000000000105 /* BrowserStore.swift in Sources */,
+				A90000000000000000000101 /* HistoryStore.swift in Sources */,
 				AA0000000000000000000101 /* UserStore.swift in Sources */,
 				AA0000000000000000000102 /* BrowserStore+Testing.swift in Sources */,
 				AA0000000000000000000103 /* BrowserStore+CommandPalette.swift in Sources */,
@@ -569,6 +576,7 @@
 				EF000000000000000000010C /* WebViewCoordinator+Downloads.swift in Sources */,
 				EF000000000000000000010D /* WebViewCoordinator+PageIntegration.swift in Sources */,
 				010000000000000000000111 /* ContentView.swift in Sources */,
+				A90000000000000000000102 /* HistoryView.swift in Sources */,
 				010000000000000000000112 /* SidebarView.swift in Sources */,
 				C1A2B3D4E5F60718293A4B5C /* SidebarSpaceComposer.swift in Sources */,
 				C2A2B3D4E5F60718293A4B5C /* SidebarTabSections.swift in Sources */,

@@ -21,6 +21,7 @@ struct ContentView: View {
     @State private var isAISidebarVisible = false
     @State private var isAISidebarMounted = false
     @State private var isAISidebarReservingWebLayout = false
+    @State private var isHistoryPresented = false
     @State private var reservedAISidebarInset: CGFloat = 0
     @State private var aiSidebarTransitionGeneration = 0
     @State private var aiSidebarUITestingState = ""
@@ -320,6 +321,20 @@ struct ContentView: View {
         .animation(.easeOut(duration: 0.14), value: store.isTabSwitcherPresented)
         .animation(.easeOut(duration: 0.16), value: store.mediaControllerTabID)
         .focusedSceneValue(\.browserCommandActions, browserCommandActions)
+        .sheet(isPresented: $isHistoryPresented) {
+            HistoryView(
+                repository: store.historyRepository,
+                spaces: store.spaces,
+                onOpen: { visit in
+                    isHistoryPresented = false
+                    store.navigateActiveTab(to: visit.url)
+                },
+                onDismiss: {
+                    isHistoryPresented = false
+                }
+            )
+            .tint(CandoaColor.primary)
+        }
         .alert(
             "Relaunch Candoa",
             isPresented: Binding(
@@ -401,6 +416,7 @@ struct ContentView: View {
             openCommandPalette: store.openCommandPalette,
             toggleSidebar: toggleSidebar,
             toggleAISidebar: toggleAISidebar,
+            showHistory: { isHistoryPresented = true },
             showQuickTour: showQuickTour,
             reloadTab: store.reloadActiveTab,
             goBack: store.goBack,

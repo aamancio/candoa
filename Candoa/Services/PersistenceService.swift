@@ -318,6 +318,94 @@ struct PersistenceService: @unchecked Sendable {
         }
     }
 
+    func history(
+        matching rawQuery: String = "",
+        in spaceID: UUID? = nil,
+        limit: Int,
+        offset: Int = 0
+    ) -> [HistoryVisit] {
+        guard limit > 0, offset >= 0 else { return [] }
+
+        let query = rawQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        let context = container.newBackgroundContext()
+
+        return context.performAndWait {
+            do {
+                let request = NSFetchRequest<NSManagedObject>(entityName: Entity.historyVisit)
+                request.sortDescriptors = [NSSortDescriptor(key: Key.visitedAt, ascending: false)]
+                request.fetchLimit = limit
+                request.fetchOffset = offset
+
+                var predicates: [NSPredicate] = []
+                if let spaceID {
+                    predicates.append(NSPredicate(format: "%K == %@", Key.spaceID, spaceID as NSUUID))
+                }
+                if !query.isEmpty {
+                    predicates.append(
+                        NSCompoundPredicate(
+                            orPredicateWithSubpredicates: [
+                                NSPredicate(format: "%K CONTAINS[cd] %@", Key.title, query),
+                                NSPredicate(format: "%K CONTAINS[cd] %@", Key.urlString, query)
+                            ]
+                        )
+                    )
+                }
+                if predicates.count == 1 {
+                    request.predicate = predicates[0]
+                } else if !predicates.isEmpty {
+                    request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: predicates)
+                }
+
+                return try context.fetch(request).compactMap(Self.historyVisit(from:))
+            } catch {
+                NSLog("\(Self.appName) failed to load history: \(error.localizedDescription)")
+                return []
+            }
+        }
+    }
+
+    func deleteHistory(withIDs ids: Set<UUID>) throws {
+        guard !ids.isEmpty else { return }
+        try deleteHistory(.ids(ids))
+    }
+
+    func deleteHistory(visitedAfter startDate: Date?) throws {
+        try deleteHistory(.visitedAfter(startDate))
+    }
+
+    private enum HistoryDeletion: Sendable {
+        case ids(Set<UUID>)
+        case visitedAfter(Date?)
+    }
+
+    private func deleteHistory(_ deletion: HistoryDeletion) throws {
+        let context = container.newBackgroundContext()
+        context.mergePolicy = NSMergePolicy(merge: .mergeByPropertyObjectTrumpMergePolicyType)
+
+        try context.performAndWait {
+            do {
+                let request = NSFetchRequest<NSManagedObject>(entityName: Entity.historyVisit)
+                switch deletion {
+                case .ids(let ids):
+                    request.predicate = NSPredicate(format: "%K IN %@", Key.id, Array(ids))
+                case .visitedAfter(let startDate):
+                    request.predicate = startDate.map {
+                        NSPredicate(format: "%K >= %@", Key.visitedAt, $0 as NSDate)
+                    }
+                }
+                for object in try context.fetch(request) {
+                    context.delete(object)
+                }
+                if context.hasChanges {
+                    try context.save()
+                }
+            } catch {
+                context.rollback()
+                throw error
+            }
+        }
+    }
+
     private func loadCoreDataState() -> BrowserWindowState? {
         let context = container.viewContext
         return Self.loadCoreDataState(in: context)
