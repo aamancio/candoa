@@ -122,6 +122,10 @@ Scripts/
 Benchmarks/
 ```
 
+Architecture decisions:
+
+- [Sign in with Apple and Developer ID distribution](docs/sign-in-with-apple-distribution.md)
+
 Contributions are welcome, especially around native Mac behavior,
 keyboard-first browsing, WebKit lifecycle, and battery efficiency.
 
@@ -134,6 +138,9 @@ copy another browser's branding, icons, assets, or exact UI.
 Release builds are packaged as a drag-to-Applications DMG. The GitHub workflow
 on `main` publishes the signed DMG, `latest.json`, and Sparkle `appcast.xml` to
 the separate marketing site repository.
+
+Because that DMG uses Developer ID distribution, account authentication must
+follow the tracked [Sign in with Apple distribution decision](docs/sign-in-with-apple-distribution.md).
 
 Local DMG packaging:
 
