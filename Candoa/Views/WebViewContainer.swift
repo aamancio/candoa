@@ -15,22 +15,6 @@ struct WebViewContainer: View {
     private let surfaceCornerRadius: CGFloat = 12
     private let surfacePadding: CGFloat = 8
 
-    private var spaceTint: Color {
-        guard let themeHex = store.activeThemeColorHexes.first else {
-            return CandoaColor.primary
-        }
-        return Color(spaceHex: themeHex)
-    }
-
-    /// Zen resolves the loading pill's light-dark() from the interface theme,
-    /// not the system: a dark Space theme means a dark interface. Nil when the
-    /// space is unthemed, falling back to the system appearance.
-    private var themeUsesDarkInterface: Bool? {
-        let hexes = store.activeThemeColorHexes
-        guard !hexes.isEmpty else { return nil }
-        return !CandoaInterfaceStyle.prefersDarkForeground(forSpaceHexes: hexes)
-    }
-
     var body: some View {
         ZStack {
             if store.isInitialSpaceSetupPresented || store.isCreateSpacePresented {
@@ -225,9 +209,7 @@ struct WebViewContainer: View {
                     .background(CandoaInterfaceStyle.surfaceFill.opacity(0.72))
                     .overlay(alignment: .top) {
                         PageLoadingPill(
-                            isLoading: tab.isLoading,
-                            tint: spaceTint,
-                            themeIsDark: themeUsesDarkInterface
+                            isLoading: tab.isLoading
                         )
                         .padding(.top, 2)
                         .id(tab.id)
@@ -306,9 +288,7 @@ struct WebViewContainer: View {
             .background(CandoaInterfaceStyle.surfaceFill.opacity(0.72))
             .overlay(alignment: .top) {
                 PageLoadingPill(
-                    isLoading: tab.isLoading,
-                    tint: spaceTint,
-                    themeIsDark: themeUsesDarkInterface
+                    isLoading: tab.isLoading
                 )
                 .padding(.top, 2)
                 .id(tab.id)
@@ -1005,16 +985,15 @@ private struct DiagonalStripes: Shape {
 /// Zen-style loading pill: a small capsule centered at the top of the web
 /// surface that pulses while the page loads, settles into a wide shimmering
 /// track on long loads (3s+), and shrink-fades away once the page lands.
-/// Shape, timing, and color mix mirror Zen's #zen-loading-progress-bar.
+/// Shape and timing mirror Zen's #zen-loading-progress-bar; color remains a
+/// neutral semantic macOS label treatment rather than following the Space.
 private struct PageLoadingPill: View {
     let isLoading: Bool
-    let tint: Color
-    let themeIsDark: Bool?
 
     var body: some View {
         ZStack {
             if isLoading {
-                LoadingPillCore(tint: tint, themeIsDark: themeIsDark)
+                LoadingPillCore()
                     .transition(
                         .asymmetric(
                             insertion: .opacity,
@@ -1029,15 +1008,6 @@ private struct PageLoadingPill: View {
 }
 
 private struct LoadingPillCore: View {
-    let tint: Color
-    let themeIsDark: Bool?
-
-    @Environment(\.colorScheme) private var colorScheme
-
-    private var isDarkScheme: Bool {
-        themeIsDark ?? (colorScheme == .dark)
-    }
-
     @State private var isPulsedUp = false
     @State private var isLongLoad = false
     @State private var isShimmerSwept = false
@@ -1091,17 +1061,12 @@ private struct LoadingPillCore: View {
         }
     }
 
-    /// Zen: color-mix(in srgb, primary, light-dark(black 50%, white 50%) 70%).
-    /// color-mix premultiplies alpha, so the 50%-alpha blend at 70% weight
-    /// resolves to ~54% of the blend color at 0.65 total alpha.
     private var pillColor: Color {
-        let blend: NSColor = isDarkScheme ? .white : .black
-        let mixed = NSColor(tint).usingColorSpace(.sRGB)?.blended(withFraction: 0.35 / 0.65, of: blend) ?? blend
-        return Color(nsColor: mixed).opacity(0.65)
+        Color(nsColor: .secondaryLabelColor)
     }
 
     private var trackColor: Color {
-        (isDarkScheme ? Color.white : Color.black).opacity(0.1)
+        Color(nsColor: .separatorColor)
     }
 }
 
