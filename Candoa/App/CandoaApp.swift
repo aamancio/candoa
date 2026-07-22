@@ -122,7 +122,7 @@ private struct BrowserCommands: Commands {
         }
 
         CommandMenu("Browser") {
-            Button("Show History") {
+            Button(actions?.isHistoryVisible == true ? "Hide History" : "Show History") {
                 actions?.showHistory()
             }
             .keyboardShortcut("y", modifiers: .command)
@@ -292,6 +292,7 @@ struct BrowserCommandActions {
     var toggleSidebar: () -> Void
     var toggleAISidebar: () -> Void
     var showHistory: () -> Void
+    var isHistoryVisible: Bool
     var showQuickTour: () -> Void
     var reloadTab: () -> Void
     var goBack: () -> Void

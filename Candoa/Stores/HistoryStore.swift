@@ -37,6 +37,7 @@ final class HistoryStore: ObservableObject {
     private static let pageSize = 200
 
     @Published private(set) var visits: [HistoryVisit] = []
+    @Published private(set) var hasHistory = false
     @Published private(set) var isLoading = false
     @Published private(set) var canLoadMore = false
     @Published var searchText = "" {
@@ -45,20 +46,16 @@ final class HistoryStore: ObservableObject {
             scheduleReload()
         }
     }
-    @Published var selectedSpaceID: UUID? {
-        didSet {
-            guard selectedSpaceID != oldValue else { return }
-            reload()
-        }
-    }
     @Published var selection: Set<UUID> = []
     @Published var errorMessage: String?
 
     private let repository: any HistoryRepository
+    private let spaceID: UUID
     private var loadTask: Task<Void, Never>?
 
-    init(repository: any HistoryRepository) {
+    init(repository: any HistoryRepository, spaceID: UUID) {
         self.repository = repository
+        self.spaceID = spaceID
     }
 
     deinit {
@@ -89,14 +86,22 @@ final class HistoryStore: ObservableObject {
 
     func clear(_ range: HistoryClearRange) {
         let repository = repository
+        let requestedSpaceID = spaceID
         let startDate = range.startDate()
         isLoading = true
         loadTask?.cancel()
         loadTask = Task {
             do {
-                try await Task.detached(priority: .userInitiated) {
-                    try repository.deleteVisits(visitedAfter: startDate)
+                let hasHistory = try await Task.detached(priority: .userInitiated) {
+                    try repository.deleteVisits(visitedAfter: startDate, in: requestedSpaceID)
+                    return !repository.visits(
+                        matching: "",
+                        in: requestedSpaceID,
+                        limit: 1,
+                        offset: 0
+                    ).isEmpty
                 }.value
+                self.hasHistory = hasHistory
                 reload()
             } catch is CancellationError {
                 isLoading = false
@@ -110,13 +115,21 @@ final class HistoryStore: ObservableObject {
     private func deleteVisits(withIDs ids: Set<UUID>) {
         guard !ids.isEmpty else { return }
         let repository = repository
+        let requestedSpaceID = spaceID
         isLoading = true
         loadTask?.cancel()
         loadTask = Task {
             do {
-                try await Task.detached(priority: .userInitiated) {
+                let hasHistory = try await Task.detached(priority: .userInitiated) {
                     try repository.deleteVisits(withIDs: ids)
+                    return !repository.visits(
+                        matching: "",
+                        in: requestedSpaceID,
+                        limit: 1,
+                        offset: 0
+                    ).isEmpty
                 }.value
+                self.hasHistory = hasHistory
                 reload()
             } catch is CancellationError {
                 isLoading = false
@@ -138,7 +151,7 @@ final class HistoryStore: ObservableObject {
 
         let repository = repository
         let query = searchText
-        let spaceID = selectedSpaceID
+        let requestedSpaceID = spaceID
         let pageSize = Self.pageSize
         loadTask = Task {
             if debounceNanoseconds > 0 {
@@ -149,7 +162,7 @@ final class HistoryStore: ObservableObject {
             let page = await Task.detached(priority: .userInitiated) {
                 repository.visits(
                     matching: query,
-                    in: spaceID,
+                    in: requestedSpaceID,
                     limit: pageSize,
                     offset: offset
                 )
@@ -160,6 +173,9 @@ final class HistoryStore: ObservableObject {
                 visits = page
             } else {
                 visits.append(contentsOf: page)
+            }
+            if query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, replacing {
+                hasHistory = !page.isEmpty
             }
             canLoadMore = page.count == pageSize
             isLoading = false

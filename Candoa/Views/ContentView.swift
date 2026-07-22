@@ -85,43 +85,70 @@ struct ContentView: View {
                     .transition(.opacity)
             } else {
                 ZStack(alignment: .topTrailing) {
-                    // Keep the WebKit host at one stable width when the left
-                    // or right sidebar toggles. WebKit paints through a remote
-                    // layer; resizing that host exposes or stretches the
-                    // previous frame before the WebContent process catches up
-                    // and makes pages flash their scrollbars. Both sidebar
-                    // lanes are reserved inside WebViewContainer instead.
-                    WebViewContainer(
-                        store: store,
-                        visibleInterfaceInsets: BrowserInterfaceInsets(
-                            leading: isSidebarVisible ? sidebarTotalWidth : 0
-                        ),
-                        attachesToTrailingPanel: isAISidebarMounted
-                    )
-                    // Resize WebKit once, after Eli has finished sliding over
-                    // this lane. Keeping this out of the animation avoids
-                    // per-frame web layout while placing WebKit's own overlay
-                    // scroller at the visible page edge.
-                    .padding(
-                        .trailing,
-                        isAISidebarReservingWebLayout ? reservedAISidebarInset : 0
-                    )
+                    if isHistoryPresented {
+                        HistoryView(
+                            repository: store.historyRepository,
+                            spaceID: store.activeSpaceID,
+                            onOpen: { visit in
+                                isHistoryPresented = false
+                                store.navigateActiveTab(to: visit.url)
+                            },
+                            onOpenInNewTab: { visit in
+                                isHistoryPresented = false
+                                store.navigateNewTab(to: visit.url)
+                            },
+                            onCopyAddress: { visit in
+                                store.copyURL(visit.url)
+                            },
+                            onDismiss: {
+                                isHistoryPresented = false
+                            }
+                        )
+                        .id(store.activeSpaceID)
+                        .padding(.leading, isSidebarVisible ? sidebarTotalWidth : 0)
+                        .tint(CandoaColor.primary)
+                    } else {
+                        // Keep the WebKit host at one stable width when the left
+                        // or right sidebar toggles. WebKit paints through a remote
+                        // layer; resizing that host exposes or stretches the
+                        // previous frame before the WebContent process catches up
+                        // and makes pages flash their scrollbars. Both sidebar
+                        // lanes are reserved inside WebViewContainer instead.
+                        WebViewContainer(
+                            store: store,
+                            visibleInterfaceInsets: BrowserInterfaceInsets(
+                                leading: isSidebarVisible ? sidebarTotalWidth : 0
+                            ),
+                            attachesToTrailingPanel: isAISidebarMounted
+                        )
+                        // Resize WebKit once, after Eli has finished sliding over
+                        // this lane. Keeping this out of the animation avoids
+                        // per-frame web layout while placing WebKit's own overlay
+                        // scroller at the visible page edge.
+                        .padding(
+                            .trailing,
+                            isAISidebarReservingWebLayout ? reservedAISidebarInset : 0
+                        )
 
-                    if isAISidebarMounted {
-                        aiSidebarLayout(width: currentAISidebarWidth)
-                            .transition(
-                                reduceMotion
-                                    ? .identity
-                                    : .move(edge: .trailing)
-                            )
-                            .zIndex(1)
+                        if isAISidebarMounted {
+                            aiSidebarLayout(width: currentAISidebarWidth)
+                                .transition(
+                                    reduceMotion
+                                        ? .identity
+                                        : .move(edge: .trailing)
+                                )
+                                .zIndex(1)
+                        }
                     }
                 }
                 // The web surface and attached Ask panel form one window row.
                 // Extending only the web child into the title-bar safe area
                 // pushes Ask's toolbar down and exposes a square strip above
                 // its rounded outside corner.
-                .ignoresSafeArea(.container, edges: .top)
+                .ignoresSafeArea(
+                    .container,
+                    edges: isHistoryPresented ? [] : .top
+                )
 
                 sidebarLayout
                     // This subtree also coordinates AppKit's native window controls.
@@ -271,7 +298,7 @@ struct ContentView: View {
             } onToggleAISidebar: {
                 toggleAISidebar()
             } onFindInPage: {
-                store.showFindBar()
+                showFind()
             } onFindNext: {
                 store.findNext()
             } onFindPrevious: {
@@ -321,20 +348,6 @@ struct ContentView: View {
         .animation(.easeOut(duration: 0.14), value: store.isTabSwitcherPresented)
         .animation(.easeOut(duration: 0.16), value: store.mediaControllerTabID)
         .focusedSceneValue(\.browserCommandActions, browserCommandActions)
-        .sheet(isPresented: $isHistoryPresented) {
-            HistoryView(
-                repository: store.historyRepository,
-                spaces: store.spaces,
-                onOpen: { visit in
-                    isHistoryPresented = false
-                    store.navigateActiveTab(to: visit.url)
-                },
-                onDismiss: {
-                    isHistoryPresented = false
-                }
-            )
-            .tint(CandoaColor.primary)
-        }
         .alert(
             "Relaunch Candoa",
             isPresented: Binding(
@@ -416,7 +429,8 @@ struct ContentView: View {
             openCommandPalette: store.openCommandPalette,
             toggleSidebar: toggleSidebar,
             toggleAISidebar: toggleAISidebar,
-            showHistory: { isHistoryPresented = true },
+            showHistory: showHistory,
+            isHistoryVisible: isHistoryPresented,
             showQuickTour: showQuickTour,
             reloadTab: store.reloadActiveTab,
             goBack: store.goBack,
@@ -431,7 +445,7 @@ struct ContentView: View {
             clearUnpinnedTabs: store.clearUnpinnedTabs,
             copyURL: { store.copyActiveTabURL() },
             copyURLAsMarkdown: { store.copyActiveTabURL(asMarkdown: true) },
-            findInPage: store.showFindBar,
+            findInPage: showFind,
             findNext: store.findNext,
             findPrevious: store.findPrevious,
             zoomIn: store.zoomInActiveTab,
@@ -496,7 +510,7 @@ struct ContentView: View {
 
     private func aiSidebarLayout(width: CGFloat) -> some View {
         ZStack {
-            Color(nsColor: .windowBackgroundColor)
+            CandoaInterfaceStyle.workspaceBackground
 
             aiSidebarPanel(width: width)
         }
@@ -557,6 +571,23 @@ struct ContentView: View {
         store.showQuickTour()
     }
 
+    private func showHistory() {
+        if isHistoryPresented {
+            isHistoryPresented = false
+            return
+        }
+        closeAISidebar()
+        isHistoryPresented = true
+    }
+
+    private func showFind() {
+        if isHistoryPresented {
+            NotificationCenter.default.post(name: .focusHistorySearch, object: nil)
+        } else {
+            store.showFindBar()
+        }
+    }
+
     private func openAISidebar() {
         guard !isAISidebarVisible else { return }
         aiSidebarTransitionGeneration += 1
@@ -607,6 +638,7 @@ struct ContentView: View {
     }
 
     private func openNewTabFlow() {
+        isHistoryPresented = false
         store.openNewTabCommandPalette()
     }
 

@@ -5,7 +5,7 @@ protocol HistoryRepository: Sendable {
     func recentVisits(matching query: String, in spaceID: UUID?, limit: Int) -> [HistoryVisit]
     func visits(matching query: String, in spaceID: UUID?, limit: Int, offset: Int) -> [HistoryVisit]
     func deleteVisits(withIDs ids: Set<UUID>) throws
-    func deleteVisits(visitedAfter startDate: Date?) throws
+    func deleteVisits(visitedAfter startDate: Date?, in spaceID: UUID?) throws
 }
 
 struct CoreDataHistoryRepository: HistoryRepository {
@@ -37,7 +37,7 @@ struct CoreDataHistoryRepository: HistoryRepository {
         try persistence.deleteHistory(withIDs: ids)
     }
 
-    func deleteVisits(visitedAfter startDate: Date?) throws {
-        try persistence.deleteHistory(visitedAfter: startDate)
+    func deleteVisits(visitedAfter startDate: Date?, in spaceID: UUID?) throws {
+        try persistence.deleteHistory(visitedAfter: startDate, in: spaceID)
     }
 }

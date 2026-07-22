@@ -95,10 +95,10 @@ final class CandoaUITests: XCTestCase {
         let historyView = element("history-view", in: app)
         XCTAssertTrue(historyView.waitForExistence(timeout: 5))
 
-        let historyRow = app.sheets.firstMatch.staticTexts["fixture.candoa.test"].firstMatch
+        let historyRow = app.staticTexts["https://fixture.candoa.test/history"].firstMatch
         XCTAssertTrue(historyRow.waitForExistence(timeout: 5))
 
-        let screenshot = app.sheets.firstMatch.screenshot()
+        let screenshot = app.screenshot()
         let attachment = XCTAttachment(screenshot: screenshot)
         attachment.name = "Searchable History"
         attachment.lifetime = .keepAlways
@@ -114,11 +114,11 @@ final class CandoaUITests: XCTestCase {
         app.typeKey(.delete, modifierFlags: [])
         XCTAssertFalse(historyRow.waitForExistence(timeout: 5))
 
-        app.buttons["Done"].click()
+        app.typeKey("y", modifierFlags: .command)
         XCTAssertFalse(historyView.waitForExistence(timeout: 5))
         app.typeKey("y", modifierFlags: .command)
         XCTAssertTrue(element("history-view", in: app).waitForExistence(timeout: 5))
-        XCTAssertFalse(app.sheets.firstMatch.staticTexts["fixture.candoa.test"].exists)
+        XCTAssertFalse(app.staticTexts["https://fixture.candoa.test/history"].exists)
     }
 
     func testBrowserMigrationImportsSafariFixtureThroughRealParser() throws {

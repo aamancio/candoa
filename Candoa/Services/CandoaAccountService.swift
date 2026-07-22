@@ -110,7 +110,7 @@ enum CandoaCloudAPI {
 
     static func appleWebAuthenticationURL(codeChallenge: String) -> URL {
         var components = URLComponents(
-            url: endpoint("auth/apple/web/start"),
+            url: appleAuthenticationEndpoint("auth/apple/web/start"),
             resolvingAgainstBaseURL: false
         )!
         components.queryItems = [URLQueryItem(name: "code_challenge", value: codeChallenge)]
@@ -122,7 +122,7 @@ enum CandoaCloudAPI {
         codeVerifier: String
     ) async throws -> String {
         let response: CandoaSessionResponse = try await request(
-            endpoint("auth/apple/web/exchange"),
+            appleAuthenticationEndpoint("auth/apple/web/exchange"),
             method: "POST",
             body: AppleWebAuthenticationExchangeRequest(code: code, codeVerifier: codeVerifier),
             accessToken: nil
@@ -158,6 +158,14 @@ enum CandoaCloudAPI {
 
     private static func endpoint(_ path: String) -> URL {
         let configuredBaseURL = ProcessInfo.processInfo.environment["CANDOA_CLOUD_API_URL"]
+            .flatMap(URL.init(string:)) ?? defaultBaseURL
+        return configuredBaseURL.appending(path: path)
+    }
+
+    private static func appleAuthenticationEndpoint(_ path: String) -> URL {
+        // Apple requires a registered HTTPS callback. Keep web authentication on the
+        // deployed Cloud service even when the rest of a Debug build uses local Cloud.
+        let configuredBaseURL = ProcessInfo.processInfo.environment["CANDOA_APPLE_AUTH_API_URL"]
             .flatMap(URL.init(string:)) ?? defaultBaseURL
         return configuredBaseURL.appending(path: path)
     }
@@ -260,11 +268,12 @@ final class CandoaAppleWebAuthenticationService: NSObject,
             let session = ASWebAuthenticationSession(
                 url: startURL,
                 callbackURLScheme: Self.callbackScheme
-            ) { [weak self] callbackURL, error in
+            ) { @Sendable [weak self] callbackURL, error in
                 Task { @MainActor in
                     self?.webAuthenticationSession = nil
-                    if let authenticationError = error as? ASWebAuthenticationSessionError,
-                       authenticationError.code == .canceledLogin {
+                    let authenticationError = error as NSError?
+                    if authenticationError?.domain == ASWebAuthenticationSessionError.errorDomain,
+                       authenticationError?.code == ASWebAuthenticationSessionError.Code.canceledLogin.rawValue {
                         continuation.resume(throwing: CandoaAccountError.appleSignInCancelled)
                     } else if let error {
                         continuation.resume(throwing: error)
@@ -332,7 +341,7 @@ struct CandoaAccountService {
     }
 }
 
-enum CandoaAccountError: LocalizedError {
+enum CandoaAccountError: LocalizedError, Sendable {
     case appleSignInCancelled
     case appleSignInFailed
     case authenticationInProgress

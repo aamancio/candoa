@@ -369,13 +369,13 @@ struct PersistenceService: @unchecked Sendable {
         try deleteHistory(.ids(ids))
     }
 
-    func deleteHistory(visitedAfter startDate: Date?) throws {
-        try deleteHistory(.visitedAfter(startDate))
+    func deleteHistory(visitedAfter startDate: Date?, in spaceID: UUID? = nil) throws {
+        try deleteHistory(.visitedAfter(startDate, spaceID: spaceID))
     }
 
     private enum HistoryDeletion: Sendable {
         case ids(Set<UUID>)
-        case visitedAfter(Date?)
+        case visitedAfter(Date?, spaceID: UUID?)
     }
 
     private func deleteHistory(_ deletion: HistoryDeletion) throws {
@@ -388,9 +388,18 @@ struct PersistenceService: @unchecked Sendable {
                 switch deletion {
                 case .ids(let ids):
                     request.predicate = NSPredicate(format: "%K IN %@", Key.id, Array(ids))
-                case .visitedAfter(let startDate):
-                    request.predicate = startDate.map {
-                        NSPredicate(format: "%K >= %@", Key.visitedAt, $0 as NSDate)
+                case .visitedAfter(let startDate, let spaceID):
+                    var predicates: [NSPredicate] = []
+                    if let startDate {
+                        predicates.append(NSPredicate(format: "%K >= %@", Key.visitedAt, startDate as NSDate))
+                    }
+                    if let spaceID {
+                        predicates.append(NSPredicate(format: "%K == %@", Key.spaceID, spaceID as NSUUID))
+                    }
+                    if predicates.count == 1 {
+                        request.predicate = predicates[0]
+                    } else if !predicates.isEmpty {
+                        request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: predicates)
                     }
                 }
                 for object in try context.fetch(request) {

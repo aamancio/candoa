@@ -205,4 +205,3 @@ extension WebViewCoordinator {
         store?.mediaStates[tabID] != nil
     }
 }
-
