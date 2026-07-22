@@ -5,13 +5,18 @@ extension BrowserStore {
     func copyActiveTabURL(asMarkdown: Bool = false) {
         guard let tab = activeTab, let url = tab.url else { return }
         let value = asMarkdown ? "[\(tab.title)](\(url.absoluteString))" : url.absoluteString
+        copyURL(value, url: url, title: asMarkdown ? "Copied URL as Markdown" : "Copied current URL")
+    }
+
+    func copyURL(_ url: URL) {
+        copyURL(url.absoluteString, url: url, title: "Copied address")
+    }
+
+    private func copyURL(_ value: String, url: URL, title: String) {
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
         pasteboard.setString(value, forType: .string)
-        presentCopiedURLToast(
-            title: asMarkdown ? "Copied URL as Markdown" : "Copied current URL",
-            url: url
-        )
+        presentCopiedURLToast(title: title, url: url)
     }
 
     func captureActiveTabPage() {
@@ -143,4 +148,3 @@ extension BrowserStore {
         }
     }
 }
-

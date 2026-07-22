@@ -82,6 +82,45 @@ final class CandoaUITests: XCTestCase {
         )
     }
 
+    func testHistoryCanBeSearchedDeletedAndReopened() throws {
+        let app = launchApp(fixture: "history")
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
+
+        app.typeKey("t", modifierFlags: .command)
+        XCTAssertTrue(waitForState(in: app, containing: "newTabPalette=true"), currentState(in: app))
+        submitCommandPaletteText("https://fixture.candoa.test/history", in: app)
+        XCTAssertTrue(app.staticTexts["Candoa History Fixture"].waitForExistence(timeout: 10))
+
+        app.typeKey("y", modifierFlags: .command)
+        let historyView = element("history-view", in: app)
+        XCTAssertTrue(historyView.waitForExistence(timeout: 5))
+
+        let historyRow = app.staticTexts["https://fixture.candoa.test/history"].firstMatch
+        XCTAssertTrue(historyRow.waitForExistence(timeout: 5))
+
+        let screenshot = app.screenshot()
+        let attachment = XCTAttachment(screenshot: screenshot)
+        attachment.name = "Searchable History"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+
+        let searchField = app.searchFields["Search History"]
+        XCTAssertTrue(searchField.waitForExistence(timeout: 5))
+        searchField.click()
+        pasteText("fixture.candoa.test", into: searchField)
+        XCTAssertTrue(historyRow.waitForExistence(timeout: 5))
+
+        historyRow.click()
+        app.typeKey(.delete, modifierFlags: [])
+        XCTAssertFalse(historyRow.waitForExistence(timeout: 5))
+
+        app.typeKey("y", modifierFlags: .command)
+        XCTAssertFalse(historyView.waitForExistence(timeout: 5))
+        app.typeKey("y", modifierFlags: .command)
+        XCTAssertTrue(element("history-view", in: app).waitForExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts["https://fixture.candoa.test/history"].exists)
+    }
+
     func testBrowserMigrationImportsSafariFixtureThroughRealParser() throws {
         let app = launchApp(
             onboardingStep: "importData",
@@ -928,6 +967,13 @@ final class CandoaUITests: XCTestCase {
     }
 
     private static let pageHTMLFixtures: [String: String] = [
+        "history": """
+        <!doctype html>
+        <html>
+          <head><meta charset="utf-8"><title>Candoa History Fixture</title></head>
+          <body><h1>Candoa History Fixture</h1><p>Representative browsing history.</p></body>
+        </html>
+        """,
         "ask-agent-navigation": "<html><body></body></html>",
         "ask-agent-normalized-navigation": "<html><body></body></html>",
         "ask-model-selector-context": """

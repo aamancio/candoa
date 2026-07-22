@@ -76,6 +76,7 @@ struct WebViewContainer: View {
                 insets: visibleInterfaceInsets,
                 surfaceCornerRadius: surfaceCornerRadius,
                 surfacePadding: surfacePadding,
+                trailingSurfacePadding: attachesToTrailingPanel ? 0 : surfacePadding,
                 drawsFullSurfaceBorder: store.activeSplitGroupTabs.count < 2
             )
         )
@@ -304,6 +305,7 @@ private struct BrowserInterfaceMaskModifier: ViewModifier {
     let insets: BrowserInterfaceInsets
     let surfaceCornerRadius: CGFloat
     let surfacePadding: CGFloat
+    let trailingSurfacePadding: CGFloat
     let drawsFullSurfaceBorder: Bool
 
     func body(content: Content) -> some View {
@@ -314,7 +316,7 @@ private struct BrowserInterfaceMaskModifier: ViewModifier {
                         RoundedRectangle(cornerRadius: surfaceCornerRadius, style: .continuous)
                             .padding(.vertical, surfacePadding)
                             .padding(.leading, insets.leading + surfacePadding)
-                            .padding(.trailing, insets.trailing + surfacePadding)
+                            .padding(.trailing, insets.trailing + trailingSurfacePadding)
 
                         // Preserve the surface's existing top, trailing, and
                         // bottom shadow. Only the interface regions need clipping.
@@ -342,7 +344,7 @@ private struct BrowserInterfaceMaskModifier: ViewModifier {
                         .stroke(CandoaInterfaceStyle.surfaceBorder, lineWidth: 1)
                         .padding(.vertical, surfacePadding)
                         .padding(.leading, insets.leading + surfacePadding)
-                        .padding(.trailing, insets.trailing + surfacePadding)
+                        .padding(.trailing, insets.trailing + trailingSurfacePadding)
                         .allowsHitTesting(false)
                 } else {
                     // Split panes own their individual borders. Add only sides
@@ -356,7 +358,7 @@ private struct BrowserInterfaceMaskModifier: ViewModifier {
                             }
                             .padding(.vertical, surfacePadding)
                             .padding(.leading, insets.leading + surfacePadding)
-                            .padding(.trailing, insets.trailing + surfacePadding)
+                            .padding(.trailing, insets.trailing + trailingSurfacePadding)
                             .allowsHitTesting(false)
                     }
 
@@ -369,7 +371,7 @@ private struct BrowserInterfaceMaskModifier: ViewModifier {
                             }
                             .padding(.vertical, surfacePadding)
                             .padding(.leading, insets.leading + surfacePadding)
-                            .padding(.trailing, insets.trailing + surfacePadding)
+                            .padding(.trailing, insets.trailing + trailingSurfacePadding)
                             .allowsHitTesting(false)
                     }
                 }

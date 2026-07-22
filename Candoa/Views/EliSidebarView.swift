@@ -14,7 +14,6 @@ struct EliSidebarView: View {
     @Binding var messages: [AISidebarMessage]
     let onClose: () -> Void
 
-    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject private var userStore: UserStore
     @StateObject private var speechController = AISidebarSpeechController()
@@ -153,21 +152,6 @@ struct EliSidebarView: View {
         return currentChip + mentionedContext.map { chip(for: $0) }
     }
 
-    private var panelBackgroundColor: Color {
-        guard let appearance = NSAppearance(
-            named: colorScheme == .dark ? .darkAqua : .aqua
-        ) else {
-            return CandoaInterfaceStyle.windowBackground
-        }
-
-        var resolvedColor = NSColor.windowBackgroundColor
-        appearance.performAsCurrentDrawingAppearance {
-            resolvedColor = NSColor.windowBackgroundColor.usingColorSpace(.deviceRGB)
-                ?? NSColor.windowBackgroundColor
-        }
-        return Color(nsColor: resolvedColor)
-    }
-
     private var hasPersonalEliAccess: Bool {
         CandoaEliPreferences.usesPersonalOpenAIKey && CandoaEliKeychain.hasAPIKey
     }
@@ -221,7 +205,7 @@ struct EliSidebarView: View {
 
             composer
         }
-        .background(panelBackgroundColor)
+        .background(CandoaInterfaceStyle.workspaceBackground)
         .onAppear {
             configureUITestingConversationIfNeeded()
             uiTestingState = uiTestingAgentState
