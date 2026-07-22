@@ -75,7 +75,7 @@ struct ContentView: View {
     var body: some View {
         let currentAISidebarWidth = clampedAISidebarWidth(CGFloat(aiSidebarWidth))
         let currentAISidebarInset = isAISidebarMounted
-            ? currentAISidebarWidth + AISidebarLayout.containerPadding
+            ? currentAISidebarWidth
             : 0
 
         ZStack(alignment: .leading) {
@@ -502,15 +502,6 @@ struct ContentView: View {
         }
         .frame(width: width)
         .frame(maxHeight: .infinity)
-        .clipShape(
-            UnevenRoundedRectangle(
-                topLeadingRadius: 12,
-                bottomLeadingRadius: 0,
-                bottomTrailingRadius: 12,
-                topTrailingRadius: 12,
-                style: .continuous
-            )
-        )
         .overlay(alignment: .leading) {
             AISidebarResizeHandle()
                 .frame(width: AISidebarLayout.resizeHandleHitWidth)
@@ -529,14 +520,11 @@ struct ContentView: View {
                             // Keep pointer-driven resizing compositor-only, then
                             // commit the WebKit viewport once when dragging ends.
                             reservedAISidebarInset = clampedAISidebarWidth(CGFloat(aiSidebarWidth))
-                                + AISidebarLayout.containerPadding
                         }
                 )
         }
         .allowsHitTesting(isAISidebarVisible)
         .accessibilityHidden(!isAISidebarVisible)
-        .padding(.vertical, AISidebarLayout.containerPadding)
-        .padding(.trailing, AISidebarLayout.containerPadding)
     }
 
     private func toggleSidebar() {
@@ -578,7 +566,6 @@ struct ContentView: View {
         // WKWebView stays at its current size for the animated portion.
         isAISidebarReservingWebLayout = false
         reservedAISidebarInset = clampedAISidebarWidth(CGFloat(aiSidebarWidth))
-            + AISidebarLayout.containerPadding
         withAnimation(aiSidebarAnimation) {
             isAISidebarMounted = true
             isAISidebarVisible = true
