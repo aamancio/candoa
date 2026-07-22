@@ -11,6 +11,7 @@ struct ContentView: View {
     @StateObject private var systemAppearance = SystemAppearanceObserver()
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @EnvironmentObject private var userStore: UserStore
     @AppStorage(CandoaSettingsOption.websiteAppearance) private var websiteAppearanceValue =
         WebsiteAppearance.dark.rawValue
     @SceneStorage("candoa.windowAutosaveID") private var windowAutosaveID = UUID().uuidString
@@ -340,6 +341,10 @@ struct ContentView: View {
             applyWebsiteAppearance()
             updateService.startCheckingForUpdates()
         }
+        .task {
+            await userStore.restoreSessionIfNeeded()
+            store.reconcileAccountSetup(isSignedIn: userStore.isSignedIn)
+        }
         .onOpenURL { url in
             store.openExternalURL(url)
         }
@@ -351,6 +356,9 @@ struct ContentView: View {
             if phase != .active {
                 store.flushSession()
             }
+        }
+        .onChange(of: userStore.isSignedIn) { _, isSignedIn in
+            store.reconcileAccountSetup(isSignedIn: isSignedIn)
         }
         .onChange(of: websiteAppearanceValue) { _, _ in
             applyWebsiteAppearance()

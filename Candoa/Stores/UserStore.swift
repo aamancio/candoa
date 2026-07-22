@@ -1,18 +1,6 @@
 import AppKit
-import AuthenticationServices
 import Foundation
-import Security
 import SwiftUI
-
-enum CandoaDistributionCapabilities {
-    static var supportsNativeAppleSignIn: Bool {
-#if DEBUG
-        true
-#else
-        false
-#endif
-    }
-}
 
 @MainActor
 final class UserStore: ObservableObject {
@@ -22,54 +10,51 @@ final class UserStore: ObservableObject {
     @Published private(set) var isSignedIn: Bool
 
     private let accountService: CandoaAccountService
-    private var pendingAppleNonce: String?
+    private let appleAuthenticationService: CandoaAppleWebAuthenticationService
 
     var hasActiveSubscription: Bool { status?.hasActiveSubscription == true }
 
-    init(accountService: CandoaAccountService = CandoaAccountService()) {
+    init(
+        accountService: CandoaAccountService = CandoaAccountService(),
+        appleAuthenticationService: CandoaAppleWebAuthenticationService =
+            CandoaAppleWebAuthenticationService()
+    ) {
         self.accountService = accountService
-        isSignedIn = accountService.accessToken != nil
-        if ProcessInfo.processInfo.environment["CANDOA_UI_TESTING_APPLE_SIGN_IN_WORKING"] == "1" {
-            isWorking = true
-        }
+        self.appleAuthenticationService = appleAuthenticationService
+        isSignedIn = false
+        let environment = ProcessInfo.processInfo.environment
+        isWorking = environment["CANDOA_UI_TESTING"] == "1"
+            ? environment["CANDOA_UI_TESTING_APPLE_SIGN_IN_WORKING"] == "1"
+            : accountService.accessToken != nil
     }
 
-    func configure(_ request: ASAuthorizationAppleIDRequest) {
-        pendingAppleNonce = makeNonce()
-        request.requestedScopes = [.email, .fullName]
-        request.nonce = pendingAppleNonce
-        errorMessage = nil
-    }
-
-    func completeAppleSignIn(_ result: Result<ASAuthorization, Error>) {
-        guard case .success(let authorization) = result,
-              let credential = authorization.credential as? ASAuthorizationAppleIDCredential,
-              let tokenData = credential.identityToken,
-              let identityToken = String(data: tokenData, encoding: .utf8),
-              let nonce = pendingAppleNonce else {
-            if case .failure(let error) = result,
-               (error as? ASAuthorizationError)?.code == .canceled {
-                return
-            }
-            errorMessage = "Apple sign-in was not completed. Please try again."
+    func restoreSessionIfNeeded() async {
+        guard ProcessInfo.processInfo.environment["CANDOA_UI_TESTING"] != "1" else { return }
+        guard accountService.accessToken != nil else {
+            isWorking = false
+            isSignedIn = false
             return
         }
+        await refresh()
+    }
 
-        pendingAppleNonce = nil
+    func signInWithApple() {
+        guard !isWorking, !appleAuthenticationService.isAuthenticating else { return }
         isWorking = true
         errorMessage = nil
         Task {
             do {
-                let accessToken = try await accountService.authenticateWithApple(
-                    identityToken: identityToken,
-                    nonce: nonce
-                )
+                let accessToken = try await appleAuthenticationService.authenticate()
                 try accountService.saveAccessToken(accessToken)
                 isSignedIn = true
                 await refresh()
             } catch {
                 isWorking = false
-                errorMessage = error.localizedDescription
+                if case CandoaAccountError.appleSignInCancelled = error {
+                    errorMessage = nil
+                } else {
+                    errorMessage = error.localizedDescription
+                }
             }
         }
     }
@@ -130,16 +115,5 @@ final class UserStore: ObservableObject {
         } catch {
             errorMessage = error.localizedDescription
         }
-    }
-
-    private func makeNonce() -> String {
-        var bytes = [UInt8](repeating: 0, count: 32)
-        guard SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes) == errSecSuccess else {
-            return UUID().uuidString.replacingOccurrences(of: "-", with: "")
-        }
-        return Data(bytes).base64EncodedString()
-            .replacingOccurrences(of: "+", with: "-")
-            .replacingOccurrences(of: "/", with: "_")
-            .replacingOccurrences(of: "=", with: "")
     }
 }

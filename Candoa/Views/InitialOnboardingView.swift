@@ -348,7 +348,6 @@ private struct AccountOnboardingStep: View {
                 Spacer(minLength: 24)
 
                 Group {
-#if DEBUG
                     if userStore.isWorking {
                         Button {} label: {
                             HStack(spacing: 8) {
@@ -367,21 +366,9 @@ private struct AccountOnboardingStep: View {
                         .accessibilityLabel("Signing in…")
                         .accessibilityIdentifier("onboarding-apple-sign-in")
                     } else {
-                        OnboardingSignInWithAppleButton(
-                            isEnabled: true,
-                            configure: userStore.configure,
-                            completion: userStore.completeAppleSignIn
-                        )
+                        OnboardingSignInWithAppleButton(action: userStore.signInWithApple)
                         .accessibilityIdentifier("onboarding-apple-sign-in")
                     }
-#else
-                    Button("Continue") {
-                        store.skipInitialAccountSetup()
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
-                    .frame(maxWidth: .infinity)
-#endif
                 }
                 .frame(height: 44)
 
@@ -392,12 +379,10 @@ private struct AccountOnboardingStep: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
-#if !DEBUG
-                Text("Account sign-in is not available in this direct-download build yet. You can use Candoa without an account.")
+                Text("Apple opens a secure sign-in window. Candoa never sees your Apple Account password.")
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
-#endif
             }
         } preview: {
             OnboardingAccountPreview()
@@ -413,12 +398,10 @@ private struct AccountOnboardingStep: View {
 }
 
 private struct OnboardingSignInWithAppleButton: NSViewRepresentable {
-    let isEnabled: Bool
-    let configure: (ASAuthorizationAppleIDRequest) -> Void
-    let completion: (Result<ASAuthorization, Error>) -> Void
+    let action: () -> Void
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(configure: configure, completion: completion)
+        Coordinator(action: action)
     }
 
     func makeNSView(context: Context) -> ASAuthorizationAppleIDButton {
@@ -432,55 +415,21 @@ private struct OnboardingSignInWithAppleButton: NSViewRepresentable {
     }
 
     func updateNSView(_ button: ASAuthorizationAppleIDButton, context: Context) {
-        button.isEnabled = isEnabled
+        context.coordinator.action = action
     }
 
     @MainActor
-    final class Coordinator: NSObject, ASAuthorizationControllerDelegate,
-        ASAuthorizationControllerPresentationContextProviding {
+    final class Coordinator: NSObject {
         weak var button: ASAuthorizationAppleIDButton?
 
-        private let configure: (ASAuthorizationAppleIDRequest) -> Void
-        private let completion: (Result<ASAuthorization, Error>) -> Void
-        private var authorizationController: ASAuthorizationController?
+        var action: () -> Void
 
-        init(
-            configure: @escaping (ASAuthorizationAppleIDRequest) -> Void,
-            completion: @escaping (Result<ASAuthorization, Error>) -> Void
-        ) {
-            self.configure = configure
-            self.completion = completion
+        init(action: @escaping () -> Void) {
+            self.action = action
         }
 
         @objc func signIn() {
-            let request = ASAuthorizationAppleIDProvider().createRequest()
-            configure(request)
-
-            let controller = ASAuthorizationController(authorizationRequests: [request])
-            controller.delegate = self
-            controller.presentationContextProvider = self
-            authorizationController = controller
-            controller.performRequests()
-        }
-
-        func authorizationController(
-            controller: ASAuthorizationController,
-            didCompleteWithAuthorization authorization: ASAuthorization
-        ) {
-            authorizationController = nil
-            completion(.success(authorization))
-        }
-
-        func authorizationController(
-            controller: ASAuthorizationController,
-            didCompleteWithError error: Error
-        ) {
-            authorizationController = nil
-            completion(.failure(error))
-        }
-
-        func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
-            button?.window ?? NSApp.keyWindow ?? NSWindow()
+            action()
         }
     }
 }

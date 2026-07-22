@@ -32,8 +32,7 @@ extension BrowserStore {
     }
 
     private var nextAccountOrTourStep: InitialOnboardingStep {
-        CandoaAccountKeychain.accessToken == nil
-            && CandoaDistributionCapabilities.supportsNativeAppleSignIn ? .account : .tour
+        CandoaAccountKeychain.accessToken == nil ? .account : .tour
     }
 
     func completeInitialSpaceSetup(
@@ -96,17 +95,29 @@ extension BrowserStore {
 
     func completeInitialAccountSetup() {
         guard isInitialAccountSetupPresented, CandoaAccountKeychain.accessToken != nil else { return }
+        reconcileAccountSetup(isSignedIn: true)
+    }
+
+    func reconcileAccountSetup(isSignedIn: Bool) {
+        guard !Self.isUITesting else { return }
+        guard isSignedIn else {
+            switch initialOnboardingStep {
+            case .welcome, .importData, .space:
+                break
+            case .account, .tour, .none:
+                setInitialOnboardingStep(.account)
+            }
+            return
+        }
+        guard isInitialAccountSetupPresented else { return }
 
         if needsInitialSpaceSetup() {
             setInitialOnboardingStep(.space)
-        } else {
+        } else if !UserDefaults.standard.bool(forKey: Self.hasCompletedTourKey) {
             setInitialOnboardingStep(.tour)
+        } else {
+            setInitialOnboardingStep(nil)
         }
-    }
-
-    func skipInitialAccountSetup() {
-        guard isInitialAccountSetupPresented else { return }
-        setInitialOnboardingStep(needsInitialSpaceSetup() ? .space : .tour)
     }
 
     func completeInitialWelcome() {

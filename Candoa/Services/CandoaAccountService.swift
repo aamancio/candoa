@@ -1,3 +1,6 @@
+import AppKit
+import AuthenticationServices
+import CryptoKit
 import Foundation
 import Security
 
@@ -105,6 +108,28 @@ enum CandoaCloudAPI {
         return response.accessToken
     }
 
+    static func appleWebAuthenticationURL(codeChallenge: String) -> URL {
+        var components = URLComponents(
+            url: endpoint("auth/apple/web/start"),
+            resolvingAgainstBaseURL: false
+        )!
+        components.queryItems = [URLQueryItem(name: "code_challenge", value: codeChallenge)]
+        return components.url!
+    }
+
+    static func exchangeAppleWebAuthenticationCode(
+        _ code: String,
+        codeVerifier: String
+    ) async throws -> String {
+        let response: CandoaSessionResponse = try await request(
+            endpoint("auth/apple/web/exchange"),
+            method: "POST",
+            body: AppleWebAuthenticationExchangeRequest(code: code, codeVerifier: codeVerifier),
+            accessToken: nil
+        )
+        return response.accessToken
+    }
+
     static func accountStatus(accessToken: String) async throws -> CandoaAccountStatus {
         try await request(endpoint("account"), method: "GET", body: Optional<String>.none, accessToken: accessToken)
     }
@@ -170,6 +195,11 @@ enum CandoaCloudAPI {
         let nonce: String
     }
 
+    private struct AppleWebAuthenticationExchangeRequest: Encodable {
+        let code: String
+        let codeVerifier: String
+    }
+
     private struct CandoaSessionResponse: Decodable {
         let accessToken: String
     }
@@ -184,6 +214,93 @@ enum CandoaCloudAPI {
 
     private struct CandoaErrorResponse: Decodable {
         let error: String?
+    }
+}
+
+@MainActor
+final class CandoaAppleWebAuthenticationService: NSObject,
+    ASWebAuthenticationPresentationContextProviding {
+    private static let callbackScheme = "candoa-auth"
+
+    private var webAuthenticationSession: ASWebAuthenticationSession?
+
+    var isAuthenticating: Bool { webAuthenticationSession != nil }
+
+    func authenticate() async throws -> String {
+        guard webAuthenticationSession == nil else {
+            throw CandoaAccountError.authenticationInProgress
+        }
+
+        let codeVerifier = try makeCodeVerifier()
+        let codeChallenge = Data(SHA256.hash(data: Data(codeVerifier.utf8))).base64URLEncodedString()
+        let startURL = CandoaCloudAPI.appleWebAuthenticationURL(codeChallenge: codeChallenge)
+        let callbackURL = try await authorizationCallbackURL(startURL: startURL)
+        let components = URLComponents(url: callbackURL, resolvingAgainstBaseURL: false)
+
+        if components?.queryItems?.first(where: { $0.name == "error" })?.value == "cancelled" {
+            throw CandoaAccountError.appleSignInCancelled
+        }
+        guard let code = components?.queryItems?.first(where: { $0.name == "code" })?.value,
+              !code.isEmpty else {
+            throw CandoaAccountError.appleSignInFailed
+        }
+
+        return try await CandoaCloudAPI.exchangeAppleWebAuthenticationCode(
+            code,
+            codeVerifier: codeVerifier
+        )
+    }
+
+    func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
+        NSApp.keyWindow ?? NSApp.windows.first(where: { $0.isVisible }) ?? NSWindow()
+    }
+
+    private func authorizationCallbackURL(startURL: URL) async throws -> URL {
+        try await withCheckedThrowingContinuation { continuation in
+            let session = ASWebAuthenticationSession(
+                url: startURL,
+                callbackURLScheme: Self.callbackScheme
+            ) { [weak self] callbackURL, error in
+                Task { @MainActor in
+                    self?.webAuthenticationSession = nil
+                    if let authenticationError = error as? ASWebAuthenticationSessionError,
+                       authenticationError.code == .canceledLogin {
+                        continuation.resume(throwing: CandoaAccountError.appleSignInCancelled)
+                    } else if let error {
+                        continuation.resume(throwing: error)
+                    } else if let callbackURL {
+                        continuation.resume(returning: callbackURL)
+                    } else {
+                        continuation.resume(throwing: CandoaAccountError.appleSignInFailed)
+                    }
+                }
+            }
+            session.presentationContextProvider = self
+            session.prefersEphemeralWebBrowserSession = false
+            webAuthenticationSession = session
+            guard session.start() else {
+                webAuthenticationSession = nil
+                continuation.resume(throwing: CandoaAccountError.appleSignInFailed)
+                return
+            }
+        }
+    }
+
+    private func makeCodeVerifier() throws -> String {
+        var bytes = [UInt8](repeating: 0, count: 32)
+        guard SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes) == errSecSuccess else {
+            throw CandoaAccountError.appleSignInFailed
+        }
+        return Data(bytes).base64URLEncodedString()
+    }
+}
+
+private extension Data {
+    func base64URLEncodedString() -> String {
+        base64EncodedString()
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "=", with: "")
     }
 }
 
@@ -216,6 +333,9 @@ struct CandoaAccountService {
 }
 
 enum CandoaAccountError: LocalizedError {
+    case appleSignInCancelled
+    case appleSignInFailed
+    case authenticationInProgress
     case invalidResponse
     case keychainUnavailable
     case server(String)
@@ -230,6 +350,12 @@ enum CandoaAccountError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
+        case .appleSignInCancelled:
+            return nil
+        case .appleSignInFailed:
+            return "Apple sign-in was not completed. Please try again."
+        case .authenticationInProgress:
+            return "Apple sign-in is already in progress."
         case .invalidResponse:
             return "Candoa returned an invalid response."
         case .keychainUnavailable:

@@ -373,9 +373,6 @@ final class BrowserStore: ObservableObject {
                 .flatMap(InitialOnboardingStep.init(rawValue:))
             let resumableStep: InitialOnboardingStep
             switch storedStep {
-            case .account where CandoaAccountKeychain.accessToken != nil
-                || !CandoaDistributionCapabilities.supportsNativeAppleSignIn:
-                resumableStep = .tour
             case .tour:
                 resumableStep = .space
             case .welcome, .account, .importData, .space:
@@ -384,11 +381,9 @@ final class BrowserStore: ObservableObject {
                 resumableStep = .welcome
             }
             setInitialOnboardingStep(resumableStep)
-        } else if !UserDefaults.standard.bool(forKey: Self.hasCompletedTourKey),
-                  UserDefaults.standard.string(forKey: Self.onboardingStepKey) == InitialOnboardingStep.tour.rawValue {
-            setInitialOnboardingStep(.tour)
-        } else if CandoaAccountKeychain.accessToken == nil,
-                  CandoaDistributionCapabilities.supportsNativeAppleSignIn {
+        } else {
+            // A stored credential is not enough to enter the browser. Keep the
+            // account gate up until UserStore verifies the session with Cloud.
             setInitialOnboardingStep(.account)
         }
         if restoresWebViews {
