@@ -61,7 +61,7 @@ struct SpaceSwitcherView: View {
                 .background(bottomButtonBackground(isActive: isDownloadsPresented, isHovering: isHoveringDownloads))
                 .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .candoaButton(.content)
         .onHover { isHoveringDownloads = $0 }
         .help("Downloads")
         .popover(isPresented: $isDownloadsPresented, arrowEdge: .bottom) {
@@ -83,7 +83,7 @@ struct SpaceSwitcherView: View {
                 .background(bottomButtonBackground(isActive: isActionMenuPresented, isHovering: isHoveringAddSpace))
                 .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .candoaButton(.content)
         .onHover { isHoveringAddSpace = $0 }
         .animation(.easeOut(duration: 0.10), value: isHoveringAddSpace)
         .help("New Space")
@@ -106,7 +106,7 @@ struct SpaceSwitcherView: View {
 
     private func workspaceButton(for space: BrowserSpace) -> some View {
         let isActive = space.id == store.activeSpaceID
-        let themeColor = Color(spaceHex: space.themeColorHex ?? "#8A8F98")
+        let themeColor = CandoaThemeStyle.identityColor(for: space.themeColorHex)
 
         return Button {
             store.switchSpace(to: space.id)
@@ -135,7 +135,7 @@ struct SpaceSwitcherView: View {
             .frame(width: 22, height: 28)
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .candoaButton(.content)
         .help(space.name)
         .contextMenu {
             Button("Edit Space...") {
@@ -313,7 +313,7 @@ private struct DownloadItemRow: View {
             .padding(.vertical, 6)
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .candoaButton(.content)
         .background(isHovering ? Color.primary.opacity(0.05) : Color.clear)
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         .onHover { isHovering = $0 }
@@ -362,7 +362,7 @@ private struct DownloadsPopoverRow: View {
                 .padding(.vertical, 7)
                 .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .candoaButton(.content)
         .background(isHovering ? Color.primary.opacity(0.05) : Color.clear)
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         .onHover { isHovering = $0 }
@@ -428,7 +428,7 @@ private struct SpaceActionMenuRow: View {
                 .padding(.vertical, 7)
                 .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .candoaButton(.content)
         .background(isHovering && isEnabled ? Color.primary.opacity(0.05) : Color.clear)
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         .onHover { isHovering = $0 }

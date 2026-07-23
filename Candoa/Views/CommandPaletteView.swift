@@ -12,7 +12,7 @@ struct CommandPaletteView: View {
     @AppStorage(CandoaSettingsOption.defaultSearchProvider) internal var defaultSearchProvider = NavigationService.searchProviders.first?.id ?? "google"
 
     /// The shared Candoa primary used by search focus and default selections.
-    static var paletteTint: Color { CandoaColor.primary }
+    static var paletteTint: Color { CandoaColor.accent }
     internal static let maxVisibleCommandCount = 6
     internal static let commandRowHeight: CGFloat = 46
     internal static let commandRowSpacing: CGFloat = 7

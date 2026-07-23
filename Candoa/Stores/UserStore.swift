@@ -8,11 +8,20 @@ final class UserStore: ObservableObject {
     @Published private(set) var isWorking = false
     @Published private(set) var errorMessage: String?
     @Published private(set) var isSignedIn: Bool
+    @Published private(set) var hasCloudSession: Bool
+    @Published private(set) var isLocalOnly: Bool
+    @Published private(set) var hasCompletedAccountChoice: Bool
 
     private let accountService: CandoaAccountService
     private let appleAuthenticationService: CandoaAppleWebAuthenticationService
 
     var hasActiveSubscription: Bool { status?.hasActiveSubscription == true }
+
+    static var hasStoredAccountChoice: Bool {
+        UserDefaults.standard.bool(forKey: accountChoiceKey)
+    }
+
+    private static let accountChoiceKey = "Candoa.HasCompletedAccountChoice"
 
     init(
         accountService: CandoaAccountService = CandoaAccountService(),
@@ -21,11 +30,15 @@ final class UserStore: ObservableObject {
     ) {
         self.accountService = accountService
         self.appleAuthenticationService = appleAuthenticationService
+        let hasStoredToken = accountService.accessToken != nil
         isSignedIn = false
+        hasCloudSession = hasStoredToken
+        isLocalOnly = false
+        hasCompletedAccountChoice = hasStoredToken || Self.hasStoredAccountChoice
         let environment = ProcessInfo.processInfo.environment
         isWorking = environment["CANDOA_UI_TESTING"] == "1"
             ? environment["CANDOA_UI_TESTING_APPLE_SIGN_IN_WORKING"] == "1"
-            : accountService.accessToken != nil
+            : hasStoredToken
     }
 
     func restoreSessionIfNeeded() async {
@@ -33,29 +46,24 @@ final class UserStore: ObservableObject {
         guard accountService.accessToken != nil else {
             isWorking = false
             isSignedIn = false
+            hasCloudSession = false
+            isLocalOnly = hasCompletedAccountChoice
             return
         }
         await refresh()
     }
 
-    func signInWithApple() {
-        guard !isWorking, !appleAuthenticationService.isAuthenticating else { return }
-        isWorking = true
+    func continueOnThisMac() {
+        guard !isWorking else { return }
+        markAccountChoiceCompleted()
+        isSignedIn = false
+        isLocalOnly = true
         errorMessage = nil
+    }
+
+    func signInWithApple() {
         Task {
-            do {
-                let accessToken = try await appleAuthenticationService.authenticate()
-                try accountService.saveAccessToken(accessToken)
-                isSignedIn = true
-                await refresh()
-            } catch {
-                isWorking = false
-                if case CandoaAccountError.appleSignInCancelled = error {
-                    errorMessage = nil
-                } else {
-                    errorMessage = error.localizedDescription
-                }
-            }
+            _ = await authenticateWithApple()
         }
     }
 
@@ -63,26 +71,36 @@ final class UserStore: ObservableObject {
         guard let accessToken = accountService.accessToken else {
             status = nil
             isSignedIn = false
+            hasCloudSession = false
             return
         }
 
         isWorking = true
         defer { isWorking = false }
         do {
-            status = try await accountService.accountStatus(accessToken: accessToken)
-            isSignedIn = true
+            try await loadSession(accessToken: accessToken)
+            if isSignedIn {
+                try await refreshAccountStatus(accessToken: accessToken)
+            } else {
+                status = nil
+            }
             errorMessage = nil
         } catch {
             status = nil
             if (error as? CandoaAccountError)?.isAuthenticationFailure == true {
                 try? accountService.removeAccessToken()
                 isSignedIn = false
+                hasCloudSession = false
+                isLocalOnly = hasCompletedAccountChoice
             }
             errorMessage = error.localizedDescription
         }
     }
 
     func startProCheckout() async {
+        if !isSignedIn {
+            guard await authenticateWithApple() else { return }
+        }
         await openBillingURL { accessToken in
             try await accountService.proCheckoutURL(accessToken: accessToken)
         }
@@ -95,14 +113,22 @@ final class UserStore: ObservableObject {
     }
 
     func signOut() {
+        let accessToken = accountService.accessToken
         try? accountService.removeAccessToken()
         isSignedIn = false
+        hasCloudSession = false
+        isLocalOnly = true
         status = nil
         errorMessage = nil
+        if let accessToken {
+            Task {
+                try? await accountService.signOut(accessToken: accessToken)
+            }
+        }
     }
 
     private func openBillingURL(_ operation: (String) async throws -> URL) async {
-        guard let accessToken = accountService.accessToken else {
+        guard isSignedIn, let accessToken = accountService.accessToken else {
             errorMessage = "Sign in with Apple before managing Candoa billing."
             return
         }
@@ -115,5 +141,49 @@ final class UserStore: ObservableObject {
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    private func authenticateWithApple() async -> Bool {
+        guard !isWorking, !appleAuthenticationService.isAuthenticating else { return false }
+        isWorking = true
+        errorMessage = nil
+        defer { isWorking = false }
+
+        do {
+            let accessToken = try await appleAuthenticationService.authenticate(
+                accessToken: accountService.accessToken
+            )
+            try accountService.saveAccessToken(accessToken)
+            markAccountChoiceCompleted()
+            try await loadSession(accessToken: accessToken)
+            guard isSignedIn else {
+                throw CandoaAccountError.appleSignInFailed
+            }
+            try await refreshAccountStatus(accessToken: accessToken)
+            return true
+        } catch {
+            if case CandoaAccountError.appleSignInCancelled = error {
+                errorMessage = nil
+            } else {
+                errorMessage = error.localizedDescription
+            }
+            return false
+        }
+    }
+
+    private func loadSession(accessToken: String) async throws {
+        _ = try await accountService.session(accessToken: accessToken)
+        hasCloudSession = true
+        isLocalOnly = false
+        isSignedIn = true
+    }
+
+    private func refreshAccountStatus(accessToken: String) async throws {
+        status = try await accountService.accountStatus(accessToken: accessToken)
+    }
+
+    private func markAccountChoiceCompleted() {
+        UserDefaults.standard.set(true, forKey: Self.accountChoiceKey)
+        hasCompletedAccountChoice = true
     }
 }

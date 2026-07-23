@@ -329,18 +329,18 @@ internal struct DockIconChoice: View {
 
                 Text(preference.title)
                     .font(.system(size: 12))
-                    .foregroundStyle(isSelected ? CandoaColor.primary : Color.primary)
+                    .foregroundStyle(isSelected ? CandoaColor.accent : Color.primary)
             }
             .padding(10)
             .frame(width: 124)
-            .background(isSelected ? CandoaColor.primary.opacity(0.12) : Color(nsColor: .controlBackgroundColor))
+            .background(isSelected ? CandoaColor.accent.opacity(0.12) : Color(nsColor: .controlBackgroundColor))
             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
                     .stroke(isSelected ? CandoaColor.focusRing : Color.primary.opacity(0.08), lineWidth: 1)
             }
         }
-        .buttonStyle(.plain)
+        .candoaButton(.content)
         .help(preference.title)
     }
 }
@@ -393,7 +393,7 @@ internal struct ShortcutSettingsRow: View {
                     .font(.system(size: 12, weight: .medium, design: .rounded))
                     .frame(minWidth: 132)
             }
-            .buttonStyle(.bordered)
+            .candoaButton(.secondary)
             .controlSize(.small)
             .help("Set Shortcut")
 
@@ -403,7 +403,7 @@ internal struct ShortcutSettingsRow: View {
                 Image(systemName: isRemoved ? "plus" : "minus")
                     .frame(width: 16, height: 16)
             }
-            .buttonStyle(.borderless)
+            .candoaButton(.chrome)
             .controlSize(.small)
             .help(isRemoved ? "Restore Shortcut" : "Remove Shortcut")
 
@@ -413,7 +413,7 @@ internal struct ShortcutSettingsRow: View {
                 Image(systemName: "arrow.counterclockwise")
                     .frame(width: 16, height: 16)
             }
-            .buttonStyle(.borderless)
+            .candoaButton(.chrome)
             .controlSize(.small)
             .disabled(storedShortcut.isEmpty)
             .help("Reset to Default")

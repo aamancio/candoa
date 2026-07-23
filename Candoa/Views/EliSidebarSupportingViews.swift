@@ -51,7 +51,7 @@ struct AISidebarImagePreviewSheet: View {
                         .symbolRenderingMode(.monochrome)
                         .foregroundStyle(Color(nsColor: .secondaryLabelColor))
                 }
-                .buttonStyle(.plain)
+                .candoaButton(.content)
                 .help("Close Preview")
                 .keyboardShortcut(.cancelAction)
                 .accessibilityLabel("Close image preview")

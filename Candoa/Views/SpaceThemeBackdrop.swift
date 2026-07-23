@@ -68,6 +68,7 @@ struct CandoaSidebarBackdrop: View {
     var body: some View {
         if store.activeThemeColorHexes.isEmpty {
             CandoaInterfaceStyle.sidebarBackground
+                .overlay(CandoaInterfaceStyle.sidebarSurfaceOverlay)
         } else {
             CandoaWindowBackdrop(store: store)
                 .overlay(CandoaInterfaceStyle.sidebarSurfaceOverlay)

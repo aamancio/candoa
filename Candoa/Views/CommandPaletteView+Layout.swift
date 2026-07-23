@@ -60,7 +60,7 @@ extension CommandPaletteView {
                                 selectedTint: activeTint
                             )
                         }
-                        .buttonStyle(.plain)
+                        .candoaButton(.content)
                     }
                 }
                 .padding(.horizontal, 12)

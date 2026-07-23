@@ -87,7 +87,7 @@ private struct InitialTourPopover: View {
             HStack(spacing: 10) {
                 Image(systemName: tip.symbolName)
                     .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(CandoaColor.primary)
+                    .foregroundStyle(CandoaInterfaceStyle.decorativeSymbol)
                     .frame(width: 28, height: 28)
 
                 Text(tip.title)
@@ -110,8 +110,7 @@ private struct InitialTourPopover: View {
                 Button(String(localized: "Skip Tour")) {
                     store.completeInitialTour()
                 }
-                .buttonStyle(.plain)
-                .foregroundStyle(.secondary)
+                .candoaButton(.quiet)
 
                 Spacer()
 
@@ -119,11 +118,13 @@ private struct InitialTourPopover: View {
                     Button(String(localized: "Back")) {
                         store.showPreviousInitialTourTip()
                     }
+                    .candoaButton(.secondary)
                 }
 
                 Button(isLastTip ? String(localized: "Done") : String(localized: "Next")) {
                     store.showNextInitialTourTip()
                 }
+                .candoaButton(.primary)
                 .keyboardShortcut(.defaultAction)
             }
         }
@@ -245,7 +246,7 @@ struct WelcomeToCandoaPage: View {
             VStack(alignment: .leading, spacing: 9) {
                 Image(systemName: symbolName)
                     .font(.system(size: 20, weight: .medium))
-                    .foregroundStyle(CandoaColor.primary)
+                    .foregroundStyle(CandoaInterfaceStyle.decorativeSymbol)
 
                 Text(title)
                     .font(.headline)
@@ -294,7 +295,7 @@ private struct WelcomeOnboardingStep: View {
                     Label("Begin Setup", systemImage: "arrow.right")
                         .frame(minWidth: 116)
                 }
-                .buttonStyle(.borderedProminent)
+                .candoaButton(.primary)
                 .controlSize(.large)
                 .keyboardShortcut(.defaultAction)
                 .opacity(revealsAction ? 1 : 0)
@@ -303,8 +304,8 @@ private struct WelcomeOnboardingStep: View {
                 .padding(.bottom, 62)
             }
         }
-        .background(CandoaInterfaceStyle.surfaceFill)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(CandoaInterfaceStyle.surfaceFill)
         .accessibilityIdentifier("initial-onboarding-welcome")
         .task {
             guard !revealsAction else { return }
@@ -340,9 +341,9 @@ private struct AccountOnboardingStep: View {
         OnboardingSurface(step: .account, onBack: store.goBackInInitialOnboarding) {
             VStack(alignment: .leading, spacing: 18) {
                 OnboardingPageHeader(
-                    symbolName: "person.crop.circle.badge.checkmark",
-                    title: "Finish setting up Candoa",
-                    detail: "Continue with Apple to enter Candoa."
+                    symbolName: "person.crop.circle",
+                    title: "Choose how to continue",
+                    detail: "Use Candoa on this Mac now, or connect Apple for subscriptions and future account features."
                 )
 
                 Spacer(minLength: 24)
@@ -359,7 +360,7 @@ private struct AccountOnboardingStep: View {
                             }
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                         }
-                        .buttonStyle(.borderedProminent)
+                        .candoaButton(.primary)
                         .tint(.black)
                         .controlSize(.large)
                         .disabled(true)
@@ -372,6 +373,15 @@ private struct AccountOnboardingStep: View {
                 }
                 .frame(height: 44)
 
+                Button(String(localized: "Not Now")) {
+                    userStore.continueOnThisMac()
+                }
+                .candoaButton(.quiet)
+                .controlSize(.large)
+                .frame(maxWidth: .infinity)
+                .disabled(userStore.isWorking)
+                .accessibilityIdentifier("onboarding-continue-on-this-mac")
+
                 if let errorMessage = userStore.errorMessage, !userStore.isWorking {
                     Text(errorMessage)
                         .font(.system(size: 12))
@@ -379,7 +389,7 @@ private struct AccountOnboardingStep: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
-                Text("Apple opens a secure sign-in window. Candoa never sees your Apple Account password.")
+                Text("Your history, bookmarks, and Spaces stay on this Mac either way. Apple opens a secure sign-in window, and Candoa never sees your Apple Account password.")
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -387,8 +397,8 @@ private struct AccountOnboardingStep: View {
         } preview: {
             OnboardingAccountPreview()
         }
-        .onChange(of: userStore.isSignedIn) { _, isSignedIn in
-            if isSignedIn {
+        .onChange(of: userStore.hasCompletedAccountChoice) { _, hasCompletedAccountChoice in
+            if hasCompletedAccountChoice {
                 store.completeInitialAccountSetup()
             }
         }
@@ -492,21 +502,18 @@ private struct ImportOnboardingStep: View {
                     }
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.borderedProminent)
+                .candoaButton(.primary)
                 .controlSize(.large)
                 .keyboardShortcut(.defaultAction)
                 .disabled(isImporting)
                 .accessibilityIdentifier("onboarding-import-bookmarks")
 
-                Button {
+                Button(String(localized: "Skip")) {
                     store.completeInitialImport()
-                } label: {
-                    Text("Skip")
-                        .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.bordered)
-                .tint(.secondary)
+                .candoaButton(.quiet)
                 .controlSize(.large)
+                .frame(maxWidth: .infinity)
             }
         } preview: {
             OnboardingImportPreview()
@@ -697,9 +704,8 @@ private struct OnboardingSurface<Leading: View, Preview: View>: View {
                 Button(action: onBack) {
                     Label("Back", systemImage: "chevron.left")
                 }
-                .buttonStyle(.plain)
+                .candoaButton(.quiet)
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.secondary)
                 .help("Back")
                 .accessibilityIdentifier("onboarding-back")
             } else {
@@ -733,7 +739,7 @@ private struct OnboardingPageHeader: View {
         VStack(alignment: .leading, spacing: 16) {
             Image(systemName: symbolName)
                 .font(.system(size: 26, weight: .medium))
-                .foregroundStyle(CandoaColor.primary)
+                .foregroundStyle(CandoaInterfaceStyle.decorativeSymbol)
 
             Text(title)
                 .font(.system(size: 30, weight: .semibold))
@@ -750,10 +756,10 @@ private struct OnboardingPageHeader: View {
 private struct OnboardingAccountPreview: View {
     var body: some View {
         VStack(spacing: 22) {
-            Image(systemName: "person.crop.circle.badge.checkmark")
+            Image(systemName: "person.crop.circle")
                 .font(.system(size: 54, weight: .regular))
                 .symbolRenderingMode(.hierarchical)
-                .foregroundStyle(CandoaColor.primary)
+                .foregroundStyle(CandoaInterfaceStyle.decorativeSymbol)
 
             VStack(spacing: 7) {
                 Text("Your Candoa account")

@@ -24,7 +24,7 @@ internal struct GeneralSettingsPane: View {
                         Button("Open Settings") {
                             NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Desktop-Settings.extension")!)
                         }
-                        .buttonStyle(.bordered)
+                        .candoaButton(.secondary)
                         .controlSize(.small)
                     }
                 }

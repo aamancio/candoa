@@ -14,6 +14,7 @@ struct ContentView: View {
     @EnvironmentObject private var userStore: UserStore
     @AppStorage(CandoaSettingsOption.websiteAppearance) private var websiteAppearanceValue =
         WebsiteAppearance.dark.rawValue
+    @AppStorage(DeveloperModeConfiguration.storageKey) private var developerModeOverrides = ""
     @SceneStorage("candoa.windowAutosaveID") private var windowAutosaveID = UUID().uuidString
     @State private var isSidebarVisible = true
     @State private var isSidebarHoverRevealed = false
@@ -106,7 +107,7 @@ struct ContentView: View {
                         )
                         .id(store.activeSpaceID)
                         .padding(.leading, isSidebarVisible ? sidebarTotalWidth : 0)
-                        .tint(CandoaColor.primary)
+                        .tint(CandoaColor.accent)
                     } else {
                         // Keep the WebKit host at one stable width when the left
                         // or right sidebar toggles. WebKit paints through a remote
@@ -220,7 +221,6 @@ struct ContentView: View {
                 if let toast = store.copiedURLToast {
                     CopiedURLToastView(
                         toast: toast,
-                        themeColorHex: store.activeThemeColorHexes.first,
                         onShareInteractionChanged: { store.setCopiedURLToastSharing($0) }
                     )
                     .onHover { store.setCopiedURLToastHovered($0) }
@@ -371,7 +371,9 @@ struct ContentView: View {
         }
         .task {
             await userStore.restoreSessionIfNeeded()
-            store.reconcileAccountSetup(isSignedIn: userStore.isSignedIn)
+            store.reconcileAccountSetup(
+                hasCompletedAccountChoice: userStore.hasCompletedAccountChoice
+            )
         }
         .onOpenURL { url in
             store.openExternalURL(url)
@@ -385,8 +387,10 @@ struct ContentView: View {
                 store.flushSession()
             }
         }
-        .onChange(of: userStore.isSignedIn) { _, isSignedIn in
-            store.reconcileAccountSetup(isSignedIn: isSignedIn)
+        .onChange(of: userStore.hasCompletedAccountChoice) { _, hasCompletedAccountChoice in
+            store.reconcileAccountSetup(
+                hasCompletedAccountChoice: hasCompletedAccountChoice
+            )
         }
         .onChange(of: websiteAppearanceValue) { _, _ in
             applyWebsiteAppearance()
@@ -428,7 +432,9 @@ struct ContentView: View {
             focusAddressBar: store.focusAddressBar,
             openCommandPalette: store.openCommandPalette,
             toggleSidebar: toggleSidebar,
+            isSidebarVisible: isSidebarVisible,
             toggleAISidebar: toggleAISidebar,
+            isAISidebarVisible: isAISidebarVisible,
             showHistory: showHistory,
             isHistoryVisible: isHistoryPresented,
             showQuickTour: showQuickTour,
@@ -442,6 +448,8 @@ struct ContentView: View {
             previousSpace: store.switchToPreviousSpace,
             reopenClosedTab: store.reopenLastClosedTab,
             pinOrUnpinTab: store.togglePinForActiveTab,
+            isActiveTabPinned: store.activeTab?.isPinned == true,
+            duplicateTab: store.duplicateCurrentTab,
             clearUnpinnedTabs: store.clearUnpinnedTabs,
             copyURL: { store.copyActiveTabURL() },
             copyURLAsMarkdown: { store.copyActiveTabURL(asMarkdown: true) },
@@ -456,7 +464,18 @@ struct ContentView: View {
             isWorkspaceICloudSyncEnabled: store.iCloudWorkspaceSyncEnabled,
             isHistoryICloudSyncEnabled: store.iCloudHistorySyncEnabled,
             setWorkspaceICloudSyncEnabled: store.setWorkspaceICloudSyncEnabled,
-            setHistoryICloudSyncEnabled: store.setHistoryICloudSyncEnabled
+            setHistoryICloudSyncEnabled: store.setHistoryICloudSyncEnabled,
+            isDeveloperModeAvailable: store.activeTab?.url != nil,
+            isDeveloperModeEnabled: store.activeTab?.url.map {
+                DeveloperModeConfiguration.isEnabled(
+                    for: $0,
+                    storedOverrides: developerModeOverrides
+                )
+            } ?? false,
+            setDeveloperMode: { isEnabled in
+                guard let url = store.activeTab?.url else { return }
+                store.setDeveloperMode(isEnabled, for: url)
+            }
         )
     }
 

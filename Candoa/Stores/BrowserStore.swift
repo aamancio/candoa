@@ -382,9 +382,15 @@ final class BrowserStore: ObservableObject {
             }
             setInitialOnboardingStep(resumableStep)
         } else {
-            // A stored credential is not enough to enter the browser. Keep the
-            // account gate up until UserStore verifies the session with Cloud.
-            setInitialOnboardingStep(.account)
+            let hasAccountChoice = CandoaAccountKeychain.accessToken != nil
+                || UserStore.hasStoredAccountChoice
+            if !hasAccountChoice {
+                setInitialOnboardingStep(.account)
+            } else if !UserDefaults.standard.bool(forKey: Self.hasCompletedTourKey) {
+                setInitialOnboardingStep(.tour)
+            } else {
+                setInitialOnboardingStep(nil)
+            }
         }
         if restoresWebViews {
             restoreVisibleWebViews()

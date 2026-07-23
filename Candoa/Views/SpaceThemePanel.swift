@@ -148,7 +148,7 @@ internal struct SpaceThemePanel: View {
                                 .fill(selectedAppearance == option ? Color.primary.opacity(0.13) : Color.clear)
                         )
                 }
-                .buttonStyle(.plain)
+                .candoaButton(.content)
                 .help(option.title)
             }
         }
@@ -236,7 +236,7 @@ internal struct SpaceThemePanel: View {
                                 .padding(-1)
                         }
                 }
-                .buttonStyle(.plain)
+                .candoaButton(.content)
                 .help(option.name)
             }
 

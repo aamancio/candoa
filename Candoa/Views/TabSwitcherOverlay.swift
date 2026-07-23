@@ -163,12 +163,12 @@ private struct TabSwitcherPreviewCard: View {
         .frame(width: cardWidth)
         .background(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(isSelected ? CandoaColor.primary.opacity(0.20) : CandoaInterfaceStyle.surfaceFill.opacity(0.72))
+                .fill(isSelected ? CandoaColor.accent.opacity(0.20) : CandoaInterfaceStyle.surfaceFill.opacity(0.72))
         )
         .overlay {
             RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .stroke(
-                    isSelected ? CandoaColor.primary.opacity(0.92) : CandoaInterfaceStyle.surfaceBorder.opacity(0.72),
+                    isSelected ? CandoaColor.accent.opacity(0.92) : CandoaInterfaceStyle.surfaceBorder.opacity(0.72),
                     lineWidth: isSelected ? 2 : 1
                 )
         }

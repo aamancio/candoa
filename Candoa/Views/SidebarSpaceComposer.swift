@@ -15,7 +15,6 @@ internal struct UpsertSpaceSidebarComposer: View {
     @State private var isIconPickerPresented = false
     @State private var isProfilePickerPresented = false
     @State private var isThemeEditorPresented = false
-    @State private var isHoveringPrimaryButton = false
     @FocusState private var isNameFocused: Bool
 
     private let themeOptions: [(name: String, hex: String)] = [
@@ -54,24 +53,6 @@ internal struct UpsertSpaceSidebarComposer: View {
         usesDarkForeground ? Color.black : Color.white
     }
 
-    private var primaryButtonTintHex: String {
-        themeColorHex ?? BrowserSpace.blueThemeColorHex
-    }
-
-    private var primaryButtonUsesDarkForeground: Bool {
-        CandoaInterfaceStyle.prefersDarkForeground(forSpaceHex: primaryButtonTintHex)
-    }
-
-    private var primaryButtonForegroundBase: Color {
-        primaryButtonUsesDarkForeground ? Color.black : Color.white
-    }
-
-    private var usesCandoaPrimary: Bool {
-        primaryButtonTintHex.caseInsensitiveCompare(
-            BrowserSpace.blueThemeColorHex
-        ) == .orderedSame
-    }
-
     private var textColor: Color {
         isThemePreviewActive ? foregroundBase.opacity(usesDarkForeground ? 0.82 : 0.88) : CandoaInterfaceStyle.sidebarText
     }
@@ -104,24 +85,6 @@ internal struct UpsertSpaceSidebarComposer: View {
         isThemePreviewActive ? foregroundBase.opacity(usesDarkForeground ? 0.08 : 0.10) : CandoaInterfaceStyle.spaceSetupPillFill
     }
 
-    private var createButtonTextColor: Color {
-        if trimmedName.isEmpty {
-            return isThemePreviewActive
-                ? secondaryTextColor
-                : CandoaInterfaceStyle.primaryActionDisabledText
-        }
-
-        guard themeColorHex != nil else {
-            return CandoaInterfaceStyle.primaryActionText
-        }
-
-        if usesCandoaPrimary {
-            return CandoaColor.primaryForeground.opacity(0.92)
-        }
-
-        return primaryButtonForegroundBase.opacity(primaryButtonUsesDarkForeground ? 0.82 : 0.92)
-    }
-
     private var themeAppearanceSelection: Binding<SpaceThemeAppearance> {
         Binding {
             themeAppearance
@@ -129,28 +92,6 @@ internal struct UpsertSpaceSidebarComposer: View {
             themeAppearance = newAppearance
             store.previewSpaceThemeAppearance(newAppearance)
         }
-    }
-
-    private var createButtonBackground: Color {
-        if trimmedName.isEmpty {
-            return isThemePreviewActive
-                ? secondaryControlFill
-                : CandoaInterfaceStyle.primaryActionDisabledFill
-        }
-
-        guard themeColorHex != nil else {
-            return CandoaInterfaceStyle.primaryActionFill.opacity(isHoveringPrimaryButton ? 1 : 0.88)
-        }
-
-        if usesCandoaPrimary {
-            return (isHoveringPrimaryButton
-                ? CandoaColor.primaryHover
-                : CandoaColor.primary)
-                .opacity(1)
-        }
-
-        return Color(spaceHex: primaryButtonTintHex)
-            .opacity(0.86)
     }
 
     init(store: BrowserStore, mode: SpaceComposerMode = .create) {
@@ -182,19 +123,12 @@ internal struct UpsertSpaceSidebarComposer: View {
                 createSpace()
             } label: {
                 Text(mode.primaryButtonTitle)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(createButtonTextColor)
                     .frame(maxWidth: .infinity)
-                    .frame(height: 36)
-                    .background(createButtonBackground)
-                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                    .contentShape(Rectangle())
             }
-            .buttonStyle(CandoaPrimaryActionButtonStyle())
+            .candoaButton(.primary)
+            .controlSize(.large)
             .frame(maxWidth: .infinity)
             .disabled(trimmedName.isEmpty)
-            .onHover { isHoveringPrimaryButton = $0 }
-            .animation(.easeOut(duration: 0.10), value: isHoveringPrimaryButton)
             .accessibilityIdentifier("space-primary-button")
 
             if mode != .initial {
@@ -206,7 +140,7 @@ internal struct UpsertSpaceSidebarComposer: View {
                         store.isCreateSpacePresented = false
                     }
                 }
-                .buttonStyle(.plain)
+                .candoaButton(.quiet)
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(isThemePreviewActive ? foregroundBase.opacity(usesDarkForeground ? 0.78 : 0.82) : Color.primary.opacity(0.86))
                 .frame(maxWidth: .infinity)
@@ -281,7 +215,7 @@ internal struct UpsertSpaceSidebarComposer: View {
                         : CandoaInterfaceStyle.sidebarIcon.opacity(0.78)
                 )
             }
-            .buttonStyle(.plain)
+            .candoaButton(.content)
             .help("Change Icon")
             .popover(isPresented: $isIconPickerPresented, arrowEdge: .leading) {
                 SpaceIconPicker(
@@ -350,7 +284,7 @@ internal struct UpsertSpaceSidebarComposer: View {
                     .background(pillFill)
                     .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
             }
-            .buttonStyle(.plain)
+            .candoaButton(.content)
             .popover(isPresented: $isProfilePickerPresented, arrowEdge: .trailing) {
                 SpaceProfilePicker(
                     selectedMode: $dataMode,
@@ -395,7 +329,7 @@ internal struct UpsertSpaceSidebarComposer: View {
                     .stroke(controlStroke, lineWidth: 1)
             }
         }
-        .buttonStyle(.plain)
+        .candoaButton(.content)
         .popover(isPresented: $isThemeEditorPresented, arrowEdge: .trailing) {
             SpaceThemePanel(
                 selectedHex: $themeColorHex,

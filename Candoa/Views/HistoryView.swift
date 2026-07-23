@@ -109,7 +109,7 @@ struct HistoryView: View {
             Button("Clear History…") {
                 presentClearHistoryAlert()
             }
-            .buttonStyle(.bordered)
+            .candoaButton(.secondary)
             .tint(.primary)
             .disabled(store.isLoading || !store.hasHistory)
 
@@ -174,6 +174,7 @@ struct HistoryView: View {
                         Button("Load More") {
                             store.loadMore()
                         }
+                        .candoaButton(.secondary)
                     }
                     Spacer()
                 }

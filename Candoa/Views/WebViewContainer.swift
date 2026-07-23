@@ -182,7 +182,6 @@ struct WebViewContainer: View {
                 DeveloperToolbar(
                     url: url,
                     urlText: url.localDevelopmentDisplayText,
-                    tintHex: store.activeThemeColorHexes.first,
                     isSplitViewEnabled: store.isSplitViewEnabled,
                     onCopyURL: { store.copyActiveTabURL() },
                     onCapturePage: { store.captureActiveTabPage() },
@@ -230,7 +229,7 @@ struct WebViewContainer: View {
 
                 TextField("Find in page", text: $store.findQuery)
                     .textFieldStyle(.plain)
-                    .tint(CandoaColor.primary)
+                    .tint(CandoaColor.accent)
                     .frame(width: 190)
                     .focused($isFieldFocused)
                     .accessibilityIdentifier("find-bar-field")
@@ -241,7 +240,7 @@ struct WebViewContainer: View {
                 } label: {
                     Image(systemName: "chevron.up")
                 }
-                .buttonStyle(.plain)
+                .candoaButton(.content)
                 .disabled(store.findQuery.isEmpty)
                 .help("Find Previous")
 
@@ -250,7 +249,7 @@ struct WebViewContainer: View {
                 } label: {
                     Image(systemName: "chevron.down")
                 }
-                .buttonStyle(.plain)
+                .candoaButton(.content)
                 .disabled(store.findQuery.isEmpty)
                 .help("Find Next")
 
@@ -260,7 +259,7 @@ struct WebViewContainer: View {
                     Image(systemName: "xmark.circle.fill")
                         .foregroundStyle(.secondary)
                 }
-                .buttonStyle(.plain)
+                .candoaButton(.content)
                 .help("Done")
             }
             .padding(.horizontal, 12)
@@ -515,7 +514,7 @@ private struct SplitDropPreviewPane: View {
                 HStack {
                     Image(systemName: tab.faviconSymbol)
                         .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(isDragged ? CandoaColor.primary : .secondary)
+                        .foregroundStyle(isDragged ? CandoaColor.accent : .secondary)
 
                     Spacer()
                 }
@@ -527,19 +526,17 @@ private struct SplitDropPreviewPane: View {
         .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 9, style: .continuous)
-                .stroke(isDragged ? CandoaColor.primary.opacity(0.62) : Color.primary.opacity(0.10), lineWidth: 1)
+                .stroke(isDragged ? CandoaColor.accent.opacity(0.62) : Color.primary.opacity(0.10), lineWidth: 1)
         }
         .shadow(color: Color.black.opacity(isDragged ? 0.16 : 0.08), radius: isDragged ? 12 : 6, x: 0, y: 3)
     }
 }
 
-/// Arc's developer toolbar: local dev servers get a tinted strip above the
-/// page showing the full URL. The tint is the space's theme color — Arc
-/// reuses the color you picked for the space, not a dedicated developer hue.
+/// Native developer toolbar shown for local development pages. It remains
+/// neutral chrome so Space identity colors stay in the passive content layer.
 private struct DeveloperToolbar: View {
     let url: URL
     let urlText: String
-    let tintHex: String?
     let isSplitViewEnabled: Bool
     let onCopyURL: () -> Void
     let onCapturePage: () -> Void
@@ -547,7 +544,6 @@ private struct DeveloperToolbar: View {
     let onSubmitURL: (String) -> Void
     let onSetDeveloperMode: (Bool) -> Void
 
-    private static let arcDevStripBlueHex = "#5156D0"
     private static let storageKey = "CandoaDeveloperToolbarControlIDs"
     private static let noControlIDsValue = "none"
     private static let defaultControlIDs = DeveloperToolbarControlKind.allCases
@@ -562,17 +558,7 @@ private struct DeveloperToolbar: View {
     @AppStorage(Self.storageKey) private var storedControlIDs = ""
     @FocusState private var isURLFieldFocused: Bool
 
-    private var resolvedTintHex: String {
-        tintHex ?? Self.arcDevStripBlueHex
-    }
-
-    private var tint: Color {
-        Color(spaceHex: resolvedTintHex)
-    }
-
-    private var foreground: Color {
-        CandoaInterfaceStyle.prefersDarkForeground(forSpaceHex: resolvedTintHex) ? .black : .white
-    }
+    private var foreground: Color { CandoaInterfaceStyle.sidebarText }
 
     private var selectedControlIDs: [String] {
         if storedControlIDs == Self.noControlIDsValue {
@@ -605,7 +591,7 @@ private struct DeveloperToolbar: View {
                 .textFieldStyle(.plain)
                 .font(.system(size: 12, weight: .medium, design: .monospaced))
                 .foregroundStyle(foreground.opacity(0.92))
-                .tint(CandoaColor.primary)
+                .tint(CandoaColor.accent)
                 .lineLimit(1)
                 .focused($isURLFieldFocused)
                 .onSubmit {
@@ -651,20 +637,11 @@ private struct DeveloperToolbar: View {
         .padding(.horizontal, 10)
         .frame(height: 30)
         .frame(maxWidth: .infinity)
-        .background {
-            ZStack {
-                // Arc's strip carries a faint left→right deepening of the
-                // tint, so the stripes never sit on a flat fill.
-                LinearGradient(
-                    colors: [tint, tint.opacity(0.0)],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
-                .background(tint.opacity(0.92))
-
-                DiagonalStripes()
-                    .fill(Color.black.opacity(0.045))
-            }
+        .background(.regularMaterial)
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(CandoaInterfaceStyle.sidebarSeparator)
+                .frame(height: 1)
         }
     }
 
@@ -724,7 +701,7 @@ private struct DeveloperToolbar: View {
                 .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
                 .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .candoaButton(.content)
         .disabled(!control.isImplemented)
         .onHover { isHovering in
             hoveredControl = isHovering ? control : nil
@@ -957,30 +934,6 @@ private enum DeveloperToolbarControlKind: String, CaseIterable, Identifiable {
 
     func help(isSplitViewEnabled: Bool) -> String {
         "\(title(isSplitViewEnabled: isSplitViewEnabled))\n\(shortcutText)"
-    }
-}
-
-/// Arc's developer strip isn't a flat fill: faint diagonal stripes run across
-/// the tint, marking the page as a dev server at a glance. Measured from
-/// Arc: dark band and gap are equal width (~1:1) at a broad period, kept low
-/// contrast so the texture stays a whisper. Static geometry only — drawn
-/// with the interface, never animated.
-private struct DiagonalStripes: Shape {
-    var period: CGFloat = 44
-
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        let band = period / 2
-        var x = rect.minX - rect.height
-        while x < rect.maxX {
-            path.move(to: CGPoint(x: x, y: rect.minY))
-            path.addLine(to: CGPoint(x: x + band, y: rect.minY))
-            path.addLine(to: CGPoint(x: x + band + rect.height, y: rect.maxY))
-            path.addLine(to: CGPoint(x: x + rect.height, y: rect.maxY))
-            path.closeSubpath()
-            x += period
-        }
-        return path
     }
 }
 

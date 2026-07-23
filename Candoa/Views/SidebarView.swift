@@ -65,10 +65,6 @@ struct SidebarView: View {
         return Array(repeating: GridItem(.flexible(), spacing: 12), count: visibleColumns)
     }
 
-    private var activeSpaceTint: Color {
-        Color(spaceHex: store.activeThemeColorHexes.first ?? "#8A8F98")
-    }
-
     private var hasActiveThemeTint: Bool {
         !store.activeThemeColorHexes.isEmpty
     }
@@ -167,7 +163,7 @@ struct SidebarView: View {
             .help("Hide Sidebar")
             .accessibilityIdentifier("sidebar-toggle-button")
         }
-        .buttonStyle(.plain)
+        .candoaButton(.content)
         .foregroundStyle(sidebarIconColor)
         .frame(maxWidth: .infinity)
         .frame(height: 34)
@@ -241,7 +237,7 @@ struct SidebarView: View {
             }
             .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
         }
-        .buttonStyle(.plain)
+        .candoaButton(.content)
         .onHover { isHoveringAddressPill = $0 }
         .help(isDeveloperModeEnabled ? "Developer Mode" : BrowserDefaults.addressPlaceholder)
         .contextMenu {
@@ -329,7 +325,7 @@ struct SidebarView: View {
             tab: tab,
             isActive: tab.id == store.activeTabID &&
                 !store.isNewTabPaletteActive,
-            accentColor: activeSpaceTint,
+            accentColor: CandoaColor.accent,
             placement: .favorite,
             onSelect: { store.activateFavorite(tab.id) },
             onClose: { store.closeTab(tab.id) },
@@ -350,7 +346,7 @@ struct SidebarView: View {
                 targetTabID: tab.id,
                 edge: .after
             ),
-            tint: activeSpaceTint
+            tint: CandoaColor.accent
         )
         .onDrag {
             store.beginTabDrag(tab.id)
@@ -403,7 +399,7 @@ struct SidebarView: View {
                                 store: store,
                                 folder: folder,
                                 editingFolderID: $store.editingFolderID,
-                                accentColor: activeSpaceTint,
+                                accentColor: CandoaColor.accent,
                                 nestingLevel: 0
                             )
                         }
@@ -436,7 +432,7 @@ struct SidebarView: View {
                 targetTabID: nil,
                 edge: .after
             ) {
-                SidebarHorizontalDropLine(tint: activeSpaceTint)
+                SidebarHorizontalDropLine(tint: CandoaColor.accent)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 2)
             } else {
@@ -457,7 +453,7 @@ struct SidebarView: View {
             tab: tab,
             isActive: tab.id == store.activeTabID && !store.isNewTabPaletteActive,
             isSplit: store.activeSplitGroupTabIDs.contains(tab.id),
-            accentColor: activeSpaceTint,
+            accentColor: CandoaColor.accent,
             mediaState: store.mediaStates[tab.id],
             onSelect: { store.switchTab(to: tab.id) },
             onClose: { store.closeTab(tab.id) },
@@ -486,7 +482,7 @@ struct SidebarView: View {
                 targetTabID: tab.id,
                 edge: .after
             ),
-            tint: activeSpaceTint
+            tint: CandoaColor.accent
         )
         .onDrag {
             store.beginTabDrag(tab.id)
@@ -578,7 +574,7 @@ struct SidebarView: View {
                     targetTabID: nil,
                     edge: .after
                 ) {
-                    SidebarHorizontalDropLine(tint: activeSpaceTint)
+                    SidebarHorizontalDropLine(tint: CandoaColor.accent)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 2)
                 }
@@ -588,7 +584,7 @@ struct SidebarView: View {
                         SidebarSplitGroupView(
                             store: store,
                             tabs: splitTabs,
-                            accentColor: activeSpaceTint
+                            accentColor: CandoaColor.accent
                         )
                     }
 
@@ -597,7 +593,7 @@ struct SidebarView: View {
                             tab: tab,
                             isActive: tab.id == store.activeTabID && !store.isNewTabPaletteActive,
                             isSplit: store.activeSplitGroupTabIDs.contains(tab.id),
-                            accentColor: activeSpaceTint,
+                            accentColor: CandoaColor.accent,
                             mediaState: store.mediaStates[tab.id],
                             onSelect: { store.switchTab(to: tab.id) },
                             onClose: { store.closeTab(tab.id) },
@@ -627,7 +623,7 @@ struct SidebarView: View {
                                 targetTabID: tab.id,
                                 edge: .after
                             ),
-                            tint: activeSpaceTint
+                            tint: CandoaColor.accent
                         )
                         .onDrag {
                             store.beginTabDrag(tab.id)
@@ -650,7 +646,7 @@ struct SidebarView: View {
                         targetTabID: nil,
                         edge: .after
                     ) {
-                        SidebarHorizontalDropLine(tint: activeSpaceTint)
+                        SidebarHorizontalDropLine(tint: CandoaColor.accent)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 2)
                     }
@@ -699,7 +695,7 @@ struct SidebarView: View {
             .frame(minHeight: 32)
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .candoaButton(.content)
         .background(newTabButtonBackground(isArmed: isArmed))
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         .onHover { isHoveringNewTab = $0 }
@@ -718,7 +714,7 @@ struct SidebarView: View {
 
     private func newTabButtonBackground(isArmed: Bool) -> Color {
         if isArmed {
-            return activeSpaceTint.opacity(0.18)
+            return CandoaInterfaceStyle.sidebarControlFillActive
         }
         if isHoveringNewTab && store.draggedTabID == nil {
             return CandoaInterfaceStyle.sidebarControlFillHover

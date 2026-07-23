@@ -75,6 +75,14 @@ struct CandoaAccountStatus: Decodable, Sendable {
     }
 }
 
+struct CandoaCloudSession: Decodable, Sendable {
+    let user: CandoaCloudUser
+}
+
+struct CandoaCloudUser: Decodable, Sendable {
+    let id: String
+}
+
 enum CandoaCloudAPI {
     private static let defaultBaseURL = URL(string: "https://api.candoa.app/v1")!
 
@@ -98,23 +106,42 @@ enum CandoaCloudAPI {
         return endpoint("ai/agent/run")
     }
 
-    static func authenticateWithApple(identityToken: String, nonce: String) async throws -> String {
-        let response: CandoaSessionResponse = try await request(
-            endpoint("auth/apple"),
-            method: "POST",
-            body: AppleAuthenticationRequest(identityToken: identityToken, nonce: nonce),
-            accessToken: nil
+    static func session(accessToken: String) async throws -> CandoaCloudSession {
+        let session: CandoaCloudSession? = try await request(
+            authenticationEndpoint("auth/get-session"),
+            method: "GET",
+            body: Optional<String>.none,
+            accessToken: accessToken
         )
-        return response.accessToken
+        guard let session else {
+            throw CandoaAccountError.server("Your Candoa session has expired.")
+        }
+        return session
     }
 
-    static func appleWebAuthenticationURL(codeChallenge: String) -> URL {
-        var components = URLComponents(
-            url: appleAuthenticationEndpoint("auth/apple/web/start"),
-            resolvingAgainstBaseURL: false
-        )!
-        components.queryItems = [URLQueryItem(name: "code_challenge", value: codeChallenge)]
-        return components.url!
+    static func signOut(accessToken: String) async throws {
+        let _: SignOutResponse = try await request(
+            authenticationEndpoint("auth/sign-out"),
+            method: "POST",
+            body: EmptyRequest(),
+            accessToken: accessToken
+        )
+    }
+
+    static func prepareAppleWebAuthentication(
+        codeChallenge: String,
+        accessToken: String?
+    ) async throws -> URL {
+        let response: AppleWebAuthenticationPrepareResponse = try await request(
+            authenticationEndpoint("auth/apple/web/prepare"),
+            method: "POST",
+            body: AppleWebAuthenticationPrepareRequest(codeChallenge: codeChallenge),
+            accessToken: accessToken
+        )
+        guard let url = URL(string: response.url), url.scheme == "https" else {
+            throw CandoaAccountError.invalidResponse
+        }
+        return url
     }
 
     static func exchangeAppleWebAuthenticationCode(
@@ -122,7 +149,7 @@ enum CandoaCloudAPI {
         codeVerifier: String
     ) async throws -> String {
         let response: CandoaSessionResponse = try await request(
-            appleAuthenticationEndpoint("auth/apple/web/exchange"),
+            authenticationEndpoint("auth/apple/web/exchange"),
             method: "POST",
             body: AppleWebAuthenticationExchangeRequest(code: code, codeVerifier: codeVerifier),
             accessToken: nil
@@ -162,7 +189,7 @@ enum CandoaCloudAPI {
         return configuredBaseURL.appending(path: path)
     }
 
-    private static func appleAuthenticationEndpoint(_ path: String) -> URL {
+    private static func authenticationEndpoint(_ path: String) -> URL {
         // Apple requires a registered HTTPS callback. Keep web authentication on the
         // deployed Cloud service even when the rest of a Debug build uses local Cloud.
         let configuredBaseURL = ProcessInfo.processInfo.environment["CANDOA_APPLE_AUTH_API_URL"]
@@ -176,10 +203,26 @@ enum CandoaCloudAPI {
         body: Body?,
         accessToken: String?
     ) async throws -> Response {
+        let (data, _) = try await dataRequest(
+            url,
+            method: method,
+            body: body,
+            accessToken: accessToken
+        )
+        return try JSONDecoder().decode(Response.self, from: data)
+    }
+
+    private static func dataRequest<Body: Encodable>(
+        _ url: URL,
+        method: String,
+        body: Body?,
+        accessToken: String?
+    ) async throws -> (Data, HTTPURLResponse) {
         var request = URLRequest(url: url)
         request.httpMethod = method
         request.timeoutInterval = 30
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("candoa-auth://", forHTTPHeaderField: "Origin")
         if let accessToken {
             request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
         }
@@ -193,14 +236,21 @@ enum CandoaCloudAPI {
         }
         guard (200...299).contains(httpResponse.statusCode) else {
             let error = try? JSONDecoder().decode(CandoaErrorResponse.self, from: data)
-            throw CandoaAccountError.server(error?.error ?? "Candoa could not complete that request.")
+            throw CandoaAccountError.server(
+                error?.error ?? error?.message ?? "Candoa could not complete that request."
+            )
         }
-        return try JSONDecoder().decode(Response.self, from: data)
+        return (data, httpResponse)
     }
 
-    private struct AppleAuthenticationRequest: Encodable {
-        let identityToken: String
-        let nonce: String
+    private struct EmptyRequest: Encodable {}
+
+    private struct AppleWebAuthenticationPrepareRequest: Encodable {
+        let codeChallenge: String
+    }
+
+    private struct AppleWebAuthenticationPrepareResponse: Decodable {
+        let url: String
     }
 
     private struct AppleWebAuthenticationExchangeRequest: Encodable {
@@ -210,6 +260,10 @@ enum CandoaCloudAPI {
 
     private struct CandoaSessionResponse: Decodable {
         let accessToken: String
+    }
+
+    private struct SignOutResponse: Decodable {
+        let success: Bool
     }
 
     private struct BillingPlanRequest: Encodable {
@@ -222,6 +276,7 @@ enum CandoaCloudAPI {
 
     private struct CandoaErrorResponse: Decodable {
         let error: String?
+        let message: String?
     }
 }
 
@@ -234,15 +289,22 @@ final class CandoaAppleWebAuthenticationService: NSObject,
 
     var isAuthenticating: Bool { webAuthenticationSession != nil }
 
-    func authenticate() async throws -> String {
+    func authenticate(accessToken: String?) async throws -> String {
         guard webAuthenticationSession == nil else {
             throw CandoaAccountError.authenticationInProgress
         }
 
         let codeVerifier = try makeCodeVerifier()
         let codeChallenge = Data(SHA256.hash(data: Data(codeVerifier.utf8))).base64URLEncodedString()
-        let startURL = CandoaCloudAPI.appleWebAuthenticationURL(codeChallenge: codeChallenge)
+        let startURL = try await CandoaCloudAPI.prepareAppleWebAuthentication(
+            codeChallenge: codeChallenge,
+            accessToken: accessToken
+        )
         let callbackURL = try await authorizationCallbackURL(startURL: startURL)
+        guard callbackURL.scheme?.lowercased() == Self.callbackScheme,
+              callbackURL.host?.lowercased() == "callback" else {
+            throw CandoaAccountError.appleSignInFailed
+        }
         let components = URLComponents(url: callbackURL, resolvingAgainstBaseURL: false)
 
         if components?.queryItems?.first(where: { $0.name == "error" })?.value == "cancelled" {
@@ -265,10 +327,8 @@ final class CandoaAppleWebAuthenticationService: NSObject,
 
     private func authorizationCallbackURL(startURL: URL) async throws -> URL {
         try await withCheckedThrowingContinuation { continuation in
-            let session = ASWebAuthenticationSession(
-                url: startURL,
-                callbackURLScheme: Self.callbackScheme
-            ) { @Sendable [weak self] callbackURL, error in
+            let completionHandler: ASWebAuthenticationSession.CompletionHandler = {
+                @Sendable [weak self] callbackURL, error in
                 Task { @MainActor in
                     self?.webAuthenticationSession = nil
                     let authenticationError = error as NSError?
@@ -283,6 +343,20 @@ final class CandoaAppleWebAuthenticationService: NSObject,
                         continuation.resume(throwing: CandoaAccountError.appleSignInFailed)
                     }
                 }
+            }
+            let session: ASWebAuthenticationSession
+            if #available(macOS 14.4, *) {
+                session = ASWebAuthenticationSession(
+                    url: startURL,
+                    callback: .customScheme(Self.callbackScheme),
+                    completionHandler: completionHandler
+                )
+            } else {
+                session = ASWebAuthenticationSession(
+                    url: startURL,
+                    callbackURLScheme: Self.callbackScheme,
+                    completionHandler: completionHandler
+                )
             }
             session.presentationContextProvider = self
             session.prefersEphemeralWebBrowserSession = false
@@ -316,8 +390,12 @@ private extension Data {
 struct CandoaAccountService {
     var accessToken: String? { CandoaAccountKeychain.accessToken }
 
-    func authenticateWithApple(identityToken: String, nonce: String) async throws -> String {
-        try await CandoaCloudAPI.authenticateWithApple(identityToken: identityToken, nonce: nonce)
+    func session(accessToken: String) async throws -> CandoaCloudSession {
+        try await CandoaCloudAPI.session(accessToken: accessToken)
+    }
+
+    func signOut(accessToken: String) async throws {
+        try await CandoaCloudAPI.signOut(accessToken: accessToken)
     }
 
     func saveAccessToken(_ accessToken: String) throws {

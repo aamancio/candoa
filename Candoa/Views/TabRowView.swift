@@ -50,7 +50,7 @@ struct TabRowView: View {
                         .frame(width: 16, height: 16)
                         .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
+                .candoaButton(.content)
                 .foregroundStyle(isActive ? CandoaInterfaceStyle.sidebarText : CandoaInterfaceStyle.sidebarIcon)
                 .help(mediaState?.isMuted == true ? "Unmute Tab" : "Mute Tab")
                 .transition(.opacity)
@@ -76,7 +76,7 @@ struct TabRowView: View {
                     .frame(width: 14, height: 14)
                     .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .candoaButton(.content)
             .foregroundStyle(CandoaInterfaceStyle.sidebarIcon)
             .help("Close Tab")
             .opacity(isHovering ? 1 : 0)

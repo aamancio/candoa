@@ -39,6 +39,7 @@
 		E50000000000000000000106 /* SpaceThemePanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E50000000000000000000006 /* SpaceThemePanel.swift */; };
 		E50000000000000000000107 /* SpaceThemeControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = E50000000000000000000007 /* SpaceThemeControls.swift */; };
 		E50000000000000000000108 /* SpaceComposerModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = E50000000000000000000008 /* SpaceComposerModels.swift */; };
+		F60000000000000000000101 /* CandoaButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = F60000000000000000000001 /* CandoaButton.swift */; };
 		010000000000000000000113 /* BrowserInterfaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000013 /* BrowserInterfaceView.swift */; };
 		010000000000000000000114 /* WebViewContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000014 /* WebViewContainer.swift */; };
 		010000000000000000000115 /* CommandPaletteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000015 /* CommandPaletteView.swift */; };
@@ -184,6 +185,7 @@
 		F1A2B3C4D5E60718293A4B5C /* SettingsPanes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsPanes.swift; sourceTree = "<group>"; };
 		F2A2B3C4D5E60718293A4B5C /* EliSettingsPane.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EliSettingsPane.swift; sourceTree = "<group>"; };
 		F3A2B3C4D5E60718293A4B5C /* ShortcutSettingsComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutSettingsComponents.swift; sourceTree = "<group>"; };
+		F60000000000000000000001 /* CandoaButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CandoaButton.swift; sourceTree = "<group>"; };
 		010000000000000000000040 /* ContentBlockerService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentBlockerService.swift; sourceTree = "<group>"; };
 		AB1000000000000000000001 /* WebsiteAppearanceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebsiteAppearanceService.swift; sourceTree = "<group>"; };
 		010000000000000000000041 /* CopiedURLToastView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CopiedURLToastView.swift; sourceTree = "<group>"; };
@@ -283,6 +285,7 @@
 		010000000000000000000024 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				F60000000000000000000201 /* UI */,
 				010000000000000000000011 /* ContentView.swift */,
 				A90000000000000000000002 /* HistoryView.swift */,
 				010000000000000000000067 /* InitialOnboardingView.swift */,
@@ -325,6 +328,14 @@
 				010000000000000000000041 /* CopiedURLToastView.swift */,
 			);
 			path = Views;
+			sourceTree = "<group>";
+		};
+		F60000000000000000000201 /* UI */ = {
+			isa = PBXGroup;
+			children = (
+				F60000000000000000000001 /* CandoaButton.swift */,
+			);
+			path = UI;
 			sourceTree = "<group>";
 		};
 		010000000000000000000025 /* Services */ = {
@@ -590,6 +601,7 @@
 				E50000000000000000000106 /* SpaceThemePanel.swift in Sources */,
 				E50000000000000000000107 /* SpaceThemeControls.swift in Sources */,
 				E50000000000000000000108 /* SpaceComposerModels.swift in Sources */,
+				F60000000000000000000101 /* CandoaButton.swift in Sources */,
 				010000000000000000000113 /* BrowserInterfaceView.swift in Sources */,
 				010000000000000000000114 /* WebViewContainer.swift in Sources */,
 				010000000000000000000115 /* CommandPaletteView.swift in Sources */,

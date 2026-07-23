@@ -45,7 +45,7 @@ internal struct EssentialTileView: View {
                     )
             }
         }
-        .buttonStyle(.plain)
+        .candoaButton(.content)
         .animation(.easeOut(duration: 0.12), value: isActive)
         .help(placement == .favorite ? tab.favoriteDisplayTitle : tab.title)
         .contextMenu {
@@ -163,7 +163,7 @@ internal struct SidebarSplitGroupChip: View {
                     .frame(width: 16, height: 16)
                     .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .candoaButton(.content)
             .foregroundStyle(CandoaInterfaceStyle.sidebarIcon)
             .background(
                 Circle()
@@ -251,7 +251,7 @@ internal struct FavoriteDropZone: View {
                     .frame(width: 22, height: 22)
                     .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .candoaButton(.content)
             .foregroundStyle(isHoveringCloseButton ? CandoaInterfaceStyle.sidebarTextSecondary : CandoaInterfaceStyle.sidebarIcon)
             .background(
                 Circle()

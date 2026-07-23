@@ -7,10 +7,10 @@ struct CandoaApp: App {
     @StateObject private var userStore = UserStore()
 
     var body: some Scene {
-        WindowGroup {
+        WindowGroup(id: AppConfiguration.browserWindowSceneID) {
             ContentView()
                 .environmentObject(userStore)
-                .tint(CandoaColor.primary)
+                .tint(CandoaColor.accent)
                 .handlesExternalEvents(preferring: ["*"], allowing: ["*"])
                 .frame(
                     minWidth: AppConfiguration.minimumWindowWidth,
@@ -29,7 +29,7 @@ struct CandoaApp: App {
         Settings {
             CandoaSettingsView()
                 .environmentObject(userStore)
-                .tint(CandoaColor.primary)
+                .tint(CandoaColor.accent)
         }
     }
 
@@ -79,19 +79,39 @@ private final class CandoaAppDelegate: NSObject, NSApplicationDelegate {
 
 private struct BrowserCommands: Commands {
     @FocusedValue(\.browserCommandActions) private var actions
+    @Environment(\.openWindow) private var openWindow
 
     var body: some Commands {
         CommandGroup(replacing: .newItem) {
+            Button("New Window") {
+                openWindow(id: AppConfiguration.browserWindowSceneID)
+            }
+            .keyboardShortcut("n", modifiers: .command)
+
             Button(BrowserCommandTitles.newTab) {
                 actions?.newTab()
             }
             .keyboardShortcut("t", modifiers: .command)
             .disabled(actions == nil)
 
-            Button(BrowserCommandTitles.reopenClosedTab) {
-                actions?.reopenClosedTab()
+            Divider()
+
+            Button("Close Tab") {
+                actions?.closeCurrentTab()
             }
-            .keyboardShortcut("t", modifiers: [.command, .shift])
+            .keyboardShortcut("w", modifiers: .command)
+            .disabled(actions == nil)
+        }
+
+        CommandGroup(after: .pasteboard) {
+            Button(BrowserCommandTitles.copyURL) {
+                actions?.copyURL()
+            }
+            .disabled(actions == nil)
+
+            Button(BrowserCommandTitles.copyURLAsMarkdown) {
+                actions?.copyURLAsMarkdown()
+            }
             .disabled(actions == nil)
         }
 
@@ -114,18 +134,17 @@ private struct BrowserCommands: Commands {
             .disabled(actions == nil)
         }
 
-        CommandGroup(after: .help) {
-            Button(String(localized: "Quick Tour…")) {
-                actions?.showQuickTour()
+        CommandGroup(replacing: .sidebar) {
+            Button(actions?.isSidebarVisible == true ? "Hide Sidebar" : "Show Sidebar") {
+                actions?.toggleSidebar()
             }
+            .keyboardShortcut("s", modifiers: .command)
             .disabled(actions == nil)
-        }
 
-        CommandMenu("Browser") {
-            Button(actions?.isHistoryVisible == true ? "Hide History" : "Show History") {
-                actions?.showHistory()
+            Button(actions?.isAISidebarVisible == true ? "Hide Eli Sidebar" : "Show Eli Sidebar") {
+                actions?.toggleAISidebar()
             }
-            .keyboardShortcut("y", modifiers: .command)
+            .keyboardShortcut("e", modifiers: .command)
             .disabled(actions == nil)
 
             Divider()
@@ -140,18 +159,6 @@ private struct BrowserCommands: Commands {
             }
             .disabled(actions == nil)
 
-            Button(BrowserCommandTitles.toggleSidebar) {
-                actions?.toggleSidebar()
-            }
-            .keyboardShortcut("s", modifiers: .command)
-            .disabled(actions == nil)
-
-            Button(BrowserCommandTitles.toggleAISidebar) {
-                actions?.toggleAISidebar()
-            }
-            .keyboardShortcut("e", modifiers: .command)
-            .disabled(actions == nil)
-
             Divider()
 
             Button(BrowserCommandTitles.reloadTab) {
@@ -159,48 +166,13 @@ private struct BrowserCommands: Commands {
             }
             .disabled(actions == nil)
 
-            Button(BrowserCommandTitles.back) {
-                actions?.goBack()
-            }
-            .keyboardShortcut("[", modifiers: .command)
-            .disabled(actions == nil)
-
-            Button(BrowserCommandTitles.forward) {
-                actions?.goForward()
-            }
-            .keyboardShortcut("]", modifiers: .command)
-            .disabled(actions == nil)
-
-            Button(BrowserCommandTitles.closeCurrentTab) {
-                actions?.closeCurrentTab()
-            }
-            .keyboardShortcut("w", modifiers: .command)
-            .disabled(actions == nil)
-
             Divider()
 
-            Button(BrowserCommandTitles.pinOrUnpinTab) {
-                actions?.pinOrUnpinTab()
+            Button(BrowserCommandTitles.resetZoom) {
+                actions?.resetZoom()
             }
+            .keyboardShortcut("0", modifiers: .command)
             .disabled(actions == nil)
-
-            Button(BrowserCommandTitles.clearUnpinnedTabs) {
-                actions?.clearUnpinnedTabs()
-            }
-            .keyboardShortcut("k", modifiers: [.command, .shift])
-            .disabled(actions == nil)
-
-            Button(BrowserCommandTitles.copyURL) {
-                actions?.copyURL()
-            }
-            .disabled(actions == nil)
-
-            Button(BrowserCommandTitles.copyURLAsMarkdown) {
-                actions?.copyURLAsMarkdown()
-            }
-            .disabled(actions == nil)
-
-            Divider()
 
             Button(BrowserCommandTitles.zoomIn) {
                 actions?.zoomIn()
@@ -212,12 +184,6 @@ private struct BrowserCommands: Commands {
                 actions?.zoomOut()
             }
             .keyboardShortcut("-", modifiers: .command)
-            .disabled(actions == nil)
-
-            Button(BrowserCommandTitles.resetZoom) {
-                actions?.resetZoom()
-            }
-            .keyboardShortcut("0", modifiers: .command)
             .disabled(actions == nil)
 
             Divider()
@@ -257,6 +223,68 @@ private struct BrowserCommands: Commands {
             }
             .keyboardShortcut(.leftArrow, modifiers: [.command, .option])
             .disabled(actions == nil)
+        }
+
+        CommandGroup(after: .windowArrangement) {
+            Button(actions?.isActiveTabPinned == true ? "Unpin Tab" : "Pin Tab") {
+                actions?.pinOrUnpinTab()
+            }
+            .disabled(actions == nil)
+
+            Button(BrowserCommandTitles.duplicateTab) {
+                actions?.duplicateTab()
+            }
+            .disabled(actions == nil)
+        }
+
+        CommandGroup(after: .help) {
+            Button(String(localized: "Quick Tour…")) {
+                actions?.showQuickTour()
+            }
+            .disabled(actions == nil)
+        }
+
+        CommandMenu("History") {
+            Button(actions?.isHistoryVisible == true ? "Hide History" : "Show History") {
+                actions?.showHistory()
+            }
+            .keyboardShortcut("y", modifiers: .command)
+            .disabled(actions == nil)
+
+            Divider()
+
+            Button(BrowserCommandTitles.back) {
+                actions?.goBack()
+            }
+            .keyboardShortcut("[", modifiers: .command)
+            .disabled(actions == nil)
+
+            Button(BrowserCommandTitles.forward) {
+                actions?.goForward()
+            }
+            .keyboardShortcut("]", modifiers: .command)
+            .disabled(actions == nil)
+
+            Divider()
+
+            Button(BrowserCommandTitles.reopenClosedTab) {
+                actions?.reopenClosedTab()
+            }
+            .keyboardShortcut("t", modifiers: [.command, .shift])
+            .disabled(actions == nil)
+        }
+
+        CommandMenu("Bookmarks") {
+            Button(actions?.isActiveTabPinned == true ? "Unpin Tab" : "Add Bookmark…") {
+                actions?.pinOrUnpinTab()
+            }
+            .disabled(actions == nil)
+
+            Button(BrowserCommandTitles.clearUnpinnedTabs) {
+                actions?.clearUnpinnedTabs()
+            }
+            .keyboardShortcut("k", modifiers: [.command, .shift])
+            .disabled(actions == nil)
 
             Divider()
 
@@ -282,6 +310,30 @@ private struct BrowserCommands: Commands {
                 .disabled(actions == nil || actions?.isWorkspaceICloudSyncEnabled != true)
             }
         }
+
+        CommandMenu("Develop") {
+            Button(
+                actions?.isDeveloperModeEnabled == true
+                    ? BrowserCommandTitles.turnOffDeveloperMode
+                    : BrowserCommandTitles.turnOnDeveloperMode
+            ) {
+                guard let actions else { return }
+                actions.setDeveloperMode(!actions.isDeveloperModeEnabled)
+            }
+            .disabled(actions?.isDeveloperModeAvailable != true)
+
+            Divider()
+
+            Button(BrowserCommandTitles.copyURL) {
+                actions?.copyURL()
+            }
+            .disabled(actions == nil)
+
+            Button(BrowserCommandTitles.copyURLAsMarkdown) {
+                actions?.copyURLAsMarkdown()
+            }
+            .disabled(actions == nil)
+        }
     }
 }
 
@@ -290,7 +342,9 @@ struct BrowserCommandActions {
     var focusAddressBar: () -> Void
     var openCommandPalette: () -> Void
     var toggleSidebar: () -> Void
+    var isSidebarVisible: Bool
     var toggleAISidebar: () -> Void
+    var isAISidebarVisible: Bool
     var showHistory: () -> Void
     var isHistoryVisible: Bool
     var showQuickTour: () -> Void
@@ -304,6 +358,8 @@ struct BrowserCommandActions {
     var previousSpace: () -> Void
     var reopenClosedTab: () -> Void
     var pinOrUnpinTab: () -> Void
+    var isActiveTabPinned: Bool
+    var duplicateTab: () -> Void
     var clearUnpinnedTabs: () -> Void
     var copyURL: () -> Void
     var copyURLAsMarkdown: () -> Void
@@ -319,6 +375,9 @@ struct BrowserCommandActions {
     var isHistoryICloudSyncEnabled: Bool
     var setWorkspaceICloudSyncEnabled: (Bool) -> Void
     var setHistoryICloudSyncEnabled: (Bool) -> Void
+    var isDeveloperModeAvailable: Bool
+    var isDeveloperModeEnabled: Bool
+    var setDeveloperMode: (Bool) -> Void
 }
 
 private struct BrowserCommandActionsKey: FocusedValueKey {

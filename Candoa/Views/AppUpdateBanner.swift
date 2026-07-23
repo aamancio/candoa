@@ -28,7 +28,7 @@ internal struct AppUpdateBanner: View {
                 }
                 .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
         }
-        .buttonStyle(.plain)
+        .candoaButton(.content)
         .onHover { hovering in
             isHovering = hovering
             hoverPresentationTask?.cancel()
@@ -59,7 +59,7 @@ internal struct AppUpdateBanner: View {
                     Text("Restart and Update")
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.borderedProminent)
+                .candoaButton(.primary)
                 .controlSize(.large)
             }
             .padding(14)

@@ -20,7 +20,7 @@ extension CommandPaletteView {
                 .textFieldStyle(.plain)
                 .font(.system(size: 17, weight: .medium))
                 .foregroundStyle(.primary)
-                .tint(CandoaColor.primary)
+                .tint(CandoaColor.accent)
                 .focused($isSearchFocused)
                 .accessibilityLabel("Command Palette")
                 .accessibilityIdentifier("command-palette-field")

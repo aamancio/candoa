@@ -237,13 +237,14 @@ final class CandoaUITests: XCTestCase {
         XCTAssertGreaterThanOrEqual(signInButton.frame.height, 42)
     }
 
-    func testAccountOnboardingRequiresAppleSignInWithoutBypass() throws {
+    func testAccountOnboardingOffersAppleAndLocalUse() throws {
         let app = launchApp(onboardingStep: "account")
         let accountOnboarding = element("account-onboarding", in: app).firstMatch
 
         XCTAssertTrue(accountOnboarding.waitForExistence(timeout: 10))
         XCTAssertEqual(accountOnboarding.value as? String, "idle")
         XCTAssertTrue(app.buttons["Continue with Apple"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Not Now"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["Continue"].exists)
         XCTAssertFalse(app.buttons["Skip"].exists)
         XCTAssertFalse(app.buttons["Explore on My Own"].exists)

@@ -28,7 +28,7 @@ struct AISidebarExamplePromptButton: View {
                         )
                 }
         }
-        .buttonStyle(.plain)
+        .candoaButton(.content)
         .onHover { hovering in
             isHovered = hovering
         }
@@ -56,7 +56,7 @@ struct AISidebarTopBarIconButton: View {
                 }
                 .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         }
-        .buttonStyle(.plain)
+        .candoaButton(.content)
         .help(helpText)
         .onHover { hovering in
             withAnimation(.easeOut(duration: 0.10)) {
@@ -174,7 +174,7 @@ struct AISidebarMessageRow: View {
                 Button("Subscribe to Candoa Pro") {
                     Task { await userStore.startProCheckout() }
                 }
-                .buttonStyle(.link)
+                .candoaButton(.link)
                 .font(.system(size: 13, weight: .medium))
                 .disabled(userStore.isWorking)
                 .accessibilityIdentifier("agent-subscribe-link")
@@ -288,12 +288,12 @@ struct AISidebarMessageRow: View {
 
     private var messageBackground: Color {
         guard isUser else { return CandoaInterfaceStyle.sidebarControlFill }
-        return CandoaInterfaceStyle.primaryActionFill
+        return CandoaInterfaceStyle.userMessageFill
     }
 
     private var messageForeground: Color {
         guard isUser else { return CandoaInterfaceStyle.sidebarText }
-        return CandoaInterfaceStyle.primaryActionText
+        return CandoaInterfaceStyle.userMessageText
     }
 
 }
@@ -621,7 +621,7 @@ struct AISidebarComposerIconButton: View {
                         .fill(backgroundFill)
                 }
         }
-        .buttonStyle(.borderless)
+        .candoaButton(.chrome)
         .disabled(!isEnabled)
         .help(helpText)
         .onHover { hovering in
@@ -659,7 +659,7 @@ struct AISidebarComposerSendButton: View {
                         .fill(backgroundFill)
                 }
         }
-        .buttonStyle(.borderless)
+        .candoaButton(.chrome)
         .disabled(!isEnabled)
         .help("Send to Eli")
         .onHover { hovering in
@@ -742,7 +742,7 @@ struct AISidebarMentionButton: View {
             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .candoaButton(.content)
         .onHover { hovering in
             withAnimation(.easeOut(duration: 0.10)) {
                 isHovered = hovering
@@ -752,7 +752,7 @@ struct AISidebarMentionButton: View {
 
     private var rowBackground: Color {
         if isSelected {
-            return CandoaColor.primary
+            return CandoaColor.accent
         }
 
         return isHovered ? CandoaInterfaceStyle.sidebarControlFillHover : Color.clear
@@ -773,7 +773,7 @@ struct AISidebarContextChipView: View {
                 Button(action: onPreview) {
                     chipBody
                 }
-                .buttonStyle(.plain)
+                .candoaButton(.content)
                 .help("Preview Image")
                 .accessibilityLabel("Preview attached image")
                 .accessibilityIdentifier("agent-attachment-preview")
@@ -792,7 +792,7 @@ struct AISidebarContextChipView: View {
                                 .fill(isRemoveHovered ? Color.white.opacity(0.96) : Color.white.opacity(0.22))
                         )
                 }
-                .buttonStyle(.borderless)
+                .candoaButton(.chrome)
                 .offset(x: 8, y: -8)
                 .help("Remove Context")
                 .transition(.opacity)

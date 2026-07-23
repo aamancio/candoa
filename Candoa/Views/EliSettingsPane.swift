@@ -49,6 +49,7 @@ internal struct EliSettingsPane: View {
                                 .frame(width: 170)
 
                             Button(hasSavedKey ? "Replace" : "Save", action: saveAPIKey)
+                                .candoaButton(.secondary)
                                 .controlSize(.small)
                                 .disabled(apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                         }
@@ -63,6 +64,7 @@ internal struct EliSettingsPane: View {
                             subtitle: "Eli can use your direct OpenAI connection whenever the option above is enabled."
                         ) {
                             Button("Remove", role: .destructive, action: removeAPIKey)
+                                .candoaButton(.secondary)
                                 .controlSize(.small)
                         }
                     }
@@ -96,6 +98,7 @@ internal struct EliSettingsPane: View {
                         ) {
                             if userStore.hasActiveSubscription {
                                 Button("Manage", action: openBillingPortal)
+                                    .candoaButton(.secondary)
                                     .controlSize(.small)
                                     .disabled(userStore.isWorking)
                             }
@@ -106,17 +109,23 @@ internal struct EliSettingsPane: View {
                         SettingsRow(
                             systemImage: "rectangle.portrait.and.arrow.right",
                             title: "Candoa account",
-                            subtitle: "This only removes the Candoa session from this Mac."
+                            subtitle: "Sign out of this Mac and revoke its Candoa session."
                         ) {
                             Button("Sign out", role: .destructive, action: userStore.signOut)
+                                .candoaButton(.secondary)
                                 .controlSize(.small)
                         }
                     } else {
                         SettingsRow(
                             systemImage: "person.crop.circle.badge.questionmark",
-                            title: "Not signed in",
-                            subtitle: "Open Eli and continue with Apple to connect your subscription."
-                        ) { }
+                            title: userStore.isLocalOnly ? "Using Candoa on this Mac" : "Not signed in",
+                            subtitle: "Continue with Apple when you want to subscribe or connect account features."
+                        ) {
+                            Button("Continue with Apple", action: userStore.signInWithApple)
+                                .candoaButton(.primary)
+                                .controlSize(.small)
+                                .disabled(userStore.isWorking)
+                        }
                     }
 
                     if let accountError = userStore.errorMessage {

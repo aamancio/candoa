@@ -49,7 +49,7 @@ struct BrowserSpace: Identifiable, Codable, Hashable {
 
     /// Apple's system-blue reference used when persisting an explicitly
     /// selected blue Space theme. The default theme has no color value.
-    static let blueThemeColorHex = CandoaColor.primaryHex
+    static let blueThemeColorHex = CandoaColor.blueThemeHex
     static let currentThemeStorageVersion = 1
 
     /// The interface follows the macOS system appearance by default — the native

@@ -4,7 +4,7 @@ import SwiftUI
 enum CandoaColor {
     enum Apple {
         /// Reference value for persisting an explicitly selected blue Space.
-        /// App interface colors use `NSColor.systemBlue` so they remain adaptive.
+        /// The app interface uses the person's dynamic macOS accent instead.
         static let systemBlueReferenceHex = "#007AFF"
         static var systemBlue: Color { Color(nsColor: .systemBlue) }
         static var systemRed: Color { Color(nsColor: .systemRed) }
@@ -20,22 +20,24 @@ enum CandoaColor {
         static var systemBrown: Color { Color(nsColor: .systemBrown) }
         static var systemGray: Color { Color(nsColor: .systemGray) }
         static var controlAccent: Color { Color(nsColor: .controlAccentColor) }
-        static var selectedControlText: Color { Color(nsColor: .alternateSelectedControlTextColor) }
     }
 
-    static let primaryHex = Apple.systemBlueReferenceHex
-    static var primary: Color { Apple.controlAccent }
-    static var primaryForeground: Color { Apple.selectedControlText }
-    static var primaryHover: Color {
-        let accent = NSColor.controlAccentColor
-        let contrast = NSColor.labelColor
-        return Color(nsColor: accent.blended(withFraction: 0.12, of: contrast) ?? accent)
-    }
-    static var focusRing: Color { primary.opacity(0.58) }
-    static var selectedFill: Color { primary.opacity(0.16) }
+    static let blueThemeHex = Apple.systemBlueReferenceHex
+    static var accent: Color { Apple.controlAccent }
+    static var focusRing: Color { accent.opacity(0.58) }
+    static var selectedFill: Color { accent.opacity(0.16) }
     static var success: Color { Apple.systemGreen }
     static var warning: Color { Apple.systemOrange }
     static var danger: Color { Apple.systemRed }
+}
+
+/// Space themes personalize identity and passive atmosphere. Interactive
+/// controls continue to use `CandoaColor.accent` and semantic system colors.
+enum CandoaThemeStyle {
+    static func identityColor(for hex: String?) -> Color {
+        guard let hex, !hex.isEmpty else { return CandoaColor.Apple.systemGray }
+        return Color(spaceHex: hex)
+    }
 }
 
 enum CandoaInterfaceStyle {
@@ -46,8 +48,10 @@ enum CandoaInterfaceStyle {
         workspaceBackground
     }
     static let sidebarBackground = Color(nsColor: .windowBackgroundColor)
+    /// Neutral foreground for noninteractive artwork and supporting symbols.
+    static let decorativeSymbol = Color(nsColor: .secondaryLabelColor)
     static var sidebarSurfaceOverlay: Color {
-        shadowTone.opacity(increasesContrast ? 0.085 : 0.045)
+        shadowTone.opacity(increasesContrast ? 0.14 : 0.10)
     }
     static var sidebarBorder: Color { separatorTone.opacity(increasesContrast ? 1 : 0.90) }
     static var sidebarSeparator: Color { separatorTone.opacity(increasesContrast ? 1 : 0.75) }
@@ -66,26 +70,20 @@ enum CandoaInterfaceStyle {
     static var spaceSetupPillFill: Color {
         tertiaryTone.opacity(increasesContrast ? 0.64 : 0.40)
     }
-    /// Adaptive neutral treatment for app-owned primary actions. Space themes,
-    /// selections, focus rings, and status colors keep their own semantic color.
-    static var primaryActionFill: Color {
-        Color(nsColor: .labelColor).opacity(increasesContrast ? 0.80 : 0.64)
+    /// Neutral content treatment for a message written by the person. Message
+    /// content remains distinct from controls and never borrows the Space theme
+    /// or the macOS interaction accent.
+    static var userMessageFill: Color { Color(nsColor: .controlColor) }
+    static var userMessageText: Color { Color(nsColor: .controlTextColor) }
+
+    /// Transient feedback floats above content using a system material rather
+    /// than turning the current Space identity color into an interaction color.
+    static var feedbackText: Color { Color(nsColor: .labelColor) }
+    static var feedbackButtonFill: Color {
+        subtleTone.opacity(increasesContrast ? 1 : 0.72)
     }
-    static var primaryActionText: Color {
-        windowBackground
-    }
-    static var primaryActionDisabledFill: Color {
-        let control = NSColor.controlColor
-        let label = NSColor.labelColor
-        return Color(
-            nsColor: control.blended(
-                withFraction: increasesContrast ? 0.08 : 0.05,
-                of: label
-            ) ?? control
-        )
-    }
-    static var primaryActionDisabledText: Color {
-        primaryActionText
+    static var feedbackButtonFillHover: Color {
+        subtleTone.opacity(increasesContrast ? 1 : 0.96)
     }
     static var updateBannerFill: Color { subtleTone.opacity(increasesContrast ? 1 : 0.92) }
     static var updateBannerFillHover: Color { tertiaryTone.opacity(increasesContrast ? 1 : 0.48) }
@@ -120,15 +118,6 @@ enum CandoaInterfaceStyle {
 
     static func prefersDarkForeground(forSpaceHexes hexes: [String]) -> Bool {
         SpaceThemeReadability.resolved(for: hexes).usesDarkForeground
-    }
-}
-
-/// Keeps custom primary-action colors authoritative while `Button.disabled`
-/// continues to provide native interaction and accessibility semantics.
-struct CandoaPrimaryActionButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .opacity(configuration.isPressed ? 0.86 : 1)
     }
 }
 

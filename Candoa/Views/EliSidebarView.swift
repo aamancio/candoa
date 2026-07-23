@@ -377,13 +377,6 @@ struct EliSidebarView: View {
         .accessibilityIdentifier("agent-empty-state")
     }
 
-    private var eliAccentColor: Color {
-        guard let hex = store.activeThemeColorHexes.first else {
-            return CandoaColor.primary
-        }
-        return Color(spaceHex: hex)
-    }
-
     private var composer: some View {
         VStack(spacing: 8) {
             if isMentionMenuPresented {
@@ -493,7 +486,7 @@ struct EliSidebarView: View {
                         .foregroundStyle(CandoaInterfaceStyle.sidebarIcon)
                         .frame(width: 22, height: 22)
                 }
-                .buttonStyle(.borderless)
+                .candoaButton(.chrome)
                 .disabled(!speechController.isListening)
                 .help("Cancel Dictation")
 
@@ -514,7 +507,7 @@ struct EliSidebarView: View {
                         .foregroundStyle(speechController.isListening ? CandoaInterfaceStyle.sidebarTextSecondary : CandoaInterfaceStyle.sidebarIcon)
                         .frame(width: 22, height: 22)
                 }
-                .buttonStyle(.borderless)
+                .candoaButton(.chrome)
                 .disabled(!speechController.isListening)
                 .help("Stop Dictation")
             }
