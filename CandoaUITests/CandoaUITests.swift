@@ -255,7 +255,7 @@ final class CandoaUITests: XCTestCase {
 
         XCTAssertTrue(accountOnboarding.waitForExistence(timeout: 10))
         XCTAssertEqual(accountOnboarding.value as? String, "idle")
-        XCTAssertTrue(app.buttons["Create a Passkey"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Sign Up"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["Sign In"].exists)
         XCTAssertTrue(app.buttons["Not Now"].exists)
         XCTAssertFalse(app.buttons["Continue with Apple"].exists)
@@ -283,7 +283,7 @@ final class CandoaUITests: XCTestCase {
         let accountOnboarding = element("account-onboarding", in: app).firstMatch
         XCTAssertTrue(accountOnboarding.waitForExistence(timeout: 10))
 
-        app.buttons["Create a Passkey"].click()
+        app.buttons["Sign Up"].click()
 
         let dismissed = XCTNSPredicateExpectation(
             predicate: NSPredicate(format: "exists == false"),

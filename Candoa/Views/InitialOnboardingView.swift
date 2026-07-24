@@ -350,7 +350,7 @@ private struct AccountOnboardingStep: View {
                         .tracking(-0.4)
                         .multilineTextAlignment(.center)
 
-                    Text("Create a passkey to use your Candoa account on your other devices.")
+                    Text("Create an account to sign in to Candoa on your other devices.")
                         .font(.system(size: 14))
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
@@ -364,7 +364,7 @@ private struct AccountOnboardingStep: View {
                         ProgressView()
                             .controlSize(.small)
                     } else {
-                        Text("Create a Passkey")
+                        Text("Sign Up")
                     }
                 }
                 .candoaButton(.primary)
@@ -408,7 +408,7 @@ private struct AccountOnboardingStep: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
-                Text("You can skip this and add a passkey later in Settings.")
+                Text("You can do this later in Settings.")
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
