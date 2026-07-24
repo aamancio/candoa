@@ -338,84 +338,78 @@ private struct AccountOnboardingStep: View {
 
     var body: some View {
         AccountOnboardingSurface(onBack: store.goBackInInitialOnboarding) {
-            VStack(spacing: 24) {
-                Image(systemName: "key.fill")
-                    .font(.system(size: 34, weight: .medium))
-                    .symbolRenderingMode(.hierarchical)
-                    .foregroundStyle(CandoaInterfaceStyle.decorativeSymbol)
+            VStack(spacing: 0) {
+                Spacer(minLength: 20)
 
-                VStack(spacing: 10) {
-                    Text("Keep your account with you")
-                        .font(.system(size: 30, weight: .semibold))
-                        .tracking(-0.4)
-                        .multilineTextAlignment(.center)
+                VStack(spacing: 24) {
+                    Image(systemName: "key.fill")
+                        .font(.system(size: 34, weight: .medium))
+                        .symbolRenderingMode(.hierarchical)
+                        .foregroundStyle(CandoaInterfaceStyle.decorativeSymbol)
 
-                    Text("Create an account to sign in to Candoa on your other devices.")
-                        .font(.system(size: 14))
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
+                    VStack(spacing: 10) {
+                        Text("Keep your account with you")
+                            .font(.system(size: 30, weight: .semibold))
+                            .tracking(-0.4)
+                            .multilineTextAlignment(.center)
 
-                Button {
-                    userStore.createPasskey()
-                } label: {
-                    HStack(spacing: 8) {
-                        if userStore.isWorking {
-                            ProgressView()
-                                .controlSize(.small)
-                        } else {
-                            Text("Sign Up")
+                        Text("Create an account to sign in to Candoa on your other devices.")
+                            .font(.system(size: 14))
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    Button {
+                        userStore.createPasskey()
+                    } label: {
+                        HStack(spacing: 8) {
+                            if userStore.isWorking {
+                                ProgressView()
+                                    .controlSize(.small)
+                            } else {
+                                Text("Sign Up")
+                            }
                         }
+                        .frame(maxWidth: .infinity)
                     }
+                    .candoaButton(.primary)
+                    .controlSize(.large)
                     .frame(maxWidth: .infinity)
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(userStore.isWorking)
+                    .accessibilityIdentifier("onboarding-create-passkey")
+
+                    HStack(spacing: 4) {
+                        Text("Already have an account?")
+                            .foregroundStyle(.secondary)
+
+                        Button("Sign In") {
+                            userStore.signInWithPasskey()
+                        }
+                        .candoaButton(.link)
+                        .disabled(userStore.isWorking)
+                        .accessibilityIdentifier("onboarding-sign-in-passkey")
+                    }
+                    .font(.system(size: 13))
+
+                    if let errorMessage = userStore.errorMessage, !userStore.isWorking {
+                        Text(errorMessage)
+                            .font(.system(size: 12))
+                            .foregroundStyle(CandoaColor.danger)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
-                .candoaButton(.primary)
+
+                Spacer(minLength: 20)
+
+                Button("Not Now") {
+                    userStore.continueOnThisMac()
+                }
+                .candoaButton(.quiet)
                 .controlSize(.large)
-                .frame(maxWidth: .infinity)
-                .keyboardShortcut(.defaultAction)
                 .disabled(userStore.isWorking)
-                .accessibilityIdentifier("onboarding-create-passkey")
-
-                HStack(spacing: 16) {
-                    Button {
-                        userStore.signInWithPasskey()
-                    } label: {
-                        Text("Sign In")
-                            .frame(width: 72)
-                    }
-                    .candoaButton(.secondary)
-                    .controlSize(.large)
-                    .tint(Color(nsColor: .secondaryLabelColor))
-                    .disabled(userStore.isWorking)
-                    .accessibilityIdentifier("onboarding-sign-in-passkey")
-
-                    Button {
-                        userStore.continueOnThisMac()
-                    } label: {
-                        Text("Not Now")
-                            .frame(width: 72)
-                    }
-                    .candoaButton(.secondary)
-                    .controlSize(.large)
-                    .tint(Color(nsColor: .secondaryLabelColor))
-                    .disabled(userStore.isWorking)
-                    .accessibilityIdentifier("onboarding-not-now")
-                }
-                .frame(maxWidth: .infinity)
-
-                if let errorMessage = userStore.errorMessage, !userStore.isWorking {
-                    Text(errorMessage)
-                        .font(.system(size: 12))
-                        .foregroundStyle(CandoaColor.danger)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-
-                Text("You can do this later in Settings.")
-                    .font(.system(size: 12))
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("onboarding-not-now")
             }
             .frame(maxWidth: 310)
         }
