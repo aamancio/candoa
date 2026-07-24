@@ -364,23 +364,27 @@ final class BrowserStore: ObservableObject {
         repairSessionState()
         markActiveTabAsActivated()
         shouldPresentInitialSpaceSetup = shouldPresentInitialSpaceSetup || needsInitialSpaceSetup()
+        let storedOnboardingStep = UserDefaults.standard.string(forKey: Self.onboardingStepKey)
+            .flatMap(InitialOnboardingStep.init(rawValue:))
+        let hasCompletedOnboarding = UserDefaults.standard.bool(
+            forKey: Self.hasCompletedOnboardingKey
+        )
         if let uiTestingOnboardingStep = Self.uiTestingOnboardingStep {
             setInitialOnboardingStep(uiTestingOnboardingStep, persists: false)
         } else if Self.isUITesting {
             setInitialOnboardingStep(nil, persists: false)
-        } else if shouldPresentInitialSpaceSetup {
-            let storedStep = UserDefaults.standard.string(forKey: Self.onboardingStepKey)
-                .flatMap(InitialOnboardingStep.init(rawValue:))
+        } else if !hasCompletedOnboarding,
+                  let storedOnboardingStep {
             let resumableStep: InitialOnboardingStep
-            switch storedStep {
+            switch storedOnboardingStep {
             case .tour:
-                resumableStep = .space
+                resumableStep = shouldPresentInitialSpaceSetup ? .space : .tour
             case .welcome, .account, .importData, .space:
-                resumableStep = storedStep ?? .welcome
-            case .none:
-                resumableStep = .welcome
+                resumableStep = storedOnboardingStep
             }
             setInitialOnboardingStep(resumableStep)
+        } else if shouldPresentInitialSpaceSetup {
+            setInitialOnboardingStep(.welcome)
         } else {
             if !UserDefaults.standard.bool(forKey: Self.hasCompletedTourKey) {
                 setInitialOnboardingStep(.tour)
