@@ -243,6 +243,10 @@ final class CandoaUITests: XCTestCase {
             object: spaceOnboarding
         )
         XCTAssertEqual(XCTWaiter.wait(for: [dismissed], timeout: 5), .completed)
+        XCTAssertTrue(
+            element("account-onboarding", in: app).waitForExistence(timeout: 5),
+            "Creating the initial Space should continue to the passkey account choice."
+        )
     }
 
     func testAccountOnboardingOffersPasskeyOrAnonymousUse() throws {

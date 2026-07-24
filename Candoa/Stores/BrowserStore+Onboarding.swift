@@ -32,7 +32,7 @@ extension BrowserStore {
     }
 
     private var nextAccountOrTourStep: InitialOnboardingStep {
-        .tour
+        .account
     }
 
     func completeInitialSpaceSetup(
