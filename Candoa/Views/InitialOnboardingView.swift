@@ -375,8 +375,11 @@ private struct AccountOnboardingStep: View {
                 .accessibilityIdentifier("onboarding-create-passkey")
 
                 HStack(spacing: 16) {
-                    Button("Sign In") {
+                    Button {
                         userStore.signInWithPasskey()
+                    } label: {
+                        Text("Sign In")
+                            .frame(width: 72)
                     }
                     .candoaButton(.secondary)
                     .controlSize(.large)
@@ -384,15 +387,19 @@ private struct AccountOnboardingStep: View {
                     .disabled(userStore.isWorking)
                     .accessibilityIdentifier("onboarding-sign-in-passkey")
 
-                    Button("Not Now") {
+                    Button {
                         userStore.continueOnThisMac()
+                    } label: {
+                        Text("Not Now")
+                            .frame(width: 72)
                     }
-                    .candoaButton(.quiet)
+                    .candoaButton(.secondary)
                     .controlSize(.large)
+                    .tint(Color(nsColor: .secondaryLabelColor))
                     .disabled(userStore.isWorking)
                     .accessibilityIdentifier("onboarding-not-now")
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(maxWidth: .infinity)
 
                 if let errorMessage = userStore.errorMessage, !userStore.isWorking {
                     Text(errorMessage)
