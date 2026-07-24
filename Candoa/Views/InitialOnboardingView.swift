@@ -360,12 +360,15 @@ private struct AccountOnboardingStep: View {
                 Button {
                     userStore.createPasskey()
                 } label: {
-                    if userStore.isWorking {
-                        ProgressView()
-                            .controlSize(.small)
-                    } else {
-                        Text("Sign Up")
+                    HStack(spacing: 8) {
+                        if userStore.isWorking {
+                            ProgressView()
+                                .controlSize(.small)
+                        } else {
+                            Text("Sign Up")
+                        }
                     }
+                    .frame(maxWidth: .infinity)
                 }
                 .candoaButton(.primary)
                 .controlSize(.large)
