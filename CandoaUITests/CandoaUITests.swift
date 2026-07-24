@@ -245,26 +245,41 @@ final class CandoaUITests: XCTestCase {
         XCTAssertEqual(XCTWaiter.wait(for: [dismissed], timeout: 5), .completed)
     }
 
-    func testAccountOnboardingRequiresNoProviderSignIn() throws {
+    func testAccountOnboardingOffersPasskeyOrAnonymousUse() throws {
         let app = launchApp(onboardingStep: "account")
         let accountOnboarding = element("account-onboarding", in: app).firstMatch
 
         XCTAssertTrue(accountOnboarding.waitForExistence(timeout: 10))
         XCTAssertEqual(accountOnboarding.value as? String, "idle")
-        XCTAssertTrue(app.buttons["Continue"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Create a Passkey"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Sign In"].exists)
+        XCTAssertTrue(app.buttons["Not Now"].exists)
         XCTAssertFalse(app.buttons["Continue with Apple"].exists)
-        XCTAssertFalse(app.buttons["Not Now"].exists)
         XCTAssertFalse(app.webViews.firstMatch.exists)
     }
 
-    func testContinueCompletesAccountSetup() throws {
+    func testNotNowCompletesAccountSetup() throws {
         let app = launchApp(onboardingStep: "account")
         let accountOnboarding = element("account-onboarding", in: app).firstMatch
         XCTAssertTrue(accountOnboarding.waitForExistence(timeout: 10))
 
-        let continueButton = app.buttons["Continue"]
+        let continueButton = app.buttons["Not Now"]
         XCTAssertTrue(continueButton.waitForExistence(timeout: 5))
         continueButton.click()
+
+        let dismissed = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "exists == false"),
+            object: accountOnboarding
+        )
+        XCTAssertEqual(XCTWaiter.wait(for: [dismissed], timeout: 5), .completed)
+    }
+
+    func testCreatingPasskeyCompletesAccountSetup() throws {
+        let app = launchApp(onboardingStep: "account", passkeySuccess: true)
+        let accountOnboarding = element("account-onboarding", in: app).firstMatch
+        XCTAssertTrue(accountOnboarding.waitForExistence(timeout: 10))
+
+        app.buttons["Create a Passkey"].click()
 
         let dismissed = XCTNSPredicateExpectation(
             predicate: NSPredicate(format: "exists == false"),
@@ -689,6 +704,7 @@ final class CandoaUITests: XCTestCase {
         onboardingStep: String? = nil,
         browserImportFixture: String? = nil,
         checkoutFailure: Bool = false,
+        passkeySuccess: Bool = false,
         websiteAppearance: String? = nil
     ) -> XCUIApplication {
         let app = XCUIApplication()
@@ -712,6 +728,9 @@ final class CandoaUITests: XCTestCase {
         }
         if checkoutFailure {
             app.launchEnvironment["CANDOA_UI_TESTING_CHECKOUT_FAILURE"] = "1"
+        }
+        if passkeySuccess {
+            app.launchEnvironment["CANDOA_UI_TESTING_PASSKEY_SUCCESS"] = "1"
         }
 
         app.launch()

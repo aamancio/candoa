@@ -5,7 +5,6 @@ internal struct EliSettingsPane: View {
     @AppStorage(CandoaSettingsOption.askModel) private var model = CandoaEliPreferences.defaultModel
     @AppStorage(CandoaSettingsOption.askUsesPersonalOpenAIKey) private var usesPersonalOpenAIKey = false
     @State private var apiKey = ""
-    @State private var recoveryEmail = ""
     @State private var hasSavedKey = CandoaEliKeychain.hasAPIKey
     @State private var keychainError: String?
     @EnvironmentObject private var userStore: UserStore
@@ -104,39 +103,52 @@ internal struct EliSettingsPane: View {
                         }
                     }
 
-                    if !userStore.hasActiveSubscription {
-                        SettingsDivider()
+                    SettingsDivider()
 
-                        SettingsRow(
-                            systemImage: "arrow.clockwise.circle",
-                            title: "Restore a subscription",
-                            subtitle: "Enter the email used at checkout."
-                        ) {
-                            HStack(spacing: 8) {
-                                TextField("Email", text: $recoveryEmail)
-                                    .textFieldStyle(.roundedBorder)
-                                    .frame(width: 190)
-
-                                Button(
-                                    userStore.isRestoringSubscription ? "Waiting…" : "Restore",
-                                    action: restoreSubscription
-                                )
-                                .candoaButton(.secondary)
-                                .controlSize(.small)
-                                .disabled(
-                                    recoveryEmail
-                                        .trimmingCharacters(in: .whitespacesAndNewlines)
-                                        .isEmpty
-                                        || userStore.isRestoringSubscription
-                                )
+                    SettingsRow(
+                        systemImage: userStore.status?.hasPasskey == true
+                            ? "key.fill"
+                            : "laptopcomputer",
+                        title: userStore.status?.hasPasskey == true
+                            ? "Passkey ready"
+                            : "Only on this Mac",
+                        subtitle: userStore.status?.hasPasskey == true
+                            ? "Use your passkey to access this account on another device."
+                            : "Create a passkey to keep this account available on your devices."
+                    ) {
+                        if userStore.status?.hasPasskey != true {
+                            Button("Create Passkey") {
+                                userStore.createPasskey()
                             }
+                            .candoaButton(.secondary)
+                            .controlSize(.small)
+                            .disabled(userStore.isWorking)
                         }
                     }
 
-                    if let recoveryMessage = userStore.recoveryMessage {
+                    if !userStore.isSignedIn {
                         SettingsDivider()
 
-                        Text(recoveryMessage)
+                        SettingsRow(
+                            systemImage: "person.crop.circle.badge.checkmark",
+                            title: "Use an existing account",
+                            subtitle: "Sign in with a passkey you already created."
+                        ) {
+                            Button(
+                                userStore.isSigningInWithPasskey ? "Signing In…" : "Sign In"
+                            ) {
+                                userStore.signInWithPasskey()
+                            }
+                            .candoaButton(.secondary)
+                            .controlSize(.small)
+                            .disabled(userStore.isWorking)
+                        }
+                    }
+
+                    if let accountMessage = userStore.accountMessage {
+                        SettingsDivider()
+
+                        Text(accountMessage)
                             .font(.callout)
                             .foregroundStyle(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
@@ -187,14 +199,5 @@ internal struct EliSettingsPane: View {
 
     private func openBillingPortal() {
         Task { await userStore.openBillingPortal() }
-    }
-
-    private func restoreSubscription() {
-        Task {
-            await userStore.restoreSubscription(email: recoveryEmail)
-            if userStore.hasActiveSubscription {
-                recoveryEmail = ""
-            }
-        }
     }
 }

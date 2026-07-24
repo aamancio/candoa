@@ -1,4 +1,5 @@
 import AppKit
+import AuthenticationServices
 import Foundation
 import SwiftUI
 
@@ -7,17 +8,17 @@ final class UserStore: ObservableObject {
     @Published private(set) var status: CandoaAccountStatus?
     @Published private(set) var isWorking = false
     @Published private(set) var isStartingSubscription = false
-    @Published private(set) var isRestoringSubscription = false
+    @Published private(set) var isSigningInWithPasskey = false
     @Published private(set) var errorMessage: String?
     @Published private(set) var subscriptionErrorMessage: String?
-    @Published private(set) var recoveryMessage: String?
+    @Published private(set) var accountMessage: String?
     @Published private(set) var isSignedIn: Bool
     @Published private(set) var hasCloudSession: Bool
     @Published private(set) var isLocalOnly: Bool
     @Published private(set) var hasCompletedAccountChoice: Bool
 
     private let accountService: CandoaAccountService
-    private let emailRecoveryService: CandoaEmailRecoveryService
+    private let passkeyService: CandoaPasskeyService
 
     var hasActiveSubscription: Bool { status?.hasActiveSubscription == true }
 
@@ -29,11 +30,10 @@ final class UserStore: ObservableObject {
 
     init(
         accountService: CandoaAccountService = CandoaAccountService(),
-        emailRecoveryService: CandoaEmailRecoveryService =
-            CandoaEmailRecoveryService()
+        passkeyService: CandoaPasskeyService = CandoaPasskeyService()
     ) {
         self.accountService = accountService
-        self.emailRecoveryService = emailRecoveryService
+        self.passkeyService = passkeyService
         let hasStoredToken = accountService.accessToken != nil
         isSignedIn = false
         hasCloudSession = hasStoredToken
@@ -50,7 +50,9 @@ final class UserStore: ObservableObject {
             isSignedIn = false
             hasCloudSession = false
             isLocalOnly = hasCompletedAccountChoice
-            await createAnonymousSession()
+            if hasCompletedAccountChoice {
+                await createAnonymousSession()
+            }
             return
         }
         await refresh()
@@ -59,6 +61,18 @@ final class UserStore: ObservableObject {
     func continueOnThisMac() {
         Task {
             await createAnonymousSession()
+        }
+    }
+
+    func createPasskey() {
+        Task {
+            await registerPasskey()
+        }
+    }
+
+    func signInWithPasskey() {
+        Task {
+            await restoreWithPasskey()
         }
     }
 
@@ -111,6 +125,14 @@ final class UserStore: ObservableObject {
                 ?? "Candoa couldn’t start checkout. Please try again."
             return
         }
+        if status?.hasPasskey != true {
+            let registered = await registerPasskey()
+            guard registered else { return }
+        }
+        guard isSignedIn, status?.hasPasskey == true else {
+            subscriptionErrorMessage = "Set up your Candoa account before subscribing."
+            return
+        }
         await openBillingURL(
             failureMessage: "Candoa couldn’t open checkout. Please try again."
         ) { accessToken in
@@ -124,31 +146,6 @@ final class UserStore: ObservableObject {
         }
     }
 
-    func restoreSubscription(email: String) async {
-        let normalizedEmail = email
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .lowercased()
-        guard !normalizedEmail.isEmpty, !isRestoringSubscription else { return }
-
-        isRestoringSubscription = true
-        recoveryMessage = "Check your email to finish restoring Candoa."
-        defer { isRestoringSubscription = false }
-
-        do {
-            let accessToken = try await emailRecoveryService.restoreSubscription(
-                email: normalizedEmail
-            )
-            try accountService.saveAccessToken(accessToken)
-            markAccountChoiceCompleted()
-            try await loadSession(accessToken: accessToken)
-            try await refreshAccountStatus(accessToken: accessToken)
-            recoveryMessage = "Your Candoa subscription has been restored."
-            errorMessage = nil
-        } catch {
-            recoveryMessage = error.localizedDescription
-        }
-    }
-
     func signOut() {
         let accessToken = accountService.accessToken
         try? accountService.removeAccessToken()
@@ -158,7 +155,7 @@ final class UserStore: ObservableObject {
         status = nil
         errorMessage = nil
         subscriptionErrorMessage = nil
-        recoveryMessage = nil
+        accountMessage = nil
         if let accessToken {
             Task {
                 try? await accountService.signOut(accessToken: accessToken)
@@ -214,6 +211,14 @@ final class UserStore: ObservableObject {
         defer { isWorking = false }
 
         do {
+            if let accessToken = accountService.accessToken {
+                try await loadSession(accessToken: accessToken)
+                guard hasCloudSession, isLocalOnly else {
+                    throw CandoaAccountError.invalidResponse
+                }
+                markAccountChoiceCompleted()
+                return
+            }
             let accessToken = try await accountService.signInAnonymously()
             try accountService.saveAccessToken(accessToken)
             try await loadSession(accessToken: accessToken)
@@ -227,6 +232,122 @@ final class UserStore: ObservableObject {
             isLocalOnly = false
             isSignedIn = false
             errorMessage = error.localizedDescription
+        }
+    }
+
+    @discardableResult
+    private func registerPasskey() async -> Bool {
+        guard !isWorking else { return false }
+
+        if ProcessInfo.processInfo.environment["CANDOA_UI_TESTING_PASSKEY_SUCCESS"] == "1" {
+            isSignedIn = true
+            isLocalOnly = false
+            hasCloudSession = true
+            markAccountChoiceCompleted()
+            return true
+        }
+
+        isWorking = true
+        errorMessage = nil
+        accountMessage = nil
+        var createdTemporarySession = false
+        defer { isWorking = false }
+
+        do {
+            if accountService.accessToken == nil {
+                let accessToken = try await accountService.signInAnonymously()
+                try accountService.saveAccessToken(accessToken)
+                try await loadSession(accessToken: accessToken)
+                createdTemporarySession = true
+            }
+
+            guard let accessToken = accountService.accessToken,
+                  hasCloudSession else {
+                throw CandoaAccountError.invalidResponse
+            }
+            if status?.hasPasskey == true {
+                markAccountChoiceCompleted()
+                return true
+            }
+
+            let options = try await accountService.passkeyRegistrationOptions(
+                accessToken: accessToken
+            )
+            let credential = try await passkeyService.createPasskey(options: options)
+            try await accountService.verifyPasskeyRegistration(
+                credential,
+                accessToken: accessToken
+            )
+            try await loadSession(accessToken: accessToken)
+            guard isSignedIn, !isLocalOnly else {
+                throw CandoaAccountError.invalidResponse
+            }
+            try await refreshAccountStatus(accessToken: accessToken)
+            guard status?.hasPasskey == true else {
+                throw CandoaAccountError.invalidResponse
+            }
+            markAccountChoiceCompleted()
+            accountMessage = "Your Candoa account is ready."
+            return true
+        } catch {
+            if createdTemporarySession {
+                if let accessToken = accountService.accessToken {
+                    try? await accountService.signOut(accessToken: accessToken)
+                }
+                try? accountService.removeAccessToken()
+                hasCloudSession = false
+                isLocalOnly = false
+                isSignedIn = false
+            }
+            if isPasskeyCancellation(error) {
+                errorMessage = nil
+            } else {
+                errorMessage = error.localizedDescription
+            }
+            return false
+        }
+    }
+
+    private func restoreWithPasskey() async {
+        guard !isSigningInWithPasskey, !isWorking else { return }
+
+        if ProcessInfo.processInfo.environment["CANDOA_UI_TESTING_PASSKEY_SUCCESS"] == "1" {
+            isSignedIn = true
+            isLocalOnly = false
+            hasCloudSession = true
+            markAccountChoiceCompleted()
+            return
+        }
+
+        isSigningInWithPasskey = true
+        isWorking = true
+        errorMessage = nil
+        accountMessage = nil
+        defer {
+            isSigningInWithPasskey = false
+            isWorking = false
+        }
+
+        do {
+            let options = try await accountService.passkeyAuthenticationOptions()
+            let credential = try await passkeyService.signIn(options: options)
+            let accessToken = try await accountService.verifyPasskeyAuthentication(credential)
+            try accountService.saveAccessToken(accessToken)
+            try await loadSession(accessToken: accessToken)
+            guard isSignedIn, !isLocalOnly else {
+                throw CandoaAccountError.invalidResponse
+            }
+            try await refreshAccountStatus(accessToken: accessToken)
+            markAccountChoiceCompleted()
+            accountMessage = hasActiveSubscription
+                ? "Your Candoa subscription has been restored."
+                : "You’re signed in to Candoa."
+        } catch {
+            if isPasskeyCancellation(error) {
+                errorMessage = nil
+            } else {
+                errorMessage = error.localizedDescription
+            }
         }
     }
 
@@ -244,5 +365,11 @@ final class UserStore: ObservableObject {
     private func markAccountChoiceCompleted() {
         UserDefaults.standard.set(true, forKey: Self.accountChoiceKey)
         hasCompletedAccountChoice = true
+    }
+
+    private func isPasskeyCancellation(_ error: any Error) -> Bool {
+        let error = error as NSError
+        return error.domain == ASAuthorizationError.errorDomain
+            && error.code == ASAuthorizationError.canceled.rawValue
     }
 }

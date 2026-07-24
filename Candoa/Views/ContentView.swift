@@ -376,9 +376,7 @@ struct ContentView: View {
             )
         }
         .onOpenURL { url in
-            if !CandoaEmailRecoveryService.handleRecoveryURL(url) {
-                store.openExternalURL(url)
-            }
+            store.openExternalURL(url)
         }
         .onDisappear {
             store.flushSession()

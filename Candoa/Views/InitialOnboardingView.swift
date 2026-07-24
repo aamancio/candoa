@@ -340,28 +340,47 @@ private struct AccountOnboardingStep: View {
         OnboardingSurface(step: .account, onBack: store.goBackInInitialOnboarding) {
             VStack(alignment: .leading, spacing: 18) {
                 OnboardingPageHeader(
-                    symbolName: "person.crop.circle",
-                    title: "No account setup required",
-                    detail: "Start browsing now. If you subscribe later, the email used at checkout can restore your plan on another Mac."
+                    symbolName: "key.fill",
+                    title: "Keep your account with you",
+                    detail: "Create a passkey to use your Candoa account on your other devices. No password needed."
                 )
 
                 Spacer(minLength: 24)
 
                 Button {
-                    userStore.continueOnThisMac()
+                    userStore.createPasskey()
                 } label: {
                     if userStore.isWorking {
                         ProgressView()
                             .controlSize(.small)
                     } else {
-                        Text("Continue")
+                        Text("Create a Passkey")
                     }
                 }
                 .candoaButton(.primary)
                 .controlSize(.large)
                 .frame(maxWidth: .infinity)
                 .disabled(userStore.isWorking)
-                .accessibilityIdentifier("onboarding-continue-on-this-mac")
+                .accessibilityIdentifier("onboarding-create-passkey")
+
+                HStack(spacing: 12) {
+                    Button("Sign In") {
+                        userStore.signInWithPasskey()
+                    }
+                    .candoaButton(.secondary)
+                    .controlSize(.large)
+                    .disabled(userStore.isWorking)
+                    .accessibilityIdentifier("onboarding-sign-in-passkey")
+
+                    Button("Not Now") {
+                        userStore.continueOnThisMac()
+                    }
+                    .candoaButton(.secondary)
+                    .controlSize(.large)
+                    .disabled(userStore.isWorking)
+                    .accessibilityIdentifier("onboarding-not-now")
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
 
                 if let errorMessage = userStore.errorMessage, !userStore.isWorking {
                     Text(errorMessage)
@@ -370,7 +389,7 @@ private struct AccountOnboardingStep: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
-                Text("Your history, bookmarks, and Spaces stay on this Mac.")
+                Text("Choose Not Now to start with an account that stays on this Mac.")
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -700,7 +719,7 @@ private struct OnboardingPageHeader: View {
 private struct OnboardingAccountPreview: View {
     var body: some View {
         VStack(spacing: 22) {
-            Image(systemName: "person.crop.circle")
+            Image(systemName: "key.fill")
                 .font(.system(size: 54, weight: .regular))
                 .symbolRenderingMode(.hierarchical)
                 .foregroundStyle(CandoaInterfaceStyle.decorativeSymbol)
@@ -709,14 +728,14 @@ private struct OnboardingAccountPreview: View {
                 Text("Your Candoa account")
                     .font(.system(size: 20, weight: .semibold))
 
-                Text("Subscribe without a separate sign-in and restore your plan with the email used at checkout.")
+                Text("A passkey keeps your account and future subscription available across your devices.")
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            Label("No separate sign-in required", systemImage: "checkmark.circle.fill")
+            Label("No password or email required", systemImage: "checkmark.circle.fill")
                 .font(.system(size: 12.5, weight: .medium))
                 .foregroundStyle(.secondary)
         }

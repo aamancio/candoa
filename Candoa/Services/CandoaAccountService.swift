@@ -1,5 +1,3 @@
-import AppKit
-import CryptoKit
 import Foundation
 import Security
 
@@ -66,8 +64,25 @@ enum CandoaAccountKeychain {
 }
 
 struct CandoaAccountStatus: Decodable, Sendable {
+    let hasPasskey: Bool
     let planID: String
     let allowedModelIDs: [String]
+
+    private enum CodingKeys: String, CodingKey {
+        case hasPasskey
+        case planID
+        case allowedModelIDs
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        hasPasskey = try container.decodeIfPresent(Bool.self, forKey: .hasPasskey) ?? false
+        planID = try container.decode(String.self, forKey: .planID)
+        allowedModelIDs = try container.decode(
+            [String].self,
+            forKey: .allowedModelIDs
+        )
+    }
 
     var hasActiveSubscription: Bool {
         planID != "free" && !allowedModelIDs.isEmpty
@@ -153,32 +168,64 @@ enum CandoaCloudAPI {
         )
     }
 
-    static func prepareEmailRecovery(
-        email: String,
-        codeChallenge: String
+    static func passkeyRegistrationOptions(
+        accessToken: String
+    ) async throws -> CandoaPasskeyRegistrationOptions {
+        var components = URLComponents(
+            url: accountEndpoint("auth/passkey/generate-register-options"),
+            resolvingAgainstBaseURL: false
+        )
+        components?.queryItems = [
+            URLQueryItem(name: "authenticatorAttachment", value: "platform"),
+            URLQueryItem(name: "name", value: "Candoa")
+        ]
+        guard let url = components?.url else { throw CandoaAccountError.invalidResponse }
+        return try await request(
+            url,
+            method: "GET",
+            body: Optional<String>.none,
+            accessToken: accessToken
+        )
+    }
+
+    static func verifyPasskeyRegistration(
+        _ credential: CandoaPasskeyRegistrationCredential,
+        accessToken: String
     ) async throws {
-        let _: EmailRecoveryPrepareResponse = try await request(
-            accountEndpoint("auth/email/recovery/prepare"),
+        let (_, response) = try await dataRequest(
+            accountEndpoint("auth/passkey/verify-registration"),
             method: "POST",
-            body: EmailRecoveryPrepareRequest(
-                email: email,
-                codeChallenge: codeChallenge
-            ),
+            body: CandoaPasskeyVerificationRequest(response: credential),
+            accessToken: accessToken
+        )
+        guard (200...299).contains(response.statusCode) else {
+            throw CandoaAccountError.invalidResponse
+        }
+    }
+
+    static func passkeyAuthenticationOptions() async throws -> CandoaPasskeyAuthenticationOptions {
+        try await request(
+            accountEndpoint("auth/passkey/generate-authenticate-options"),
+            method: "GET",
+            body: Optional<String>.none,
             accessToken: nil
         )
     }
 
-    static func exchangeEmailRecoveryCode(
-        _ code: String,
-        codeVerifier: String
+    static func verifyPasskeyAuthentication(
+        _ credential: CandoaPasskeyAuthenticationCredential
     ) async throws -> String {
-        let response: CandoaSessionResponse = try await request(
-            accountEndpoint("auth/email/recovery/exchange"),
+        let (_, response) = try await dataRequest(
+            accountEndpoint("auth/passkey/verify-authentication"),
             method: "POST",
-            body: EmailRecoveryExchangeRequest(code: code, codeVerifier: codeVerifier),
+            body: CandoaPasskeyVerificationRequest(response: credential),
             accessToken: nil
         )
-        return response.accessToken
+        guard let accessToken = response.value(forHTTPHeaderField: "set-auth-token"),
+              !accessToken.isEmpty else {
+            throw CandoaAccountError.invalidResponse
+        }
+        return accessToken
     }
 
     static func accountStatus(accessToken: String) async throws -> CandoaAccountStatus {
@@ -252,7 +299,7 @@ enum CandoaCloudAPI {
         request.httpMethod = method
         request.timeoutInterval = 30
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("candoa-auth://", forHTTPHeaderField: "Origin")
+        request.setValue(origin(for: url), forHTTPHeaderField: "Origin")
         if let accessToken {
             request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
         }
@@ -273,25 +320,16 @@ enum CandoaCloudAPI {
         return (data, httpResponse)
     }
 
+    private static func origin(for url: URL) -> String {
+        guard let scheme = url.scheme,
+              let host = url.host else {
+            return defaultBaseURL.absoluteString
+        }
+        let port = url.port.map { ":\($0)" } ?? ""
+        return "\(scheme)://\(host)\(port)"
+    }
+
     private struct EmptyRequest: Encodable {}
-
-    private struct EmailRecoveryPrepareRequest: Encodable {
-        let email: String
-        let codeChallenge: String
-    }
-
-    private struct EmailRecoveryPrepareResponse: Decodable {
-        let success: Bool
-    }
-
-    private struct EmailRecoveryExchangeRequest: Encodable {
-        let code: String
-        let codeVerifier: String
-    }
-
-    private struct CandoaSessionResponse: Decodable {
-        let accessToken: String
-    }
 
     private struct SignOutResponse: Decodable {
         let success: Bool
@@ -311,115 +349,6 @@ enum CandoaCloudAPI {
     }
 }
 
-@MainActor
-final class CandoaEmailRecoveryService {
-    private static let callbackScheme = "candoa-auth"
-    private static let callbackHost = "email-recovery"
-
-    var isRecovering: Bool { CandoaEmailRecoveryRelay.shared.isWaiting }
-
-    func restoreSubscription(email: String) async throws -> String {
-        guard !isRecovering else {
-            throw CandoaAccountError.recoveryInProgress
-        }
-
-        let codeVerifier = try makeCodeVerifier()
-        let codeChallenge = Data(SHA256.hash(data: Data(codeVerifier.utf8)))
-            .base64URLEncodedString()
-        try await CandoaCloudAPI.prepareEmailRecovery(
-            email: email,
-            codeChallenge: codeChallenge
-        )
-        let callbackURL = try await CandoaEmailRecoveryRelay.shared.waitForCallback()
-        let components = URLComponents(url: callbackURL, resolvingAgainstBaseURL: false)
-
-        if let callbackError = components?.queryItems?.first(where: { $0.name == "error" })?.value {
-            throw CandoaAccountError.recoveryFailed(callbackError)
-        }
-        guard let code = components?.queryItems?.first(where: { $0.name == "code" })?.value,
-              !code.isEmpty else {
-            throw CandoaAccountError.recoveryFailed("invalid")
-        }
-        return try await CandoaCloudAPI.exchangeEmailRecoveryCode(
-            code,
-            codeVerifier: codeVerifier
-        )
-    }
-
-    static func handleRecoveryURL(_ url: URL) -> Bool {
-        guard url.scheme?.lowercased() == callbackScheme,
-              url.host?.lowercased() == callbackHost else {
-            return false
-        }
-        CandoaEmailRecoveryRelay.shared.receive(url)
-        return true
-    }
-
-    private func makeCodeVerifier() throws -> String {
-        var bytes = [UInt8](repeating: 0, count: 32)
-        guard SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes) == errSecSuccess else {
-            throw CandoaAccountError.recoveryFailed("unavailable")
-        }
-        return Data(bytes).base64URLEncodedString()
-    }
-}
-
-@MainActor
-private final class CandoaEmailRecoveryRelay {
-    static let shared = CandoaEmailRecoveryRelay()
-
-    private var continuation: CheckedContinuation<URL, any Error>?
-    private var timeoutTask: Task<Void, Never>?
-
-    var isWaiting: Bool { continuation != nil }
-
-    func waitForCallback() async throws -> URL {
-        guard continuation == nil else {
-            throw CandoaAccountError.recoveryInProgress
-        }
-
-        return try await withCheckedThrowingContinuation {
-            (continuation: CheckedContinuation<URL, any Error>) in
-            self.continuation = continuation
-            timeoutTask = Task { @MainActor [weak self] in
-                try? await Task.sleep(for: .seconds(600))
-                guard !Task.isCancelled, let self, self.continuation != nil else { return }
-                self.finish(throwing: CandoaAccountError.recoveryFailed("expired"))
-            }
-        }
-    }
-
-    func receive(_ url: URL) {
-        guard continuation != nil else { return }
-        finish(returning: url)
-    }
-
-    private func finish(returning url: URL) {
-        let continuation = continuation
-        self.continuation = nil
-        timeoutTask?.cancel()
-        timeoutTask = nil
-        continuation?.resume(returning: url)
-    }
-
-    private func finish(throwing error: any Error) {
-        let continuation = continuation
-        self.continuation = nil
-        timeoutTask?.cancel()
-        timeoutTask = nil
-        continuation?.resume(throwing: error)
-    }
-}
-
-private extension Data {
-    func base64URLEncodedString() -> String {
-        base64EncodedString()
-            .replacingOccurrences(of: "+", with: "-")
-            .replacingOccurrences(of: "/", with: "_")
-            .replacingOccurrences(of: "=", with: "")
-    }
-}
-
 struct CandoaAccountService {
     var accessToken: String? { CandoaAccountKeychain.accessToken }
 
@@ -433,6 +362,32 @@ struct CandoaAccountService {
 
     func signOut(accessToken: String) async throws {
         try await CandoaCloudAPI.signOut(accessToken: accessToken)
+    }
+
+    func passkeyRegistrationOptions(
+        accessToken: String
+    ) async throws -> CandoaPasskeyRegistrationOptions {
+        try await CandoaCloudAPI.passkeyRegistrationOptions(accessToken: accessToken)
+    }
+
+    func verifyPasskeyRegistration(
+        _ credential: CandoaPasskeyRegistrationCredential,
+        accessToken: String
+    ) async throws {
+        try await CandoaCloudAPI.verifyPasskeyRegistration(
+            credential,
+            accessToken: accessToken
+        )
+    }
+
+    func passkeyAuthenticationOptions() async throws -> CandoaPasskeyAuthenticationOptions {
+        try await CandoaCloudAPI.passkeyAuthenticationOptions()
+    }
+
+    func verifyPasskeyAuthentication(
+        _ credential: CandoaPasskeyAuthenticationCredential
+    ) async throws -> String {
+        try await CandoaCloudAPI.verifyPasskeyAuthentication(credential)
     }
 
     func saveAccessToken(_ accessToken: String) throws {
@@ -459,8 +414,7 @@ struct CandoaAccountService {
 enum CandoaAccountError: LocalizedError, Sendable {
     case invalidResponse
     case keychainUnavailable
-    case recoveryFailed(String)
-    case recoveryInProgress
+    case passkeyUnavailable
     case server(String)
 
     var isAuthenticationFailure: Bool {
@@ -477,17 +431,8 @@ enum CandoaAccountError: LocalizedError, Sendable {
             return "Candoa returned an invalid response."
         case .keychainUnavailable:
             return "Candoa could not save your session in Keychain."
-        case .recoveryFailed(let reason):
-            switch reason {
-            case "expired", "invalid":
-                return "That recovery link expired. Please request a new one."
-            case "unavailable":
-                return "Subscription recovery is temporarily unavailable."
-            default:
-                return "Candoa could not restore your subscription. Please try again."
-            }
-        case .recoveryInProgress:
-            return "Check your email to finish restoring your subscription."
+        case .passkeyUnavailable:
+            return "Candoa couldn’t use a passkey. Please try again."
         case .server(let message):
             return message
         }

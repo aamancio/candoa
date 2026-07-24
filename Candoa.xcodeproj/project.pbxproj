@@ -72,6 +72,7 @@
 		EF0000000000000000000103 /* CandoaBrowserAgent.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000000000000003 /* CandoaBrowserAgent.swift */; };
 		EF0000000000000000000104 /* CandoaPageActionProposal.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000000000000004 /* CandoaPageActionProposal.swift */; };
 		010000000000000000000176 /* CandoaAccountService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000066 /* CandoaAccountService.swift */; };
+		CC0000000000000000000101 /* CandoaPasskeyService.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0000000000000000000001 /* CandoaPasskeyService.swift */; };
 		010000000000000000000177 /* InitialOnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000067 /* InitialOnboardingView.swift */; };
 		010000000000000000000178 /* BrowserImportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000068 /* BrowserImportService.swift */; };
 		BB0000000000000000000101 /* BrowserPasskeyAuthorizationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000000001 /* BrowserPasskeyAuthorizationService.swift */; };
@@ -199,6 +200,7 @@
 		EF0000000000000000000003 /* CandoaBrowserAgent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CandoaBrowserAgent.swift; sourceTree = "<group>"; };
 		EF0000000000000000000004 /* CandoaPageActionProposal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CandoaPageActionProposal.swift; sourceTree = "<group>"; };
 		010000000000000000000066 /* CandoaAccountService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CandoaAccountService.swift; sourceTree = "<group>"; };
+		CC0000000000000000000001 /* CandoaPasskeyService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CandoaPasskeyService.swift; sourceTree = "<group>"; };
 		010000000000000000000067 /* InitialOnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InitialOnboardingView.swift; sourceTree = "<group>"; };
 		010000000000000000000068 /* BrowserImportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserImportService.swift; sourceTree = "<group>"; };
 		BB0000000000000000000001 /* BrowserPasskeyAuthorizationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserPasskeyAuthorizationService.swift; sourceTree = "<group>"; };
@@ -357,6 +359,7 @@
 				EF0000000000000000000003 /* CandoaBrowserAgent.swift */,
 				EF0000000000000000000004 /* CandoaPageActionProposal.swift */,
 				010000000000000000000066 /* CandoaAccountService.swift */,
+				CC0000000000000000000001 /* CandoaPasskeyService.swift */,
 				010000000000000000000068 /* BrowserImportService.swift */,
 				BB0000000000000000000001 /* BrowserPasskeyAuthorizationService.swift */,
 				010000000000000000000043 /* CandoaEliPromptPolicy.swift */,
@@ -640,6 +643,7 @@
 				EF0000000000000000000103 /* CandoaBrowserAgent.swift in Sources */,
 				EF0000000000000000000104 /* CandoaPageActionProposal.swift in Sources */,
 				010000000000000000000176 /* CandoaAccountService.swift in Sources */,
+				CC0000000000000000000101 /* CandoaPasskeyService.swift in Sources */,
 				010000000000000000000177 /* InitialOnboardingView.swift in Sources */,
 				010000000000000000000178 /* BrowserImportService.swift in Sources */,
 				BB0000000000000000000101 /* BrowserPasskeyAuthorizationService.swift in Sources */,
