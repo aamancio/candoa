@@ -245,41 +245,26 @@ final class CandoaUITests: XCTestCase {
         XCTAssertEqual(XCTWaiter.wait(for: [dismissed], timeout: 5), .completed)
     }
 
-    func testAppleSignInKeepsProviderButtonDisabledWhileWorking() throws {
-        let app = launchApp(onboardingStep: "account", appleSignInWorking: true)
-        let accountOnboarding = element("account-onboarding", in: app).firstMatch
-
-        XCTAssertTrue(accountOnboarding.waitForExistence(timeout: 10))
-        XCTAssertEqual(accountOnboarding.value as? String, "signing-in")
-
-        let signInButton = element("onboarding-apple-sign-in", in: app).firstMatch
-        XCTAssertTrue(signInButton.waitForExistence(timeout: 5))
-        XCTAssertGreaterThanOrEqual(signInButton.frame.height, 42)
-        XCTAssertFalse(signInButton.isEnabled)
-    }
-
-    func testAccountOnboardingOffersAppleAndLocalUse() throws {
+    func testAccountOnboardingRequiresNoProviderSignIn() throws {
         let app = launchApp(onboardingStep: "account")
         let accountOnboarding = element("account-onboarding", in: app).firstMatch
 
         XCTAssertTrue(accountOnboarding.waitForExistence(timeout: 10))
         XCTAssertEqual(accountOnboarding.value as? String, "idle")
-        XCTAssertTrue(app.buttons["Continue with Apple"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["Not Now"].waitForExistence(timeout: 5))
-        XCTAssertFalse(app.buttons["Continue"].exists)
-        XCTAssertFalse(app.buttons["Skip"].exists)
-        XCTAssertFalse(app.buttons["Explore on My Own"].exists)
+        XCTAssertTrue(app.buttons["Continue"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["Continue with Apple"].exists)
+        XCTAssertFalse(app.buttons["Not Now"].exists)
         XCTAssertFalse(app.webViews.firstMatch.exists)
     }
 
-    func testNotNowCompletesAccountSetup() throws {
+    func testContinueCompletesAccountSetup() throws {
         let app = launchApp(onboardingStep: "account")
         let accountOnboarding = element("account-onboarding", in: app).firstMatch
         XCTAssertTrue(accountOnboarding.waitForExistence(timeout: 10))
 
-        let notNowButton = app.buttons["Not Now"]
-        XCTAssertTrue(notNowButton.waitForExistence(timeout: 5))
-        notNowButton.click()
+        let continueButton = app.buttons["Continue"]
+        XCTAssertTrue(continueButton.waitForExistence(timeout: 5))
+        continueButton.click()
 
         let dismissed = XCTNSPredicateExpectation(
             predicate: NSPredicate(format: "exists == false"),
@@ -703,7 +688,6 @@ final class CandoaUITests: XCTestCase {
         fixture: String? = nil,
         onboardingStep: String? = nil,
         browserImportFixture: String? = nil,
-        appleSignInWorking: Bool = false,
         checkoutFailure: Bool = false,
         websiteAppearance: String? = nil
     ) -> XCUIApplication {
@@ -725,9 +709,6 @@ final class CandoaUITests: XCTestCase {
         }
         if let browserImportFixture {
             app.launchEnvironment["CANDOA_UI_TESTING_BROWSER_IMPORT_FIXTURE"] = browserImportFixture
-        }
-        if appleSignInWorking {
-            app.launchEnvironment["CANDOA_UI_TESTING_APPLE_SIGN_IN_WORKING"] = "1"
         }
         if checkoutFailure {
             app.launchEnvironment["CANDOA_UI_TESTING_CHECKOUT_FAILURE"] = "1"

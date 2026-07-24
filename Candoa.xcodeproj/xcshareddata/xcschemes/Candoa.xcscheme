@@ -77,11 +77,6 @@
             value = "http://127.0.0.1:8787/v1"
             isEnabled = "YES">
          </EnvironmentVariable>
-         <EnvironmentVariable
-            key = "CANDOA_APPLE_AUTH_API_URL"
-            value = "https://api.candoa.app/v1"
-            isEnabled = "YES">
-         </EnvironmentVariable>
       </EnvironmentVariables>
    </LaunchAction>
    <ProfileAction

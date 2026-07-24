@@ -376,7 +376,7 @@ struct ContentView: View {
             )
         }
         .onOpenURL { url in
-            if !CandoaAppleWebAuthenticationService.handleAuthenticationRelay(url) {
+            if !CandoaEmailRecoveryService.handleRecoveryURL(url) {
                 store.openExternalURL(url)
             }
         }

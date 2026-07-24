@@ -726,11 +726,11 @@ struct EliSidebarView: View {
             ))
             messages.append(AISidebarMessage(
                 role: .assistant,
-                text: userStore.isSignedIn && userStore.errorMessage != nil
+                text: userStore.hasCloudSession && userStore.errorMessage != nil
                     ? "I couldn’t verify your Candoa subscription. Check the Cloud connection and try again."
                     : "",
                 isStreaming: false,
-                action: userStore.isSignedIn && userStore.errorMessage != nil ? nil : .subscribe
+                action: userStore.hasCloudSession && userStore.errorMessage != nil ? nil : .subscribe
             ))
 
             mentionedContext = []
@@ -1044,7 +1044,7 @@ struct EliSidebarView: View {
         } else if errorDescription.contains("authentication")
             || errorDescription.contains("session")
             || errorDescription.contains("current plan") {
-            message = "Eli requires a signed-in Candoa account with an active Candoa subscription. Sign in or subscribe to continue."
+            message = "Eli requires an active Candoa subscription. Subscribe or restore your plan to continue."
         } else {
             message = "Eli is temporarily unavailable. Please try again later."
         }

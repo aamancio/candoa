@@ -382,11 +382,7 @@ final class BrowserStore: ObservableObject {
             }
             setInitialOnboardingStep(resumableStep)
         } else {
-            let hasAccountChoice = CandoaAccountKeychain.accessToken != nil
-                || UserStore.hasStoredAccountChoice
-            if !hasAccountChoice {
-                setInitialOnboardingStep(.account)
-            } else if !UserDefaults.standard.bool(forKey: Self.hasCompletedTourKey) {
+            if !UserDefaults.standard.bool(forKey: Self.hasCompletedTourKey) {
                 setInitialOnboardingStep(.tour)
             } else {
                 setInitialOnboardingStep(nil)

@@ -33,7 +33,7 @@
 			<key>CFBundleTypeRole</key>
 			<string>Viewer</string>
 			<key>CFBundleURLName</key>
-			<string>$(PRODUCT_BUNDLE_IDENTIFIER).authentication</string>
+			<string>$(PRODUCT_BUNDLE_IDENTIFIER).account-recovery</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>candoa-auth</string>

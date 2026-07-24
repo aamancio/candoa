@@ -1,7 +1,6 @@
 import AppKit
 import CryptoKit
 import Foundation
-import os
 import Security
 
 enum CandoaAccountKeychain {
@@ -82,6 +81,17 @@ struct CandoaCloudSession: Decodable, Sendable {
 struct CandoaCloudUser: Decodable, Sendable {
     let id: String
     let isAnonymous: Bool
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case isAnonymous
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        isAnonymous = try container.decodeIfPresent(Bool.self, forKey: .isAnonymous) ?? false
+    }
 }
 
 enum CandoaCloudAPI {
@@ -143,34 +153,29 @@ enum CandoaCloudAPI {
         )
     }
 
-    static func prepareAppleWebAuthentication(
-        codeChallenge: String,
-        callbackMode: String,
-        accessToken: String?
-    ) async throws -> URL {
-        let response: AppleWebAuthenticationPrepareResponse = try await request(
-            accountEndpoint("auth/apple/web/prepare"),
+    static func prepareEmailRecovery(
+        email: String,
+        codeChallenge: String
+    ) async throws {
+        let _: EmailRecoveryPrepareResponse = try await request(
+            accountEndpoint("auth/email/recovery/prepare"),
             method: "POST",
-            body: AppleWebAuthenticationPrepareRequest(
-                codeChallenge: codeChallenge,
-                callbackMode: callbackMode
+            body: EmailRecoveryPrepareRequest(
+                email: email,
+                codeChallenge: codeChallenge
             ),
-            accessToken: accessToken
+            accessToken: nil
         )
-        guard let url = URL(string: response.url), url.scheme == "https" else {
-            throw CandoaAccountError.invalidResponse
-        }
-        return url
     }
 
-    static func exchangeAppleWebAuthenticationCode(
+    static func exchangeEmailRecoveryCode(
         _ code: String,
         codeVerifier: String
     ) async throws -> String {
         let response: CandoaSessionResponse = try await request(
-            accountEndpoint("auth/apple/web/exchange"),
+            accountEndpoint("auth/email/recovery/exchange"),
             method: "POST",
-            body: AppleWebAuthenticationExchangeRequest(code: code, codeVerifier: codeVerifier),
+            body: EmailRecoveryExchangeRequest(code: code, codeVerifier: codeVerifier),
             accessToken: nil
         )
         return response.accessToken
@@ -218,8 +223,6 @@ enum CandoaCloudAPI {
         // one authority. A production-issued session cannot be validated by a local
         // Cloud instance with a different database and signing secret.
         let configuredBaseURL = ProcessInfo.processInfo.environment["CANDOA_ACCOUNT_API_URL"]
-            .flatMap(URL.init(string:))
-            ?? ProcessInfo.processInfo.environment["CANDOA_APPLE_AUTH_API_URL"]
             .flatMap(URL.init(string:)) ?? defaultBaseURL
         return configuredBaseURL.appending(path: path)
     }
@@ -272,16 +275,16 @@ enum CandoaCloudAPI {
 
     private struct EmptyRequest: Encodable {}
 
-    private struct AppleWebAuthenticationPrepareRequest: Encodable {
+    private struct EmailRecoveryPrepareRequest: Encodable {
+        let email: String
         let codeChallenge: String
-        let callbackMode: String
     }
 
-    private struct AppleWebAuthenticationPrepareResponse: Decodable {
-        let url: String
+    private struct EmailRecoveryPrepareResponse: Decodable {
+        let success: Bool
     }
 
-    private struct AppleWebAuthenticationExchangeRequest: Encodable {
+    private struct EmailRecoveryExchangeRequest: Encodable {
         let code: String
         let codeVerifier: String
     }
@@ -309,292 +312,102 @@ enum CandoaCloudAPI {
 }
 
 @MainActor
-final class CandoaAppleWebAuthenticationService {
+final class CandoaEmailRecoveryService {
     private static let callbackScheme = "candoa-auth"
-    private static let relayHost = "relay"
-    private static let logger = Logger(
-        subsystem: Bundle.main.bundleIdentifier ?? "Candoa",
-        category: "Account"
-    )
+    private static let callbackHost = "email-recovery"
 
-    var isAuthenticating: Bool { CandoaAuthenticationRelay.shared.isWaiting }
+    var isRecovering: Bool { CandoaEmailRecoveryRelay.shared.isWaiting }
 
-    func authenticate(accessToken: String?) async throws -> String {
-        guard !isAuthenticating else {
-            throw CandoaAccountError.authenticationInProgress
+    func restoreSubscription(email: String) async throws -> String {
+        guard !isRecovering else {
+            throw CandoaAccountError.recoveryInProgress
         }
 
         let codeVerifier = try makeCodeVerifier()
-        let codeChallenge = Data(SHA256.hash(data: Data(codeVerifier.utf8))).base64URLEncodedString()
-        let callbackMode = "custom"
-        Self.logger.info("Preparing Apple web authentication")
-        let startURL: URL
-        do {
-            startURL = try await CandoaCloudAPI.prepareAppleWebAuthentication(
-                codeChallenge: codeChallenge,
-                callbackMode: callbackMode,
-                accessToken: accessToken
-            )
-        } catch {
-            Self.log(error, phase: "prepare")
-            throw error
-        }
-        Self.logger.info("Starting the system Apple web authentication session")
-        let callbackURL = try await authorizationCallbackURL(startURL: startURL)
-        guard isExpectedCallbackURL(callbackURL) else {
-            Self.logger.error(
-                "Apple web authentication returned an unexpected callback location: scheme=\(callbackURL.scheme ?? "none", privacy: .public) host=\(callbackURL.host ?? "none", privacy: .public) path=\(callbackURL.path, privacy: .public)"
-            )
-            throw CandoaAccountError.appleSignInFailed
-        }
+        let codeChallenge = Data(SHA256.hash(data: Data(codeVerifier.utf8)))
+            .base64URLEncodedString()
+        try await CandoaCloudAPI.prepareEmailRecovery(
+            email: email,
+            codeChallenge: codeChallenge
+        )
+        let callbackURL = try await CandoaEmailRecoveryRelay.shared.waitForCallback()
         let components = URLComponents(url: callbackURL, resolvingAgainstBaseURL: false)
 
         if let callbackError = components?.queryItems?.first(where: { $0.name == "error" })?.value {
-            if callbackError == "cancelled" {
-                Self.logger.info("Apple web authentication was cancelled")
-                throw CandoaAccountError.appleSignInCancelled
-            }
-            Self.logger.error(
-                "Apple web authentication callback failed: \(callbackError, privacy: .public)"
-            )
-            throw CandoaAccountError.appleCallback(callbackError)
+            throw CandoaAccountError.recoveryFailed(callbackError)
         }
         guard let code = components?.queryItems?.first(where: { $0.name == "code" })?.value,
               !code.isEmpty else {
-            Self.logger.error("Apple web authentication callback did not contain an exchange code")
-            throw CandoaAccountError.appleSignInFailed
+            throw CandoaAccountError.recoveryFailed("invalid")
         }
-
-        Self.logger.info("Exchanging the Apple web authentication code")
-        do {
-            return try await CandoaCloudAPI.exchangeAppleWebAuthenticationCode(
-                code,
-                codeVerifier: codeVerifier
-            )
-        } catch {
-            Self.log(error, phase: "exchange")
-            throw error
-        }
+        return try await CandoaCloudAPI.exchangeEmailRecoveryCode(
+            code,
+            codeVerifier: codeVerifier
+        )
     }
 
-    static func handleAuthenticationRelay(_ url: URL) -> Bool {
+    static func handleRecoveryURL(_ url: URL) -> Bool {
         guard url.scheme?.lowercased() == callbackScheme,
-              url.host?.lowercased() == relayHost else {
+              url.host?.lowercased() == callbackHost else {
             return false
         }
-        CandoaAuthenticationRelay.shared.receive(url)
+        CandoaEmailRecoveryRelay.shared.receive(url)
         return true
-    }
-
-    private func authorizationCallbackURL(startURL: URL) async throws -> URL {
-        try await CandoaAuthenticationRelay.shared.waitForCallback {
-            let helperApplication = try await Self.launchAuthenticationHelper(startURL: startURL)
-            Self.logger.info("The system Apple web authentication session started")
-            return helperApplication
-        }
-    }
-
-    private static func launchAuthenticationHelper(
-        startURL: URL
-    ) async throws -> NSRunningApplication {
-        await terminateStaleAuthenticationHelpers()
-
-        let helperURL = Bundle.main.bundleURL
-            .appendingPathComponent("Contents", isDirectory: true)
-            .appendingPathComponent("Helpers", isDirectory: true)
-            .appendingPathComponent("Candoa Sign In.app", isDirectory: true)
-        guard FileManager.default.fileExists(atPath: helperURL.path) else {
-            logger.error("The bundled Apple authentication helper is missing")
-            throw CandoaAccountError.appleSignInCouldNotStart
-        }
-
-        let configuration = NSWorkspace.OpenConfiguration()
-        configuration.activates = true
-        var launchComponents = URLComponents()
-        launchComponents.scheme = "candoa-auth-helper-launch"
-        launchComponents.host = "start"
-        launchComponents.queryItems = [
-            URLQueryItem(name: "url", value: startURL.absoluteString),
-        ]
-        guard let launchURL = launchComponents.url else {
-            throw CandoaAccountError.appleSignInCouldNotStart
-        }
-        let logger = logger
-
-        return try await withCheckedThrowingContinuation {
-            (continuation: CheckedContinuation<NSRunningApplication, any Error>) in
-            NSWorkspace.shared.open(
-                [launchURL],
-                withApplicationAt: helperURL,
-                configuration: configuration
-            ) { application, error in
-                if let error {
-                    logger.error(
-                        "The Apple authentication helper could not launch: \(error.localizedDescription, privacy: .public)"
-                    )
-                    continuation.resume(throwing: CandoaAccountError.appleSignInCouldNotStart)
-                } else if let application {
-                    continuation.resume(returning: application)
-                } else {
-                    logger.error("The Apple authentication helper launch returned no application")
-                    continuation.resume(throwing: CandoaAccountError.appleSignInCouldNotStart)
-                }
-            }
-        }
-    }
-
-    private static func terminateStaleAuthenticationHelpers() async {
-        let helpers = NSRunningApplication.runningApplications(
-            withBundleIdentifier: "app.candoa.browser.AuthenticationHelper"
-        )
-        guard !helpers.isEmpty else { return }
-
-        logger.info("Terminating a stale Apple authentication helper before retrying")
-        for helper in helpers where !helper.isTerminated {
-            helper.terminate()
-        }
-
-        for _ in 0..<20 {
-            guard helpers.contains(where: { !$0.isTerminated }) else { return }
-            try? await Task.sleep(for: .milliseconds(50))
-        }
-
-        for helper in helpers where !helper.isTerminated {
-            helper.forceTerminate()
-        }
-    }
-
-    private static func log(_ error: any Error, phase: String) {
-        let error = error as NSError
-        logger.error(
-            "Apple web authentication \(phase, privacy: .public) failed: domain=\(error.domain, privacy: .public) code=\(error.code) description=\(error.localizedDescription, privacy: .public)"
-        )
-    }
-
-    private func isExpectedCallbackURL(_ callbackURL: URL) -> Bool {
-        callbackURL.scheme?.lowercased() == Self.callbackScheme
-            && callbackURL.host?.lowercased() == "callback"
     }
 
     private func makeCodeVerifier() throws -> String {
         var bytes = [UInt8](repeating: 0, count: 32)
         guard SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes) == errSecSuccess else {
-            throw CandoaAccountError.appleSignInFailed
+            throw CandoaAccountError.recoveryFailed("unavailable")
         }
         return Data(bytes).base64URLEncodedString()
     }
 }
 
 @MainActor
-private final class CandoaAuthenticationRelay {
-    static let shared = CandoaAuthenticationRelay()
-
-    private static let logger = Logger(
-        subsystem: Bundle.main.bundleIdentifier ?? "Candoa",
-        category: "Account"
-    )
+private final class CandoaEmailRecoveryRelay {
+    static let shared = CandoaEmailRecoveryRelay()
 
     private var continuation: CheckedContinuation<URL, any Error>?
-    private var helperMonitorTask: Task<Void, Never>?
     private var timeoutTask: Task<Void, Never>?
-    private var helperApplication: NSRunningApplication?
 
     var isWaiting: Bool { continuation != nil }
 
-    func waitForCallback(
-        launch: @escaping @MainActor () async throws -> NSRunningApplication
-    ) async throws -> URL {
+    func waitForCallback() async throws -> URL {
         guard continuation == nil else {
-            throw CandoaAccountError.authenticationInProgress
+            throw CandoaAccountError.recoveryInProgress
         }
 
         return try await withCheckedThrowingContinuation {
             (continuation: CheckedContinuation<URL, any Error>) in
             self.continuation = continuation
-            scheduleTimeout()
-            Task { @MainActor in
-                do {
-                    let helperApplication = try await launch()
-                    monitor(helperApplication)
-                } catch {
-                    finish(throwing: error)
-                }
+            timeoutTask = Task { @MainActor [weak self] in
+                try? await Task.sleep(for: .seconds(600))
+                guard !Task.isCancelled, let self, self.continuation != nil else { return }
+                self.finish(throwing: CandoaAccountError.recoveryFailed("expired"))
             }
         }
     }
 
-    private func monitor(_ helperApplication: NSRunningApplication) {
-        self.helperApplication = helperApplication
-        helperMonitorTask?.cancel()
-        helperMonitorTask = Task { @MainActor [weak self] in
-            while !Task.isCancelled, let self, self.continuation != nil {
-                if helperApplication.isTerminated {
-                    try? await Task.sleep(for: .milliseconds(500))
-                    guard !Task.isCancelled, self.continuation != nil else { return }
-                    Self.logger.error(
-                        "The Apple authentication helper exited before returning a callback"
-                    )
-                    self.finish(throwing: CandoaAccountError.appleSignInCouldNotStart)
-                    return
-                }
-                try? await Task.sleep(for: .milliseconds(250))
-            }
-        }
-    }
-
-    private func scheduleTimeout() {
-        timeoutTask?.cancel()
-        timeoutTask = Task { @MainActor [weak self] in
-            try? await Task.sleep(for: .seconds(65))
-            guard !Task.isCancelled, let self, self.continuation != nil else { return }
-            Self.logger.error("The Apple authentication helper timed out")
-            self.helperApplication?.forceTerminate()
-            self.finish(throwing: CandoaAccountError.appleSignInCouldNotStart)
-        }
-    }
-
-    func receive(_ relayURL: URL) {
+    func receive(_ url: URL) {
         guard continuation != nil else { return }
-        let components = URLComponents(url: relayURL, resolvingAgainstBaseURL: false)
-        if let callback = components?.queryItems?.first(where: { $0.name == "callback" })?.value,
-           let callbackURL = URL(string: callback) {
-            finish(returning: callbackURL)
-            return
-        }
-
-        let error = components?.queryItems?.first(where: { $0.name == "error" })?.value
-        if error == "cancelled" {
-            finish(throwing: CandoaAccountError.appleSignInCancelled)
-        } else if error == "could_not_start" {
-            finish(throwing: CandoaAccountError.appleSignInCouldNotStart)
-        } else {
-            finish(throwing: CandoaAccountError.appleSignInFailed)
-        }
+        finish(returning: url)
     }
 
-    private func finish(returning callbackURL: URL) {
+    private func finish(returning url: URL) {
         let continuation = continuation
         self.continuation = nil
-        finishHelperMonitoring()
-        continuation?.resume(returning: callbackURL)
+        timeoutTask?.cancel()
+        timeoutTask = nil
+        continuation?.resume(returning: url)
     }
 
     private func finish(throwing error: any Error) {
         let continuation = continuation
         self.continuation = nil
-        finishHelperMonitoring()
-        continuation?.resume(throwing: error)
-    }
-
-    private func finishHelperMonitoring() {
-        helperMonitorTask?.cancel()
-        helperMonitorTask = nil
         timeoutTask?.cancel()
         timeoutTask = nil
-        if let helperApplication, !helperApplication.isTerminated {
-            helperApplication.terminate()
-        }
-        helperApplication = nil
+        continuation?.resume(throwing: error)
     }
 }
 
@@ -644,13 +457,10 @@ struct CandoaAccountService {
 }
 
 enum CandoaAccountError: LocalizedError, Sendable {
-    case appleCallback(String)
-    case appleSignInCancelled
-    case appleSignInCouldNotStart
-    case appleSignInFailed
-    case authenticationInProgress
     case invalidResponse
     case keychainUnavailable
+    case recoveryFailed(String)
+    case recoveryInProgress
     case server(String)
 
     var isAuthenticationFailure: Bool {
@@ -663,33 +473,21 @@ enum CandoaAccountError: LocalizedError, Sendable {
 
     var errorDescription: String? {
         switch self {
-        case .appleCallback(let error):
-            switch error {
-            case "cancelled":
-                return nil
-            case "expired":
-                return "The Apple sign-in request expired. Please try again."
-            case "session_expired":
-                return "Your Candoa session expired. Please try signing in again."
-            case "unavailable":
-                return "Apple sign-in is temporarily unavailable. Please try again."
-            case "invalid_request":
-                return "Candoa received an invalid Apple sign-in response. Please try again."
-            default:
-                return "Apple sign-in was not completed. Please try again."
-            }
-        case .appleSignInCancelled:
-            return nil
-        case .appleSignInCouldNotStart:
-            return "Candoa could not open Apple’s secure sign-in window. Please try again."
-        case .appleSignInFailed:
-            return "Apple sign-in was not completed. Please try again."
-        case .authenticationInProgress:
-            return "Apple sign-in is already in progress."
         case .invalidResponse:
             return "Candoa returned an invalid response."
         case .keychainUnavailable:
             return "Candoa could not save your session in Keychain."
+        case .recoveryFailed(let reason):
+            switch reason {
+            case "expired", "invalid":
+                return "That recovery link expired. Please request a new one."
+            case "unavailable":
+                return "Subscription recovery is temporarily unavailable."
+            default:
+                return "Candoa could not restore your subscription. Please try again."
+            }
+        case .recoveryInProgress:
+            return "Check your email to finish restoring your subscription."
         case .server(let message):
             return message
         }

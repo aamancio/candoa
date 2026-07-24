@@ -7,8 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		CA1100000000000000000101 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA1100000000000000000001 /* main.swift */; };
-		CA1100000000000000000102 /* Candoa Sign In.app in Copy Authentication Helper */ = {isa = PBXBuildFile; fileRef = CA1100000000000000000019 /* Candoa Sign In.app */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		010000000000000000000101 /* CandoaApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000001 /* CandoaApp.swift */; };
 		010000000000000000000102 /* BrowserTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000002 /* BrowserTab.swift */; };
 		010000000000000000000103 /* BrowserSpace.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000003 /* BrowserSpace.swift */; };
@@ -110,13 +108,6 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
-		CA1100000000000000000270 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 010000000000000000000300 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = CA1100000000000000000200;
-			remoteInfo = CandoaAuthenticationHelper;
-		};
 		010000000000000000000270 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 010000000000000000000300 /* Project object */;
@@ -126,25 +117,7 @@
 		};
 /* End PBXContainerItemProxy section */
 
-/* Begin PBXCopyFilesBuildPhase section */
-		CA1100000000000000000240 /* Copy Authentication Helper */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = Contents/Helpers;
-			dstSubfolderSpec = 1;
-			files = (
-				CA1100000000000000000102 /* Candoa Sign In.app in Copy Authentication Helper */,
-			);
-			name = "Copy Authentication Helper";
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-/* End PBXCopyFilesBuildPhase section */
-
 /* Begin PBXFileReference section */
-		CA1100000000000000000001 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
-		CA1100000000000000000002 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		CA1100000000000000000003 /* CandoaAuthenticationHelper.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = CandoaAuthenticationHelper.entitlements; sourceTree = "<group>"; };
-		CA1100000000000000000019 /* Candoa Sign In.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Candoa Sign In.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		010000000000000000000001 /* CandoaApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CandoaApp.swift; sourceTree = "<group>"; };
 		010000000000000000000002 /* BrowserTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserTab.swift; sourceTree = "<group>"; };
 		010000000000000000000003 /* BrowserSpace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserSpace.swift; sourceTree = "<group>"; };
@@ -250,13 +223,6 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		CA1100000000000000000210 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		010000000000000000000210 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -279,20 +245,9 @@
 			isa = PBXGroup;
 			children = (
 				010000000000000000000021 /* Candoa */,
-				CA1100000000000000000020 /* CandoaAuthenticationHelper */,
 				010000000000000000000028 /* CandoaUITests */,
 				010000000000000000000030 /* Products */,
 			);
-			sourceTree = "<group>";
-		};
-		CA1100000000000000000020 /* CandoaAuthenticationHelper */ = {
-			isa = PBXGroup;
-			children = (
-				CA1100000000000000000001 /* main.swift */,
-				CA1100000000000000000002 /* Info.plist */,
-				CA1100000000000000000003 /* CandoaAuthenticationHelper.entitlements */,
-			);
-			path = CandoaAuthenticationHelper;
 			sourceTree = "<group>";
 		};
 		010000000000000000000021 /* Candoa */ = {
@@ -485,7 +440,6 @@
 			isa = PBXGroup;
 			children = (
 				010000000000000000000019 /* Candoa.app */,
-				CA1100000000000000000019 /* Candoa Sign In.app */,
 				010000000000000000000063 /* CandoaUITests.xctest */,
 			);
 			name = Products;
@@ -494,25 +448,6 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		CA1100000000000000000200 /* CandoaAuthenticationHelper */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = CA1100000000000000000400 /* Build configuration list for PBXNativeTarget "CandoaAuthenticationHelper" */;
-			buildPhases = (
-				CA1100000000000000000220 /* Sources */,
-				CA1100000000000000000210 /* Frameworks */,
-				CA1100000000000000000230 /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			name = CandoaAuthenticationHelper;
-			packageProductDependencies = (
-			);
-			productName = "Candoa Sign In";
-			productReference = CA1100000000000000000019 /* Candoa Sign In.app */;
-			productType = "com.apple.product-type.application";
-		};
 		010000000000000000000200 /* Candoa */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 010000000000000000000400 /* Build configuration list for PBXNativeTarget "Candoa" */;
@@ -520,12 +455,10 @@
 				010000000000000000000220 /* Sources */,
 				010000000000000000000210 /* Frameworks */,
 				010000000000000000000230 /* Resources */,
-				CA1100000000000000000240 /* Copy Authentication Helper */,
 			);
 			buildRules = (
 			);
 			dependencies = (
-				CA1100000000000000000271 /* PBXTargetDependency */,
 			);
 			name = Candoa;
 			packageProductDependencies = (
@@ -565,9 +498,6 @@
 				LastSwiftUpdateCheck = 2650;
 				LastUpgradeCheck = 2650;
 				TargetAttributes = {
-					CA1100000000000000000200 = {
-						CreatedOnToolsVersion = 26.5;
-					};
 					010000000000000000000200 = {
 						CreatedOnToolsVersion = 26.5;
 					};
@@ -594,20 +524,12 @@
 			projectRoot = "";
 			targets = (
 				010000000000000000000200 /* Candoa */,
-				CA1100000000000000000200 /* CandoaAuthenticationHelper */,
 				010000000000000000000201 /* CandoaUITests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		CA1100000000000000000230 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		010000000000000000000230 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -627,14 +549,6 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		CA1100000000000000000220 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				CA1100000000000000000101 /* main.swift in Sources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		010000000000000000000240 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -747,11 +661,6 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		CA1100000000000000000271 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = CA1100000000000000000200 /* CandoaAuthenticationHelper */;
-			targetProxy = CA1100000000000000000270 /* PBXContainerItemProxy */;
-		};
 		010000000000000000000271 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 010000000000000000000200 /* Candoa */;
@@ -760,61 +669,6 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
-		CA1100000000000000000401 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = CandoaAuthenticationHelper/CandoaAuthenticationHelper.entitlements;
-				CODE_SIGN_IDENTITY = "Apple Development";
-				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
-				DEVELOPMENT_TEAM = "";
-				"DEVELOPMENT_TEAM[sdk=macosx*]" = CHFBL6P6U7;
-				ENABLE_HARDENED_RUNTIME = YES;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = CandoaAuthenticationHelper/Info.plist;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/../Frameworks",
-				);
-				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.1.2;
-				PRODUCT_BUNDLE_IDENTIFIER = app.candoa.browser.AuthenticationHelper;
-				PRODUCT_NAME = "Candoa Sign In";
-				SKIP_INSTALL = YES;
-				SWIFT_EMIT_LOC_STRINGS = NO;
-				SWIFT_VERSION = 6.0;
-			};
-			name = Debug;
-		};
-		CA1100000000000000000402 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = CandoaAuthenticationHelper/CandoaAuthenticationHelper.entitlements;
-				CODE_SIGN_IDENTITY = "-";
-				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
-				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
-				DEVELOPMENT_TEAM = "";
-				"DEVELOPMENT_TEAM[sdk=macosx*]" = CHFBL6P6U7;
-				ENABLE_HARDENED_RUNTIME = YES;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = CandoaAuthenticationHelper/Info.plist;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/../Frameworks",
-				);
-				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.1.2;
-				PRODUCT_BUNDLE_IDENTIFIER = app.candoa.browser.AuthenticationHelper;
-				PRODUCT_NAME = "Candoa Sign In";
-				SKIP_INSTALL = YES;
-				SWIFT_EMIT_LOC_STRINGS = NO;
-				SWIFT_VERSION = 6.0;
-			};
-			name = Release;
-		};
 		010000000000000000000391 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -1029,15 +883,6 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		CA1100000000000000000400 /* Build configuration list for PBXNativeTarget "CandoaAuthenticationHelper" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				CA1100000000000000000401 /* Debug */,
-				CA1100000000000000000402 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
 		010000000000000000000390 /* Build configuration list for PBXProject "Candoa" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

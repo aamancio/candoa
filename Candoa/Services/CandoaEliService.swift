@@ -397,7 +397,7 @@ enum CandoaRemoteEliError: LocalizedError {
         case .invalidResponse:
             return "Eli returned an invalid response."
         case .missingAccountSession:
-            return "Sign in with Apple and subscribe to Candoa to use Eli."
+            return "Subscribe to Candoa to use Eli."
         case .missingPersonalKey:
             return "Add an OpenAI API key in Candoa Settings before using your own key."
         case .server(let message):

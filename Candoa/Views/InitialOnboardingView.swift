@@ -1,5 +1,4 @@
 import AppKit
-import AuthenticationServices
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -336,43 +335,29 @@ private struct WelcomeOnboardingStep: View {
 private struct AccountOnboardingStep: View {
     @ObservedObject var store: BrowserStore
     @EnvironmentObject private var userStore: UserStore
-    @Environment(\.colorScheme) private var colorScheme
-
-    private var appleButtonStyle: ASAuthorizationAppleIDButton.Style {
-        colorScheme == .dark ? .white : .black
-    }
 
     var body: some View {
         OnboardingSurface(step: .account, onBack: store.goBackInInitialOnboarding) {
             VStack(alignment: .leading, spacing: 18) {
                 OnboardingPageHeader(
                     symbolName: "person.crop.circle",
-                    title: "Choose how to continue",
-                    detail: "Use Candoa on this Mac now, or connect Apple for subscriptions and future account features."
+                    title: "No account setup required",
+                    detail: "Start browsing now. If you subscribe later, the email used at checkout can restore your plan on another Mac."
                 )
 
                 Spacer(minLength: 24)
 
-                OnboardingSignInWithAppleButton(
-                    style: appleButtonStyle,
-                    isEnabled: !userStore.isWorking,
-                    action: userStore.signInWithApple
-                )
-                // ASAuthorizationAppleIDButton's style is fixed at creation.
-                // Recreate it when the effective appearance changes.
-                .id(colorScheme)
-                .accessibilityLabel(
-                    userStore.isWorking
-                        ? Text("Signing in…")
-                        : Text("Continue with Apple")
-                )
-                .accessibilityIdentifier("onboarding-apple-sign-in")
-                .frame(height: 44)
-
-                Button(String(localized: "Not Now")) {
+                Button {
                     userStore.continueOnThisMac()
+                } label: {
+                    if userStore.isWorking {
+                        ProgressView()
+                            .controlSize(.small)
+                    } else {
+                        Text("Continue")
+                    }
                 }
-                .candoaButton(.quiet)
+                .candoaButton(.primary)
                 .controlSize(.large)
                 .frame(maxWidth: .infinity)
                 .disabled(userStore.isWorking)
@@ -385,7 +370,7 @@ private struct AccountOnboardingStep: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
-                Text("Your history, bookmarks, and Spaces stay on this Mac either way. Apple opens a secure sign-in window, and Candoa never sees your Apple Account password.")
+                Text("Your history, bookmarks, and Spaces stay on this Mac.")
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -400,47 +385,6 @@ private struct AccountOnboardingStep: View {
         }
         .accessibilityValue(userStore.isWorking ? "signing-in" : "idle")
         .accessibilityIdentifier("account-onboarding")
-    }
-}
-
-private struct OnboardingSignInWithAppleButton: NSViewRepresentable {
-    let style: ASAuthorizationAppleIDButton.Style
-    let isEnabled: Bool
-    let action: () -> Void
-
-    func makeCoordinator() -> Coordinator {
-        Coordinator(action: action)
-    }
-
-    func makeNSView(context: Context) -> ASAuthorizationAppleIDButton {
-        let button = ASAuthorizationAppleIDButton(type: .continue, style: style)
-        button.target = context.coordinator
-        button.action = #selector(Coordinator.signIn)
-        button.isEnabled = isEnabled
-        button.setContentHuggingPriority(.defaultLow, for: .horizontal)
-        button.setContentHuggingPriority(.defaultLow, for: .vertical)
-        context.coordinator.button = button
-        return button
-    }
-
-    func updateNSView(_ button: ASAuthorizationAppleIDButton, context: Context) {
-        context.coordinator.action = action
-        button.isEnabled = isEnabled
-    }
-
-    @MainActor
-    final class Coordinator: NSObject {
-        weak var button: ASAuthorizationAppleIDButton?
-
-        var action: () -> Void
-
-        init(action: @escaping () -> Void) {
-            self.action = action
-        }
-
-        @objc func signIn() {
-            action()
-        }
     }
 }
 
@@ -765,14 +709,14 @@ private struct OnboardingAccountPreview: View {
                 Text("Your Candoa account")
                     .font(.system(size: 20, weight: .semibold))
 
-                Text("Continue with Apple to restore your plan and use Eli across your Macs.")
+                Text("Subscribe without a separate sign-in and restore your plan with the email used at checkout.")
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            Label("Your existing account is restored automatically", systemImage: "checkmark.circle.fill")
+            Label("No separate sign-in required", systemImage: "checkmark.circle.fill")
                 .font(.system(size: 12.5, weight: .medium))
                 .foregroundStyle(.secondary)
         }

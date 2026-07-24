@@ -5,6 +5,7 @@ internal struct EliSettingsPane: View {
     @AppStorage(CandoaSettingsOption.askModel) private var model = CandoaEliPreferences.defaultModel
     @AppStorage(CandoaSettingsOption.askUsesPersonalOpenAIKey) private var usesPersonalOpenAIKey = false
     @State private var apiKey = ""
+    @State private var recoveryEmail = ""
     @State private var hasSavedKey = CandoaEliKeychain.hasAPIKey
     @State private var keychainError: String?
     @EnvironmentObject private var userStore: UserStore
@@ -84,48 +85,63 @@ internal struct EliSettingsPane: View {
                 SettingsSectionTitle("Candoa Subscription")
 
                 SettingsCard {
-                    if userStore.isSignedIn {
-                        SettingsRow(
-                            systemImage: userStore.hasActiveSubscription
-                                ? "checkmark.seal"
-                                : "person.crop.circle",
-                            title: userStore.hasActiveSubscription
-                                ? "Candoa \(userStore.status?.planID.capitalized ?? "")"
-                                : "No active Candoa subscription",
-                            subtitle: userStore.hasActiveSubscription
-                                ? "Manage payment details, invoices, or your plan in Stripe."
-                                : "Open Eli to subscribe to Candoa Pro."
-                        ) {
-                            if userStore.hasActiveSubscription {
-                                Button("Manage", action: openBillingPortal)
-                                    .candoaButton(.secondary)
-                                    .controlSize(.small)
-                                    .disabled(userStore.isWorking)
-                            }
-                        }
-
-                        SettingsDivider()
-
-                        SettingsRow(
-                            systemImage: "rectangle.portrait.and.arrow.right",
-                            title: "Candoa account",
-                            subtitle: "Sign out of this Mac and revoke its Candoa session."
-                        ) {
-                            Button("Sign out", role: .destructive, action: userStore.signOut)
+                    SettingsRow(
+                        systemImage: userStore.hasActiveSubscription
+                            ? "checkmark.seal"
+                            : "person.crop.circle",
+                        title: userStore.hasActiveSubscription
+                            ? "Candoa \(userStore.status?.planID.capitalized ?? "")"
+                            : "No active Candoa subscription",
+                        subtitle: userStore.hasActiveSubscription
+                            ? "Manage payment details, invoices, or your plan in Stripe."
+                            : "Open Eli to subscribe to Candoa Pro."
+                    ) {
+                        if userStore.hasActiveSubscription {
+                            Button("Manage", action: openBillingPortal)
                                 .candoaButton(.secondary)
-                                .controlSize(.small)
-                        }
-                    } else {
-                        SettingsRow(
-                            systemImage: "person.crop.circle.badge.questionmark",
-                            title: userStore.isLocalOnly ? "Using Candoa on this Mac" : "Not signed in",
-                            subtitle: "Continue with Apple when you want to subscribe or connect account features."
-                        ) {
-                            Button("Continue with Apple", action: userStore.signInWithApple)
-                                .candoaButton(.primary)
                                 .controlSize(.small)
                                 .disabled(userStore.isWorking)
                         }
+                    }
+
+                    if !userStore.hasActiveSubscription {
+                        SettingsDivider()
+
+                        SettingsRow(
+                            systemImage: "arrow.clockwise.circle",
+                            title: "Restore a subscription",
+                            subtitle: "Enter the email used at checkout."
+                        ) {
+                            HStack(spacing: 8) {
+                                TextField("Email", text: $recoveryEmail)
+                                    .textFieldStyle(.roundedBorder)
+                                    .frame(width: 190)
+
+                                Button(
+                                    userStore.isRestoringSubscription ? "Waiting…" : "Restore",
+                                    action: restoreSubscription
+                                )
+                                .candoaButton(.secondary)
+                                .controlSize(.small)
+                                .disabled(
+                                    recoveryEmail
+                                        .trimmingCharacters(in: .whitespacesAndNewlines)
+                                        .isEmpty
+                                        || userStore.isRestoringSubscription
+                                )
+                            }
+                        }
+                    }
+
+                    if let recoveryMessage = userStore.recoveryMessage {
+                        SettingsDivider()
+
+                        Text(recoveryMessage)
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 12)
                     }
 
                     if let accountError = userStore.errorMessage {
@@ -171,5 +187,14 @@ internal struct EliSettingsPane: View {
 
     private func openBillingPortal() {
         Task { await userStore.openBillingPortal() }
+    }
+
+    private func restoreSubscription() {
+        Task {
+            await userStore.restoreSubscription(email: recoveryEmail)
+            if userStore.hasActiveSubscription {
+                recoveryEmail = ""
+            }
+        }
     }
 }

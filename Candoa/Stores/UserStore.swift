@@ -7,15 +7,17 @@ final class UserStore: ObservableObject {
     @Published private(set) var status: CandoaAccountStatus?
     @Published private(set) var isWorking = false
     @Published private(set) var isStartingSubscription = false
+    @Published private(set) var isRestoringSubscription = false
     @Published private(set) var errorMessage: String?
     @Published private(set) var subscriptionErrorMessage: String?
+    @Published private(set) var recoveryMessage: String?
     @Published private(set) var isSignedIn: Bool
     @Published private(set) var hasCloudSession: Bool
     @Published private(set) var isLocalOnly: Bool
     @Published private(set) var hasCompletedAccountChoice: Bool
 
     private let accountService: CandoaAccountService
-    private let appleAuthenticationService: CandoaAppleWebAuthenticationService
+    private let emailRecoveryService: CandoaEmailRecoveryService
 
     var hasActiveSubscription: Bool { status?.hasActiveSubscription == true }
 
@@ -27,20 +29,18 @@ final class UserStore: ObservableObject {
 
     init(
         accountService: CandoaAccountService = CandoaAccountService(),
-        appleAuthenticationService: CandoaAppleWebAuthenticationService =
-            CandoaAppleWebAuthenticationService()
+        emailRecoveryService: CandoaEmailRecoveryService =
+            CandoaEmailRecoveryService()
     ) {
         self.accountService = accountService
-        self.appleAuthenticationService = appleAuthenticationService
+        self.emailRecoveryService = emailRecoveryService
         let hasStoredToken = accountService.accessToken != nil
         isSignedIn = false
         hasCloudSession = hasStoredToken
         isLocalOnly = false
         hasCompletedAccountChoice = hasStoredToken || Self.hasStoredAccountChoice
         let environment = ProcessInfo.processInfo.environment
-        isWorking = environment["CANDOA_UI_TESTING"] == "1"
-            ? environment["CANDOA_UI_TESTING_APPLE_SIGN_IN_WORKING"] == "1"
-            : hasStoredToken
+        isWorking = environment["CANDOA_UI_TESTING"] == "1" ? false : hasStoredToken
     }
 
     func restoreSessionIfNeeded() async {
@@ -50,6 +50,7 @@ final class UserStore: ObservableObject {
             isSignedIn = false
             hasCloudSession = false
             isLocalOnly = hasCompletedAccountChoice
+            await createAnonymousSession()
             return
         }
         await refresh()
@@ -58,12 +59,6 @@ final class UserStore: ObservableObject {
     func continueOnThisMac() {
         Task {
             await createAnonymousSession()
-        }
-    }
-
-    func signInWithApple() {
-        Task {
-            _ = await authenticateWithApple()
         }
     }
 
@@ -79,11 +74,7 @@ final class UserStore: ObservableObject {
         defer { isWorking = false }
         do {
             try await loadSession(accessToken: accessToken)
-            if isSignedIn {
-                try await refreshAccountStatus(accessToken: accessToken)
-            } else {
-                status = nil
-            }
+            try await refreshAccountStatus(accessToken: accessToken)
             errorMessage = nil
         } catch {
             status = nil
@@ -112,11 +103,13 @@ final class UserStore: ObservableObject {
             return
         }
 
-        if !isSignedIn {
-            guard await authenticateWithApple() else {
-                subscriptionErrorMessage = errorMessage
-                return
-            }
+        if accountService.accessToken == nil {
+            await createAnonymousSession()
+        }
+        guard hasCloudSession else {
+            subscriptionErrorMessage = errorMessage
+                ?? "Candoa couldn’t start checkout. Please try again."
+            return
         }
         await openBillingURL(
             failureMessage: "Candoa couldn’t open checkout. Please try again."
@@ -131,6 +124,31 @@ final class UserStore: ObservableObject {
         }
     }
 
+    func restoreSubscription(email: String) async {
+        let normalizedEmail = email
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        guard !normalizedEmail.isEmpty, !isRestoringSubscription else { return }
+
+        isRestoringSubscription = true
+        recoveryMessage = "Check your email to finish restoring Candoa."
+        defer { isRestoringSubscription = false }
+
+        do {
+            let accessToken = try await emailRecoveryService.restoreSubscription(
+                email: normalizedEmail
+            )
+            try accountService.saveAccessToken(accessToken)
+            markAccountChoiceCompleted()
+            try await loadSession(accessToken: accessToken)
+            try await refreshAccountStatus(accessToken: accessToken)
+            recoveryMessage = "Your Candoa subscription has been restored."
+            errorMessage = nil
+        } catch {
+            recoveryMessage = error.localizedDescription
+        }
+    }
+
     func signOut() {
         let accessToken = accountService.accessToken
         try? accountService.removeAccessToken()
@@ -140,6 +158,7 @@ final class UserStore: ObservableObject {
         status = nil
         errorMessage = nil
         subscriptionErrorMessage = nil
+        recoveryMessage = nil
         if let accessToken {
             Task {
                 try? await accountService.signOut(accessToken: accessToken)
@@ -151,8 +170,8 @@ final class UserStore: ObservableObject {
         failureMessage: String? = nil,
         _ operation: (String) async throws -> URL
     ) async {
-        guard isSignedIn, let accessToken = accountService.accessToken else {
-            errorMessage = "Sign in with Apple before managing Candoa billing."
+        guard hasCloudSession, let accessToken = accountService.accessToken else {
+            errorMessage = "Candoa couldn’t find your account on this Mac."
             subscriptionErrorMessage = failureMessage ?? errorMessage
             return
         }
@@ -176,38 +195,6 @@ final class UserStore: ObservableObject {
             let configuration = NSWorkspace.OpenConfiguration()
             configuration.activates = true
             NSWorkspace.shared.open(url, configuration: configuration)
-        }
-    }
-
-    private func authenticateWithApple() async -> Bool {
-        guard !isWorking else { return false }
-        guard !appleAuthenticationService.isAuthenticating else {
-            errorMessage = "Finish or cancel the Apple sign-in window to continue."
-            return false
-        }
-        isWorking = true
-        errorMessage = nil
-        defer { isWorking = false }
-
-        do {
-            let accessToken = try await appleAuthenticationService.authenticate(
-                accessToken: accountService.accessToken
-            )
-            try accountService.saveAccessToken(accessToken)
-            markAccountChoiceCompleted()
-            try await loadSession(accessToken: accessToken)
-            guard isSignedIn else {
-                throw CandoaAccountError.appleSignInFailed
-            }
-            try await refreshAccountStatus(accessToken: accessToken)
-            return true
-        } catch {
-            if case CandoaAccountError.appleSignInCancelled = error {
-                errorMessage = nil
-            } else {
-                errorMessage = error.localizedDescription
-            }
-            return false
         }
     }
 
