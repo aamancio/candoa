@@ -335,6 +335,7 @@ private struct WelcomeOnboardingStep: View {
 private struct AccountOnboardingStep: View {
     @ObservedObject var store: BrowserStore
     @EnvironmentObject private var userStore: UserStore
+    @State private var isNewAccountConfirmationPresented = false
 
     var body: some View {
         AccountOnboardingSurface(onBack: store.goBackInInitialOnboarding) {
@@ -348,50 +349,81 @@ private struct AccountOnboardingStep: View {
                         .foregroundStyle(CandoaInterfaceStyle.decorativeSymbol)
 
                     VStack(spacing: 10) {
-                        Text("Keep your account with you")
+                        Text(userStore.hasKnownPasskeyAccount ? "Welcome back" : "Keep your account with you")
                             .font(.system(size: 30, weight: .semibold))
                             .tracking(-0.4)
                             .multilineTextAlignment(.center)
 
-                        Text("Create an account to sign in to Candoa on your other devices.")
+                        Text(
+                            userStore.hasKnownPasskeyAccount
+                                ? "Sign in with your existing Candoa passkey to continue."
+                                : "Create an account to sign in to Candoa on your other devices."
+                        )
                             .font(.system(size: 14))
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
                             .fixedSize(horizontal: false, vertical: true)
                     }
 
-                    Button {
-                        userStore.createPasskey()
-                    } label: {
-                        HStack(spacing: 8) {
-                            if userStore.isWorking {
-                                ProgressView()
-                                    .controlSize(.small)
-                            } else {
-                                Text("Sign Up")
-                            }
-                        }
-                        .frame(maxWidth: .infinity)
-                    }
-                    .candoaButton(.primary)
-                    .controlSize(.large)
-                    .frame(maxWidth: .infinity)
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(userStore.isWorking)
-                    .accessibilityIdentifier("onboarding-create-passkey")
-
-                    HStack(spacing: 4) {
-                        Text("Already have an account?")
-                            .foregroundStyle(.secondary)
-
-                        Button("Sign In") {
+                    if userStore.hasKnownPasskeyAccount {
+                        Button {
                             userStore.signInWithPasskey()
+                        } label: {
+                            HStack(spacing: 8) {
+                                if userStore.isWorking {
+                                    ProgressView()
+                                        .controlSize(.small)
+                                } else {
+                                    Text("Sign In")
+                                }
+                            }
+                            .frame(maxWidth: .infinity)
                         }
-                        .candoaButton(.link)
+                        .candoaButton(.primary)
+                        .controlSize(.large)
+                        .frame(maxWidth: .infinity)
+                        .keyboardShortcut(.defaultAction)
                         .disabled(userStore.isWorking)
                         .accessibilityIdentifier("onboarding-sign-in-passkey")
+
+                        Text("A passkey account already exists on this Mac.")
+                            .font(.system(size: 13))
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Button {
+                            userStore.createPasskey()
+                        } label: {
+                            HStack(spacing: 8) {
+                                if userStore.isWorking {
+                                    ProgressView()
+                                        .controlSize(.small)
+                                } else {
+                                    Text("Sign Up")
+                                }
+                            }
+                            .frame(maxWidth: .infinity)
+                        }
+                        .candoaButton(.primary)
+                        .controlSize(.large)
+                        .frame(maxWidth: .infinity)
+                        .keyboardShortcut(.defaultAction)
+                        .disabled(userStore.isWorking)
+                        .accessibilityIdentifier("onboarding-create-passkey")
+
+                        HStack(spacing: 4) {
+                            Text("Already have an account?")
+                                .foregroundStyle(.secondary)
+
+                            Button("Sign In") {
+                                userStore.signInWithPasskey()
+                            }
+                            .candoaButton(.link)
+                            .disabled(userStore.isWorking)
+                            .accessibilityLabel("Sign In")
+                            .accessibilityIdentifier("onboarding-sign-in-passkey")
+                        }
+                        .font(.system(size: 13))
                     }
-                    .font(.system(size: 13))
 
                     if let errorMessage = userStore.errorMessage, !userStore.isWorking {
                         Text(errorMessage)
@@ -403,15 +435,36 @@ private struct AccountOnboardingStep: View {
 
                 Spacer(minLength: 20)
 
-                Button("Not Now") {
-                    userStore.continueOnThisMac()
+                if userStore.hasKnownPasskeyAccount {
+                    Button("Create a Different Account…") {
+                        isNewAccountConfirmationPresented = true
+                    }
+                    .candoaButton(.quiet)
+                    .controlSize(.large)
+                    .disabled(userStore.isWorking)
+                    .accessibilityIdentifier("onboarding-create-different-account")
+                } else {
+                    Button("Not Now") {
+                        userStore.continueOnThisMac()
+                    }
+                    .candoaButton(.quiet)
+                    .controlSize(.large)
+                    .disabled(userStore.isWorking)
+                    .accessibilityIdentifier("onboarding-not-now")
                 }
-                .candoaButton(.quiet)
-                .controlSize(.large)
-                .disabled(userStore.isWorking)
-                .accessibilityIdentifier("onboarding-not-now")
             }
             .frame(maxWidth: 310)
+        }
+        .alert("Create a different account?", isPresented: $isNewAccountConfirmationPresented) {
+            Button("Cancel", role: .cancel) {}
+            Button("Create New Account", role: .destructive) {
+                userStore.allowCreatingNewPasskeyAccount()
+            }
+        } message: {
+            Text(
+                "This won’t recover or replace your existing Candoa account. "
+                    + "Choose Sign In if you still have its passkey."
+            )
         }
         .onChange(of: userStore.hasCompletedAccountChoice) { _, hasCompletedAccountChoice in
             if hasCompletedAccountChoice {

@@ -23,7 +23,7 @@ struct CandoaApp: App {
             height: Self.initialWindowSize.height
         )
         .commands {
-            BrowserCommands()
+            BrowserCommands(userStore: userStore)
         }
 
         Settings {
@@ -80,8 +80,18 @@ private final class CandoaAppDelegate: NSObject, NSApplicationDelegate {
 private struct BrowserCommands: Commands {
     @FocusedValue(\.browserCommandActions) private var actions
     @Environment(\.openWindow) private var openWindow
+    @ObservedObject var userStore: UserStore
 
     var body: some Commands {
+        CommandGroup(before: .appTermination) {
+            Button("Sign Out") {
+                userStore.signOut()
+            }
+            .disabled(!userStore.hasCloudSession || userStore.isWorking)
+
+            Divider()
+        }
+
         CommandGroup(replacing: .newItem) {
             Button("New Window") {
                 openWindow(id: AppConfiguration.browserWindowSceneID)

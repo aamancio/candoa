@@ -101,7 +101,15 @@ extension BrowserStore {
 
     func reconcileAccountSetup(hasCompletedAccountChoice: Bool) {
         guard !Self.isUITesting else { return }
-        guard hasCompletedAccountChoice else { return }
+        guard hasCompletedAccountChoice else {
+            switch initialOnboardingStep {
+            case .tour, .none:
+                setInitialOnboardingStep(.account)
+            case .welcome, .account, .importData, .space:
+                break
+            }
+            return
+        }
         guard isInitialAccountSetupPresented else { return }
 
         if needsInitialSpaceSetup() {

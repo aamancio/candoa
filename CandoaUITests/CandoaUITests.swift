@@ -256,10 +256,25 @@ final class CandoaUITests: XCTestCase {
         XCTAssertTrue(accountOnboarding.waitForExistence(timeout: 10))
         XCTAssertEqual(accountOnboarding.value as? String, "idle")
         XCTAssertTrue(app.buttons["Sign Up"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["Sign In"].exists)
+        XCTAssertTrue(app.links["Sign In"].exists)
         XCTAssertTrue(app.buttons["Not Now"].exists)
         XCTAssertFalse(app.buttons["Continue with Apple"].exists)
         XCTAssertFalse(app.webViews.firstMatch.exists)
+    }
+
+    func testReturningPasskeyAccountRequiresSignIn() throws {
+        let app = launchApp(
+            onboardingStep: "account",
+            knownPasskeyAccount: true
+        )
+        let accountOnboarding = element("account-onboarding", in: app).firstMatch
+
+        XCTAssertTrue(accountOnboarding.waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["Welcome back"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Sign In"].exists)
+        XCTAssertFalse(app.buttons["Sign Up"].exists)
+        XCTAssertFalse(app.buttons["Not Now"].exists)
+        XCTAssertTrue(app.buttons["Create a Different Account…"].exists)
     }
 
     func testNotNowCompletesAccountSetup() throws {
@@ -709,6 +724,7 @@ final class CandoaUITests: XCTestCase {
         browserImportFixture: String? = nil,
         checkoutFailure: Bool = false,
         passkeySuccess: Bool = false,
+        knownPasskeyAccount: Bool = false,
         websiteAppearance: String? = nil
     ) -> XCUIApplication {
         let app = XCUIApplication()
@@ -735,6 +751,9 @@ final class CandoaUITests: XCTestCase {
         }
         if passkeySuccess {
             app.launchEnvironment["CANDOA_UI_TESTING_PASSKEY_SUCCESS"] = "1"
+        }
+        if knownPasskeyAccount {
+            app.launchEnvironment["CANDOA_UI_TESTING_KNOWN_PASSKEY_ACCOUNT"] = "1"
         }
 
         app.launch()

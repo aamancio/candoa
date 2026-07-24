@@ -16,6 +16,7 @@ final class UserStore: ObservableObject {
     @Published private(set) var hasCloudSession: Bool
     @Published private(set) var isLocalOnly: Bool
     @Published private(set) var hasCompletedAccountChoice: Bool
+    @Published private(set) var hasKnownPasskeyAccount: Bool
 
     private let accountService: CandoaAccountService
     private let passkeyService: CandoaPasskeyService
@@ -27,6 +28,7 @@ final class UserStore: ObservableObject {
     }
 
     private static let accountChoiceKey = "Candoa.HasCompletedAccountChoice"
+    private static let knownPasskeyAccountKey = "Candoa.HasKnownPasskeyAccount"
 
     init(
         accountService: CandoaAccountService = CandoaAccountService(),
@@ -40,6 +42,9 @@ final class UserStore: ObservableObject {
         isLocalOnly = false
         hasCompletedAccountChoice = hasStoredToken || Self.hasStoredAccountChoice
         let environment = ProcessInfo.processInfo.environment
+        hasKnownPasskeyAccount = environment["CANDOA_UI_TESTING"] == "1"
+            ? environment["CANDOA_UI_TESTING_KNOWN_PASSKEY_ACCOUNT"] == "1"
+            : UserDefaults.standard.bool(forKey: Self.knownPasskeyAccountKey)
         isWorking = environment["CANDOA_UI_TESTING"] == "1" ? false : hasStoredToken
     }
 
@@ -74,6 +79,12 @@ final class UserStore: ObservableObject {
         Task {
             await restoreWithPasskey()
         }
+    }
+
+    func allowCreatingNewPasskeyAccount() {
+        hasKnownPasskeyAccount = false
+        guard ProcessInfo.processInfo.environment["CANDOA_UI_TESTING"] != "1" else { return }
+        UserDefaults.standard.removeObject(forKey: Self.knownPasskeyAccountKey)
     }
 
     func refresh() async {
@@ -151,7 +162,9 @@ final class UserStore: ObservableObject {
         try? accountService.removeAccessToken()
         isSignedIn = false
         hasCloudSession = false
-        isLocalOnly = true
+        isLocalOnly = false
+        hasCompletedAccountChoice = false
+        UserDefaults.standard.removeObject(forKey: Self.accountChoiceKey)
         status = nil
         errorMessage = nil
         subscriptionErrorMessage = nil
@@ -270,13 +283,14 @@ final class UserStore: ObservableObject {
                 return true
             }
 
-            let options = try await accountService.passkeyRegistrationOptions(
+            let ceremony = try await accountService.passkeyRegistrationOptions(
                 accessToken: accessToken
             )
-            let credential = try await passkeyService.createPasskey(options: options)
+            let credential = try await passkeyService.createPasskey(options: ceremony.options)
             try await accountService.verifyPasskeyRegistration(
                 credential,
-                accessToken: accessToken
+                accessToken: accessToken,
+                challengeCookie: ceremony.challengeCookie
             )
             try await loadSession(accessToken: accessToken)
             guard isSignedIn, !isLocalOnly else {
@@ -329,9 +343,12 @@ final class UserStore: ObservableObject {
         }
 
         do {
-            let options = try await accountService.passkeyAuthenticationOptions()
-            let credential = try await passkeyService.signIn(options: options)
-            let accessToken = try await accountService.verifyPasskeyAuthentication(credential)
+            let ceremony = try await accountService.passkeyAuthenticationOptions()
+            let credential = try await passkeyService.signIn(options: ceremony.options)
+            let accessToken = try await accountService.verifyPasskeyAuthentication(
+                credential,
+                challengeCookie: ceremony.challengeCookie
+            )
             try accountService.saveAccessToken(accessToken)
             try await loadSession(accessToken: accessToken)
             guard isSignedIn, !isLocalOnly else {
@@ -360,11 +377,20 @@ final class UserStore: ObservableObject {
 
     private func refreshAccountStatus(accessToken: String) async throws {
         status = try await accountService.accountStatus(accessToken: accessToken)
+        if status?.hasPasskey == true {
+            markPasskeyAccountKnown()
+        }
     }
 
     private func markAccountChoiceCompleted() {
         UserDefaults.standard.set(true, forKey: Self.accountChoiceKey)
         hasCompletedAccountChoice = true
+    }
+
+    private func markPasskeyAccountKnown() {
+        hasKnownPasskeyAccount = true
+        guard ProcessInfo.processInfo.environment["CANDOA_UI_TESTING"] != "1" else { return }
+        UserDefaults.standard.set(true, forKey: Self.knownPasskeyAccountKey)
     }
 
     private func isPasskeyCancellation(_ error: any Error) -> Bool {
