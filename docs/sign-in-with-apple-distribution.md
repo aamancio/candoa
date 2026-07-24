@@ -44,10 +44,13 @@ The system dialog saying that Candoa wants to use the Cloud domain to sign in is
 `ASWebAuthenticationSession` security UI. Do not attempt to suppress it, imitate it, or move
 the Apple flow into an embedded `WKWebView`.
 
-Debug builds may use `http://127.0.0.1:8787/v1` for ordinary Cloud APIs, but Apple web
-authentication must still start on the deployed registered HTTPS endpoint. A separately
-registered HTTPS development endpoint may be supplied explicitly; localhost and loopback
-callbacks are not valid production substitutes.
+Debug builds may use `http://127.0.0.1:8787/v1` for AI development, but Apple web
+authentication, session validation, account state, and billing must all use the same
+deployed account authority. A production-issued session cannot be validated against a local
+database or a different signing secret. `CANDOA_ACCOUNT_API_URL` selects that authority;
+`CANDOA_APPLE_AUTH_API_URL` remains a compatible fallback. A separately registered HTTPS
+development authority may be supplied explicitly; localhost and loopback callbacks are not
+valid production substitutes.
 
 ## Changes that are prohibited for the current DMG
 

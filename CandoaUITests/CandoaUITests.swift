@@ -465,48 +465,52 @@ final class CandoaUITests: XCTestCase {
         )
     }
 
-    func testEliProPromptRendersSubscriptionResponse() throws {
-        let app = launchApp(fixture: "ask")
+    func testEliProPromptRendersSubscriptionGateAndCheckoutFailure() throws {
+        let app = launchApp(fixture: "ask", checkoutFailure: true)
 
         app.typeKey("e", modifierFlags: .command)
         XCTAssertTrue(element("agent-sidebar", in: app).waitForExistence(timeout: 5), currentState(in: app))
 
         submitAskText("What is this page about?", in: app)
 
-        let subscribeLink = element("agent-subscribe-link", in: app)
-        XCTAssertTrue(subscribeLink.waitForExistence(timeout: 5), askState(in: app))
+        let subscriptionGate = element("agent-subscription-gate", in: app)
+        XCTAssertTrue(subscriptionGate.waitForExistence(timeout: 5), askState(in: app))
+        XCTAssertTrue(app.staticTexts["Eli with Candoa Pro"].exists)
+        XCTAssertTrue(
+            app.staticTexts[
+                "Summarize pages, ask questions, and turn what you’re viewing into useful next steps."
+            ].exists
+        )
+        XCTAssertFalse(element("agent-feedback-up", in: app).exists)
+        XCTAssertFalse(element("agent-copy-text", in: app).exists)
+
+        let subscribeButton = element("agent-subscribe-button", in: app)
+        XCTAssertTrue(subscribeButton.exists)
+        XCTAssertTrue(subscribeButton.isEnabled)
+        subscribeButton.click()
+        XCTAssertTrue(
+            element("agent-subscribe-error", in: app).waitForExistence(timeout: 5),
+            askState(in: app)
+        )
+        XCTAssertTrue(subscribeButton.isEnabled)
 
         let attachment = XCTAttachment(screenshot: app.windows.firstMatch.screenshot())
-        attachment.name = "Eli Pro subscription response"
+        attachment.name = "Eli Pro subscription gate"
         attachment.lifetime = .keepAlways
         add(attachment)
     }
 
-    func testEliConversationAndFeedbackPersistWhenSidebarReopens() throws {
+    func testEliSubscriptionGateIsNotTreatedAsAssistantContent() throws {
         let app = launchApp(fixture: "ask")
 
         app.typeKey("e", modifierFlags: .command)
         XCTAssertTrue(element("agent-sidebar", in: app).waitForExistence(timeout: 5), currentState(in: app))
 
-        submitAskText("Remember this conversation", in: app)
-        XCTAssertTrue(element("agent-subscribe-link", in: app).waitForExistence(timeout: 5), askState(in: app))
-
-        let positiveFeedback = element("agent-feedback-up", in: app)
-        XCTAssertTrue(positiveFeedback.waitForExistence(timeout: 5), askState(in: app))
-        XCTAssertTrue(element("agent-copy-text", in: app).exists)
-        XCTAssertFalse(element("agent-copy-image", in: app).exists)
-        positiveFeedback.click()
-        XCTAssertEqual(positiveFeedback.value as? String, "selected")
-        XCTAssertTrue(waitForAskState(in: app, containing: "feedback=positive"), askState(in: app))
-
-        app.typeKey("e", modifierFlags: .command)
-        XCTAssertTrue(waitForState(in: app, containing: "aiVisible=false"), currentState(in: app))
-
-        app.typeKey("e", modifierFlags: .command)
-        XCTAssertTrue(element("agent-sidebar", in: app).waitForExistence(timeout: 5), currentState(in: app))
-        XCTAssertTrue(element("agent-subscribe-link", in: app).waitForExistence(timeout: 5), askState(in: app))
-        XCTAssertTrue(waitForAskState(in: app, containing: "Remember this conversation"), askState(in: app))
-        XCTAssertEqual(element("agent-feedback-up", in: app).value as? String, "selected")
+        submitAskText("Summarize this page", in: app)
+        XCTAssertTrue(element("agent-subscription-gate", in: app).waitForExistence(timeout: 5), askState(in: app))
+        XCTAssertTrue(waitForAskState(in: app, containing: "lastAssistant=[]"), askState(in: app))
+        XCTAssertFalse(element("agent-feedback-up", in: app).exists)
+        XCTAssertFalse(element("agent-copy-text", in: app).exists)
     }
 
     func testEliPastesScreenshotIntoComposer() throws {
@@ -696,6 +700,7 @@ final class CandoaUITests: XCTestCase {
         onboardingStep: String? = nil,
         browserImportFixture: String? = nil,
         appleSignInWorking: Bool = false,
+        checkoutFailure: Bool = false,
         websiteAppearance: String? = nil
     ) -> XCUIApplication {
         let app = XCUIApplication()
@@ -719,6 +724,9 @@ final class CandoaUITests: XCTestCase {
         }
         if appleSignInWorking {
             app.launchEnvironment["CANDOA_UI_TESTING_APPLE_SIGN_IN_WORKING"] = "1"
+        }
+        if checkoutFailure {
+            app.launchEnvironment["CANDOA_UI_TESTING_CHECKOUT_FAILURE"] = "1"
         }
 
         app.launch()

@@ -109,7 +109,7 @@ enum CandoaCloudAPI {
 
     static func session(accessToken: String) async throws -> CandoaCloudSession {
         let session: CandoaCloudSession? = try await request(
-            endpoint("auth/get-session"),
+            accountEndpoint("auth/get-session"),
             method: "GET",
             body: Optional<String>.none,
             accessToken: accessToken
@@ -122,7 +122,7 @@ enum CandoaCloudAPI {
 
     static func signInAnonymously() async throws -> String {
         let (_, response) = try await dataRequest(
-            endpoint("auth/sign-in/anonymous"),
+            accountEndpoint("auth/sign-in/anonymous"),
             method: "POST",
             body: EmptyRequest(),
             accessToken: nil
@@ -136,7 +136,7 @@ enum CandoaCloudAPI {
 
     static func signOut(accessToken: String) async throws {
         let _: SignOutResponse = try await request(
-            endpoint("auth/sign-out"),
+            accountEndpoint("auth/sign-out"),
             method: "POST",
             body: EmptyRequest(),
             accessToken: accessToken
@@ -149,7 +149,7 @@ enum CandoaCloudAPI {
         accessToken: String?
     ) async throws -> URL {
         let response: AppleWebAuthenticationPrepareResponse = try await request(
-            authenticationEndpoint("auth/apple/web/prepare"),
+            accountEndpoint("auth/apple/web/prepare"),
             method: "POST",
             body: AppleWebAuthenticationPrepareRequest(
                 codeChallenge: codeChallenge,
@@ -168,7 +168,7 @@ enum CandoaCloudAPI {
         codeVerifier: String
     ) async throws -> String {
         let response: CandoaSessionResponse = try await request(
-            authenticationEndpoint("auth/apple/web/exchange"),
+            accountEndpoint("auth/apple/web/exchange"),
             method: "POST",
             body: AppleWebAuthenticationExchangeRequest(code: code, codeVerifier: codeVerifier),
             accessToken: nil
@@ -177,12 +177,17 @@ enum CandoaCloudAPI {
     }
 
     static func accountStatus(accessToken: String) async throws -> CandoaAccountStatus {
-        try await request(endpoint("account"), method: "GET", body: Optional<String>.none, accessToken: accessToken)
+        try await request(
+            accountEndpoint("account"),
+            method: "GET",
+            body: Optional<String>.none,
+            accessToken: accessToken
+        )
     }
 
     static func checkoutURL(accessToken: String, planID: String) async throws -> URL {
         let response: CandoaURLResponse = try await request(
-            endpoint("billing/checkout"),
+            accountEndpoint("billing/checkout"),
             method: "POST",
             body: BillingPlanRequest(planID: planID),
             accessToken: accessToken
@@ -193,7 +198,7 @@ enum CandoaCloudAPI {
 
     static func portalURL(accessToken: String) async throws -> URL {
         let response: CandoaURLResponse = try await request(
-            endpoint("billing/portal"),
+            accountEndpoint("billing/portal"),
             method: "POST",
             body: Optional<String>.none,
             accessToken: accessToken
@@ -208,10 +213,13 @@ enum CandoaCloudAPI {
         return configuredBaseURL.appending(path: path)
     }
 
-    private static func authenticationEndpoint(_ path: String) -> URL {
-        // Apple requires a registered HTTPS callback. Keep web authentication on the
-        // deployed Cloud service even when the rest of a Debug build uses local Cloud.
-        let configuredBaseURL = ProcessInfo.processInfo.environment["CANDOA_APPLE_AUTH_API_URL"]
+    private static func accountEndpoint(_ path: String) -> URL {
+        // Authentication, session validation, account state, and billing must share
+        // one authority. A production-issued session cannot be validated by a local
+        // Cloud instance with a different database and signing secret.
+        let configuredBaseURL = ProcessInfo.processInfo.environment["CANDOA_ACCOUNT_API_URL"]
+            .flatMap(URL.init(string:))
+            ?? ProcessInfo.processInfo.environment["CANDOA_APPLE_AUTH_API_URL"]
             .flatMap(URL.init(string:)) ?? defaultBaseURL
         return configuredBaseURL.appending(path: path)
     }

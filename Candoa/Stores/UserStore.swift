@@ -96,6 +96,14 @@ final class UserStore: ObservableObject {
     }
 
     func startProCheckout() async {
+        if ProcessInfo.processInfo.environment["CANDOA_UI_TESTING_CHECKOUT_FAILURE"] == "1" {
+            isWorking = true
+            await Task.yield()
+            isWorking = false
+            errorMessage = "Candoa checkout is temporarily unavailable."
+            return
+        }
+
         if !isSignedIn {
             guard await authenticateWithApple() else { return }
         }

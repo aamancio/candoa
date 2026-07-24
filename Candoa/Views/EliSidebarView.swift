@@ -728,7 +728,7 @@ struct EliSidebarView: View {
                 role: .assistant,
                 text: userStore.isSignedIn && userStore.errorMessage != nil
                     ? "I couldn’t verify your Candoa subscription. Check the Cloud connection and try again."
-                    : "Eli is available with Candoa Pro.",
+                    : "",
                 isStreaming: false,
                 action: userStore.isSignedIn && userStore.errorMessage != nil ? nil : .subscribe
             ))

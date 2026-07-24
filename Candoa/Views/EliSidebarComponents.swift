@@ -66,6 +66,56 @@ struct AISidebarTopBarIconButton: View {
     }
 }
 
+struct AISidebarSubscriptionGateView: View {
+    @EnvironmentObject private var userStore: UserStore
+
+    var body: some View {
+        GroupBox {
+            VStack(alignment: .leading, spacing: 12) {
+                Label("Eli with Candoa Pro", systemImage: "lock.fill")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(CandoaInterfaceStyle.sidebarText)
+                    .accessibilityIdentifier("agent-subscription-gate")
+
+                Text("Summarize pages, ask questions, and turn what you’re viewing into useful next steps.")
+                    .font(.system(size: 13.5))
+                    .foregroundStyle(CandoaInterfaceStyle.sidebarTextSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Button {
+                    Task { await userStore.startProCheckout() }
+                } label: {
+                    HStack(spacing: 7) {
+                        if userStore.isWorking {
+                            ProgressView()
+                                .controlSize(.small)
+                        }
+
+                        Text(userStore.isWorking ? "Opening checkout…" : "Subscribe")
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.regular)
+                .disabled(userStore.isWorking)
+                .accessibilityLabel(userStore.isWorking ? "Opening checkout" : "Subscribe")
+                .accessibilityIdentifier("agent-subscribe-button")
+
+                if userStore.errorMessage != nil, !userStore.isWorking {
+                    Label(
+                        "Candoa couldn’t open checkout. Please try again.",
+                        systemImage: "exclamationmark.triangle"
+                    )
+                    .font(.system(size: 12.5))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("agent-subscribe-error")
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+}
+
 struct AISidebarMessageRow: View {
     @Binding var message: AISidebarMessage
     @EnvironmentObject private var userStore: UserStore
@@ -133,57 +183,51 @@ struct AISidebarMessageRow: View {
 
     @ViewBuilder
     private var messageContent: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            if !message.text.isEmpty {
-                Text(message.text)
-                    .font(.system(size: 14))
-                    .foregroundStyle(messageForeground)
-                    .textSelection(.enabled)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
+        if message.action == .subscribe {
+            AISidebarSubscriptionGateView()
+        } else {
+            VStack(alignment: .leading, spacing: 6) {
+                if !message.text.isEmpty {
+                    Text(message.text)
+                        .font(.system(size: 14))
+                        .foregroundStyle(messageForeground)
+                        .textSelection(.enabled)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
 
-            if let image = message.responseImage {
-                Image(nsImage: image)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(maxWidth: 420)
-                    .accessibilityLabel("Response image")
-            }
+                if let image = message.responseImage {
+                    Image(nsImage: image)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(maxWidth: 420)
+                        .accessibilityLabel("Response image")
+                }
 
-            if !message.hasCopyableContent && message.isStreaming {
-                HStack(spacing: 8) {
-                    ProgressView()
-                        .controlSize(.small)
+                if !message.hasCopyableContent && message.isStreaming {
+                    HStack(spacing: 8) {
+                        ProgressView()
+                            .controlSize(.small)
 
-                    if let transientStatus = message.transientStatus {
-                        Text(transientStatus)
-                            .font(.system(size: 13.5))
-                            .foregroundStyle(CandoaInterfaceStyle.sidebarTextSecondary)
-                            .fixedSize(horizontal: false, vertical: true)
+                        if let transientStatus = message.transientStatus {
+                            Text(transientStatus)
+                                .font(.system(size: 13.5))
+                                .foregroundStyle(CandoaInterfaceStyle.sidebarTextSecondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
                     }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityIdentifier("agent-activity-status")
+                } else if !message.hasCopyableContent {
+                    Text("No response.")
+                        .font(.system(size: 13.5))
+                        .foregroundStyle(CandoaInterfaceStyle.sidebarTextSecondary)
                 }
-                .accessibilityElement(children: .combine)
-                .accessibilityIdentifier("agent-activity-status")
-            } else if !message.hasCopyableContent {
-                Text("No response.")
-                    .font(.system(size: 13.5))
-                    .foregroundStyle(CandoaInterfaceStyle.sidebarTextSecondary)
-            }
-
-            if message.action == .subscribe {
-                Button("Subscribe to Candoa Pro") {
-                    Task { await userStore.startProCheckout() }
-                }
-                .candoaButton(.link)
-                .font(.system(size: 13, weight: .medium))
-                .disabled(userStore.isWorking)
-                .accessibilityIdentifier("agent-subscribe-link")
             }
         }
     }
 
     private var showsFeedbackControls: Bool {
-        !message.isStreaming && message.hasCopyableContent
+        message.action == nil && !message.isStreaming && message.hasCopyableContent
     }
 
     private var feedbackControls: some View {
