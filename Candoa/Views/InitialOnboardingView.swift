@@ -350,7 +350,7 @@ private struct AccountOnboardingStep: View {
                         .tracking(-0.4)
                         .multilineTextAlignment(.center)
 
-                    Text("Create a passkey to use your Candoa account on your other devices. No password or email required.")
+                    Text("Create a passkey to use your Candoa account on your other devices.")
                         .font(.system(size: 14))
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
