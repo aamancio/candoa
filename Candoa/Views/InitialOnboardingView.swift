@@ -337,15 +337,25 @@ private struct AccountOnboardingStep: View {
     @EnvironmentObject private var userStore: UserStore
 
     var body: some View {
-        OnboardingSurface(step: .account, onBack: store.goBackInInitialOnboarding) {
-            VStack(alignment: .leading, spacing: 18) {
-                OnboardingPageHeader(
-                    symbolName: "key.fill",
-                    title: "Keep your account with you",
-                    detail: "Create a passkey to use your Candoa account on your other devices. No password needed."
-                )
+        AccountOnboardingSurface(onBack: store.goBackInInitialOnboarding) {
+            VStack(spacing: 24) {
+                Image(systemName: "key.fill")
+                    .font(.system(size: 34, weight: .medium))
+                    .symbolRenderingMode(.hierarchical)
+                    .foregroundStyle(CandoaInterfaceStyle.decorativeSymbol)
 
-                Spacer(minLength: 24)
+                VStack(spacing: 10) {
+                    Text("Keep your account with you")
+                        .font(.system(size: 30, weight: .semibold))
+                        .tracking(-0.4)
+                        .multilineTextAlignment(.center)
+
+                    Text("Create a passkey to use your Candoa account on your other devices. No password or email required.")
+                        .font(.system(size: 14))
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
 
                 Button {
                     userStore.createPasskey()
@@ -360,22 +370,24 @@ private struct AccountOnboardingStep: View {
                 .candoaButton(.primary)
                 .controlSize(.large)
                 .frame(maxWidth: .infinity)
+                .keyboardShortcut(.defaultAction)
                 .disabled(userStore.isWorking)
                 .accessibilityIdentifier("onboarding-create-passkey")
 
-                HStack(spacing: 12) {
+                HStack(spacing: 16) {
                     Button("Sign In") {
                         userStore.signInWithPasskey()
                     }
                     .candoaButton(.secondary)
                     .controlSize(.large)
+                    .tint(Color(nsColor: .secondaryLabelColor))
                     .disabled(userStore.isWorking)
                     .accessibilityIdentifier("onboarding-sign-in-passkey")
 
                     Button("Not Now") {
                         userStore.continueOnThisMac()
                     }
-                    .candoaButton(.secondary)
+                    .candoaButton(.quiet)
                     .controlSize(.large)
                     .disabled(userStore.isWorking)
                     .accessibilityIdentifier("onboarding-not-now")
@@ -389,13 +401,13 @@ private struct AccountOnboardingStep: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
-                Text("Choose Not Now to start with an account that stays on this Mac.")
+                Text("You can skip this and add a passkey later in Settings.")
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
             }
-        } preview: {
-            OnboardingAccountPreview()
+            .frame(maxWidth: 310)
         }
         .onChange(of: userStore.hasCompletedAccountChoice) { _, hasCompletedAccountChoice in
             if hasCompletedAccountChoice {
@@ -404,6 +416,62 @@ private struct AccountOnboardingStep: View {
         }
         .accessibilityValue(userStore.isWorking ? "signing-in" : "idle")
         .accessibilityIdentifier("account-onboarding")
+    }
+}
+
+private struct AccountOnboardingSurface<Content: View>: View {
+    let onBack: () -> Void
+    @ViewBuilder let content: Content
+
+    init(
+        onBack: @escaping () -> Void,
+        @ViewBuilder content: () -> Content
+    ) {
+        self.onBack = onBack
+        self.content = content()
+    }
+
+    var body: some View {
+        GeometryReader { proxy in
+            let cardWidth = min(560, max(440, proxy.size.width - 64))
+            let cardHeight = min(580, max(500, proxy.size.height - 64))
+
+            VStack(spacing: 0) {
+                HStack(spacing: 10) {
+                    Button(action: onBack) {
+                        Label("Back", systemImage: "chevron.left")
+                    }
+                    .candoaButton(.quiet)
+                    .font(.system(size: 12, weight: .semibold))
+                    .help("Back")
+                    .accessibilityIdentifier("onboarding-back")
+
+                    Spacer()
+
+                    Text("3 of 3")
+                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                        .foregroundStyle(.tertiary)
+                }
+
+                content
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .padding(.horizontal, 44)
+            }
+            .padding(38)
+            .frame(width: cardWidth, height: cardHeight)
+            .background(CandoaInterfaceStyle.surfaceFill)
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(CandoaInterfaceStyle.surfaceBorder, lineWidth: 1)
+            }
+            .shadow(color: Color.black.opacity(0.16), radius: 30, y: 14)
+            .position(x: proxy.size.width / 2, y: proxy.size.height / 2)
+        }
+        .background(CandoaInterfaceStyle.surfaceFill.opacity(0.72))
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .accessibilityIdentifier("initial-onboarding-account")
+        .accessibilityValue("Step 3 of 3")
     }
 }
 
@@ -713,34 +781,6 @@ private struct OnboardingPageHeader: View {
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
-    }
-}
-
-private struct OnboardingAccountPreview: View {
-    var body: some View {
-        VStack(spacing: 22) {
-            Image(systemName: "key.fill")
-                .font(.system(size: 54, weight: .regular))
-                .symbolRenderingMode(.hierarchical)
-                .foregroundStyle(CandoaInterfaceStyle.decorativeSymbol)
-
-            VStack(spacing: 7) {
-                Text("Your Candoa account")
-                    .font(.system(size: 20, weight: .semibold))
-
-                Text("A passkey keeps your account and future subscription available across your devices.")
-                    .font(.system(size: 13))
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            Label("No password or email required", systemImage: "checkmark.circle.fill")
-                .font(.system(size: 12.5, weight: .medium))
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: 360)
-        .padding(32)
     }
 }
 
