@@ -6,6 +6,7 @@ import SwiftUI
 final class UserStore: ObservableObject {
     @Published private(set) var status: CandoaAccountStatus?
     @Published private(set) var isWorking = false
+    @Published private(set) var isStartingSubscription = false
     @Published private(set) var errorMessage: String?
     @Published private(set) var subscriptionErrorMessage: String?
     @Published private(set) var isSignedIn: Bool
@@ -97,6 +98,10 @@ final class UserStore: ObservableObject {
     }
 
     func startProCheckout() async {
+        guard !isStartingSubscription else { return }
+
+        isStartingSubscription = true
+        defer { isStartingSubscription = false }
         subscriptionErrorMessage = nil
 
         if ProcessInfo.processInfo.environment["CANDOA_UI_TESTING_CHECKOUT_FAILURE"] == "1" {

@@ -70,6 +70,8 @@ struct AISidebarSubscriptionGateView: View {
     @EnvironmentObject private var userStore: UserStore
 
     var body: some View {
+        let isSubscribing = userStore.isStartingSubscription
+
         GroupBox {
             VStack(alignment: .leading, spacing: 12) {
                 Label("Eli with Candoa Pro", systemImage: "lock.fill")
@@ -86,22 +88,23 @@ struct AISidebarSubscriptionGateView: View {
                     Task { await userStore.startProCheckout() }
                 } label: {
                     HStack(spacing: 7) {
-                        if userStore.isWorking {
+                        if isSubscribing {
                             ProgressView()
                                 .controlSize(.small)
                         }
 
-                        Text(userStore.isWorking ? "Opening checkout…" : "Subscribe")
+                        Text(isSubscribing ? "Subscribing…" : "Subscribe")
                     }
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.regular)
-                .disabled(userStore.isWorking)
-                .accessibilityLabel(userStore.isWorking ? "Opening checkout" : "Subscribe")
+                .disabled(isSubscribing || userStore.isWorking)
+                .accessibilityLabel(isSubscribing ? "Subscribing" : "Subscribe")
+                .accessibilityValue(isSubscribing ? "subscribing" : "idle")
                 .accessibilityIdentifier("agent-subscribe-button")
 
                 if let subscriptionErrorMessage = userStore.subscriptionErrorMessage,
-                   !userStore.isWorking {
+                   !isSubscribing {
                     Label(
                         subscriptionErrorMessage,
                         systemImage: "exclamationmark.triangle"
