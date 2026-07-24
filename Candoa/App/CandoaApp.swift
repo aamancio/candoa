@@ -96,7 +96,7 @@ private struct BrowserCommands: Commands {
 
             Divider()
 
-            Button("Close Tab") {
+            Button(actions?.isHistoryVisible == true ? "Close History" : "Close Tab") {
                 actions?.closeCurrentTab()
             }
             .keyboardShortcut("w", modifiers: .command)

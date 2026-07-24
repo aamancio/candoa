@@ -336,6 +336,11 @@ private struct WelcomeOnboardingStep: View {
 private struct AccountOnboardingStep: View {
     @ObservedObject var store: BrowserStore
     @EnvironmentObject private var userStore: UserStore
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var appleButtonStyle: ASAuthorizationAppleIDButton.Style {
+        colorScheme == .dark ? .white : .black
+    }
 
     var body: some View {
         OnboardingSurface(step: .account, onBack: store.goBackInInitialOnboarding) {
@@ -348,29 +353,20 @@ private struct AccountOnboardingStep: View {
 
                 Spacer(minLength: 24)
 
-                Group {
-                    if userStore.isWorking {
-                        Button {} label: {
-                            HStack(spacing: 8) {
-                                ProgressView()
-                                    .controlSize(.small)
-                                    .accessibilityIdentifier("onboarding-apple-sign-in-progress")
-
-                                Text("Signing in…")
-                            }
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        }
-                        .candoaButton(.primary)
-                        .tint(.black)
-                        .controlSize(.large)
-                        .disabled(true)
-                        .accessibilityLabel("Signing in…")
-                        .accessibilityIdentifier("onboarding-apple-sign-in")
-                    } else {
-                        OnboardingSignInWithAppleButton(action: userStore.signInWithApple)
-                        .accessibilityIdentifier("onboarding-apple-sign-in")
-                    }
-                }
+                OnboardingSignInWithAppleButton(
+                    style: appleButtonStyle,
+                    isEnabled: !userStore.isWorking,
+                    action: userStore.signInWithApple
+                )
+                // ASAuthorizationAppleIDButton's style is fixed at creation.
+                // Recreate it when the effective appearance changes.
+                .id(colorScheme)
+                .accessibilityLabel(
+                    userStore.isWorking
+                        ? Text("Signing in…")
+                        : Text("Continue with Apple")
+                )
+                .accessibilityIdentifier("onboarding-apple-sign-in")
                 .frame(height: 44)
 
                 Button(String(localized: "Not Now")) {
@@ -408,6 +404,8 @@ private struct AccountOnboardingStep: View {
 }
 
 private struct OnboardingSignInWithAppleButton: NSViewRepresentable {
+    let style: ASAuthorizationAppleIDButton.Style
+    let isEnabled: Bool
     let action: () -> Void
 
     func makeCoordinator() -> Coordinator {
@@ -415,9 +413,10 @@ private struct OnboardingSignInWithAppleButton: NSViewRepresentable {
     }
 
     func makeNSView(context: Context) -> ASAuthorizationAppleIDButton {
-        let button = ASAuthorizationAppleIDButton(type: .continue, style: .black)
+        let button = ASAuthorizationAppleIDButton(type: .continue, style: style)
         button.target = context.coordinator
         button.action = #selector(Coordinator.signIn)
+        button.isEnabled = isEnabled
         button.setContentHuggingPriority(.defaultLow, for: .horizontal)
         button.setContentHuggingPriority(.defaultLow, for: .vertical)
         context.coordinator.button = button
@@ -426,6 +425,7 @@ private struct OnboardingSignInWithAppleButton: NSViewRepresentable {
 
     func updateNSView(_ button: ASAuthorizationAppleIDButton, context: Context) {
         context.coordinator.action = action
+        button.isEnabled = isEnabled
     }
 
     @MainActor

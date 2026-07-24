@@ -130,11 +130,7 @@ extension BrowserStore {
 
     func completeInitialImport() {
         guard initialOnboardingStep == .importData else { return }
-        if needsInitialSpaceSetup() {
-            setInitialOnboardingStep(.space)
-        } else {
-            setInitialOnboardingStep(nextAccountOrTourStep)
-        }
+        setInitialOnboardingStep(.space)
     }
 
     func goBackInInitialOnboarding() {

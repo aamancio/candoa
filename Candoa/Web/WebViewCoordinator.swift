@@ -47,6 +47,9 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
     var websiteAppearance = WebsiteAppearance.dark
     var systemUsesDarkAppearance = false
     var pendingAppearanceNavigationTokens: [UUID: UUID] = [:]
+    private lazy var browserAgentDriver = BrowserAgentDriver(
+        contentWorld: Self.browserAgentContentWorld
+    )
 
     func attach(store: BrowserStore) {
         self.store = store
@@ -410,16 +413,7 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         let snapshotID = UUID()
 
         do {
-            let script = """
-            (() => {
-              const snapshotID = \(javaScriptStringLiteral(for: snapshotID.uuidString.lowercased()));
-              \(WebPageScripts.browserAgentControlsScript)
-            })();
-            """
-            let value = try await evaluateBrowserAgentJavaScript(script, in: webView)
-            guard let data = value.data(using: String.Encoding.utf8) else { return nil }
-            let controls = try JSONDecoder().decode([CandoaBrowserAgentControl].self, from: data)
-            return CandoaBrowserAgentSnapshot(id: snapshotID, controls: controls)
+            return try await browserAgentDriver.snapshot(in: webView, id: snapshotID)
         } catch {
             return nil
         }
@@ -442,152 +436,18 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         }
     }
 
-    func pagePurchaseCandidates(for tabID: UUID) async -> [CandoaPagePurchaseCandidate] {
-        guard let webView = webViews[tabID] else { return [] }
-
-        let value: String? = await withCheckedContinuation { continuation in
-            webView.evaluateJavaScript(WebPageScripts.pagePurchaseCandidatesScript) { value, error in
-                continuation.resume(returning: error == nil ? value as? String : nil)
-            }
-        }
-        guard let value, let data = value.data(using: .utf8) else { return [] }
-        return (try? JSONDecoder().decode([CandoaPagePurchaseCandidate].self, from: data)) ?? []
-    }
-
     func performAIPageAction(_ action: CandoaPageActionProposal, for tabID: UUID) async -> String {
         guard let webView = webViews[tabID] else { return "That page is not ready for an action." }
         if let expectedURL = action.browserAgentPageURL,
            webView.url?.absoluteString != expectedURL {
             return "Candoa stopped because the page changed after it was inspected."
         }
-        if action.kind == .scroll, let snapshotID = action.browserAgentSnapshotID {
-            do {
-                let value = try await webView.callAsyncJavaScript(
-                    """
-                    return (() => {
-                      if (window.__candoaAgentSnapshotID !== snapshotID) {
-                        return "Candoa stopped because the page changed after it was inspected.";
-                      }
-                      const distance = Math.max(300, innerHeight * 0.8);
-                      window.scrollBy({
-                        top: direction === "up" ? -distance : distance,
-                        behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth"
-                      });
-                      return `Scrolled ${direction}.`;
-                    })();
-                    """,
-                    arguments: [
-                        "snapshotID": snapshotID.uuidString.lowercased(),
-                        "direction": action.target,
-                    ],
-                    in: nil,
-                    contentWorld: Self.browserAgentContentWorld
-                )
-                return value as? String ?? "Action completed."
-            } catch {
-                return "Candoa could not complete that referenced action."
-            }
-        }
-        if let ref = action.browserAgentReference,
-           let snapshotID = action.browserAgentSnapshotID,
-           let controlKind = action.browserAgentControlKind {
-            do {
-                let script = """
-                (() => {
-                  const snapshotID = \(javaScriptStringLiteral(for: snapshotID.uuidString.lowercased()));
-                  const ref = \(javaScriptStringLiteral(for: ref));
-                  const expectedLabel = \(javaScriptStringLiteral(for: action.target));
-                  const expectedKind = \(javaScriptStringLiteral(for: controlKind.rawValue));
-                  const kind = \(javaScriptStringLiteral(for: action.kind.rawValue));
-                  const value = \(javaScriptStringLiteral(for: action.value ?? ""));
-                  \(WebPageScripts.browserAgentActionScript)
-                })();
-                """
-                let value = try await evaluateBrowserAgentJavaScript(script, in: webView)
-                return value
-            } catch {
-                return "Candoa could not complete that referenced action."
-            }
-        }
-        let payload = ["kind": action.kind.rawValue, "target": action.target, "value": action.value ?? ""]
-        guard let data = try? JSONSerialization.data(withJSONObject: payload),
-              let payloadJSON = String(data: data, encoding: .utf8) else {
-            return "Candoa could not prepare that action."
-        }
-
-        let script = """
-        (() => {
-          const action = \(payloadJSON);
-          const visible = (element) => {
-            if (!(element instanceof HTMLElement) || element.closest('[aria-hidden=true],[hidden]')) return false;
-            const rect = element.getBoundingClientRect();
-            const style = getComputedStyle(element);
-            return rect.width > 2 && rect.height > 2 && style.display !== 'none' && style.visibility !== 'hidden';
-          };
-          const clean = (value) => String(value || '').replace(/[\\s\\n\\r\\t]+/g, ' ').trim();
-          const label = (element) => {
-            const labelledBy = clean(element.getAttribute('aria-labelledby')).split(' ').map(id => clean(document.getElementById(id)?.innerText || document.getElementById(id)?.textContent)).filter(Boolean).join(' ');
-            const explicitLabel = element.id ? clean(document.querySelector(`label[for="${CSS.escape(element.id)}"]`)?.innerText) : '';
-            return [element.getAttribute('aria-label'), labelledBy, explicitLabel, element.closest('label')?.innerText, element.placeholder, element.title, element.innerText, element.textContent, element.value].map(clean).find(Boolean) || '';
-          };
-          if (action.kind === 'navigate') return 'Navigation must be approved and performed by Candoa.';
-          if (action.kind === 'scroll') { window.scrollBy({ top: action.target === 'up' ? -Math.max(300, innerHeight * 0.8) : Math.max(300, innerHeight * 0.8), behavior: 'smooth' }); return 'Scrolled ' + action.target + '.'; }
-          const selectors = action.kind === 'fill'
-            ? 'input:not([type=radio]):not([type=checkbox]),textarea,[contenteditable=true],[role=textbox],[role=searchbox]'
-            : action.kind === 'select'
-              ? 'select,label[for],[role=radio],[role=option],[role=checkbox],input[type=radio],input[type=checkbox]'
-              : 'a[href],button,label[for],[role=button],[role=link],input[type=submit],input[type=button]';
-          const target = action.target.toLocaleLowerCase();
-          const candidates = Array.from(document.querySelectorAll(selectors)).filter(candidate => visible(candidate));
-          const element = candidates.find(candidate => label(candidate).toLocaleLowerCase() === target)
-            || candidates.find(candidate => label(candidate).toLocaleLowerCase().includes(target));
-          if (!element) return 'I could not find a visible control matching "' + action.target + '".';
-          if (action.kind === 'click') { element.scrollIntoView({ block: 'center', inline: 'nearest', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }); element.click(); return 'Clicked "' + label(element) + '".'; }
-          if (action.kind === 'select') {
-            element.scrollIntoView({ block: 'center', inline: 'nearest', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
-            if (element instanceof HTMLSelectElement) {
-              const requested = clean(action.value).toLocaleLowerCase();
-              const option = Array.from(element.options).find(candidate => clean(candidate.label).toLocaleLowerCase() === requested || clean(candidate.value).toLocaleLowerCase() === requested);
-              if (!option) return 'I could not find the requested option in "' + label(element) + '".';
-              element.focus();
-              element.value = option.value;
-              element.dispatchEvent(new Event('input', { bubbles: true }));
-              element.dispatchEvent(new Event('change', { bubbles: true }));
-              return 'Selected "' + clean(option.label) + '" in "' + label(element) + '".';
-            }
-            const activationElement = element instanceof HTMLInputElement
-              && (element.type === 'radio' || element.type === 'checkbox')
-              && element.id
-              ? document.querySelector(`label[for="${CSS.escape(element.id)}"]`) || element
-              : element;
-            activationElement.click();
-            return 'Selected "' + label(element) + '".';
-          }
-          if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) { element.focus(); element.value = action.value; element.dispatchEvent(new Event('input', { bubbles: true })); element.dispatchEvent(new Event('change', { bubbles: true })); return 'Filled "' + label(element) + '".'; }
-          element.focus(); element.textContent = action.value; element.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: action.value })); return 'Filled "' + label(element) + '".';
-        })();
-        """
-        return await withCheckedContinuation { continuation in
-            webView.evaluateJavaScript(script) { value, error in
-                continuation.resume(returning: error == nil ? (value as? String ?? "Action completed.") : "Candoa could not complete that action.")
-            }
-        }
-    }
-
-    private func evaluateBrowserAgentJavaScript(_ script: String, in webView: WKWebView) async throws -> String {
-        try await withCheckedThrowingContinuation { continuation in
-            webView.evaluateJavaScript(
-                script,
-                in: nil,
-                in: Self.browserAgentContentWorld
-            ) { result in
-                switch result {
-                case .success(let value):
-                    continuation.resume(returning: value as? String ?? "")
-                case .failure(let error):
-                    continuation.resume(throwing: error)
-                }
-            }
+        do {
+            return try await browserAgentDriver.performAction(action, in: webView)
+        } catch BrowserAgentDriver.DriverError.actionNotGrounded {
+            return "Candoa stopped because this action was not grounded in the latest page inspection."
+        } catch {
+            return "Candoa could not complete that referenced action."
         }
     }
 

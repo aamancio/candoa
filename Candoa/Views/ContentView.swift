@@ -376,7 +376,9 @@ struct ContentView: View {
             )
         }
         .onOpenURL { url in
-            store.openExternalURL(url)
+            if !CandoaAppleWebAuthenticationService.handleAuthenticationRelay(url) {
+                store.openExternalURL(url)
+            }
         }
         .onDisappear {
             store.flushSession()
@@ -667,6 +669,11 @@ struct ContentView: View {
     }
 
     private func closeTabOrWindow() {
+        if isHistoryPresented {
+            isHistoryPresented = false
+            return
+        }
+
         if store.visibleTabsForActiveSpace.count > 1 {
             store.closeCurrentTab()
         } else {

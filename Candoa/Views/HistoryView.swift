@@ -66,7 +66,13 @@ struct HistoryView: View {
             isSearchFocused = true
         }
         .onChange(of: tableSelection) { _, selection in
-            store.selection = Set(selection.compactMap(\.visitID))
+            let visitSelection = Set(selection.compactMap(\.visitID))
+            store.selection = visitSelection
+
+            let selectableRows = Set(visitSelection.map(HistoryTableNode.ID.visit))
+            if tableSelection != selectableRows {
+                tableSelection = selectableRows
+            }
         }
         .onChange(of: store.selection) { _, selection in
             let visitSelection = Set(selection.map(HistoryTableNode.ID.visit))
@@ -154,6 +160,10 @@ struct HistoryView: View {
                         TableRow(node)
                     }
                 }
+
+                if store.canLoadMore {
+                    TableRow(HistoryTableNode(loadMoreAfter: store.visits.count))
+                }
             }
             .alternatingRowBackgrounds(.disabled)
             .scrollContentBackground(.hidden)
@@ -163,23 +173,6 @@ struct HistoryView: View {
                 guard let visit = selectedVisits(for: selection).first else { return }
                 onOpen(visit)
             }
-
-            if store.canLoadMore || store.isLoading {
-                HStack {
-                    Spacer()
-                    if store.isLoading {
-                        ProgressView()
-                            .controlSize(.small)
-                    } else {
-                        Button("Load More") {
-                            store.loadMore()
-                        }
-                        .candoaButton(.secondary)
-                    }
-                    Spacer()
-                }
-                .padding(.vertical, 8)
-            }
         }
     }
 
@@ -188,12 +181,22 @@ struct HistoryView: View {
         switch node.content {
         case .day(_, let title, _):
             Label(title, systemImage: "clock")
+                .font(.system(size: 13))
                 .fontWeight(.semibold)
         case .visit(let visit):
             Label(visit.title, systemImage: "globe")
+                .font(.system(size: 13))
                 .lineLimit(1)
                 .accessibilityLabel("\(visit.title), \(visit.url.absoluteString)")
                 .accessibilityValue(visit.visitedAt.formatted(date: .abbreviated, time: .shortened))
+        case .pagination:
+            ProgressView()
+                .controlSize(.small)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .accessibilityLabel("Loading more history")
+                .onAppear {
+                    store.loadMore()
+                }
         }
     }
 
@@ -202,11 +205,15 @@ struct HistoryView: View {
         switch node.content {
         case .day(_, _, let count):
             Text(count == 1 ? "1 item" : "\(count) items")
+                .font(.system(size: 13))
         case .visit(let visit):
             Text(visit.url.absoluteString)
+                .font(.system(size: 13))
                 .lineLimit(1)
                 .truncationMode(.middle)
                 .foregroundStyle(.secondary)
+        case .pagination:
+            EmptyView()
         }
     }
 
@@ -326,6 +333,7 @@ private struct HistoryTableNode: Identifiable {
     enum ID: Hashable {
         case day(Date)
         case visit(UUID)
+        case pagination(Int)
 
         var visitID: UUID? {
             guard case .visit(let id) = self else { return nil }
@@ -336,6 +344,7 @@ private struct HistoryTableNode: Identifiable {
     enum Content {
         case day(Date, String, Int)
         case visit(HistoryVisit)
+        case pagination
     }
 
     let id: ID
@@ -348,6 +357,11 @@ private struct HistoryTableNode: Identifiable {
     init(visit: HistoryVisit) {
         id = .visit(visit.id)
         content = .visit(visit)
+    }
+
+    init(loadMoreAfter visitCount: Int) {
+        id = .pagination(visitCount)
+        content = .pagination
     }
 }
 

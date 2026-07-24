@@ -98,6 +98,13 @@ final class CandoaUITests: XCTestCase {
         let historyRow = app.staticTexts["https://fixture.candoa.test/history"].firstMatch
         XCTAssertTrue(historyRow.waitForExistence(timeout: 5))
 
+        app.typeKey("w", modifierFlags: .command)
+        XCTAssertFalse(historyView.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Candoa History Fixture"].waitForExistence(timeout: 5))
+
+        app.typeKey("y", modifierFlags: .command)
+        XCTAssertTrue(historyView.waitForExistence(timeout: 5))
+
         let screenshot = app.screenshot()
         let attachment = XCTAttachment(screenshot: screenshot)
         attachment.name = "Searchable History"
@@ -167,6 +174,19 @@ final class CandoaUITests: XCTestCase {
         )
     }
 
+    func testSkippingBrowserMigrationAdvancesToSpaceSetup() throws {
+        let app = launchApp(onboardingStep: "importData")
+        let importStep = element("initial-onboarding-importData", in: app)
+        XCTAssertTrue(importStep.waitForExistence(timeout: 10))
+
+        app.buttons["Skip"].click()
+
+        let spaceStep = element("initial-onboarding-space", in: app)
+        XCTAssertTrue(spaceStep.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["2 of 3"].exists)
+        XCTAssertFalse(element("account-onboarding", in: app).exists)
+    }
+
     func testBrowserMigrationImportsChromeFixtureThroughRealParser() throws {
         try assertBrowserMigration(
             source: "Chrome",
@@ -225,7 +245,7 @@ final class CandoaUITests: XCTestCase {
         XCTAssertEqual(XCTWaiter.wait(for: [dismissed], timeout: 5), .completed)
     }
 
-    func testAppleSignInShowsProgressInsideItsButton() throws {
+    func testAppleSignInKeepsProviderButtonDisabledWhileWorking() throws {
         let app = launchApp(onboardingStep: "account", appleSignInWorking: true)
         let accountOnboarding = element("account-onboarding", in: app).firstMatch
 
@@ -235,6 +255,7 @@ final class CandoaUITests: XCTestCase {
         let signInButton = element("onboarding-apple-sign-in", in: app).firstMatch
         XCTAssertTrue(signInButton.waitForExistence(timeout: 5))
         XCTAssertGreaterThanOrEqual(signInButton.frame.height, 42)
+        XCTAssertFalse(signInButton.isEnabled)
     }
 
     func testAccountOnboardingOffersAppleAndLocalUse() throws {
@@ -249,6 +270,22 @@ final class CandoaUITests: XCTestCase {
         XCTAssertFalse(app.buttons["Skip"].exists)
         XCTAssertFalse(app.buttons["Explore on My Own"].exists)
         XCTAssertFalse(app.webViews.firstMatch.exists)
+    }
+
+    func testNotNowCompletesAccountSetup() throws {
+        let app = launchApp(onboardingStep: "account")
+        let accountOnboarding = element("account-onboarding", in: app).firstMatch
+        XCTAssertTrue(accountOnboarding.waitForExistence(timeout: 10))
+
+        let notNowButton = app.buttons["Not Now"]
+        XCTAssertTrue(notNowButton.waitForExistence(timeout: 5))
+        notNowButton.click()
+
+        let dismissed = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "exists == false"),
+            object: accountOnboarding
+        )
+        XCTAssertEqual(XCTWaiter.wait(for: [dismissed], timeout: 5), .completed)
     }
 
     func testInitialTourStartsOnLocalWelcomePage() throws {
@@ -396,27 +433,6 @@ final class CandoaUITests: XCTestCase {
         )
     }
 
-    func testRepairsLegacyFavoriteNavigationIntoRegularTab() throws {
-        let app = launchApp(fixture: "legacy-saved-tab-navigation")
-
-        XCTAssertTrue(
-            waitForState(in: app, containing: "active=Google;url=https://www.google.com/?hl=en&gl=us"),
-            currentState(in: app)
-        )
-        XCTAssertTrue(waitForState(in: app, containing: "tabs=YouTube|Google"), currentState(in: app))
-    }
-
-    func testRepairsLegacyEmptyTabsOutOfWorkspace() throws {
-        let app = launchApp(fixture: "legacy-empty-tabs")
-
-        XCTAssertTrue(
-            waitForState(in: app, containing: "active=YouTube;url=https://www.youtube.com/"),
-            currentState(in: app)
-        )
-        XCTAssertTrue(waitForState(in: app, containing: "tabs=YouTube"), currentState(in: app))
-        XCTAssertFalse(currentState(in: app).contains("New Tab"), currentState(in: app))
-    }
-
     func testControlTabSkipsFavoritesThatHaveNotBeenActivated() throws {
         let app = launchApp(fixture: "inactive-favorites")
 
@@ -538,264 +554,6 @@ final class CandoaUITests: XCTestCase {
         add(attachment)
     }
 
-    func testEliCompoundCheapestComputerRequestConfirmsAndNavigatesToVerifiedLink() throws {
-        let app = launchApp(fixture: "ask-contextual-purchase")
-        let exactPrompt = "take control of my computer and find me teh cheapest computer"
-
-        app.typeKey("e", modifierFlags: .command)
-        XCTAssertTrue(element("agent-sidebar", in: app).waitForExistence(timeout: 5), currentState(in: app))
-
-        let field = app.textFields["agent-sidebar"].firstMatch
-        XCTAssertTrue(field.waitForExistence(timeout: 5), currentState(in: app))
-        field.click()
-        field.typeKey("a", modifierFlags: .command)
-        field.typeText(exactPrompt)
-        field.typeKey(.return, modifierFlags: [])
-
-        XCTAssertTrue(
-            waitForAskState(in: app, containing: "lastUser=[\(exactPrompt)]"),
-            askState(in: app)
-        )
-        XCTAssertTrue(
-            waitForAskState(
-                in: app,
-                containing: "lastAssistant=[I can take control of this browser tab to complete your request. Please confirm first.]"
-            ),
-            askState(in: app)
-        )
-
-        let allowButton = app.sheets.buttons["Allow This Task"].firstMatch
-        XCTAssertTrue(allowButton.waitForExistence(timeout: 5), askState(in: app))
-        XCTAssertTrue(app.staticTexts["Let Eli take control of this browser tab?"].exists, askState(in: app))
-        XCTAssertTrue(
-            app.staticTexts[
-                "Eli can control this tab only for the task you just requested. Sensitive actions still require confirmation."
-            ].exists,
-            app.debugDescription
-        )
-
-        let confirmationAttachment = XCTAttachment(screenshot: app.windows.firstMatch.screenshot())
-        confirmationAttachment.name = "Eli cheapest computer confirmation"
-        confirmationAttachment.lifetime = .keepAlways
-        add(confirmationAttachment)
-        allowButton.click()
-
-        XCTAssertTrue(
-            waitForState(
-                in: app,
-                containing: "url=https://www.apple.com/us-edu/shop/buy-mac/macbook-neo",
-                timeout: 10
-            ),
-            currentState(in: app)
-        )
-        XCTAssertFalse(askState(in: app).localizedCaseInsensitiveContains("browse/overlay/bts"), askState(in: app))
-    }
-
-    func testEliFindRequestOffersBrowserControl() throws {
-        let app = launchApp(fixture: "ask-contextual-purchase")
-        let exactPrompt = "find me the cheapest computer"
-
-        app.typeKey("e", modifierFlags: .command)
-        XCTAssertTrue(element("agent-sidebar", in: app).waitForExistence(timeout: 5), currentState(in: app))
-
-        let field = app.textFields["agent-sidebar"].firstMatch
-        XCTAssertTrue(field.waitForExistence(timeout: 5), currentState(in: app))
-        field.click()
-        field.typeText(exactPrompt)
-        field.typeKey(.return, modifierFlags: [])
-
-        XCTAssertTrue(
-            waitForAskState(in: app, containing: "lastUser=[\(exactPrompt)]"),
-            askState(in: app)
-        )
-        XCTAssertTrue(
-            waitForAskState(
-                in: app,
-                containing: "lastAssistant=[I can take control of this browser tab to complete your request. Please confirm first.]"
-            ),
-            askState(in: app)
-        )
-        XCTAssertTrue(
-            app.sheets.buttons["Allow This Task"].firstMatch.waitForExistence(timeout: 5),
-            app.debugDescription
-        )
-    }
-
-    func testEliConversationalFollowUpOpensNativeNavigationPermission() throws {
-        let app = launchApp(fixture: "ask-contextual-followup")
-        let followUp = "take me there"
-
-        app.typeKey("e", modifierFlags: .command)
-        XCTAssertTrue(element("agent-sidebar", in: app).waitForExistence(timeout: 5), currentState(in: app))
-
-        let field = app.textFields["agent-sidebar"].firstMatch
-        XCTAssertTrue(field.waitForExistence(timeout: 5), currentState(in: app))
-        field.click()
-        field.typeText(followUp)
-        field.typeKey(.return, modifierFlags: [])
-
-        XCTAssertTrue(
-            waitForAskState(in: app, containing: "lastUser=[\(followUp)]"),
-            askState(in: app)
-        )
-        XCTAssertTrue(
-            waitForAskState(
-                in: app,
-                containing: "lastAssistant=[I can take control of this browser tab to complete your request. Please confirm first.]"
-            ),
-            askState(in: app)
-        )
-
-        let allowButton = app.sheets.buttons["Allow This Task"].firstMatch
-        XCTAssertTrue(allowButton.waitForExistence(timeout: 5), app.debugDescription)
-        XCTAssertTrue(app.staticTexts["Let Eli take control of this browser tab?"].exists, app.debugDescription)
-
-        let confirmationAttachment = XCTAttachment(screenshot: app.windows.firstMatch.screenshot())
-        confirmationAttachment.name = "Eli conversational follow-up permission"
-        confirmationAttachment.lifetime = .keepAlways
-        add(confirmationAttachment)
-        allowButton.click()
-
-        XCTAssertTrue(
-            waitForState(
-                in: app,
-                containing: "url=https://www.apple.com/us-edu/shop/buy-mac/macbook-air",
-                timeout: 10
-            ),
-            currentState(in: app)
-        )
-    }
-
-    func testEliReferentialNavigationRefusesUnrelatedTradeInLink() throws {
-        let app = launchApp(fixture: "ask-contextual-unsafe-followup")
-        let followUp = "take me there"
-
-        app.typeKey("e", modifierFlags: .command)
-        XCTAssertTrue(element("agent-sidebar", in: app).waitForExistence(timeout: 5), currentState(in: app))
-
-        let field = app.textFields["agent-sidebar"].firstMatch
-        XCTAssertTrue(field.waitForExistence(timeout: 5), currentState(in: app))
-        field.click()
-        field.typeText(followUp)
-        field.typeKey(.return, modifierFlags: [])
-
-        XCTAssertTrue(
-            waitForAskState(
-                in: app,
-                containing: "lastAssistant=[I couldn’t identify one exact link on this page from our conversation."
-            ),
-            askState(in: app)
-        )
-        XCTAssertFalse(app.sheets.buttons["Allow This Task"].firstMatch.exists, app.debugDescription)
-        XCTAssertTrue(
-            currentState(in: app).contains("url=https://www.apple.com/us-edu/shop/buy-mac/macbook-air"),
-            currentState(in: app)
-        )
-        XCTAssertFalse(currentState(in: app).contains("browse/overlay/mac/tradein"), currentState(in: app))
-    }
-
-    func testEliReadsAndSelectsVisibleLabelledModelControls() throws {
-        let app = launchApp(fixture: "ask-model-selector-context")
-
-        app.typeKey("e", modifierFlags: .command)
-        XCTAssertTrue(element("agent-sidebar", in: app).waitForExistence(timeout: 5), currentState(in: app))
-
-        let field = app.textFields["agent-sidebar"].firstMatch
-        XCTAssertTrue(field.waitForExistence(timeout: 5), currentState(in: app))
-        field.click()
-        field.typeText("which computer is the cheapest?")
-        field.typeKey(.return, modifierFlags: [])
-
-        XCTAssertTrue(
-            waitForAskState(
-                in: app,
-                containing: "lastAssistant=[The 13-inch model is the cheapest option shown at $1199.]"
-            ),
-            askState(in: app)
-        )
-
-        field.click()
-        field.typeText("can you take me there")
-        field.typeKey(.return, modifierFlags: [])
-
-        let cheapestAllowButton = app.sheets.buttons["Allow This Task"].firstMatch
-        XCTAssertTrue(cheapestAllowButton.waitForExistence(timeout: 5), askState(in: app))
-        XCTAssertTrue(app.staticTexts["Let Eli take control of this browser tab?"].exists, app.debugDescription)
-        let permissionAttachment = XCTAttachment(screenshot: app.windows.firstMatch.screenshot())
-        permissionAttachment.name = "Eli referential follow-up permission"
-        permissionAttachment.lifetime = .keepAlways
-        add(permissionAttachment)
-        cheapestAllowButton.click()
-        XCTAssertTrue(
-            waitForState(in: app, containing: "13-inch selected", timeout: 5),
-            currentState(in: app)
-        )
-
-        field.click()
-        field.typeText("what about the most expensive one")
-        field.typeKey(.return, modifierFlags: [])
-
-        XCTAssertTrue(
-            waitForAskState(
-                in: app,
-                containing: "lastAssistant=[The 15-inch model is the most expensive option shown at $1399.]"
-            ),
-            askState(in: app)
-        )
-
-        let contextAttachment = XCTAttachment(screenshot: app.windows.firstMatch.screenshot())
-        contextAttachment.name = "Eli labelled model price context"
-        contextAttachment.lifetime = .keepAlways
-        add(contextAttachment)
-
-        field.click()
-        field.typeText("click 15-inch")
-        field.typeKey(.return, modifierFlags: [])
-
-        let secondTaskAllowButton = app.sheets.buttons["Allow This Task"].firstMatch
-        XCTAssertTrue(secondTaskAllowButton.waitForExistence(timeout: 5), app.debugDescription)
-        secondTaskAllowButton.click()
-
-        XCTAssertTrue(
-            waitForAskState(in: app, containing: "lastAssistant=[Clicked \"15-inch From $1399\".]"),
-            askState(in: app)
-        )
-        XCTAssertTrue(
-            waitForState(in: app, containing: "15-inch selected", timeout: 5),
-            currentState(in: app)
-        )
-    }
-
-    func testEliReadsCheapestModelFromLiveAppleConfigurator() throws {
-        let app = launchApp(fixture: "ask-live-model-selector-context")
-
-        app.typeKey("e", modifierFlags: .command)
-        XCTAssertTrue(element("agent-sidebar", in: app).waitForExistence(timeout: 5), currentState(in: app))
-
-        let field = app.textFields["agent-sidebar"].firstMatch
-        XCTAssertTrue(field.waitForExistence(timeout: 5), currentState(in: app))
-        field.click()
-        field.typeText("whats the cheapest computer there")
-        field.typeKey(.return, modifierFlags: [])
-
-        XCTAssertTrue(
-            waitForAskState(
-                in: app,
-                containing: "lastAssistant=[The 13-inch model is the cheapest option shown at $1199.]",
-                timeout: 15
-            ),
-            askState(in: app)
-        )
-
-        field.click()
-        field.typeText("can you take me there")
-        field.typeKey(.return, modifierFlags: [])
-
-        let allowButton = app.sheets.buttons["Allow This Task"].firstMatch
-        XCTAssertTrue(allowButton.waitForExistence(timeout: 5), askState(in: app))
-        XCTAssertTrue(app.staticTexts["Let Eli take control of this browser tab?"].exists, app.debugDescription)
-    }
-
     func testEliAgentNavigatesMultiplePagesAndConfirmsCancellation() throws {
         let app = launchApp(fixture: "ask-agent-navigation")
         let exactPrompt = "unsubscribe me from this service"
@@ -815,7 +573,7 @@ final class CandoaUITests: XCTestCase {
         allowButton.click()
 
         XCTAssertTrue(
-            waitForState(in: app, containing: "url=https://fixture.candoa.test/membership", timeout: 8),
+            waitForState(in: app, containing: "url=https://fixture.candoa.test/home#membership", timeout: 8),
             currentState(in: app)
         )
         XCTAssertTrue(app.staticTexts["Confirm this action?"].waitForExistence(timeout: 5), app.debugDescription)
@@ -828,7 +586,7 @@ final class CandoaUITests: XCTestCase {
             ].exists,
             app.debugDescription
         )
-        XCTAssertFalse(currentState(in: app).contains("url=https://fixture.candoa.test/cancelled"))
+        XCTAssertFalse(currentState(in: app).contains("url=https://fixture.candoa.test/home#cancelled"))
 
         let confirmationAttachment = XCTAttachment(screenshot: app.windows.firstMatch.screenshot())
         confirmationAttachment.name = "Eli consequential action confirmation"
@@ -840,7 +598,7 @@ final class CandoaUITests: XCTestCase {
         continueButton.click()
 
         XCTAssertTrue(
-            waitForState(in: app, containing: "url=https://fixture.candoa.test/cancelled", timeout: 8),
+            waitForState(in: app, containing: "url=https://fixture.candoa.test/home#cancelled", timeout: 8),
             currentState(in: app)
         )
         XCTAssertTrue(
@@ -879,7 +637,7 @@ final class CandoaUITests: XCTestCase {
 
     func testEliSelectsAProductOptionThenAddsItToTheCart() throws {
         let app = launchApp(fixture: "ask-agent-selection")
-        let exactPrompt = "take me there and add it to ther cart"
+        let exactPrompt = "Bring mich dorthin und lege es in den Warenkorb"
 
         app.typeKey("e", modifierFlags: .command)
         XCTAssertTrue(element("agent-sidebar", in: app).waitForExistence(timeout: 5), currentState(in: app))
@@ -975,31 +733,42 @@ final class CandoaUITests: XCTestCase {
           <body><h1>Candoa History Fixture</h1><p>Representative browsing history.</p></body>
         </html>
         """,
-        "ask-agent-navigation": "<html><body></body></html>",
-        "ask-agent-normalized-navigation": "<html><body></body></html>",
-        "ask-model-selector-context": """
+        "ask-agent-navigation": """
         <!doctype html>
         <html>
-          <head>
-            <meta charset="utf-8">
-            <title>Buy MacBook Air</title>
-            <style>
-              body { font: 16px -apple-system; padding: 40px; }
-              fieldset { border: 0; }
-              input { position: absolute; opacity: 0; width: 1px; height: 1px; }
-              label { display: block; width: 280px; padding: 18px; margin: 12px; border: 1px solid #777; }
-            </style>
-          </head>
+          <head><meta charset="utf-8"><title>Membership</title></head>
           <body>
-            <h1>Buy MacBook Air</h1>
-            <fieldset>
-              <legend>Model. Choose your size.</legend>
-              <input id="model-13" type="radio" name="model" value="13inch" onchange="document.title='13-inch selected'">
-              <label for="model-13">13-inch From $1199</label>
-              <input id="model-15" type="radio" name="model" value="15inch" onchange="document.title='15-inch selected'">
-              <label for="model-15">15-inch From $1399</label>
-            </fieldset>
+            <main id="content"></main>
+            <script>
+              const content = document.getElementById("content");
+              const render = () => {
+                const route = location.hash.slice(1) || "home";
+                const next = {
+                  home: ["Account", "account"],
+                  account: ["Manage Membership", "membership"],
+                  membership: ["Cancel Membership", "cancelled"]
+                }[route];
+                content.replaceChildren();
+                if (next) {
+                  const button = document.createElement("button");
+                  button.textContent = next[0];
+                  button.addEventListener("click", () => { location.hash = next[1]; });
+                  content.append(button);
+                } else {
+                  content.textContent = "Membership Cancelled";
+                }
+              };
+              addEventListener("hashchange", render);
+              render();
+            </script>
           </body>
+        </html>
+        """,
+        "ask-agent-normalized-navigation": """
+        <!doctype html>
+        <html>
+          <head><meta charset="utf-8"><title>MacBook Air</title></head>
+          <body><a href="https://fixture.candoa.test/buy">Buy MacBook Air</a></body>
         </html>
         """,
         "ask-agent-selection": """

@@ -6,20 +6,6 @@ extension BrowserStore {
             spaces = [BrowserSpace(name: "", symbolName: "circle.grid.2x2")]
         }
 
-        // Blue was historically stored as the implicit default. Migrate that
-        // legacy state once to the new semantic, untinted macOS chassis. The
-        // version marker lets a subsequently selected blue theme stay blue.
-        for index in spaces.indices
-        where spaces[index].themeStorageVersion < BrowserSpace.currentThemeStorageVersion {
-            if spaces[index].themeColorHex?.caseInsensitiveCompare(
-                BrowserSpace.blueThemeColorHex
-            ) == .orderedSame {
-                spaces[index].themeColorHex = nil
-            }
-            spaces[index].themeStorageVersion = BrowserSpace.currentThemeStorageVersion
-            needsWorkspaceSaveAfterRepair = true
-        }
-
         for index in spaces.indices where !spaces[index].name.isEmpty {
             spaces[index].name = Self.normalizedSpaceName(spaces[index].name)
         }
@@ -42,24 +28,6 @@ extension BrowserStore {
         }
         tabs = tabs.filter { spaceIDs.contains($0.spaceID) }
 
-        // Older builds persisted URL-less rows named "New Tab". New-tab is
-        // now an action/command-palette state, so these placeholders are not
-        // part of the workspace model and should not return after relaunch.
-        let emptyTabIDs = Set(tabs.filter { tab in
-            tab.url == nil && !tab.isFavorite && !tab.isPinned
-        }.map(\.id))
-        if !emptyTabIDs.isEmpty {
-            tabs.removeAll { emptyTabIDs.contains($0.id) }
-            for tabID in emptyTabIDs {
-                webCoordinator.removeWebView(for: tabID)
-                mediaStates[tabID] = nil
-            }
-            if activeTabID.map(emptyTabIDs.contains) == true {
-                activeTabID = nil
-            }
-            needsWorkspaceSaveAfterRepair = true
-        }
-
         for index in tabs.indices {
             if tabs[index].isFavorite {
                 tabs[index].folderID = nil
@@ -76,10 +44,6 @@ extension BrowserStore {
             } else {
                 tabs[index].folderID = nil
             }
-        }
-
-        if recoverSavedTabNavigations() {
-            needsWorkspaceSaveAfterRepair = true
         }
 
         if !spaceIDs.contains(activeSpaceID) {
@@ -106,57 +70,4 @@ extension BrowserStore {
         }
     }
 
-    /// Older builds allowed the sidebar address field to replace a favorite's
-    /// live URL while retaining its saved title and icon. Preserve both sites
-    /// when opening that state: restore the favorite and make the live page a
-    /// regular tab.
-    func recoverSavedTabNavigations() -> Bool {
-        let originalTabCount = tabs.count
-        var recoveredTabs: [BrowserTab] = []
-        var replacementActiveTabID: UUID?
-
-        for index in 0..<originalTabCount {
-            let tab = tabs[index]
-            guard
-                tab.isFavorite,
-                let savedURL = tab.favoriteURL,
-                let liveURL = tab.url,
-                differentHosts(savedURL, liveURL)
-            else {
-                continue
-            }
-
-            let recoveredTab = BrowserTab(
-                title: tab.title,
-                url: liveURL,
-                faviconSymbol: tab.faviconSymbol,
-                faviconData: tab.faviconData,
-                spaceID: tab.spaceID,
-                sortOrder: nextSortOrder(
-                    spaceID: tab.spaceID,
-                    isFavorite: false,
-                    isPinned: false,
-                    folderID: nil
-                ),
-                lastAccessedAt: tab.lastAccessedAt
-            )
-            recoveredTabs.append(recoveredTab)
-
-            tabs[index].title = tab.favoriteDisplayTitle
-            tabs[index].url = savedURL
-            tabs[index].faviconSymbol = tab.favoriteDisplayFaviconSymbol
-            tabs[index].faviconData = tab.favoriteDisplayFaviconData
-            tabs[index].isLoading = false
-            tabs[index].loadingProgress = 0
-
-            if activeTabID == tab.id {
-                replacementActiveTabID = recoveredTab.id
-            }
-        }
-
-        guard !recoveredTabs.isEmpty else { return false }
-        tabs.append(contentsOf: recoveredTabs)
-        activeTabID = replacementActiveTabID ?? activeTabID
-        return true
-    }
 }

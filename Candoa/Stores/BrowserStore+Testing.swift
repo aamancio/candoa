@@ -315,38 +315,6 @@ extension BrowserStore {
             return testingBotFixtureState(includesSeedTabs: false)
         }
 
-        if fixture.map({
-            ["ask-contextual-purchase", "ask-contextual-followup", "ask-contextual-unsafe-followup"]
-                .contains($0)
-        }) == true {
-            let spaceID = UUID(uuidString: "ABABABAB-ABAB-ABAB-ABAB-ABABABABABAB")!
-            let tabID = UUID(uuidString: "CDCDCDCD-CDCD-CDCD-CDCD-CDCDCDCDCDCD")!
-            let space = BrowserSpace(
-                id: spaceID,
-                name: "TestingBot",
-                symbolName: "sparkles",
-                themeAppearance: BrowserSpace.defaultThemeAppearance
-            )
-            let isUnsafeFollowUp = fixture == "ask-contextual-unsafe-followup"
-            let tab = BrowserTab(
-                id: tabID,
-                title: isUnsafeFollowUp ? "Buy MacBook Air" : "Apple Education Store",
-                url: URL(string: isUnsafeFollowUp
-                    ? "https://www.apple.com/us-edu/shop/buy-mac/macbook-air"
-                    : "https://www.apple.com/us-edu/store")!,
-                faviconSymbol: "apple.logo",
-                spaceID: spaceID,
-                hasBeenActivated: true
-            )
-            return BrowserWindowState(
-                spaces: [space],
-                folders: [],
-                tabs: [tab],
-                activeSpaceID: spaceID,
-                activeTabID: tabID
-            )
-        }
-
         if fixture == "ask-agent-navigation" {
             let spaceID = UUID(uuidString: "AEAEAEAE-AEAE-AEAE-AEAE-AEAEAEAEAEAE")!
             let tabID = UUID(uuidString: "BFBFBFBF-BFBF-BFBF-BFBF-BFBFBFBFBFBF")!
@@ -425,44 +393,8 @@ extension BrowserStore {
             )
         }
 
-        if ["ask-model-selector-context", "ask-live-model-selector-context"].contains(fixture) {
-            let spaceID = UUID(uuidString: "CECECECE-CECE-CECE-CECE-CECECECECECE")!
-            let tabID = UUID(uuidString: "DFDFDFDF-DFDF-DFDF-DFDF-DFDFDFDFDFDF")!
-            let space = BrowserSpace(
-                id: spaceID,
-                name: "TestingBot",
-                symbolName: "sparkles",
-                themeAppearance: BrowserSpace.defaultThemeAppearance
-            )
-            let tab = BrowserTab(
-                id: tabID,
-                title: "Buy MacBook Air",
-                url: URL(string: fixture == "ask-live-model-selector-context"
-                    ? "https://www.apple.com/us-edu/shop/buy-mac/macbook-air"
-                    : "https://fixture.candoa.test/macbook-air")!,
-                faviconSymbol: "laptopcomputer",
-                spaceID: spaceID,
-                hasBeenActivated: true
-            )
-            return BrowserWindowState(
-                spaces: [space],
-                folders: [],
-                tabs: [tab],
-                activeSpaceID: spaceID,
-                activeTabID: tabID
-            )
-        }
-
         if fixture == "cross-space-duplicate-url" {
             return crossSpaceDuplicateURLFixtureState()
-        }
-
-        if fixture == "legacy-saved-tab-navigation" {
-            return legacySavedTabNavigationFixtureState()
-        }
-
-        if fixture == "legacy-empty-tabs" {
-            return legacyEmptyTabsFixtureState()
         }
 
         if fixture == "inactive-favorites" {
@@ -537,74 +469,6 @@ extension BrowserStore {
             tabs: tabs,
             activeSpaceID: activeSpaceID,
             activeTabID: activeStartTabID
-        )
-    }
-
-    static func legacySavedTabNavigationFixtureState() -> BrowserWindowState {
-        let spaceID = UUID(uuidString: "34343434-3434-3434-3434-343434343434")!
-        let tabID = UUID(uuidString: "45454545-4545-4545-4545-454545454545")!
-        let space = BrowserSpace(
-            id: spaceID,
-            name: "TestingBot",
-            symbolName: "sparkles",
-            themeColorHex: BrowserSpace.blueThemeColorHex,
-            themeAppearance: BrowserSpace.defaultThemeAppearance
-        )
-        let legacyFavorite = BrowserTab(
-            id: tabID,
-            title: "Google",
-            url: URL(string: "https://www.google.com/?hl=en&gl=us")!,
-            faviconSymbol: "magnifyingglass",
-            favoriteTitle: "YouTube",
-            favoriteURL: URL(string: "https://www.youtube.com/")!,
-            favoriteFaviconSymbol: "play.rectangle.fill",
-            isFavorite: true,
-            spaceID: spaceID
-        )
-
-        return BrowserWindowState(
-            spaces: [space],
-            folders: [],
-            tabs: [legacyFavorite],
-            activeSpaceID: spaceID,
-            activeTabID: tabID
-        )
-    }
-
-    static func legacyEmptyTabsFixtureState() -> BrowserWindowState {
-        let spaceID = UUID(uuidString: "78787878-7878-7878-7878-787878787878")!
-        let emptyTabID = UUID(uuidString: "79797979-7979-7979-7979-797979797979")!
-        let youtubeTabID = UUID(uuidString: "80808080-8080-8080-8080-808080808080")!
-        let fixtureDate = Date(timeIntervalSince1970: 1_800_000_000)
-        let space = BrowserSpace(
-            id: spaceID,
-            name: "TestingBot",
-            symbolName: "sparkles",
-            themeAppearance: BrowserSpace.defaultThemeAppearance
-        )
-        let tabs = [
-            BrowserTab(
-                id: emptyTabID,
-                title: BrowserDefaults.newTabTitle,
-                spaceID: spaceID,
-                lastAccessedAt: fixtureDate
-            ),
-            BrowserTab(
-                id: youtubeTabID,
-                title: "YouTube",
-                url: URL(string: "https://www.youtube.com/")!,
-                faviconSymbol: "play.rectangle.fill",
-                spaceID: spaceID,
-                lastAccessedAt: fixtureDate.addingTimeInterval(-60)
-            )
-        ]
-
-        return BrowserWindowState(
-            spaces: [space],
-            folders: [],
-            tabs: tabs,
-            activeSpaceID: spaceID,
-            activeTabID: emptyTabID
         )
     }
 

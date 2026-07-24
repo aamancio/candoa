@@ -45,7 +45,7 @@ extension BrowserStore {
     }
 
     func navigateNewTab(to url: URL) {
-        // The Welcome page and legacy empty tabs are transient starting
+        // A URL-less active tab and the Welcome page are transient starting
         // surfaces. Fill them instead of leaving a placeholder beside the
         // real destination in the sidebar.
         if let activeTab, activeTab.url == nil || activeTab.isWelcomePage {

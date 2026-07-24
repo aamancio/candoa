@@ -8,9 +8,9 @@ struct BrowserAgentRunState: Sendable {
     let responseID: UUID
 }
 
-enum PendingBrowserControl: Sendable {
-    case action(CandoaPageActionProposal, tabID: UUID?)
-    case agent(goal: String, tabID: UUID?)
+struct PendingBrowserControl: Sendable {
+    let goal: String
+    let tabID: UUID?
 }
 
 struct PendingSensitiveAgentAction: Identifiable, Sendable {
@@ -18,12 +18,6 @@ struct PendingSensitiveAgentAction: Identifiable, Sendable {
     let action: CandoaPageActionProposal
     let state: BrowserAgentRunState
     let previousURL: String
-}
-
-struct SuggestedPageAction {
-    let action: CandoaPageActionProposal
-    let tabID: UUID?
-    let pageURL: String?
 }
 
 struct AISidebarImagePreview: Identifiable {

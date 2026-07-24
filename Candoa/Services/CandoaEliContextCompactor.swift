@@ -14,14 +14,14 @@ enum CandoaEliContextCompactor {
     ) -> CandoaAIPageContext? {
         guard let text = context.text, text.count > contextThreshold else { return nil }
 
-        let semanticText = CandoaEliDrafts.semanticPageText(from: text) ?? text
+        let semanticText = CandoaEliContextSections.semanticPageText(from: text) ?? text
         let focusedLines = focusedContextLines(from: semanticText, prompt: prompt)
         let leadingText = String(semanticText.prefix(leadingLimit))
         let trailingText = String(semanticText.suffix(trailingLimit))
-        let visibleControls = CandoaEliDrafts.visibleControlsSection(from: text)
+        let visibleControls = CandoaEliContextSections.visibleControlsSection(from: text)
             .flatMap(compactControlsForModel)
             .map { "\n\nVisible page controls and links:\n\($0)" } ?? ""
-        let ocrText = CandoaEliDrafts.visibleOCRSection(from: text)
+        let ocrText = CandoaEliContextSections.visibleOCRSection(from: text)
             .map { "\n\nVisible page image text from OCR:\n\(String($0.prefix(ocrLimit)))" } ?? ""
 
         let compactText = """

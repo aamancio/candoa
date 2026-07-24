@@ -171,77 +171,7 @@ struct CandoaBrowserAgentAction: Codable, Sendable {
     }
 }
 
-struct CandoaBrowserAgentIntent: Sendable {
-    let goal: String
-
-    static func parse(_ prompt: String) -> CandoaBrowserAgentIntent? {
-        let goal = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !goal.isEmpty else { return nil }
-        let text = goal.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
-            .lowercased()
-
-        let informationalPrefixes = [
-            "how do i ", "how can i ", "how would i ", "where is ", "what is ",
-            "why is ", "tell me ", "explain "
-        ]
-        guard !informationalPrefixes.contains(where: text.hasPrefix) else { return nil }
-
-        let words = Set(text.split(whereSeparator: { !$0.isLetter }).map(String.init))
-        let actionWords: Set<String> = [
-            "add", "remove", "delete", "click", "select", "choose", "open", "navigate",
-            "scroll", "type", "fill", "enter", "submit", "buy", "purchase", "checkout",
-            "cancel", "unsubscribe", "book", "reserve", "send", "post", "change", "update",
-            "enable", "disable"
-        ]
-        let actionPhrases = [
-            "check out", "place the order", "sign me up", "take control", "take over",
-            "take me", "take it out", "do it for me", "click around", "turn off", "put me",
-            "find me"
-        ]
-        guard !words.isDisjoint(with: actionWords)
-            || actionPhrases.contains(where: text.contains)
-        else { return nil }
-        return CandoaBrowserAgentIntent(goal: goal)
-    }
-}
-
 enum CandoaBrowserAgentPolicy {
-    static func requiresSensitiveConfirmation(
-        _ action: CandoaPageActionProposal,
-        goal: String = ""
-    ) -> Bool {
-        if [.navigate, .scroll].contains(action.kind) { return false }
-
-        let text = "\(action.target) \(action.value ?? "")".folding(
-            options: [.caseInsensitive, .diacriticInsensitive],
-            locale: .current
-        ).lowercased()
-        let sensitiveTerms = [
-            "cancel", "unsubscribe", "end membership", "delete", "remove", "close account",
-            "buy", "purchase", "checkout", "place order", "pay", "subscribe", "confirm order",
-            "send", "submit", "post", "publish", "message", "email", "change password",
-            "security", "two-factor", "2fa", "sign out", "log out"
-        ]
-        if sensitiveTerms.contains(where: text.contains)
-            || (action.kind == .fill && ["password", "card", "payment", "ssn", "social security"]
-                .contains(where: text.contains)) {
-            return true
-        }
-
-        let normalizedGoal = goal.folding(
-            options: [.caseInsensitive, .diacriticInsensitive],
-            locale: .current
-        ).lowercased()
-        let consequentialGoalTerms = [
-            "cancel", "unsubscribe", "delete", "close account", "buy", "purchase",
-            "checkout", "pay", "subscribe", "send", "submit", "post", "publish",
-            "change password", "security", "two-factor", "2fa"
-        ]
-        let finalControlTerms = ["confirm", "continue", "finish", "complete", "yes", "done"]
-        return consequentialGoalTerms.contains(where: normalizedGoal.contains)
-            && finalControlTerms.contains(where: text.contains)
-    }
-
     static func sensitiveConfirmationMessage(for action: CandoaPageActionProposal) -> String {
         switch action.kind {
         case .click:

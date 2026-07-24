@@ -27,7 +27,6 @@ struct EliSidebarView: View {
     @State private var lastSubmittedPageContext: CandoaAIPageContext?
     @State private var pendingBrowserControl: PendingBrowserControl?
     @State private var pendingSensitiveAgentAction: PendingSensitiveAgentAction?
-    @State private var suggestedPageAction: SuggestedPageAction?
     @State private var browserAgentTask: Task<Void, Never>?
     @State private var isResolvingPageAction = false
     @State private var attachmentPreviewData: [UUID: Data] = [:]
@@ -163,10 +162,7 @@ struct EliSidebarView: View {
     private var isEliControlUITest: Bool {
         BrowserStore.isUITesting
             && [
-                "ask-contextual-purchase", "ask-contextual-followup",
-                "ask-contextual-unsafe-followup", "ask-agent-navigation",
-                "ask-agent-normalized-navigation", "ask-agent-selection",
-                "ask-model-selector-context", "ask-live-model-selector-context"
+                "ask-agent-navigation", "ask-agent-normalized-navigation", "ask-agent-selection"
             ].contains(
                 ProcessInfo.processInfo.environment["CANDOA_UI_TESTING_FIXTURE"]
             )
@@ -207,7 +203,6 @@ struct EliSidebarView: View {
         }
         .background(CandoaInterfaceStyle.workspaceBackground)
         .onAppear {
-            configureUITestingConversationIfNeeded()
             uiTestingState = uiTestingAgentState
             DispatchQueue.main.async {
                 isPromptFocused = true
@@ -629,46 +624,6 @@ struct EliSidebarView: View {
             return
         }
 
-        if let purchaseIntent = CandoaPurchaseNavigationIntent.parse(submittedPrompt) {
-            preparePurchaseNavigation(purchaseIntent, submittedPrompt: submittedPrompt)
-            return
-        }
-
-        if let suggestion = suggestedPageAction,
-           suggestion.tabID == store.activeTabID,
-           suggestion.pageURL == store.activeTab?.url?.absoluteString,
-           CandoaContextualActionFollowUp.isSimpleApproval(submittedPrompt) {
-            suggestedPageAction = nil
-            preparePageAction(suggestion.action, submittedPrompt: submittedPrompt)
-            return
-        }
-
-        if CandoaContextualActionFollowUp.isSimpleApproval(submittedPrompt),
-           let followUpAction = CandoaContextualActionFollowUp.parse(
-               submittedPrompt,
-               recentTurns: recentTurns()
-           ) {
-            preparePageAction(followUpAction, submittedPrompt: submittedPrompt)
-            return
-        }
-
-        let directAction = CandoaPageActionProposal.parse(submittedPrompt)
-        if let directAction,
-           directAction.kind != .navigate || !directAction.needsVisibleLinkResolution {
-            preparePageAction(directAction, submittedPrompt: submittedPrompt)
-            return
-        }
-
-        if let agentIntent = CandoaBrowserAgentIntent.parse(submittedPrompt) {
-            prepareBrowserAgent(agentIntent, submittedPrompt: submittedPrompt)
-            return
-        }
-
-        if let directAction {
-            preparePageAction(directAction, submittedPrompt: submittedPrompt)
-            return
-        }
-
         prompt = ""
         cancelStream()
 
@@ -684,18 +639,12 @@ struct EliSidebarView: View {
             )
         }
         let contextMentions = mentionedContext
-        let normalizedSubmittedPrompt = CandoaEliPromptPolicy.normalizedText(submittedPrompt)
         let existingRecentTurns = recentTurns()
-        let shouldRefreshCurrentPageContext = CandoaEliDrafts.asksAboutVisibleControl(
-            normalizedSubmittedPrompt,
-            recentTurns: existingRecentTurns
-        )
-        let includesCurrentPage = includesCurrentPageContext || shouldRefreshCurrentPageContext
+        let includesCurrentPage = includesCurrentPageContext
         let currentPageTabID = includesCurrentPage ? store.activeTabID : nil
+        let browserControlTabID = store.activeTabID
         let inheritedPageContext = lastSubmittedPageContext
-        let shouldUseCurrentContextOnly = !submittedContextChips.isEmpty
-            && CandoaEliDrafts.referencesCurrentPage(normalizedSubmittedPrompt)
-        let recentTurns = shouldUseCurrentContextOnly ? [] : existingRecentTurns
+        let recentTurns = existingRecentTurns
 
         messages.append(AISidebarMessage(
             role: .user,
@@ -728,25 +677,6 @@ struct EliSidebarView: View {
                 }
             }
 
-            if let result = CandoaEliDrafts.priceComparisonResult(
-                for: submittedPrompt,
-                context: pageContext
-            ) {
-                await MainActor.run {
-                    guard let index = messages.firstIndex(where: { $0.id == responseID }) else { return }
-                    messages[index].text = result.answer
-                    messages[index].isStreaming = false
-                    suggestedPageAction = result.suggestedAction.map {
-                        SuggestedPageAction(
-                            action: $0,
-                            tabID: currentPageTabID,
-                            pageURL: pageContext.url
-                        )
-                    }
-                    streamTask = nil
-                }
-                return
-            }
             let remoteContext = CandoaEliContextCompactor.compactedContextIfNeeded(
                 from: pageContext,
                 prompt: submittedPrompt
@@ -755,170 +685,10 @@ struct EliSidebarView: View {
                 prompt: submittedPrompt,
                 context: remoteContext,
                 recentTurns: recentTurns,
-                responseID: responseID
+                responseID: responseID,
+                browserControlTabID: browserControlTabID
             )
         }
-    }
-
-    private func preparePurchaseNavigation(
-        _ intent: CandoaPurchaseNavigationIntent,
-        submittedPrompt: String
-    ) {
-        prompt = ""
-        messages.append(AISidebarMessage(role: .user, text: submittedPrompt, isStreaming: false))
-        let tabID = store.activeTabID
-        isResolvingPageAction = true
-
-        Task {
-            let candidates = await store.pagePurchaseCandidates(for: tabID)
-            let resolvedAction = CandoaContextualNavigationResolver.resolve(
-                intent,
-                candidates: candidates,
-                currentPageURL: store.activeTab?.url?.absoluteString
-            )
-
-            await MainActor.run {
-                isResolvingPageAction = false
-                guard let resolvedAction else {
-                    messages.append(AISidebarMessage(
-                        role: .assistant,
-                        text: "I couldn’t verify a visible computer price and buying link on this page. I won’t guess a product or destination.",
-                        isStreaming: false
-                    ))
-                    return
-                }
-                presentPageAction(resolvedAction, in: tabID)
-            }
-        }
-    }
-
-    private func configureUITestingConversationIfNeeded() {
-        guard BrowserStore.isUITesting, messages.isEmpty else { return }
-
-        switch ProcessInfo.processInfo.environment["CANDOA_UI_TESTING_FIXTURE"] {
-        case "ask-agent-selection":
-            messages = [
-                AISidebarMessage(
-                    role: .user,
-                    text: "whats the cheapest computer",
-                    isStreaming: false
-                ),
-                AISidebarMessage(
-                    role: .assistant,
-                    text: "The 13-inch model is the cheapest option shown at $1199.",
-                    isStreaming: false
-                )
-            ]
-            suggestedPageAction = SuggestedPageAction(
-                action: CandoaPageActionProposal(kind: .select, target: "13-inch", value: nil),
-                tabID: store.activeTabID,
-                pageURL: store.activeTab?.url?.absoluteString
-            )
-        case "ask-contextual-followup":
-            messages = [
-                AISidebarMessage(
-                    role: .user,
-                    text: "which computer is the cheapest?",
-                    isStreaming: false
-                ),
-                AISidebarMessage(
-                    role: .assistant,
-                    text: "The cheapest listed computer is the MacBook Air.",
-                    isStreaming: false
-                )
-            ]
-        case "ask-contextual-unsafe-followup":
-            messages = [
-                AISidebarMessage(
-                    role: .user,
-                    text: "what savings are on this page?",
-                    isStreaming: false
-                ),
-                AISidebarMessage(
-                    role: .assistant,
-                    text: "You can buy a Mac or iPad with education savings and get a gift card.",
-                    isStreaming: false
-                ),
-                AISidebarMessage(
-                    role: .user,
-                    text: "which one is the most powerful?",
-                    isStreaming: false
-                ),
-                AISidebarMessage(
-                    role: .assistant,
-                    text: "The most powerful option appears to be the MacBook Air with the M5 chip.",
-                    isStreaming: false
-                )
-            ]
-        default:
-            break
-        }
-    }
-
-    private func preparePageAction(_ action: CandoaPageActionProposal, submittedPrompt: String) {
-        prompt = ""
-        messages.append(AISidebarMessage(role: .user, text: submittedPrompt, isStreaming: false))
-
-        guard action.needsVisibleLinkResolution else {
-            presentPageAction(action, in: store.activeTabID)
-            return
-        }
-
-        let tabID = store.activeTabID
-        let activeURL = store.activeTab?.url?.absoluteString
-        let cachedContext = lastSubmittedPageContext?.url == activeURL ? lastSubmittedPageContext : nil
-        let conversation = recentTurns()
-        isResolvingPageAction = true
-
-        Task {
-            let pageContext = if let cachedContext {
-                cachedContext
-            } else {
-                await store.aiPageContext(for: tabID)
-            }
-            let resolvedAction = CandoaContextualNavigationResolver.resolve(
-                action,
-                recentTurns: conversation,
-                pageContext: pageContext
-            )
-
-            await MainActor.run {
-                isResolvingPageAction = false
-                guard let resolvedAction else {
-                    messages.append(AISidebarMessage(
-                        role: .assistant,
-                        text: "I couldn’t identify one exact link on this page from our conversation. Tell me the product or destination name, and I’ll confirm it before navigating.",
-                        isStreaming: false
-                    ))
-                    return
-                }
-                presentPageAction(resolvedAction, in: tabID)
-            }
-        }
-    }
-
-    private func presentPageAction(_ action: CandoaPageActionProposal, in tabID: UUID?) {
-        messages.append(AISidebarMessage(
-            role: .assistant,
-            text: "I can take control of this browser tab to complete your request. Please confirm first.",
-            isStreaming: false
-        ))
-        pendingBrowserControl = .action(action, tabID: tabID)
-    }
-
-    private func prepareBrowserAgent(
-        _ intent: CandoaBrowserAgentIntent,
-        submittedPrompt: String
-    ) {
-        prompt = ""
-        cancelStream()
-        messages.append(AISidebarMessage(role: .user, text: submittedPrompt, isStreaming: false))
-        messages.append(AISidebarMessage(
-            role: .assistant,
-            text: "I can take control of this browser tab to complete your request. Please confirm first.",
-            isStreaming: false
-        ))
-        pendingBrowserControl = .agent(goal: intent.goal, tabID: store.activeTabID)
     }
 
     private func refreshEliAccessThenSubmit(_ submittedPrompt: String) {
@@ -981,21 +751,7 @@ struct EliSidebarView: View {
     private func approvePendingControl() {
         guard let pendingBrowserControl else { return }
         clearPendingControlPermission()
-        switch pendingBrowserControl {
-        case let .action(action, tabID):
-            performApprovedPageAction(action, in: tabID)
-        case let .agent(goal, tabID):
-            startBrowserAgent(goal: goal, tabID: tabID)
-        }
-    }
-
-    private func performApprovedPageAction(_ action: CandoaPageActionProposal, in tabID: UUID?) {
-        Task {
-            let result = await store.performAIPageAction(action, in: tabID)
-            await MainActor.run {
-                messages.append(AISidebarMessage(role: .assistant, text: result, isStreaming: false))
-            }
-        }
+        startBrowserAgent(goal: pendingBrowserControl.goal, tabID: pendingBrowserControl.tabID)
     }
 
     private func clearPendingControlPermission() {
@@ -1089,9 +845,7 @@ struct EliSidebarView: View {
 
             updateBrowserAgentStatus(state, text: browserAgentStatus(for: pendingAction))
 
-            let needsApproval = pendingAction.requiresApproval
-                || CandoaBrowserAgentPolicy.requiresSensitiveConfirmation(action, goal: state.goal)
-            if needsApproval {
+            if pendingAction.requiresApproval {
                 pendingSensitiveAgentAction = PendingSensitiveAgentAction(
                     action: action,
                     state: state,
@@ -1217,17 +971,33 @@ struct EliSidebarView: View {
         prompt: String,
         context: CandoaAIPageContext,
         recentTurns: [CandoaAIConversationTurn],
-        responseID: UUID
+        responseID: UUID,
+        browserControlTabID: UUID?
     ) async {
         do {
             var response = ""
             var displayedCharacterCount = 0
-            for try await fragment in CandoaRemoteEliService.streamResponse(
+            for try await event in CandoaRemoteEliService.streamResponse(
                 to: prompt,
                 context: context,
                 recentTurns: recentTurns
             ) {
                 guard !Task.isCancelled else { return }
+                if case let .browserControl(goal) = event {
+                    await MainActor.run {
+                        guard let index = messages.firstIndex(where: { $0.id == responseID }) else { return }
+                        messages[index].text =
+                            "I can take control of this browser tab to complete your request. Please confirm first."
+                        messages[index].isStreaming = false
+                        pendingBrowserControl = PendingBrowserControl(
+                            goal: goal,
+                            tabID: browserControlTabID
+                        )
+                        streamTask = nil
+                    }
+                    return
+                }
+                guard case let .textDelta(fragment) = event else { continue }
                 response += fragment
                 let shouldDisplayImmediately = displayedCharacterCount == 0
                 guard shouldDisplayImmediately || response.count - displayedCharacterCount >= 24 else {

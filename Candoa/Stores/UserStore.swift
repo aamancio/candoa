@@ -54,11 +54,9 @@ final class UserStore: ObservableObject {
     }
 
     func continueOnThisMac() {
-        guard !isWorking else { return }
-        markAccountChoiceCompleted()
-        isSignedIn = false
-        isLocalOnly = true
-        errorMessage = nil
+        Task {
+            await createAnonymousSession()
+        }
     }
 
     func signInWithApple() {
@@ -171,11 +169,43 @@ final class UserStore: ObservableObject {
         }
     }
 
+    private func createAnonymousSession() async {
+        guard !isWorking else { return }
+
+        if ProcessInfo.processInfo.environment["CANDOA_UI_TESTING"] == "1" {
+            markAccountChoiceCompleted()
+            isSignedIn = false
+            isLocalOnly = true
+            errorMessage = nil
+            return
+        }
+
+        isWorking = true
+        errorMessage = nil
+        defer { isWorking = false }
+
+        do {
+            let accessToken = try await accountService.signInAnonymously()
+            try accountService.saveAccessToken(accessToken)
+            try await loadSession(accessToken: accessToken)
+            guard hasCloudSession, isLocalOnly, !isSignedIn else {
+                throw CandoaAccountError.invalidResponse
+            }
+            markAccountChoiceCompleted()
+        } catch {
+            try? accountService.removeAccessToken()
+            hasCloudSession = false
+            isLocalOnly = false
+            isSignedIn = false
+            errorMessage = error.localizedDescription
+        }
+    }
+
     private func loadSession(accessToken: String) async throws {
-        _ = try await accountService.session(accessToken: accessToken)
+        let session = try await accountService.session(accessToken: accessToken)
         hasCloudSession = true
-        isLocalOnly = false
-        isSignedIn = true
+        isLocalOnly = session.user.isAnonymous
+        isSignedIn = !session.user.isAnonymous
     }
 
     private func refreshAccountStatus(accessToken: String) async throws {
