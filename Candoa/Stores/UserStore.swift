@@ -140,12 +140,22 @@ final class UserStore: ObservableObject {
         }
 
         isWorking = true
-        defer { isWorking = false }
         do {
-            NSWorkspace.shared.open(try await operation(accessToken))
+            let billingURL = try await operation(accessToken)
+            isWorking = false
             errorMessage = nil
+            openInDefaultBrowser(billingURL)
         } catch {
+            isWorking = false
             errorMessage = error.localizedDescription
+        }
+    }
+
+    private func openInDefaultBrowser(_ url: URL) {
+        DispatchQueue.global(qos: .userInitiated).async {
+            let configuration = NSWorkspace.OpenConfiguration()
+            configuration.activates = true
+            NSWorkspace.shared.open(url, configuration: configuration)
         }
     }
 
