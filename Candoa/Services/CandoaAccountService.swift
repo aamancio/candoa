@@ -402,7 +402,7 @@ final class CandoaAppleWebAuthenticationService {
         let helperURL = Bundle.main.bundleURL
             .appendingPathComponent("Contents", isDirectory: true)
             .appendingPathComponent("Helpers", isDirectory: true)
-            .appendingPathComponent("CandoaAuthenticationHelper.app", isDirectory: true)
+            .appendingPathComponent("Candoa Sign In.app", isDirectory: true)
         guard FileManager.default.fileExists(atPath: helperURL.path) else {
             logger.error("The bundled Apple authentication helper is missing")
             throw CandoaAccountError.appleSignInCouldNotStart

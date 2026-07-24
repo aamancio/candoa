@@ -8,7 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		CA1100000000000000000101 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA1100000000000000000001 /* main.swift */; };
-		CA1100000000000000000102 /* CandoaAuthenticationHelper.app in Copy Authentication Helper */ = {isa = PBXBuildFile; fileRef = CA1100000000000000000019 /* CandoaAuthenticationHelper.app */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		CA1100000000000000000102 /* Candoa Sign In.app in Copy Authentication Helper */ = {isa = PBXBuildFile; fileRef = CA1100000000000000000019 /* Candoa Sign In.app */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		010000000000000000000101 /* CandoaApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000001 /* CandoaApp.swift */; };
 		010000000000000000000102 /* BrowserTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000002 /* BrowserTab.swift */; };
 		010000000000000000000103 /* BrowserSpace.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000003 /* BrowserSpace.swift */; };
@@ -133,7 +133,7 @@
 			dstPath = Contents/Helpers;
 			dstSubfolderSpec = 1;
 			files = (
-				CA1100000000000000000102 /* CandoaAuthenticationHelper.app in Copy Authentication Helper */,
+				CA1100000000000000000102 /* Candoa Sign In.app in Copy Authentication Helper */,
 			);
 			name = "Copy Authentication Helper";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -144,7 +144,7 @@
 		CA1100000000000000000001 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
 		CA1100000000000000000002 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		CA1100000000000000000003 /* CandoaAuthenticationHelper.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = CandoaAuthenticationHelper.entitlements; sourceTree = "<group>"; };
-		CA1100000000000000000019 /* CandoaAuthenticationHelper.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CandoaAuthenticationHelper.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		CA1100000000000000000019 /* Candoa Sign In.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Candoa Sign In.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		010000000000000000000001 /* CandoaApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CandoaApp.swift; sourceTree = "<group>"; };
 		010000000000000000000002 /* BrowserTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserTab.swift; sourceTree = "<group>"; };
 		010000000000000000000003 /* BrowserSpace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserSpace.swift; sourceTree = "<group>"; };
@@ -485,7 +485,7 @@
 			isa = PBXGroup;
 			children = (
 				010000000000000000000019 /* Candoa.app */,
-				CA1100000000000000000019 /* CandoaAuthenticationHelper.app */,
+				CA1100000000000000000019 /* Candoa Sign In.app */,
 				010000000000000000000063 /* CandoaUITests.xctest */,
 			);
 			name = Products;
@@ -509,8 +509,8 @@
 			name = CandoaAuthenticationHelper;
 			packageProductDependencies = (
 			);
-			productName = CandoaAuthenticationHelper;
-			productReference = CA1100000000000000000019 /* CandoaAuthenticationHelper.app */;
+			productName = "Candoa Sign In";
+			productReference = CA1100000000000000000019 /* Candoa Sign In.app */;
 			productType = "com.apple.product-type.application";
 		};
 		010000000000000000000200 /* Candoa */ = {
@@ -780,7 +780,7 @@
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 0.1.2;
 				PRODUCT_BUNDLE_IDENTIFIER = app.candoa.browser.AuthenticationHelper;
-				PRODUCT_NAME = CandoaAuthenticationHelper;
+				PRODUCT_NAME = "Candoa Sign In";
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 6.0;
@@ -808,7 +808,7 @@
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 0.1.2;
 				PRODUCT_BUNDLE_IDENTIFIER = app.candoa.browser.AuthenticationHelper;
-				PRODUCT_NAME = CandoaAuthenticationHelper;
+				PRODUCT_NAME = "Candoa Sign In";
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 6.0;
