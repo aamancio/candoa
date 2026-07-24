@@ -7,6 +7,7 @@ final class UserStore: ObservableObject {
     @Published private(set) var status: CandoaAccountStatus?
     @Published private(set) var isWorking = false
     @Published private(set) var errorMessage: String?
+    @Published private(set) var subscriptionErrorMessage: String?
     @Published private(set) var isSignedIn: Bool
     @Published private(set) var hasCloudSession: Bool
     @Published private(set) var isLocalOnly: Bool
@@ -96,18 +97,25 @@ final class UserStore: ObservableObject {
     }
 
     func startProCheckout() async {
+        subscriptionErrorMessage = nil
+
         if ProcessInfo.processInfo.environment["CANDOA_UI_TESTING_CHECKOUT_FAILURE"] == "1" {
             isWorking = true
             await Task.yield()
             isWorking = false
-            errorMessage = "Candoa checkout is temporarily unavailable."
+            subscriptionErrorMessage = "Candoa checkout is temporarily unavailable."
             return
         }
 
         if !isSignedIn {
-            guard await authenticateWithApple() else { return }
+            guard await authenticateWithApple() else {
+                subscriptionErrorMessage = errorMessage
+                return
+            }
         }
-        await openBillingURL { accessToken in
+        await openBillingURL(
+            failureMessage: "Candoa couldn’t open checkout. Please try again."
+        ) { accessToken in
             try await accountService.proCheckoutURL(accessToken: accessToken)
         }
     }
@@ -126,6 +134,7 @@ final class UserStore: ObservableObject {
         isLocalOnly = true
         status = nil
         errorMessage = nil
+        subscriptionErrorMessage = nil
         if let accessToken {
             Task {
                 try? await accountService.signOut(accessToken: accessToken)
@@ -133,9 +142,13 @@ final class UserStore: ObservableObject {
         }
     }
 
-    private func openBillingURL(_ operation: (String) async throws -> URL) async {
+    private func openBillingURL(
+        failureMessage: String? = nil,
+        _ operation: (String) async throws -> URL
+    ) async {
         guard isSignedIn, let accessToken = accountService.accessToken else {
             errorMessage = "Sign in with Apple before managing Candoa billing."
+            subscriptionErrorMessage = failureMessage ?? errorMessage
             return
         }
 
@@ -144,10 +157,12 @@ final class UserStore: ObservableObject {
             let billingURL = try await operation(accessToken)
             isWorking = false
             errorMessage = nil
+            subscriptionErrorMessage = nil
             openInDefaultBrowser(billingURL)
         } catch {
             isWorking = false
             errorMessage = error.localizedDescription
+            subscriptionErrorMessage = failureMessage
         }
     }
 
@@ -160,7 +175,11 @@ final class UserStore: ObservableObject {
     }
 
     private func authenticateWithApple() async -> Bool {
-        guard !isWorking, !appleAuthenticationService.isAuthenticating else { return false }
+        guard !isWorking else { return false }
+        guard !appleAuthenticationService.isAuthenticating else {
+            errorMessage = "Finish or cancel the Apple sign-in window to continue."
+            return false
+        }
         isWorking = true
         errorMessage = nil
         defer { isWorking = false }

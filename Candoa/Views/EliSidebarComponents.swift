@@ -100,9 +100,10 @@ struct AISidebarSubscriptionGateView: View {
                 .accessibilityLabel(userStore.isWorking ? "Opening checkout" : "Subscribe")
                 .accessibilityIdentifier("agent-subscribe-button")
 
-                if userStore.errorMessage != nil, !userStore.isWorking {
+                if let subscriptionErrorMessage = userStore.subscriptionErrorMessage,
+                   !userStore.isWorking {
                     Label(
-                        "Candoa couldn’t open checkout. Please try again.",
+                        subscriptionErrorMessage,
                         systemImage: "exclamationmark.triangle"
                     )
                     .font(.system(size: 12.5))

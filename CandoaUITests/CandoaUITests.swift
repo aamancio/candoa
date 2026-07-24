@@ -487,11 +487,11 @@ final class CandoaUITests: XCTestCase {
         let subscribeButton = element("agent-subscribe-button", in: app)
         XCTAssertTrue(subscribeButton.exists)
         XCTAssertTrue(subscribeButton.isEnabled)
+        XCTAssertFalse(element("agent-subscribe-error", in: app).exists)
         subscribeButton.click()
-        XCTAssertTrue(
-            element("agent-subscribe-error", in: app).waitForExistence(timeout: 5),
-            askState(in: app)
-        )
+        let subscribeError = element("agent-subscribe-error", in: app)
+        XCTAssertTrue(subscribeError.waitForExistence(timeout: 5), askState(in: app))
+        XCTAssertEqual(subscribeError.label, "Candoa checkout is temporarily unavailable.")
         XCTAssertTrue(subscribeButton.isEnabled)
 
         let attachment = XCTAttachment(screenshot: app.windows.firstMatch.screenshot())
