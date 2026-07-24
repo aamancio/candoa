@@ -397,6 +397,8 @@ final class CandoaAppleWebAuthenticationService {
     private static func launchAuthenticationHelper(
         startURL: URL
     ) async throws -> NSRunningApplication {
+        await terminateStaleAuthenticationHelpers()
+
         let helperURL = Bundle.main.bundleURL
             .appendingPathComponent("Contents", isDirectory: true)
             .appendingPathComponent("Helpers", isDirectory: true)
@@ -441,6 +443,27 @@ final class CandoaAppleWebAuthenticationService {
         }
     }
 
+    private static func terminateStaleAuthenticationHelpers() async {
+        let helpers = NSRunningApplication.runningApplications(
+            withBundleIdentifier: "app.candoa.browser.AuthenticationHelper"
+        )
+        guard !helpers.isEmpty else { return }
+
+        logger.info("Terminating a stale Apple authentication helper before retrying")
+        for helper in helpers where !helper.isTerminated {
+            helper.terminate()
+        }
+
+        for _ in 0..<20 {
+            guard helpers.contains(where: { !$0.isTerminated }) else { return }
+            try? await Task.sleep(for: .milliseconds(50))
+        }
+
+        for helper in helpers where !helper.isTerminated {
+            helper.forceTerminate()
+        }
+    }
+
     private static func log(_ error: any Error, phase: String) {
         let error = error as NSError
         logger.error(
@@ -473,6 +496,8 @@ private final class CandoaAuthenticationRelay {
 
     private var continuation: CheckedContinuation<URL, any Error>?
     private var helperMonitorTask: Task<Void, Never>?
+    private var timeoutTask: Task<Void, Never>?
+    private var helperApplication: NSRunningApplication?
 
     var isWaiting: Bool { continuation != nil }
 
@@ -486,6 +511,7 @@ private final class CandoaAuthenticationRelay {
         return try await withCheckedThrowingContinuation {
             (continuation: CheckedContinuation<URL, any Error>) in
             self.continuation = continuation
+            scheduleTimeout()
             Task { @MainActor in
                 do {
                     let helperApplication = try await launch()
@@ -498,6 +524,7 @@ private final class CandoaAuthenticationRelay {
     }
 
     private func monitor(_ helperApplication: NSRunningApplication) {
+        self.helperApplication = helperApplication
         helperMonitorTask?.cancel()
         helperMonitorTask = Task { @MainActor [weak self] in
             while !Task.isCancelled, let self, self.continuation != nil {
@@ -512,6 +539,17 @@ private final class CandoaAuthenticationRelay {
                 }
                 try? await Task.sleep(for: .milliseconds(250))
             }
+        }
+    }
+
+    private func scheduleTimeout() {
+        timeoutTask?.cancel()
+        timeoutTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(65))
+            guard !Task.isCancelled, let self, self.continuation != nil else { return }
+            Self.logger.error("The Apple authentication helper timed out")
+            self.helperApplication?.forceTerminate()
+            self.finish(throwing: CandoaAccountError.appleSignInCouldNotStart)
         }
     }
 
@@ -537,17 +575,26 @@ private final class CandoaAuthenticationRelay {
     private func finish(returning callbackURL: URL) {
         let continuation = continuation
         self.continuation = nil
-        helperMonitorTask?.cancel()
-        helperMonitorTask = nil
+        finishHelperMonitoring()
         continuation?.resume(returning: callbackURL)
     }
 
     private func finish(throwing error: any Error) {
         let continuation = continuation
         self.continuation = nil
+        finishHelperMonitoring()
+        continuation?.resume(throwing: error)
+    }
+
+    private func finishHelperMonitoring() {
         helperMonitorTask?.cancel()
         helperMonitorTask = nil
-        continuation?.resume(throwing: error)
+        timeoutTask?.cancel()
+        timeoutTask = nil
+        if let helperApplication, !helperApplication.isTerminated {
+            helperApplication.terminate()
+        }
+        helperApplication = nil
     }
 }
 

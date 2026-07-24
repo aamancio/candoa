@@ -21,6 +21,8 @@ private final class AuthenticationHelperDelegate: NSObject,
 
     private var anchorWindow: NSWindow?
     private var authenticationSession: ASWebAuthenticationSession?
+    private var authenticationTimeoutTask: Task<Void, Never>?
+    private var hasFinished = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         if let argumentURL = ProcessInfo.processInfo.arguments
@@ -49,7 +51,11 @@ private final class AuthenticationHelperDelegate: NSObject,
     }
 
     private func startAuthentication(at startURL: URL) {
-        guard authenticationSession == nil else { return }
+        guard authenticationSession == nil else {
+            Self.logger.error("Authentication helper received a second request while still active")
+            relay(error: "authentication_in_progress")
+            return
+        }
         Self.logger.info(
             "Authentication helper received the start URL host=\(startURL.host ?? "none", privacy: .public)"
         )
@@ -74,10 +80,13 @@ private final class AuthenticationHelperDelegate: NSObject,
             relay(error: "could_not_start")
             return
         }
+        reactivateAfterSystemWindowAppears(for: session)
+        scheduleAuthenticationTimeout()
         Self.logger.info("Authentication helper session started")
     }
 
     func authenticationDidComplete(callbackURL: URL?, error: (any Error)?) {
+        guard !hasFinished else { return }
         authenticationSession = nil
         if let callbackURL {
             Self.logger.info("Authentication helper received the callback URL")
@@ -138,11 +147,41 @@ private final class AuthenticationHelperDelegate: NSObject,
     }
 
     private func finish(with relayURL: URL?) {
+        guard !hasFinished else { return }
+        hasFinished = true
+        authenticationTimeoutTask?.cancel()
+        authenticationTimeoutTask = nil
         if let relayURL {
             NSWorkspace.shared.open(relayURL)
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
             NSApp.terminate(nil)
+        }
+    }
+
+    private func scheduleAuthenticationTimeout() {
+        authenticationTimeoutTask?.cancel()
+        authenticationTimeoutTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(60))
+            guard !Task.isCancelled, let self, !self.hasFinished else { return }
+            Self.logger.error("Authentication helper timed out waiting for the system session")
+            let session = self.authenticationSession
+            self.authenticationSession = nil
+            session?.cancel()
+            self.relay(error: "timed_out")
+        }
+    }
+
+    private func reactivateAfterSystemWindowAppears(for session: ASWebAuthenticationSession) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self, weak session] in
+            guard let self,
+                  let session,
+                  self.authenticationSession === session,
+                  !self.hasFinished else {
+                return
+            }
+            self.anchorWindow?.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
         }
     }
 }
