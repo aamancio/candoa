@@ -385,6 +385,16 @@ struct ContentView: View {
         .onChange(of: scenePhase) { _, phase in
             if phase != .active {
                 store.flushSession()
+            } else {
+                Task {
+                    await userStore.reconcilePendingSubscriptionIfNeeded()
+                }
+            }
+        }
+        .onChange(of: store.activeTab?.url) { _, url in
+            guard let url else { return }
+            Task {
+                await userStore.reconcilePendingSubscriptionIfNeeded(for: url)
             }
         }
         .onChange(of: userStore.hasCompletedAccountChoice) { _, hasCompletedAccountChoice in

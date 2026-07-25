@@ -8,6 +8,7 @@ final class UserStore: ObservableObject {
     @Published private(set) var status: CandoaAccountStatus?
     @Published private(set) var isWorking = false
     @Published private(set) var isStartingSubscription = false
+    @Published private(set) var isAwaitingSubscriptionActivation = false
     @Published private(set) var isSigningInWithPasskey = false
     @Published private(set) var errorMessage: String?
     @Published private(set) var subscriptionErrorMessage: String?
@@ -20,6 +21,7 @@ final class UserStore: ObservableObject {
 
     private let accountService: CandoaAccountService
     private let passkeyService: CandoaPasskeyService
+    private var isReconcilingSubscription = false
 
     var hasActiveSubscription: Bool { status?.hasActiveSubscription == true }
 
@@ -144,17 +146,77 @@ final class UserStore: ObservableObject {
             subscriptionErrorMessage = "Set up your Candoa account before subscribing."
             return
         }
-        await openBillingURL(
+
+        await refresh()
+        guard isSignedIn, status?.hasPasskey == true else {
+            subscriptionErrorMessage = errorMessage
+                ?? "Candoa couldn’t verify your account before checkout."
+            return
+        }
+        if hasActiveSubscription {
+            isAwaitingSubscriptionActivation = false
+            accountMessage = "Your Candoa subscription is active."
+            return
+        }
+
+        let didOpenCheckout = await openBillingURL(
             failureMessage: "Candoa couldn’t open checkout. Please try again."
         ) { accessToken in
             try await accountService.proCheckoutURL(accessToken: accessToken)
         }
+        if didOpenCheckout {
+            isAwaitingSubscriptionActivation = true
+            return
+        }
+
+        // The server may have accepted Stripe's webhook after the preflight
+        // refresh but before this Checkout request. Reconcile once so a stale
+        // Subscribe action becomes the active plan instead of an error.
+        await refresh()
+        if hasActiveSubscription {
+            isAwaitingSubscriptionActivation = false
+            subscriptionErrorMessage = nil
+            accountMessage = "Your Candoa subscription is active."
+        }
     }
 
     func openBillingPortal() async {
-        await openBillingURL { accessToken in
+        _ = await openBillingURL { accessToken in
             try await accountService.billingPortalURL(accessToken: accessToken)
         }
+    }
+
+    func reconcilePendingSubscriptionIfNeeded(for url: URL? = nil) async {
+        guard isAwaitingSubscriptionActivation, !isReconcilingSubscription else { return }
+        if let url, !Self.isBillingSuccessURL(url) {
+            return
+        }
+
+        isReconcilingSubscription = true
+        defer { isReconcilingSubscription = false }
+
+        // Stripe redirects before its signed webhook is guaranteed to have
+        // reached Cloud. Retry only for this pending checkout and then stop.
+        for delay in [0, 1, 2, 4, 8] {
+            if delay > 0 {
+                do {
+                    try await Task.sleep(nanoseconds: UInt64(delay) * 1_000_000_000)
+                } catch {
+                    return
+                }
+            }
+
+            await refresh()
+            if hasActiveSubscription {
+                isAwaitingSubscriptionActivation = false
+                subscriptionErrorMessage = nil
+                accountMessage = "Your Candoa subscription is active."
+                return
+            }
+        }
+
+        subscriptionErrorMessage =
+            "Candoa is still confirming your subscription. Try again in a moment."
     }
 
     func signOut() {
@@ -164,6 +226,7 @@ final class UserStore: ObservableObject {
         hasCloudSession = false
         isLocalOnly = false
         hasCompletedAccountChoice = false
+        isAwaitingSubscriptionActivation = false
         UserDefaults.standard.removeObject(forKey: Self.accountChoiceKey)
         status = nil
         errorMessage = nil
@@ -179,11 +242,11 @@ final class UserStore: ObservableObject {
     private func openBillingURL(
         failureMessage: String? = nil,
         _ operation: (String) async throws -> URL
-    ) async {
+    ) async -> Bool {
         guard hasCloudSession, let accessToken = accountService.accessToken else {
             errorMessage = "Candoa couldn’t find your account on this Mac."
             subscriptionErrorMessage = failureMessage ?? errorMessage
-            return
+            return false
         }
 
         isWorking = true
@@ -193,10 +256,12 @@ final class UserStore: ObservableObject {
             errorMessage = nil
             subscriptionErrorMessage = nil
             openInDefaultBrowser(billingURL)
+            return true
         } catch {
             isWorking = false
             errorMessage = error.localizedDescription
             subscriptionErrorMessage = failureMessage
+            return false
         }
     }
 
@@ -391,6 +456,16 @@ final class UserStore: ObservableObject {
         hasKnownPasskeyAccount = true
         guard ProcessInfo.processInfo.environment["CANDOA_UI_TESTING"] != "1" else { return }
         UserDefaults.standard.set(true, forKey: Self.knownPasskeyAccountKey)
+    }
+
+    private static func isBillingSuccessURL(_ url: URL) -> Bool {
+        guard url.path == "/billing/success" else { return false }
+        switch url.host(percentEncoded: false)?.lowercased() {
+        case "candoa.app", "www.candoa.app", "localhost", "127.0.0.1":
+            return true
+        default:
+            return false
+        }
     }
 
     private func isPasskeyCancellation(_ error: any Error) -> Bool {

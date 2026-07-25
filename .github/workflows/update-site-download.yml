@@ -38,6 +38,7 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           DEVELOPER_ID_CERTIFICATE_BASE64: ${{ secrets.DEVELOPER_ID_CERTIFICATE_BASE64 }}
           DEVELOPER_ID_CERTIFICATE_PASSWORD: ${{ secrets.DEVELOPER_ID_CERTIFICATE_PASSWORD }}
+          DEVELOPER_ID_PROVISIONING_PROFILE_BASE64: ${{ secrets.DEVELOPER_ID_PROVISIONING_PROFILE_BASE64 }}
           APPLE_NOTARY_KEY_BASE64: ${{ secrets.APPLE_NOTARY_KEY_BASE64 }}
           APPLE_NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
           APPLE_NOTARY_ISSUER_ID: ${{ secrets.APPLE_NOTARY_ISSUER_ID }}
@@ -47,6 +48,7 @@ jobs:
             APPLE_TEAM_ID \
             DEVELOPER_ID_CERTIFICATE_BASE64 \
             DEVELOPER_ID_CERTIFICATE_PASSWORD \
+            DEVELOPER_ID_PROVISIONING_PROFILE_BASE64 \
             APPLE_NOTARY_KEY_BASE64 \
             APPLE_NOTARY_KEY_ID \
             APPLE_NOTARY_ISSUER_ID
@@ -85,6 +87,49 @@ jobs:
           security list-keychains -d user -s "$SIGNING_KEYCHAIN_PATH"
           security find-identity -v -p codesigning "$SIGNING_KEYCHAIN_PATH"
 
+      - name: Install Developer ID provisioning profile
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          DEVELOPER_ID_PROVISIONING_PROFILE_BASE64: ${{ secrets.DEVELOPER_ID_PROVISIONING_PROFILE_BASE64 }}
+        run: |
+          PROFILE_PATH="$RUNNER_TEMP/candoa-developer-id.provisionprofile"
+          PROFILE_PLIST="$RUNNER_TEMP/candoa-developer-id.plist"
+
+          printf '%s' "$DEVELOPER_ID_PROVISIONING_PROFILE_BASE64" | base64 --decode > "$PROFILE_PATH"
+          security cms -D -i "$PROFILE_PATH" > "$PROFILE_PLIST"
+
+          PROFILE_UUID="$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$PROFILE_PLIST")"
+          PROFILE_TEAM_ID="$(/usr/libexec/PlistBuddy -c 'Print :TeamIdentifier:0' "$PROFILE_PLIST")"
+          PROFILE_APP_IDENTIFIER="$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:com.apple.application-identifier' "$PROFILE_PLIST")"
+          PROFILE_DISTRIBUTES_TO_ALL_DEVICES="$(/usr/libexec/PlistBuddy -c 'Print :ProvisionsAllDevices' "$PROFILE_PLIST")"
+
+          if [ "$PROFILE_TEAM_ID" != "$APPLE_TEAM_ID" ]; then
+            echo "Provisioning profile belongs to team $PROFILE_TEAM_ID, expected $APPLE_TEAM_ID." >&2
+            exit 1
+          fi
+          if [ "$PROFILE_APP_IDENTIFIER" != "$APPLE_TEAM_ID.$EXPECTED_APP_BUNDLE_IDENTIFIER" ]; then
+            echo "Provisioning profile is for $PROFILE_APP_IDENTIFIER, expected $APPLE_TEAM_ID.$EXPECTED_APP_BUNDLE_IDENTIFIER." >&2
+            exit 1
+          fi
+          if [ "$PROFILE_DISTRIBUTES_TO_ALL_DEVICES" != "true" ]; then
+            echo "Provisioning profile must be a Developer ID distribution profile." >&2
+            exit 1
+          fi
+          if ! /usr/libexec/PlistBuddy \
+            -c 'Print :Entitlements:com.apple.developer.associated-domains' \
+            "$PROFILE_PLIST" >/dev/null 2>&1
+          then
+            echo "Provisioning profile must allow the Associated Domains capability." >&2
+            exit 1
+          fi
+
+          LEGACY_PROFILE_DIRECTORY="$HOME/Library/MobileDevice/Provisioning Profiles"
+          XCODE_PROFILE_DIRECTORY="$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"
+          mkdir -p "$LEGACY_PROFILE_DIRECTORY" "$XCODE_PROFILE_DIRECTORY"
+          cp "$PROFILE_PATH" "$LEGACY_PROFILE_DIRECTORY/$PROFILE_UUID.provisionprofile"
+          cp "$PROFILE_PATH" "$XCODE_PROFILE_DIRECTORY/$PROFILE_UUID.provisionprofile"
+          echo "PROVISIONING_PROFILE_SPECIFIER=$PROFILE_UUID" >> "$GITHUB_ENV"
+
       - name: Build Release app
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
@@ -97,6 +142,7 @@ jobs:
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="$CODE_SIGN_IDENTITY" \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            PROVISIONING_PROFILE_SPECIFIER="$PROVISIONING_PROFILE_SPECIFIER" \
             CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO \
             OTHER_CODE_SIGN_FLAGS="--timestamp" \
             build

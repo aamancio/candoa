@@ -231,7 +231,9 @@ struct EliSidebarView: View {
             includesCurrentPageContext = true
         }
         .onChange(of: scenePhase) { _, phase in
-            guard phase == .active, !hasEliAccess else { return }
+            guard phase == .active,
+                  !hasEliAccess,
+                  !userStore.isAwaitingSubscriptionActivation else { return }
             isRefreshingEliAccess = true
             Task {
                 await userStore.refresh()
@@ -695,7 +697,11 @@ struct EliSidebarView: View {
         isRefreshingEliAccess = true
 
         Task {
-            await userStore.refresh()
+            if userStore.isAwaitingSubscriptionActivation {
+                await userStore.reconcilePendingSubscriptionIfNeeded()
+            } else {
+                await userStore.refresh()
+            }
             isRefreshingEliAccess = false
 
             if hasEliAccess {
