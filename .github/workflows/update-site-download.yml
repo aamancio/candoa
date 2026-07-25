@@ -123,10 +123,10 @@ jobs:
             exit 1
           fi
 
-          LEGACY_PROFILE_DIRECTORY="$HOME/Library/MobileDevice/Provisioning Profiles"
+          MOBILEDEVICE_PROFILE_DIRECTORY="$HOME/Library/MobileDevice/Provisioning Profiles"
           XCODE_PROFILE_DIRECTORY="$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"
-          mkdir -p "$LEGACY_PROFILE_DIRECTORY" "$XCODE_PROFILE_DIRECTORY"
-          cp "$PROFILE_PATH" "$LEGACY_PROFILE_DIRECTORY/$PROFILE_UUID.provisionprofile"
+          mkdir -p "$MOBILEDEVICE_PROFILE_DIRECTORY" "$XCODE_PROFILE_DIRECTORY"
+          cp "$PROFILE_PATH" "$MOBILEDEVICE_PROFILE_DIRECTORY/$PROFILE_UUID.provisionprofile"
           cp "$PROFILE_PATH" "$XCODE_PROFILE_DIRECTORY/$PROFILE_UUID.provisionprofile"
           echo "PROVISIONING_PROFILE_SPECIFIER=$PROFILE_UUID" >> "$GITHUB_ENV"
 
@@ -235,7 +235,7 @@ jobs:
         with:
           repository: ${{ env.CLOUD_REPOSITORY }}
           ref: ${{ env.CLOUD_BRANCH }}
-          ssh-key: ${{ secrets.CANDOA_SITE_DEPLOY_KEY }}
+          ssh-key: ${{ secrets.CANDOA_CLOUD_DEPLOY_KEY }}
           path: CandoaCloud
 
       - name: Update Candoa Cloud download
