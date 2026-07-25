@@ -153,7 +153,7 @@ final class CandoaPasskeyService: NSObject {
             throw CandoaAccountError.invalidResponse
         }
 
-        let relyingPartyID = options.rpID ?? "api.candoa.app"
+        let relyingPartyID = options.rpID ?? "www.candoa.app"
         let provider = ASAuthorizationPlatformPublicKeyCredentialProvider(
             relyingPartyIdentifier: relyingPartyID
         )

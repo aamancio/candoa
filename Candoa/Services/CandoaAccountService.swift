@@ -115,30 +115,20 @@ struct CandoaPasskeyCeremony<Options: Sendable>: Sendable {
 }
 
 enum CandoaCloudAPI {
-    private static let productionBaseURL = URL(string: "https://api.candoa.app/api")!
+    private static let productionBaseURL = URL(string: "https://www.candoa.app/api")!
     private static let developmentBaseURL = URL(string: "http://127.0.0.1:3000/api")!
-    private static let passkeyOrigin = "https://api.candoa.app"
 
     static var aiChatURL: URL {
-        if let url = environmentURL(key: "CANDOA_ASK_API_URL") {
-            return url
-        }
         return endpoint("ai/chat")
     }
 
     static var aiAgentRunURL: URL {
-        if let url = environmentURL(key: "CANDOA_AGENT_API_URL") {
-            return url
-        }
-        if let chatURL = environmentURL(key: "CANDOA_ASK_API_URL") {
-            return chatURL.deletingLastPathComponent().appending(path: "agent")
-        }
         return endpoint("ai/agent")
     }
 
     static func session(accessToken: String) async throws -> CandoaCloudSession {
         let session: CandoaCloudSession? = try await request(
-            accountEndpoint("auth/get-session"),
+            endpoint("auth/get-session"),
             method: "GET",
             body: Optional<String>.none,
             accessToken: accessToken
@@ -151,7 +141,7 @@ enum CandoaCloudAPI {
 
     static func signInAnonymously() async throws -> String {
         let (_, response) = try await dataRequest(
-            accountEndpoint("auth/sign-in/anonymous"),
+            endpoint("auth/sign-in/anonymous"),
             method: "POST",
             body: EmptyRequest(),
             accessToken: nil
@@ -165,7 +155,7 @@ enum CandoaCloudAPI {
 
     static func signOut(accessToken: String) async throws {
         let _: SignOutResponse = try await request(
-            accountEndpoint("auth/sign-out"),
+            endpoint("auth/sign-out"),
             method: "POST",
             body: EmptyRequest(),
             accessToken: accessToken
@@ -176,7 +166,7 @@ enum CandoaCloudAPI {
         accessToken: String
     ) async throws -> CandoaPasskeyCeremony<CandoaPasskeyRegistrationOptions> {
         var components = URLComponents(
-            url: accountEndpoint("auth/passkey/generate-register-options"),
+            url: endpoint("auth/passkey/generate-register-options"),
             resolvingAgainstBaseURL: false
         )
         components?.queryItems = [
@@ -202,11 +192,11 @@ enum CandoaCloudAPI {
         challengeCookie: String
     ) async throws {
         let (_, response) = try await dataRequest(
-            accountEndpoint("auth/passkey/verify-registration"),
+            endpoint("auth/passkey/verify-registration"),
             method: "POST",
             body: CandoaPasskeyVerificationRequest(response: credential),
             accessToken: accessToken,
-            originHeader: passkeyOrigin,
+            originHeader: cloudOrigin,
             cookie: challengeCookie
         )
         guard (200...299).contains(response.statusCode) else {
@@ -217,7 +207,7 @@ enum CandoaCloudAPI {
     static func passkeyAuthenticationOptions()
         async throws -> CandoaPasskeyCeremony<CandoaPasskeyAuthenticationOptions> {
         let (data, response) = try await dataRequest(
-            accountEndpoint("auth/passkey/generate-authenticate-options"),
+            endpoint("auth/passkey/generate-authenticate-options"),
             method: "GET",
             body: Optional<String>.none,
             accessToken: nil
@@ -233,11 +223,11 @@ enum CandoaCloudAPI {
         challengeCookie: String
     ) async throws -> String {
         let (_, response) = try await dataRequest(
-            accountEndpoint("auth/passkey/verify-authentication"),
+            endpoint("auth/passkey/verify-authentication"),
             method: "POST",
             body: CandoaPasskeyVerificationRequest(response: credential),
             accessToken: nil,
-            originHeader: passkeyOrigin,
+            originHeader: cloudOrigin,
             cookie: challengeCookie
         )
         guard let accessToken = response.value(forHTTPHeaderField: "set-auth-token"),
@@ -249,7 +239,7 @@ enum CandoaCloudAPI {
 
     static func accountStatus(accessToken: String) async throws -> CandoaAccountStatus {
         try await request(
-            accountEndpoint("account"),
+            endpoint("account"),
             method: "GET",
             body: Optional<String>.none,
             accessToken: accessToken
@@ -258,7 +248,7 @@ enum CandoaCloudAPI {
 
     static func checkoutURL(accessToken: String, planID: String) async throws -> URL {
         let response: CandoaURLResponse = try await request(
-            accountEndpoint("billing/checkout"),
+            endpoint("billing/checkout"),
             method: "POST",
             body: BillingPlanRequest(planID: planID),
             accessToken: accessToken
@@ -269,7 +259,7 @@ enum CandoaCloudAPI {
 
     static func portalURL(accessToken: String) async throws -> URL {
         let response: CandoaURLResponse = try await request(
-            accountEndpoint("billing/portal"),
+            endpoint("billing/portal"),
             method: "POST",
             body: Optional<String>.none,
             accessToken: accessToken
@@ -279,23 +269,15 @@ enum CandoaCloudAPI {
     }
 
     private static func endpoint(_ path: String) -> URL {
-        let configuredBaseURL = environmentBaseURL(
-            key: "CANDOA_CLOUD_API_URL"
-        )
-        return configuredBaseURL.appending(path: path)
+        cloudBaseURL.appending(path: path)
     }
 
-    private static func accountEndpoint(_ path: String) -> URL {
-        // Authentication, session validation, account state, and billing must share
-        // one authority. Debug builds are deliberately isolated from production data.
-        let configuredBaseURL = environmentBaseURL(
-            key: "CANDOA_ACCOUNT_API_URL"
-        )
-        return configuredBaseURL.appending(path: path)
+    private static var cloudOrigin: String {
+        origin(for: cloudBaseURL)
     }
 
-    private static func environmentBaseURL(key: String) -> URL {
-        let configuredURL = environmentURL(key: key)
+    private static var cloudBaseURL: URL {
+        let configuredURL = environmentURL(key: "CANDOA_CLOUD_API_URL")
 #if DEBUG
         return configuredURL ?? developmentBaseURL
 #else

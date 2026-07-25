@@ -31,10 +31,10 @@ Do not treat any of these as release verification:
 ## Required public-DMG architecture
 
 1. Candoa creates a PKCE verifier and starts `ASWebAuthenticationSession` against
-   `GET https://api.candoa.app/api/auth/apple/web/start`.
+   `GET https://www.candoa.app/api/auth/apple/web/start`.
 2. Candoa Cloud redirects to Apple using the configured Apple Services ID.
 3. Apple returns to the registered HTTPS callback at
-   `POST https://api.candoa.app/api/auth/apple/web/callback`.
+   `POST https://www.candoa.app/api/auth/apple/web/callback`.
 4. Candoa Cloud sends a short-lived, PKCE-bound handoff to
    `candoa-auth://apple/callback`.
 5. Candoa Browser exchanges it through `POST /api/auth/apple/web/exchange` and stores only the
@@ -44,11 +44,10 @@ The system dialog saying that Candoa wants to use the Cloud domain to sign in is
 `ASWebAuthenticationSession` security UI. Do not attempt to suppress it, imitate it, or move
 the Apple flow into an embedded `WKWebView`.
 
-Debug builds may use `http://127.0.0.1:3000/api` for AI development, but Apple web
-authentication, session validation, account state, and billing must all use the same
-deployed account authority. A production-issued session cannot be validated against a local
-database or a different signing secret. `CANDOA_ACCOUNT_API_URL` selects that authority;
-`CANDOA_APPLE_AUTH_API_URL` remains a compatible fallback. A separately registered HTTPS
+Debug builds may use `http://127.0.0.1:3000/api` for Cloud development, but Apple web
+authentication must use the deployed registered HTTPS origin. A production-issued session
+cannot be validated against a local database or a different signing secret.
+`CANDOA_CLOUD_API_URL` selects the single Cloud authority. A separately registered HTTPS
 development authority may be supplied explicitly; localhost and loopback callbacks are not
 valid production substitutes.
 
