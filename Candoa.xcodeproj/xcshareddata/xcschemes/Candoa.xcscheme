@@ -74,12 +74,7 @@
       <EnvironmentVariables>
          <EnvironmentVariable
             key = "CANDOA_CLOUD_API_URL"
-            value = "https://api.candoa.app/api"
-            isEnabled = "YES">
-         </EnvironmentVariable>
-         <EnvironmentVariable
-            key = "CANDOA_ACCOUNT_API_URL"
-            value = "https://api.candoa.app/api"
+            value = "https://www.candoa.app/api"
             isEnabled = "YES">
          </EnvironmentVariable>
          <EnvironmentVariable
