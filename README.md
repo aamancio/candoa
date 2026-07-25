@@ -1,20 +1,20 @@
-# Candoa
+# Candoa Browser
 
 A lightweight browser workspace for macOS.
 
-Candoa is an open-source Mac browser workspace for people who live in tabs, move
+Candoa Browser is an open-source Mac browser workspace for people who live in tabs, move
 between projects, and want browsing to stay native, quiet, and
 battery-conscious.
 
 [Website](https://candoa.app)
 
-## Why Candoa
+## Why Candoa Browser
 
-Most modern browsers ship a whole cross-platform stack. Candoa takes a simpler
+Most modern browsers ship a whole cross-platform stack. Candoa Browser takes a simpler
 Mac-first path: SwiftUI, AppKit where native behavior needs it, and Apple's
 WebKit through `WKWebView`.
 
-That means Candoa can focus on the workflow:
+That means Candoa Browser can focus on the workflow:
 
 - A sidebar-first browser surface
 - Spaces for separating work, personal browsing, projects, and research
@@ -25,11 +25,11 @@ That means Candoa can focus on the workflow:
 - Optional iCloud sync for workspace state
 - Automatic updates through Sparkle
 
-Candoa is built independently with native Apple technologies and WebKit.
+Candoa Browser is built independently with native Apple technologies and WebKit.
 
 ## Status
 
-Candoa is an early public prototype. The core shell, WebKit tab model, Spaces,
+Candoa Browser is an early public prototype. The core shell, WebKit tab model, Spaces,
 pinned tabs, split view, local persistence, Sparkle updates, and the first sync
 hooks are in place.
 
@@ -47,7 +47,7 @@ Get the latest public build from the website:
 
 - Website: [candoa.app](https://candoa.app)
 - App source: [aamancio/candoa-browser](https://github.com/aamancio/candoa-browser)
-- Marketing site source: [aamancio/candoa-site](https://github.com/aamancio/candoa-site)
+- Website and cloud source: [aamancio/candoa-cloud](https://github.com/aamancio/candoa-cloud)
 
 ## Build From Source
 
@@ -137,7 +137,7 @@ copy another browser's branding, icons, assets, or exact UI.
 
 Release builds are packaged as a drag-to-Applications DMG. The GitHub workflow
 on `main` publishes the signed DMG, `latest.json`, and Sparkle `appcast.xml` to
-the separate marketing site repository.
+the Candoa Cloud repository.
 
 Because that DMG uses Developer ID distribution, account authentication must
 follow the tracked [Sign in with Apple distribution decision](docs/sign-in-with-apple-distribution.md).
