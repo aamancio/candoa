@@ -1,4 +1,4 @@
-name: Update CandoaSite Download
+name: Update Candoa Cloud Download
 
 on:
   push:
@@ -10,16 +10,16 @@ permissions:
   contents: read
 
 concurrency:
-  group: update-candoa-site-download
+  group: update-candoa-cloud-download
   cancel-in-progress: true
 
 jobs:
-  build-and-update-site:
-    name: Build DMG and update CandoaSite
+  build-and-update-cloud:
+    name: Build DMG and update Candoa Cloud
     runs-on: macos-latest
     env:
-      SITE_REPOSITORY: ${{ vars.CANDOA_SITE_REPOSITORY || 'aamancio/candoa-site' }}
-      SITE_BRANCH: ${{ vars.CANDOA_SITE_BRANCH || 'main' }}
+      CLOUD_REPOSITORY: ${{ vars.CANDOA_CLOUD_REPOSITORY || 'aamancio/candoa-cloud' }}
+      CLOUD_BRANCH: ${{ vars.CANDOA_CLOUD_BRANCH || 'main' }}
       APP_DMG: ${{ github.workspace }}/artifacts/Candoa.dmg
       APP_BUNDLE: ${{ github.workspace }}/build/DerivedData/Build/Products/Release/Candoa.app
       EXPECTED_APP_BUNDLE_IDENTIFIER: app.candoa.browser
@@ -230,15 +230,15 @@ jobs:
           tar -xf "$RUNNER_TEMP/Sparkle.tar.xz" -C "$SPARKLE_TOOLS" --strip-components=1
           "$SPARKLE_TOOLS/bin/generate_appcast" --help >/dev/null
 
-      - name: Check out CandoaSite
+      - name: Check out Candoa Cloud
         uses: actions/checkout@v5
         with:
-          repository: ${{ env.SITE_REPOSITORY }}
-          ref: ${{ env.SITE_BRANCH }}
+          repository: ${{ env.CLOUD_REPOSITORY }}
+          ref: ${{ env.CLOUD_BRANCH }}
           ssh-key: ${{ secrets.CANDOA_SITE_DEPLOY_KEY }}
-          path: CandoaSite
+          path: CandoaCloud
 
-      - name: Update site download
+      - name: Update Candoa Cloud download
         env:
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
         run: |
@@ -247,10 +247,10 @@ jobs:
             exit 1
           fi
 
-          mkdir -p CandoaSite/public/downloads
-          cp "$APP_DMG" CandoaSite/public/downloads/Candoa.dmg
-          find CandoaSite/public/downloads -maxdepth 1 -type f \( -name 'Candoa *.dmg' -o -name 'Candoa-*.dmg' \) -delete
-          cp "$APP_DMG" "CandoaSite/public/downloads/$APP_ARCHIVE_NAME"
+          mkdir -p CandoaCloud/public/downloads
+          cp "$APP_DMG" CandoaCloud/public/downloads/Candoa.dmg
+          find CandoaCloud/public/downloads -maxdepth 1 -type f \( -name 'Candoa *.dmg' -o -name 'Candoa-*.dmg' \) -delete
+          cp "$APP_DMG" "CandoaCloud/public/downloads/$APP_ARCHIVE_NAME"
 
           APPCAST_DIR="$(mktemp -d)"
           cp "$APP_DMG" "$APPCAST_DIR/$APP_ARCHIVE_NAME"
@@ -267,7 +267,7 @@ jobs:
             --embed-release-notes \
             -o "$APPCAST_DIR/appcast.xml" \
             "$APPCAST_DIR"
-          cp "$APPCAST_DIR/appcast.xml" CandoaSite/public/downloads/appcast.xml
+          cp "$APPCAST_DIR/appcast.xml" CandoaCloud/public/downloads/appcast.xml
 
           python3 - <<'PY'
           import json
@@ -286,15 +286,15 @@ jobs:
               "releaseNotesURL": "https://github.com/aamancio/candoa-browser/releases",
           }
 
-          Path("CandoaSite/public/downloads/latest.json").write_text(
+          Path("CandoaCloud/public/downloads/latest.json").write_text(
               json.dumps(manifest, indent=2) + "\n",
               encoding="utf-8",
           )
           PY
-          rm -f CandoaSite/public/downloads/Candoa.zip
+          rm -f CandoaCloud/public/downloads/Candoa.zip
 
-      - name: Commit site download
-        working-directory: CandoaSite
+      - name: Commit Candoa Cloud download
+        working-directory: CandoaCloud
         run: |
           if [ -z "$(git status --porcelain -- public/downloads)" ]; then
             echo "Candoa download is unchanged; nothing to commit."
@@ -305,4 +305,4 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add public/downloads
           git commit -m "Update Candoa $APP_VERSION download from ${GITHUB_SHA::7}"
-          git push origin "HEAD:$SITE_BRANCH"
+          git push origin "HEAD:$CLOUD_BRANCH"

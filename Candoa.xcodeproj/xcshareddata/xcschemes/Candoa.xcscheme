@@ -74,12 +74,17 @@
       <EnvironmentVariables>
          <EnvironmentVariable
             key = "CANDOA_CLOUD_API_URL"
-            value = "http://127.0.0.1:8787/v1"
+            value = "https://api.candoa.app/api"
             isEnabled = "YES">
          </EnvironmentVariable>
          <EnvironmentVariable
             key = "CANDOA_ACCOUNT_API_URL"
-            value = "http://127.0.0.1:8787/v1"
+            value = "https://api.candoa.app/api"
+            isEnabled = "YES">
+         </EnvironmentVariable>
+         <EnvironmentVariable
+            key = "CANDOA_ALLOW_PRODUCTION_CLOUD_IN_DEBUG"
+            value = "1"
             isEnabled = "YES">
          </EnvironmentVariable>
       </EnvironmentVariables>

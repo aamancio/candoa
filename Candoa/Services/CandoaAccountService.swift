@@ -115,8 +115,8 @@ struct CandoaPasskeyCeremony<Options: Sendable>: Sendable {
 }
 
 enum CandoaCloudAPI {
-    private static let productionBaseURL = URL(string: "https://api.candoa.app/v1")!
-    private static let developmentBaseURL = URL(string: "http://127.0.0.1:8787/v1")!
+    private static let productionBaseURL = URL(string: "https://api.candoa.app/api")!
+    private static let developmentBaseURL = URL(string: "http://127.0.0.1:3000/api")!
     private static let passkeyOrigin = "https://api.candoa.app"
 
     static var aiChatURL: URL {
@@ -131,9 +131,9 @@ enum CandoaCloudAPI {
             return url
         }
         if let chatURL = environmentURL(key: "CANDOA_ASK_API_URL") {
-            return chatURL.deletingLastPathComponent().appending(path: "agent/run")
+            return chatURL.deletingLastPathComponent().appending(path: "agent")
         }
-        return endpoint("ai/agent/run")
+        return endpoint("ai/agent")
     }
 
     static func session(accessToken: String) async throws -> CandoaCloudSession {
@@ -307,9 +307,12 @@ enum CandoaCloudAPI {
         let configuredURL = ProcessInfo.processInfo.environment[key]
             .flatMap(URL.init(string:))
 #if DEBUG
-        // Keep every development API route unable to mutate production data, even
-        // if a shared scheme or local environment contains a public API override.
-        guard configuredURL?.host != productionBaseURL.host else {
+        // Production remains unavailable to arbitrary Debug launches. The shared
+        // Xcode scheme opts in explicitly so normal development can exercise the
+        // deployed account and subscription attached to the developer's session.
+        let allowsProductionCloud =
+            ProcessInfo.processInfo.environment["CANDOA_ALLOW_PRODUCTION_CLOUD_IN_DEBUG"] == "1"
+        guard configuredURL?.host != productionBaseURL.host || allowsProductionCloud else {
             return nil
         }
 #endif
