@@ -30,7 +30,8 @@ final class UserStore: ObservableObject {
     }
 
     private static let accountChoiceKey = "Candoa.HasCompletedAccountChoice"
-    private static let knownPasskeyAccountKey = "Candoa.HasKnownPasskeyAccount"
+    private static let knownPasskeyAccountKey =
+        "Candoa.HasKnownPasskeyAccount.www.candoa.app"
 
     init(
         accountService: CandoaAccountService = CandoaAccountService(),
