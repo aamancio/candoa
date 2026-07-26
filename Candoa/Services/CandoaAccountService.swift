@@ -74,6 +74,12 @@ struct CandoaAccountStatus: Decodable, Sendable {
         case allowedModelIDs
     }
 
+    init(hasPasskey: Bool, planID: String, allowedModelIDs: [String]) {
+        self.hasPasskey = hasPasskey
+        self.planID = planID
+        self.allowedModelIDs = allowedModelIDs
+    }
+
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         hasPasskey = try container.decodeIfPresent(Bool.self, forKey: .hasPasskey) ?? false

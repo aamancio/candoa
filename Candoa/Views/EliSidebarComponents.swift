@@ -71,6 +71,8 @@ struct AISidebarSubscriptionGateView: View {
 
     var body: some View {
         let isSubscribing = userStore.isStartingSubscription
+        let isPending = userStore.isAwaitingSubscriptionActivation
+        let isConfirming = userStore.isReconcilingSubscription
 
         GroupBox {
             VStack(alignment: .leading, spacing: 12) {
@@ -79,32 +81,55 @@ struct AISidebarSubscriptionGateView: View {
                     .foregroundStyle(CandoaInterfaceStyle.sidebarText)
                     .accessibilityIdentifier("agent-subscription-gate")
 
-                Text("Summarize pages, ask questions, and turn what you’re viewing into useful next steps.")
+                Text("Summarize pages, answer questions, and let Eli research and take action across the web.")
                     .font(.system(size: 13.5))
                     .foregroundStyle(CandoaInterfaceStyle.sidebarTextSecondary)
                     .fixedSize(horizontal: false, vertical: true)
 
-                Button {
-                    Task { await userStore.startProCheckout() }
-                } label: {
+                if isConfirming {
                     HStack(spacing: 7) {
-                        if isSubscribing {
-                            ProgressView()
-                                .controlSize(.small)
-                        }
-
-                        Text(isSubscribing ? "Subscribing…" : "Subscribe")
+                        ProgressView()
+                            .controlSize(.small)
+                        Text("Confirming subscription…")
                     }
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .accessibilityElement(children: .combine)
+                    .accessibilityIdentifier("agent-subscription-confirming")
+                } else if isPending {
+                    Button("Check Again") {
+                        Task {
+                            await userStore.reconcilePendingSubscriptionIfNeeded()
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.regular)
+                    .disabled(userStore.isWorking)
+                    .accessibilityIdentifier("agent-subscription-check-button")
+                } else {
+                    Button {
+                        Task { await userStore.startProCheckout() }
+                    } label: {
+                        HStack(spacing: 7) {
+                            if isSubscribing {
+                                ProgressView()
+                                    .controlSize(.small)
+                            }
+
+                            Text(isSubscribing ? "Subscribing…" : "Subscribe")
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.regular)
+                    .disabled(isSubscribing || userStore.isWorking)
+                    .accessibilityLabel(isSubscribing ? "Subscribing" : "Subscribe")
+                    .accessibilityValue(isSubscribing ? "subscribing" : "idle")
+                    .accessibilityIdentifier("agent-subscribe-button")
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.regular)
-                .disabled(isSubscribing || userStore.isWorking)
-                .accessibilityLabel(isSubscribing ? "Subscribing" : "Subscribe")
-                .accessibilityValue(isSubscribing ? "subscribing" : "idle")
-                .accessibilityIdentifier("agent-subscribe-button")
 
                 if let subscriptionErrorMessage = userStore.subscriptionErrorMessage,
-                   !isSubscribing {
+                   !isSubscribing,
+                   !isConfirming {
                     Label(
                         subscriptionErrorMessage,
                         systemImage: "exclamationmark.triangle"

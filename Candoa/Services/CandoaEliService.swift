@@ -168,13 +168,21 @@ enum CandoaRemoteEliService {
         for try await line in bytes.lines {
             guard line.hasPrefix("data: ") else { continue }
             let payload = String(line.dropFirst("data: ".count))
+            guard payload != "[DONE]" else { continue }
             guard let data = payload.data(using: .utf8) else { continue }
 
-            let event = try JSONDecoder().decode(CandoaStreamEvent.self, from: data)
-            if let delta = event.delta {
+            let event = try JSONDecoder().decode(AIUIMessageChunk.self, from: data)
+            if (event.type == "text-delta" || event.type == nil), let delta = event.delta {
                 continuation.yield(.textDelta(delta))
+            } else if event.type == "tool-input-available",
+                      event.toolName == "requestBrowserControl",
+                      let goal = event.input?.goal {
+                continuation.yield(.browserControl(goal: goal))
+            // Accept the pre-AI SDK Cloud fields while the protocol update rolls out.
             } else if let goal = event.goal {
                 continuation.yield(.browserControl(goal: goal))
+            } else if event.type == "error", let error = event.errorText {
+                throw CandoaRemoteEliError.server(error)
             } else if let error = event.error {
                 throw CandoaRemoteEliError.server(error)
             }
@@ -256,8 +264,12 @@ enum CandoaRemoteEliService {
         let history: [ConversationTurn]
     }
 
-    private struct CandoaStreamEvent: Decodable {
+    private struct AIUIMessageChunk: Decodable {
+        let type: String?
         let delta: String?
+        let errorText: String?
+        let toolName: String?
+        let input: BrowserControlArguments?
         let goal: String?
         let error: String?
     }

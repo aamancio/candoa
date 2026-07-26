@@ -204,6 +204,7 @@ struct EliSidebarView: View {
         .background(CandoaInterfaceStyle.workspaceBackground)
         .onAppear {
             uiTestingState = uiTestingAgentState
+            removeSubscriptionGateIfActive()
             DispatchQueue.main.async {
                 isPromptFocused = true
             }
@@ -239,6 +240,10 @@ struct EliSidebarView: View {
                 await userStore.refresh()
                 isRefreshingEliAccess = false
             }
+        }
+        .onChange(of: userStore.hasActiveSubscription) { _, hasActiveSubscription in
+            guard hasActiveSubscription else { return }
+            removeSubscriptionGateIfActive()
         }
         .fileImporter(
             isPresented: $isFileImporterPresented,
@@ -745,6 +750,11 @@ struct EliSidebarView: View {
             includesCurrentPageContext = false
             isMentionMenuPresented = false
         }
+    }
+
+    private func removeSubscriptionGateIfActive() {
+        guard userStore.hasActiveSubscription else { return }
+        messages.removeAll { $0.action == .subscribe }
     }
 
     private func beginComparisonPrompt() {

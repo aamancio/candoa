@@ -391,6 +391,15 @@ struct ContentView: View {
                 }
             }
         }
+        .onReceive(
+            NotificationCenter.default.publisher(
+                for: NSApplication.didBecomeActiveNotification
+            )
+        ) { _ in
+            Task {
+                await userStore.reconcilePendingSubscriptionIfNeeded()
+            }
+        }
         .onChange(of: store.activeTab?.url) { _, url in
             guard let url else { return }
             Task {

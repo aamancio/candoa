@@ -9,6 +9,7 @@ final class UserStore: ObservableObject {
     @Published private(set) var isWorking = false
     @Published private(set) var isStartingSubscription = false
     @Published private(set) var isAwaitingSubscriptionActivation = false
+    @Published private(set) var isReconcilingSubscription = false
     @Published private(set) var isSigningInWithPasskey = false
     @Published private(set) var errorMessage: String?
     @Published private(set) var subscriptionErrorMessage: String?
@@ -21,8 +22,6 @@ final class UserStore: ObservableObject {
 
     private let accountService: CandoaAccountService
     private let passkeyService: CandoaPasskeyService
-    private var isReconcilingSubscription = false
-
     var hasActiveSubscription: Bool { status?.hasActiveSubscription == true }
 
     static var hasStoredAccountChoice: Bool {
@@ -130,6 +129,24 @@ final class UserStore: ObservableObject {
             subscriptionErrorMessage = "Candoa checkout is temporarily unavailable."
             return
         }
+        if ProcessInfo.processInfo.environment["CANDOA_UI_TESTING_CHECKOUT_SUCCESS"] == "1" {
+            isAwaitingSubscriptionActivation = true
+            isReconcilingSubscription = true
+            await Task.yield()
+            try? await Task.sleep(for: .seconds(2))
+            status = CandoaAccountStatus(
+                hasPasskey: true,
+                planID: "pro",
+                allowedModelIDs: ["openai/gpt-5"]
+            )
+            isSignedIn = true
+            hasCloudSession = true
+            isLocalOnly = false
+            isAwaitingSubscriptionActivation = false
+            isReconcilingSubscription = false
+            accountMessage = "Your Candoa subscription is active."
+            return
+        }
 
         if accountService.accessToken == nil {
             await createAnonymousSession()
@@ -195,10 +212,11 @@ final class UserStore: ObservableObject {
 
         isReconcilingSubscription = true
         defer { isReconcilingSubscription = false }
+        subscriptionErrorMessage = nil
 
         // Stripe redirects before its signed webhook is guaranteed to have
         // reached Cloud. Retry only for this pending checkout and then stop.
-        for delay in [0, 1, 2, 4, 8] {
+        for delay in [0, 1, 2, 4, 8, 15] {
             if delay > 0 {
                 do {
                     try await Task.sleep(nanoseconds: UInt64(delay) * 1_000_000_000)
@@ -228,6 +246,7 @@ final class UserStore: ObservableObject {
         isLocalOnly = false
         hasCompletedAccountChoice = false
         isAwaitingSubscriptionActivation = false
+        isReconcilingSubscription = false
         UserDefaults.standard.removeObject(forKey: Self.accountChoiceKey)
         status = nil
         errorMessage = nil

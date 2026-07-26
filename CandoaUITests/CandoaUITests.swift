@@ -497,7 +497,7 @@ final class CandoaUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Eli with Candoa Pro"].exists)
         XCTAssertTrue(
             app.staticTexts[
-                "Summarize pages, ask questions, and turn what you’re viewing into useful next steps."
+                "Summarize pages, answer questions, and let Eli research and take action across the web."
             ].exists
         )
         XCTAssertFalse(element("agent-feedback-up", in: app).exists)
@@ -521,6 +521,34 @@ final class CandoaUITests: XCTestCase {
         attachment.name = "Eli Pro subscription gate"
         attachment.lifetime = .keepAlways
         add(attachment)
+    }
+
+    func testEliSubscriptionGateShowsConfirmationAndDisappearsAfterCheckout() throws {
+        let app = launchApp(fixture: "ask", checkoutSuccess: true)
+
+        app.typeKey("e", modifierFlags: .command)
+        XCTAssertTrue(element("agent-sidebar", in: app).waitForExistence(timeout: 5))
+        submitAskText("Summarize this page", in: app)
+
+        let subscriptionGate = element("agent-subscription-gate", in: app)
+        XCTAssertTrue(subscriptionGate.waitForExistence(timeout: 5), askState(in: app))
+        element("agent-subscribe-button", in: app).click()
+
+        let confirming = element("agent-subscription-confirming", in: app)
+        XCTAssertTrue(confirming.waitForExistence(timeout: 2), askState(in: app))
+        XCTAssertEqual(confirming.label, "Confirming subscription…")
+
+        let confirmingAttachment = XCTAttachment(screenshot: app.windows.firstMatch.screenshot())
+        confirmingAttachment.name = "Eli subscription confirming"
+        confirmingAttachment.lifetime = .keepAlways
+        add(confirmingAttachment)
+
+        let gateRemoved = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "exists == false"),
+            object: subscriptionGate
+        )
+        XCTAssertEqual(XCTWaiter.wait(for: [gateRemoved], timeout: 5), .completed)
+        XCTAssertFalse(element("agent-subscribe-button", in: app).exists)
     }
 
     func testEliSubscriptionGateIsNotTreatedAsAssistantContent() throws {
@@ -723,6 +751,7 @@ final class CandoaUITests: XCTestCase {
         onboardingStep: String? = nil,
         browserImportFixture: String? = nil,
         checkoutFailure: Bool = false,
+        checkoutSuccess: Bool = false,
         passkeySuccess: Bool = false,
         knownPasskeyAccount: Bool = false,
         websiteAppearance: String? = nil
@@ -748,6 +777,9 @@ final class CandoaUITests: XCTestCase {
         }
         if checkoutFailure {
             app.launchEnvironment["CANDOA_UI_TESTING_CHECKOUT_FAILURE"] = "1"
+        }
+        if checkoutSuccess {
+            app.launchEnvironment["CANDOA_UI_TESTING_CHECKOUT_SUCCESS"] = "1"
         }
         if passkeySuccess {
             app.launchEnvironment["CANDOA_UI_TESTING_PASSKEY_SUCCESS"] = "1"
