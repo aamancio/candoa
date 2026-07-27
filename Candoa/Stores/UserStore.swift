@@ -10,6 +10,7 @@ final class UserStore: ObservableObject {
     @Published private(set) var isStartingSubscription = false
     @Published private(set) var isAwaitingSubscriptionActivation = false
     @Published private(set) var isReconcilingSubscription = false
+    @Published private(set) var isSigningInWithApple = false
     @Published private(set) var isSigningInWithPasskey = false
     @Published private(set) var errorMessage: String?
     @Published private(set) var subscriptionErrorMessage: String?
@@ -22,6 +23,7 @@ final class UserStore: ObservableObject {
     @Published private(set) var signOutGeneration = 0
 
     private let accountService: CandoaAccountService
+    private let appleSignInService: CandoaAppleSignInService
     private let passkeyService: CandoaPasskeyService
     var hasActiveSubscription: Bool { status?.hasActiveSubscription == true }
     var canCreateReplacementPasskeyAccount: Bool {
@@ -43,9 +45,11 @@ final class UserStore: ObservableObject {
 
     init(
         accountService: CandoaAccountService = CandoaAccountService(),
+        appleSignInService: CandoaAppleSignInService = CandoaAppleSignInService(),
         passkeyService: CandoaPasskeyService = CandoaPasskeyService()
     ) {
         self.accountService = accountService
+        self.appleSignInService = appleSignInService
         self.passkeyService = passkeyService
         let hasStoredToken = accountService.accessToken != nil
         isSignedIn = false
@@ -85,6 +89,12 @@ final class UserStore: ObservableObject {
     func createPasskey() {
         Task {
             await registerPasskey()
+        }
+    }
+
+    func signInWithApple() {
+        Task {
+            await authenticateWithApple()
         }
     }
 
@@ -160,6 +170,7 @@ final class UserStore: ObservableObject {
             try? await Task.sleep(for: .seconds(2))
             status = CandoaAccountStatus(
                 hasPasskey: true,
+                hasAppleAccount: true,
                 planID: "pro",
                 allowedModelIDs: ["openai/gpt-5"]
             )
@@ -172,25 +183,17 @@ final class UserStore: ObservableObject {
             return
         }
 
-        if accountService.accessToken == nil {
-            await createAnonymousSession()
+        if status?.hasAppleAccount != true {
+            await authenticateWithApple()
         }
-        guard hasCloudSession else {
+        guard isSignedIn, status?.hasAppleAccount == true else {
             subscriptionErrorMessage = errorMessage
-                ?? "Candoa couldn’t start checkout. Please try again."
-            return
-        }
-        if status?.hasPasskey != true {
-            let registered = await registerPasskey()
-            guard registered else { return }
-        }
-        guard isSignedIn, status?.hasPasskey == true else {
-            subscriptionErrorMessage = "Set up your Candoa account before subscribing."
+                ?? "Sign in with Apple before subscribing."
             return
         }
 
         await refresh()
-        guard isSignedIn, status?.hasPasskey == true else {
+        guard isSignedIn, status?.hasAppleAccount == true else {
             subscriptionErrorMessage = errorMessage
                 ?? "Candoa couldn’t verify your account before checkout."
             return
@@ -358,6 +361,68 @@ final class UserStore: ObservableObject {
         }
     }
 
+    private func authenticateWithApple() async {
+        guard !isSigningInWithApple, !isWorking else { return }
+
+        if ProcessInfo.processInfo.environment["CANDOA_UI_TESTING_APPLE_SUCCESS"] == "1" {
+            isSignedIn = true
+            isLocalOnly = false
+            hasCloudSession = true
+            status = CandoaAccountStatus(
+                hasPasskey: false,
+                hasAppleAccount: true,
+                planID: status?.planID ?? "free",
+                allowedModelIDs: status?.allowedModelIDs ?? []
+            )
+            markAccountChoiceCompleted()
+            errorMessage = nil
+            accountMessage = "You’re signed in with Apple."
+            return
+        }
+
+        isSigningInWithApple = true
+        isWorking = true
+        errorMessage = nil
+        accountMessage = nil
+        let previousAccessToken = accountService.accessToken
+        defer {
+            isSigningInWithApple = false
+            isWorking = false
+        }
+
+        do {
+            let shouldLinkExistingAccount =
+                isSignedIn && !isLocalOnly && previousAccessToken != nil
+            let authorizationURL = try await accountService.appleSignInURL(
+                accessToken: shouldLinkExistingAccount ? previousAccessToken : nil
+            )
+            let code = try await appleSignInService.authenticate(at: authorizationURL)
+            let accessToken = try await accountService.exchangeAppleSignInCode(code)
+
+            if let previousAccessToken, previousAccessToken != accessToken {
+                try? await accountService.signOut(accessToken: previousAccessToken)
+            }
+            try accountService.saveAccessToken(accessToken)
+            try await loadSession(accessToken: accessToken)
+            try await refreshAccountStatus(accessToken: accessToken)
+            guard isSignedIn, status?.hasAppleAccount == true else {
+                throw CandoaAccountError.invalidResponse
+            }
+
+            markAccountChoiceCompleted()
+            errorMessage = nil
+            accountMessage = hasActiveSubscription
+                ? "Your Candoa subscription has been restored."
+                : "You’re signed in with Apple."
+        } catch {
+            if Self.isAppleSignInCancellation(error) {
+                errorMessage = nil
+            } else {
+                errorMessage = error.localizedDescription
+            }
+        }
+    }
+
     @discardableResult
     private func registerPasskey() async -> Bool {
         guard !isWorking else { return false }
@@ -522,5 +587,11 @@ final class UserStore: ObservableObject {
         let error = error as NSError
         return error.domain == ASAuthorizationError.errorDomain
             && error.code == ASAuthorizationError.canceled.rawValue
+    }
+
+    private static func isAppleSignInCancellation(_ error: any Error) -> Bool {
+        let error = error as NSError
+        return error.domain == ASWebAuthenticationSessionError.errorDomain
+            && error.code == ASWebAuthenticationSessionError.canceledLogin.rawValue
     }
 }

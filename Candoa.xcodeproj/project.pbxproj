@@ -81,6 +81,7 @@
 		C3A2B3D4E5F60718293A4B5C /* SidebarWindowControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3A2B3C4E5F60718293A4B5C /* SidebarWindowControls.swift */; };
 		C4A2B3D4E5F60718293A4B5C /* SidebarDragDrop.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4A2B3C4E5F60718293A4B5C /* SidebarDragDrop.swift */; };
 		CC0000000000000000000101 /* CandoaPasskeyService.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC0000000000000000000001 /* CandoaPasskeyService.swift */; };
+		DD0000000000000000000101 /* CandoaAppleSignInService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD0000000000000000000001 /* CandoaAppleSignInService.swift */; };
 		E1A2B3D4F5C60718293A4B5C /* SettingsPanes.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A2B3C4D5E60718293A4B5C /* SettingsPanes.swift */; };
 		E2A2B3D4F5C60718293A4B5C /* EliSettingsPane.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2A2B3C4D5E60718293A4B5C /* EliSettingsPane.swift */; };
 		E3A2B3D4F5C60718293A4B5C /* ShortcutSettingsComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3A2B3C4D5E60718293A4B5C /* ShortcutSettingsComponents.swift */; };
@@ -193,6 +194,7 @@
 		BA0000000000000000000002 /* BrowserAgent */ = {isa = PBXFileReference; lastKnownFileType = folder; path = BrowserAgent; sourceTree = "<group>"; };
 		BB0000000000000000000001 /* BrowserPasskeyAuthorizationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserPasskeyAuthorizationService.swift; sourceTree = "<group>"; };
 		CC0000000000000000000001 /* CandoaPasskeyService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CandoaPasskeyService.swift; sourceTree = "<group>"; };
+		DD0000000000000000000001 /* CandoaAppleSignInService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CandoaAppleSignInService.swift; sourceTree = "<group>"; };
 		D1A2B3C4E5F60718293A4B5C /* SidebarSpaceComposer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarSpaceComposer.swift; sourceTree = "<group>"; };
 		D2A2B3C4E5F60718293A4B5C /* SidebarTabSections.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarTabSections.swift; sourceTree = "<group>"; };
 		D3A2B3C4E5F60718293A4B5C /* SidebarWindowControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarWindowControls.swift; sourceTree = "<group>"; };
@@ -351,6 +353,7 @@
 				EF0000000000000000000003 /* CandoaBrowserAgent.swift */,
 				EF0000000000000000000004 /* CandoaPageActionProposal.swift */,
 				010000000000000000000066 /* CandoaAccountService.swift */,
+				DD0000000000000000000001 /* CandoaAppleSignInService.swift */,
 				CC0000000000000000000001 /* CandoaPasskeyService.swift */,
 				010000000000000000000068 /* BrowserImportService.swift */,
 				BB0000000000000000000001 /* BrowserPasskeyAuthorizationService.swift */,
@@ -640,6 +643,7 @@
 				EF0000000000000000000103 /* CandoaBrowserAgent.swift in Sources */,
 				EF0000000000000000000104 /* CandoaPageActionProposal.swift in Sources */,
 				010000000000000000000176 /* CandoaAccountService.swift in Sources */,
+				DD0000000000000000000101 /* CandoaAppleSignInService.swift in Sources */,
 				CC0000000000000000000101 /* CandoaPasskeyService.swift in Sources */,
 				010000000000000000000177 /* InitialOnboardingView.swift in Sources */,
 				010000000000000000000178 /* BrowserImportService.swift in Sources */,

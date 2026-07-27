@@ -106,19 +106,23 @@ internal struct EliSettingsPane: View {
                     SettingsDivider()
 
                     SettingsRow(
-                        systemImage: userStore.status?.hasPasskey == true
-                            ? "key.fill"
-                            : "laptopcomputer",
-                        title: userStore.status?.hasPasskey == true
-                            ? "Passkey ready"
-                            : "Subscription access on this Mac",
-                        subtitle: userStore.status?.hasPasskey == true
-                            ? "Use your passkey for subscriptions and hosted services on another Mac."
-                            : "Create a passkey to use subscriptions and hosted services on another Mac."
+                        systemImage: userStore.status?.hasAppleAccount == true
+                            ? "checkmark.circle.fill"
+                            : "apple.logo",
+                        title: userStore.status?.hasAppleAccount == true
+                            ? "Signed in with Apple"
+                            : "Restore your Candoa account",
+                        subtitle: userStore.status?.hasAppleAccount == true
+                            ? "Subscriptions and hosted services follow your Apple-linked Candoa account."
+                            : "Sign in with Apple to use your subscription on this or another Mac."
                     ) {
-                        if userStore.status?.hasPasskey != true {
-                            Button("Create Passkey") {
-                                userStore.createPasskey()
+                        if userStore.status?.hasAppleAccount != true {
+                            Button(
+                                userStore.isSigningInWithApple
+                                    ? "Signing In…"
+                                    : "Sign In with Apple"
+                            ) {
+                                userStore.signInWithApple()
                             }
                             .candoaButton(.secondary)
                             .controlSize(.small)
@@ -126,13 +130,14 @@ internal struct EliSettingsPane: View {
                         }
                     }
 
-                    if !userStore.isSignedIn {
+                    if userStore.status?.hasAppleAccount != true
+                        && userStore.hasKnownPasskeyAccount {
                         SettingsDivider()
 
                         SettingsRow(
                             systemImage: "person.crop.circle.badge.checkmark",
-                            title: "Use an existing account",
-                            subtitle: "Sign in to subscriptions and hosted services with your passkey."
+                            title: "Legacy account recovery",
+                            subtitle: "Use an existing Candoa passkey, then connect Apple to keep this account."
                         ) {
                             Button(
                                 userStore.isSigningInWithPasskey ? "Signing In…" : "Sign In"

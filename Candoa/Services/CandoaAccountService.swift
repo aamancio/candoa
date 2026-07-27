@@ -65,17 +65,25 @@ enum CandoaAccountKeychain {
 
 struct CandoaAccountStatus: Decodable, Sendable {
     let hasPasskey: Bool
+    let hasAppleAccount: Bool
     let planID: String
     let allowedModelIDs: [String]
 
     private enum CodingKeys: String, CodingKey {
         case hasPasskey
+        case hasAppleAccount
         case planID
         case allowedModelIDs
     }
 
-    init(hasPasskey: Bool, planID: String, allowedModelIDs: [String]) {
+    init(
+        hasPasskey: Bool,
+        hasAppleAccount: Bool = false,
+        planID: String,
+        allowedModelIDs: [String]
+    ) {
         self.hasPasskey = hasPasskey
+        self.hasAppleAccount = hasAppleAccount
         self.planID = planID
         self.allowedModelIDs = allowedModelIDs
     }
@@ -83,6 +91,10 @@ struct CandoaAccountStatus: Decodable, Sendable {
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         hasPasskey = try container.decodeIfPresent(Bool.self, forKey: .hasPasskey) ?? false
+        hasAppleAccount = try container.decodeIfPresent(
+            Bool.self,
+            forKey: .hasAppleAccount
+        ) ?? false
         planID = try container.decode(String.self, forKey: .planID)
         allowedModelIDs = try container.decode(
             [String].self,
@@ -166,6 +178,38 @@ enum CandoaCloudAPI {
             body: EmptyRequest(),
             accessToken: accessToken
         )
+    }
+
+    static func appleSignInURL(accessToken: String?) async throws -> URL {
+        let path = accessToken == nil
+            ? "auth/native-apple/sign-in-intent"
+            : "auth/native-apple/link-intent"
+        let response: CandoaURLResponse = try await request(
+            productionBaseURL.appending(path: path),
+            method: "POST",
+            body: EmptyRequest(),
+            accessToken: accessToken
+        )
+        guard let url = URL(string: response.url),
+              url.scheme == "https",
+              url.host == productionBaseURL.host else {
+            throw CandoaAccountError.invalidResponse
+        }
+        return url
+    }
+
+    static func exchangeAppleSignInCode(_ code: String) async throws -> String {
+        let (_, response) = try await dataRequest(
+            productionBaseURL.appending(path: "auth/native-apple/exchange"),
+            method: "POST",
+            body: AppleCodeRequest(code: code),
+            accessToken: nil
+        )
+        guard let accessToken = response.value(forHTTPHeaderField: "set-auth-token"),
+              !accessToken.isEmpty else {
+            throw CandoaAccountError.invalidResponse
+        }
+        return accessToken
     }
 
     static func passkeyRegistrationOptions(
@@ -397,6 +441,10 @@ enum CandoaCloudAPI {
         let planID: String
     }
 
+    private struct AppleCodeRequest: Encodable {
+        let code: String
+    }
+
     private struct CandoaURLResponse: Decodable {
         let url: String
     }
@@ -420,6 +468,14 @@ struct CandoaAccountService {
 
     func signOut(accessToken: String) async throws {
         try await CandoaCloudAPI.signOut(accessToken: accessToken)
+    }
+
+    func appleSignInURL(accessToken: String?) async throws -> URL {
+        try await CandoaCloudAPI.appleSignInURL(accessToken: accessToken)
+    }
+
+    func exchangeAppleSignInCode(_ code: String) async throws -> String {
+        try await CandoaCloudAPI.exchangeAppleSignInCode(code)
     }
 
     func passkeyRegistrationOptions(

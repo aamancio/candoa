@@ -250,21 +250,22 @@ final class CandoaUITests: XCTestCase {
         XCTAssertFalse(element("account-onboarding", in: app).exists)
     }
 
-    func testAccountOnboardingOffersPasskeyOrAnonymousUse() throws {
+    func testAccountOnboardingOffersAppleOrLocalUse() throws {
         let app = launchApp(onboardingStep: "account")
         let accountOnboarding = element("account-onboarding", in: app).firstMatch
 
         XCTAssertTrue(accountOnboarding.waitForExistence(timeout: 10))
         XCTAssertEqual(accountOnboarding.value as? String, "idle")
-        XCTAssertTrue(app.buttons["Sign Up"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.links["Sign In"].exists)
+        XCTAssertTrue(app.buttons["Continue with Apple"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["Not Now"].exists)
-        XCTAssertTrue(
-            app.staticTexts[
-                "Create an account for subscriptions and hosted services. Your Spaces and tabs sync separately through iCloud."
-            ].exists
+        let description = app.staticTexts.matching(
+            NSPredicate(
+                format: "label CONTAINS %@",
+                "Your Spaces and tabs continue to sync privately through iCloud."
+            )
         )
-        XCTAssertFalse(app.buttons["Continue with Apple"].exists)
+        XCTAssertEqual(description.count, 1)
+        XCTAssertFalse(app.links["Use Existing Candoa Passkey"].exists)
         XCTAssertFalse(app.webViews.firstMatch.exists)
     }
 
@@ -286,7 +287,7 @@ final class CandoaUITests: XCTestCase {
         )
     }
 
-    func testReturningPasskeyAccountRequiresSignIn() throws {
+    func testReturningPasskeyAccountOffersAppleAndLegacyRecovery() throws {
         let app = launchApp(
             onboardingStep: "account",
             knownPasskeyAccount: true
@@ -294,11 +295,10 @@ final class CandoaUITests: XCTestCase {
         let accountOnboarding = element("account-onboarding", in: app).firstMatch
 
         XCTAssertTrue(accountOnboarding.waitForExistence(timeout: 10))
-        XCTAssertTrue(app.staticTexts["Welcome back"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["Sign In"].exists)
-        XCTAssertFalse(app.buttons["Sign Up"].exists)
-        XCTAssertFalse(app.buttons["Not Now"].exists)
-        XCTAssertTrue(app.buttons["Create a Different Account…"].exists)
+        XCTAssertTrue(app.staticTexts["Keep your Candoa account with you"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Continue with Apple"].exists)
+        XCTAssertTrue(app.links["Use Existing Candoa Passkey"].exists)
+        XCTAssertTrue(app.buttons["Not Now"].exists)
     }
 
     func testNotNowCompletesAccountSetup() throws {
@@ -317,12 +317,12 @@ final class CandoaUITests: XCTestCase {
         XCTAssertEqual(XCTWaiter.wait(for: [dismissed], timeout: 5), .completed)
     }
 
-    func testCreatingPasskeyCompletesAccountSetup() throws {
-        let app = launchApp(onboardingStep: "account", passkeySuccess: true)
+    func testSigningInWithAppleCompletesAccountSetup() throws {
+        let app = launchApp(onboardingStep: "account", appleSuccess: true)
         let accountOnboarding = element("account-onboarding", in: app).firstMatch
         XCTAssertTrue(accountOnboarding.waitForExistence(timeout: 10))
 
-        app.buttons["Sign Up"].click()
+        app.buttons["Continue with Apple"].click()
 
         let dismissed = XCTNSPredicateExpectation(
             predicate: NSPredicate(format: "exists == false"),
@@ -512,7 +512,7 @@ final class CandoaUITests: XCTestCase {
         let app = launchApp(
             fixture: "ask",
             checkoutFailure: true,
-            passkeySuccess: true,
+            appleSuccess: true,
             knownPasskeyAccount: true
         )
 
@@ -526,7 +526,7 @@ final class CandoaUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Sign in to use Eli"].exists)
         XCTAssertTrue(
             app.staticTexts[
-                "Use your passkey to restore your Candoa subscription on this Mac."
+                "Sign in with Apple to restore your Candoa subscription on this Mac."
             ].exists
         )
         XCTAssertFalse(element("agent-feedback-up", in: app).exists)
@@ -534,7 +534,7 @@ final class CandoaUITests: XCTestCase {
 
         let signInButton = element("agent-sign-in-button", in: app)
         XCTAssertTrue(signInButton.exists)
-        XCTAssertEqual(signInButton.label, "Sign In")
+        XCTAssertEqual(signInButton.label, "Sign In with Apple")
         XCTAssertFalse(element("agent-subscribe-button", in: app).exists)
 
         let signedOutAttachment = XCTAttachment(screenshot: app.windows.firstMatch.screenshot())
@@ -571,7 +571,7 @@ final class CandoaUITests: XCTestCase {
         let app = launchApp(
             fixture: "ask-streaming",
             checkoutSuccess: true,
-            passkeySuccess: true,
+            appleSuccess: true,
             knownPasskeyAccount: true
         )
 
@@ -616,11 +616,9 @@ final class CandoaUITests: XCTestCase {
         XCTAssertFalse(askState(in: app).contains("||2:user:"), askState(in: app))
     }
 
-    func testEliMissingPasskeyOffersAccountRecovery() throws {
+    func testEliOffersLegacyPasskeyRecoveryAlongsideApple() throws {
         let app = launchApp(
             fixture: "ask",
-            passkeySuccess: true,
-            passkeyNotFound: true,
             knownPasskeyAccount: true
         )
 
@@ -632,35 +630,21 @@ final class CandoaUITests: XCTestCase {
             element("agent-subscription-gate", in: app).waitForExistence(timeout: 5),
             askState(in: app)
         )
-        element("agent-sign-in-button", in: app).click()
-
-        let passkeyError = element("agent-subscribe-error", in: app)
-        XCTAssertTrue(passkeyError.waitForExistence(timeout: 5), askState(in: app))
-        XCTAssertTrue(app.staticTexts["Passkey not found"].exists)
-
-        let createAccountButton = element("agent-create-account-button", in: app)
-        XCTAssertTrue(createAccountButton.exists)
-        XCTAssertEqual(createAccountButton.label, "Create New Account")
+        let recoveryButton = element("agent-passkey-recovery-button", in: app)
+        XCTAssertTrue(recoveryButton.exists)
+        XCTAssertEqual(recoveryButton.label, "Use Existing Candoa Passkey")
 
         let recoveryAttachment = XCTAttachment(screenshot: app.windows.firstMatch.screenshot())
-        recoveryAttachment.name = "Eli missing-passkey recovery"
+        recoveryAttachment.name = "Eli Apple sign-in with legacy passkey recovery"
         recoveryAttachment.lifetime = .keepAlways
         add(recoveryAttachment)
-
-        createAccountButton.click()
-        XCTAssertTrue(
-            element("agent-subscribe-button", in: app).waitForExistence(timeout: 5),
-            askState(in: app)
-        )
-        XCTAssertFalse(passkeyError.exists)
-        XCTAssertFalse(createAccountButton.exists)
     }
 
     func testSignOutKeepsBrowsingAndResetsHostedEli() throws {
         let app = launchApp(
             fixture: "ask-streaming",
             checkoutSuccess: true,
-            passkeySuccess: true,
+            appleSuccess: true,
             knownPasskeyAccount: true
         )
 
@@ -920,6 +904,7 @@ final class CandoaUITests: XCTestCase {
         browserImportFixture: String? = nil,
         checkoutFailure: Bool = false,
         checkoutSuccess: Bool = false,
+        appleSuccess: Bool = false,
         passkeySuccess: Bool = false,
         passkeyNotFound: Bool = false,
         knownPasskeyAccount: Bool = false,
@@ -950,6 +935,9 @@ final class CandoaUITests: XCTestCase {
         }
         if checkoutSuccess {
             app.launchEnvironment["CANDOA_UI_TESTING_CHECKOUT_SUCCESS"] = "1"
+        }
+        if appleSuccess {
+            app.launchEnvironment["CANDOA_UI_TESTING_APPLE_SUCCESS"] = "1"
         }
         if passkeySuccess {
             app.launchEnvironment["CANDOA_UI_TESTING_PASSKEY_SUCCESS"] = "1"

@@ -71,10 +71,10 @@ struct AISidebarSubscriptionGateView: View {
 
     var body: some View {
         let isSubscribing = userStore.isStartingSubscription
-        let isSigningIn = userStore.isSigningInWithPasskey
+        let isSigningIn = userStore.isSigningInWithApple
         let isPending = userStore.isAwaitingSubscriptionActivation
         let isConfirming = userStore.isReconcilingSubscription
-        let requiresSignIn = !userStore.isSignedIn && userStore.hasKnownPasskeyAccount
+        let requiresSignIn = userStore.status?.hasAppleAccount != true
 
         GroupBox {
             VStack(alignment: .leading, spacing: 12) {
@@ -88,7 +88,7 @@ struct AISidebarSubscriptionGateView: View {
 
                 Text(
                     requiresSignIn
-                        ? "Use your passkey to restore your Candoa subscription on this Mac."
+                        ? "Sign in with Apple to restore your Candoa subscription on this Mac."
                         : "Summarize pages, answer questions, and let Eli research and take action across the web."
                 )
                     .font(.system(size: 13.5))
@@ -117,7 +117,7 @@ struct AISidebarSubscriptionGateView: View {
                     .accessibilityIdentifier("agent-subscription-check-button")
                 } else if requiresSignIn {
                     Button {
-                        userStore.signInWithPasskey()
+                        userStore.signInWithApple()
                     } label: {
                         HStack(spacing: 7) {
                             if isSigningIn {
@@ -125,13 +125,16 @@ struct AISidebarSubscriptionGateView: View {
                                     .controlSize(.small)
                             }
 
-                            Text(isSigningIn ? "Signing In…" : "Sign In")
+                            if !isSigningIn {
+                                Image(systemName: "apple.logo")
+                            }
+                            Text(isSigningIn ? "Signing In…" : "Sign In with Apple")
                         }
                     }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.regular)
                     .disabled(isSigningIn || userStore.isWorking)
-                    .accessibilityLabel(isSigningIn ? "Signing In" : "Sign In")
+                    .accessibilityLabel(isSigningIn ? "Signing In" : "Sign In with Apple")
                     .accessibilityValue(isSigningIn ? "signing-in" : "idle")
                     .accessibilityIdentifier("agent-sign-in-button")
                 } else {
@@ -172,13 +175,13 @@ struct AISidebarSubscriptionGateView: View {
                     .accessibilityIdentifier("agent-subscribe-error")
                 }
 
-                if userStore.canCreateReplacementPasskeyAccount {
-                    Button("Create New Account") {
-                        userStore.createReplacementPasskeyAccount()
+                if requiresSignIn && userStore.hasKnownPasskeyAccount {
+                    Button("Use Existing Candoa Passkey") {
+                        userStore.signInWithPasskey()
                     }
                     .buttonStyle(.link)
                     .disabled(userStore.isWorking)
-                    .accessibilityIdentifier("agent-create-account-button")
+                    .accessibilityIdentifier("agent-passkey-recovery-button")
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
