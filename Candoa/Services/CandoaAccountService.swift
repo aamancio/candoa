@@ -126,6 +126,18 @@ enum CandoaCloudAPI {
     private static let productionBaseURL = URL(string: "https://www.candoa.app/api")!
     private static let developmentBaseURL = URL(string: "http://127.0.0.1:3000/api")!
 
+    private static var appleAuthenticationBaseURL: URL {
+#if DEBUG
+        if let value = ProcessInfo.processInfo.environment["CANDOA_APPLE_AUTH_BASE_URL"],
+           let url = URL(string: value),
+           url.scheme == "https",
+           url.host(percentEncoded: false) != nil {
+            return url
+        }
+#endif
+        return productionBaseURL
+    }
+
     static var aiChatURL: URL {
         return endpoint("ai/chat")
     }
@@ -175,14 +187,14 @@ enum CandoaCloudAPI {
             ? "auth/native-apple/sign-in-intent"
             : "auth/native-apple/link-intent"
         let response: CandoaURLResponse = try await request(
-            productionBaseURL.appending(path: path),
+            appleAuthenticationBaseURL.appending(path: path),
             method: "POST",
             body: EmptyRequest(),
             accessToken: accessToken
         )
         guard let url = URL(string: response.url),
               url.scheme == "https",
-              url.host == productionBaseURL.host else {
+              url.host == appleAuthenticationBaseURL.host else {
             throw CandoaAccountError.invalidResponse
         }
         return url
@@ -190,7 +202,7 @@ enum CandoaCloudAPI {
 
     static func exchangeAppleSignInCode(_ code: String) async throws -> String {
         let (_, response) = try await dataRequest(
-            productionBaseURL.appending(path: "auth/native-apple/exchange"),
+            appleAuthenticationBaseURL.appending(path: "auth/native-apple/exchange"),
             method: "POST",
             body: AppleCodeRequest(code: code),
             accessToken: nil
