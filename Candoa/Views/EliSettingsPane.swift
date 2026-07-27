@@ -111,10 +111,10 @@ internal struct EliSettingsPane: View {
                             : "laptopcomputer",
                         title: userStore.status?.hasPasskey == true
                             ? "Passkey ready"
-                            : "Only on this Mac",
+                            : "Subscription access on this Mac",
                         subtitle: userStore.status?.hasPasskey == true
-                            ? "Use your passkey to access this account on another device."
-                            : "Create a passkey to keep this account available on your devices."
+                            ? "Use your passkey for subscriptions and hosted services on another Mac."
+                            : "Create a passkey to use subscriptions and hosted services on another Mac."
                     ) {
                         if userStore.status?.hasPasskey != true {
                             Button("Create Passkey") {
@@ -132,7 +132,7 @@ internal struct EliSettingsPane: View {
                         SettingsRow(
                             systemImage: "person.crop.circle.badge.checkmark",
                             title: "Use an existing account",
-                            subtitle: "Sign in with a passkey you already created."
+                            subtitle: "Sign in to subscriptions and hosted services with your passkey."
                         ) {
                             Button(
                                 userStore.isSigningInWithPasskey ? "Signing In…" : "Sign In"

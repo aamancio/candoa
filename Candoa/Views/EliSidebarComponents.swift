@@ -137,6 +137,7 @@ struct AISidebarSubscriptionGateView: View {
                     .font(.system(size: 12.5))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityLabel(subscriptionErrorMessage)
                     .accessibilityIdentifier("agent-subscribe-error")
                 }
             }

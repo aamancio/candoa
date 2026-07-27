@@ -32,7 +32,7 @@ extension BrowserStore {
     }
 
     private var nextAccountOrTourStep: InitialOnboardingStep {
-        .account
+        .tour
     }
 
     func completeInitialSpaceSetup(
@@ -100,17 +100,10 @@ extension BrowserStore {
     }
 
     func reconcileAccountSetup(hasCompletedAccountChoice: Bool) {
-        guard !Self.isUITesting else { return }
-        guard hasCompletedAccountChoice else {
-            switch initialOnboardingStep {
-            case .tour, .none:
-                setInitialOnboardingStep(.account)
-            case .welcome, .account, .importData, .space:
-                break
-            }
+        guard isInitialAccountSetupPresented else { return }
+        if Self.isUITesting, !hasCompletedAccountChoice {
             return
         }
-        guard isInitialAccountSetupPresented else { return }
 
         if needsInitialSpaceSetup() {
             setInitialOnboardingStep(.space)

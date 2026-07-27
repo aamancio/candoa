@@ -183,7 +183,7 @@ final class CandoaUITests: XCTestCase {
 
         let spaceStep = element("initial-onboarding-space", in: app)
         XCTAssertTrue(spaceStep.waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["2 of 3"].exists)
+        XCTAssertTrue(app.staticTexts["2 of 2"].exists)
         XCTAssertFalse(element("account-onboarding", in: app).exists)
     }
 
@@ -228,7 +228,7 @@ final class CandoaUITests: XCTestCase {
         XCTAssertFalse(app.buttons["Continue"].exists)
     }
 
-    func testCreateSpaceButtonAcceptsClicksAcrossItsVisibleWidth() throws {
+    func testCreateSpaceButtonStartsTourWithoutRequiringAnAccount() throws {
         let app = launchApp(onboardingStep: "space")
         let createSpaceButton = app.buttons["Create Space"]
         XCTAssertTrue(createSpaceButton.waitForExistence(timeout: 10))
@@ -244,9 +244,10 @@ final class CandoaUITests: XCTestCase {
         )
         XCTAssertEqual(XCTWaiter.wait(for: [dismissed], timeout: 5), .completed)
         XCTAssertTrue(
-            element("account-onboarding", in: app).waitForExistence(timeout: 5),
-            "Creating the initial Space should continue to the passkey account choice."
+            element("initial-tour-command-bar", in: app).waitForExistence(timeout: 5),
+            "Creating the initial Space should start the tour without requiring a Candoa account."
         )
+        XCTAssertFalse(element("account-onboarding", in: app).exists)
     }
 
     func testAccountOnboardingOffersPasskeyOrAnonymousUse() throws {
@@ -258,8 +259,31 @@ final class CandoaUITests: XCTestCase {
         XCTAssertTrue(app.buttons["Sign Up"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.links["Sign In"].exists)
         XCTAssertTrue(app.buttons["Not Now"].exists)
+        XCTAssertTrue(
+            app.staticTexts[
+                "Create an account for subscriptions and hosted services. Your Spaces and tabs sync separately through iCloud."
+            ].exists
+        )
         XCTAssertFalse(app.buttons["Continue with Apple"].exists)
         XCTAssertFalse(app.webViews.firstMatch.exists)
+    }
+
+    func testSyncSettingsExplainICloudWorkspaceOwnership() throws {
+        let app = launchApp(cloudKitEntitlement: true)
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
+
+        app.typeKey(",", modifierFlags: .command)
+        let syncButton = app.buttons["Sync"]
+        XCTAssertTrue(syncButton.waitForExistence(timeout: 5))
+        syncButton.click()
+
+        XCTAssertTrue(app.staticTexts["Workspace recovery"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Uses this Mac’s Apple Account"].exists)
+        XCTAssertTrue(
+            app.staticTexts[
+                "Candoa subscription sign-in does not control or delete your browser workspace."
+            ].exists
+        )
     }
 
     func testReturningPasskeyAccountRequiresSignIn() throws {
@@ -512,7 +536,9 @@ final class CandoaUITests: XCTestCase {
         subscribeButton.click()
         let subscribeError = element("agent-subscribe-error", in: app)
         XCTAssertTrue(subscribeError.waitForExistence(timeout: 5), askState(in: app))
-        XCTAssertEqual(subscribeError.label, "Candoa checkout is temporarily unavailable.")
+        XCTAssertTrue(
+            app.staticTexts["Candoa checkout is temporarily unavailable."].waitForExistence(timeout: 5)
+        )
         XCTAssertTrue(subscribeButton.isEnabled)
         XCTAssertEqual(subscribeButton.label, "Subscribe")
         XCTAssertEqual(subscribeButton.value as? String, "idle")
@@ -754,7 +780,8 @@ final class CandoaUITests: XCTestCase {
         checkoutSuccess: Bool = false,
         passkeySuccess: Bool = false,
         knownPasskeyAccount: Bool = false,
-        websiteAppearance: String? = nil
+        websiteAppearance: String? = nil,
+        cloudKitEntitlement: Bool = false
     ) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments += ["-ApplePersistenceIgnoreState", "YES"]
@@ -786,6 +813,9 @@ final class CandoaUITests: XCTestCase {
         }
         if knownPasskeyAccount {
             app.launchEnvironment["CANDOA_UI_TESTING_KNOWN_PASSKEY_ACCOUNT"] = "1"
+        }
+        if cloudKitEntitlement {
+            app.launchEnvironment["CANDOA_UI_TESTING_CLOUDKIT_ENTITLEMENT"] = "1"
         }
 
         app.launch()

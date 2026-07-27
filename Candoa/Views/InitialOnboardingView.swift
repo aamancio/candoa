@@ -349,15 +349,15 @@ private struct AccountOnboardingStep: View {
                         .foregroundStyle(CandoaInterfaceStyle.decorativeSymbol)
 
                     VStack(spacing: 10) {
-                        Text(userStore.hasKnownPasskeyAccount ? "Welcome back" : "Keep your account with you")
+                        Text(userStore.hasKnownPasskeyAccount ? "Welcome back" : "Set up Candoa services")
                             .font(.system(size: 30, weight: .semibold))
                             .tracking(-0.4)
                             .multilineTextAlignment(.center)
 
                         Text(
                             userStore.hasKnownPasskeyAccount
-                                ? "Sign in with your existing Candoa passkey to continue."
-                                : "Create an account to sign in to Candoa on your other devices."
+                                ? "Sign in with your Candoa passkey for subscriptions and hosted services."
+                                : "Create an account for subscriptions and hosted services. Your Spaces and tabs sync separately through iCloud."
                         )
                             .font(.system(size: 14))
                             .foregroundStyle(.secondary)
@@ -386,7 +386,7 @@ private struct AccountOnboardingStep: View {
                         .disabled(userStore.isWorking)
                         .accessibilityIdentifier("onboarding-sign-in-passkey")
 
-                        Text("A passkey account already exists on this Mac.")
+                        Text("A Candoa services passkey already exists on this Mac.")
                             .font(.system(size: 13))
                             .foregroundStyle(.secondary)
                     } else {

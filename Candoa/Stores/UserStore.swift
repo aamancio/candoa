@@ -42,8 +42,10 @@ final class UserStore: ObservableObject {
         isSignedIn = false
         hasCloudSession = hasStoredToken
         isLocalOnly = false
-        hasCompletedAccountChoice = hasStoredToken || Self.hasStoredAccountChoice
         let environment = ProcessInfo.processInfo.environment
+        hasCompletedAccountChoice = environment["CANDOA_UI_TESTING"] == "1"
+            ? false
+            : hasStoredToken || Self.hasStoredAccountChoice
         hasKnownPasskeyAccount = environment["CANDOA_UI_TESTING"] == "1"
             ? environment["CANDOA_UI_TESTING_KNOWN_PASSKEY_ACCOUNT"] == "1"
             : UserDefaults.standard.bool(forKey: Self.knownPasskeyAccountKey)

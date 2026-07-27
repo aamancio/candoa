@@ -1,3 +1,4 @@
+import CloudKit
 import CoreData
 import Foundation
 import Security
@@ -34,7 +35,12 @@ enum CandoaSyncPreferences {
     private static let historyKey = "Candoa.Sync.HistoryWithICloud"
 
     static var syncsWorkspaceWithICloud: Bool {
-        get { UserDefaults.standard.bool(forKey: workspaceKey) }
+        get {
+            guard let storedValue = UserDefaults.standard.object(forKey: workspaceKey) as? Bool else {
+                return true
+            }
+            return storedValue
+        }
         set {
             UserDefaults.standard.set(newValue, forKey: workspaceKey)
             if !newValue {
@@ -53,6 +59,11 @@ enum CandoaSyncPreferences {
 
 enum CandoaCloudKitEntitlements {
     static var hasConfiguredContainer: Bool {
+        let environment = ProcessInfo.processInfo.environment
+        if environment["CANDOA_UI_TESTING"] == "1" {
+            return environment["CANDOA_UI_TESTING_CLOUDKIT_ENTITLEMENT"] == "1"
+        }
+
         guard let task = SecTaskCreateFromSelf(nil) else { return false }
         guard let value = SecTaskCopyValueForEntitlement(
             task,
@@ -202,9 +213,11 @@ struct PersistenceService: @unchecked Sendable {
         description.setOption(true as NSNumber, forKey: NSPersistentStoreRemoteChangeNotificationPostOptionKey)
 
         if let cloudKitContainerIdentifier {
-            description.cloudKitContainerOptions = NSPersistentCloudKitContainerOptions(
+            let options = NSPersistentCloudKitContainerOptions(
                 containerIdentifier: cloudKitContainerIdentifier
             )
+            options.databaseScope = .private
+            description.cloudKitContainerOptions = options
         }
 
         return description
@@ -830,7 +843,7 @@ struct PersistenceService: @unchecked Sendable {
         case .stringAttributeType:
             return ""
         case .UUIDAttributeType:
-            return UUID()
+            return UUID(uuidString: "00000000-0000-0000-0000-000000000000")
         case .dateAttributeType:
             return Date(timeIntervalSince1970: 0)
         case .booleanAttributeType:

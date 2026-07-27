@@ -103,9 +103,9 @@ internal struct GeneralSettingsPane: View {
                 SettingsCard {
                     SettingsToggleRow(
                         systemImage: "square.grid.2x2",
-                        title: "Sync Spaces with iCloud",
+                        title: "Sync Spaces and tabs with iCloud",
                         subtitle: CandoaCloudKitEntitlements.hasConfiguredContainer
-                            ? "Keep Spaces and tabs available on your Macs."
+                            ? "Keep them available on Macs using this Apple Account."
                             : "This build is missing the CloudKit entitlement.",
                         isOn: workspaceSyncBinding
                     )
@@ -798,14 +798,14 @@ internal struct SyncSettingsPane: View {
     var body: some View {
         SettingsPane {
             VStack(alignment: .leading, spacing: 18) {
-                SettingsSectionTitle("Sync")
+                SettingsSectionTitle("iCloud")
 
                 SettingsCard {
                     SettingsToggleRow(
                         systemImage: "square.grid.2x2",
-                        title: "Workspaces",
+                        title: "Workspace recovery",
                         subtitle: CandoaCloudKitEntitlements.hasConfiguredContainer
-                            ? "Sync workspaces, Spaces, and tabs through iCloud after relaunch."
+                            ? "Keep Spaces, tabs, pinned sites, and bookmarks available on your Macs."
                             : "This build is missing the CloudKit entitlement.",
                         isOn: workspaceSyncBinding
                     )
@@ -820,6 +820,16 @@ internal struct SyncSettingsPane: View {
                         isOn: historySyncBinding
                     )
                     .disabled(!CandoaCloudKitEntitlements.hasConfiguredContainer || !syncsWorkspaceWithICloud)
+
+                    SettingsDivider()
+
+                    SettingsRow(
+                        systemImage: "person.crop.circle",
+                        title: "Uses this Mac’s Apple Account",
+                        subtitle: "Candoa subscription sign-in does not control or delete your browser workspace."
+                    ) {
+                        EmptyView()
+                    }
 
                     if let syncMessage {
                         SettingsDivider()
@@ -846,7 +856,7 @@ internal struct SyncSettingsPane: View {
                 syncsHistoryWithICloud = false
             }
             syncMessage = newValue
-                ? "Candoa will sync Spaces and tabs through your private iCloud database after relaunch."
+                ? "Candoa will sync your workspace through the private iCloud database for this Apple Account after relaunch."
                 : "Candoa will keep Spaces and tabs local-only after relaunch."
         }
     }
