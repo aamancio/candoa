@@ -12,42 +12,29 @@ final class CandoaAppleSignInService: NSObject {
         }
 
         return try await withCheckedThrowingContinuation { continuation in
-            let session = ASWebAuthenticationSession(
-                url: url,
-                callbackURLScheme: "candoa"
-            ) { [weak self] callbackURL, error in
+            let completionHandler: @Sendable (URL?, (any Error)?) -> Void = {
+                [weak self] callbackURL, error in
                 Task { @MainActor in
-                    self?.authenticationSession = nil
-
-                    if let error {
-                        continuation.resume(throwing: error)
-                        return
-                    }
-                    guard let callbackURL,
-                          callbackURL.scheme == "candoa",
-                          callbackURL.host == "auth",
-                          callbackURL.path == "/apple",
-                          let components = URLComponents(
-                            url: callbackURL,
-                            resolvingAgainstBaseURL: false
-                          ) else {
-                        continuation.resume(throwing: CandoaAccountError.invalidResponse)
-                        return
-                    }
-                    let values = Dictionary(
-                        uniqueKeysWithValues: components.queryItems?.compactMap { item in
-                            item.value.map { (item.name, $0) }
-                        } ?? []
+                    self?.completeAuthentication(
+                        callbackURL: callbackURL,
+                        error: error,
+                        continuation: continuation
                     )
-                    if let code = values["code"], !code.isEmpty {
-                        continuation.resume(returning: code)
-                    } else {
-                        let message = values["error"]
-                            .map(Self.readableError)
-                            ?? "Candoa could not complete Sign in with Apple."
-                        continuation.resume(throwing: CandoaAccountError.server(message))
-                    }
                 }
+            }
+            let session: ASWebAuthenticationSession
+            if #available(macOS 15.0, *) {
+                session = ASWebAuthenticationSession(
+                    url: url,
+                    callback: .customScheme("candoa"),
+                    completionHandler: completionHandler
+                )
+            } else {
+                session = ASWebAuthenticationSession(
+                    url: url,
+                    callbackURLScheme: "candoa",
+                    completionHandler: completionHandler
+                )
             }
             session.presentationContextProvider = self
             session.prefersEphemeralWebBrowserSession = false
@@ -61,6 +48,43 @@ final class CandoaAppleSignInService: NSObject {
                     )
                 )
             }
+        }
+    }
+
+    private func completeAuthentication(
+        callbackURL: URL?,
+        error: (any Error)?,
+        continuation: CheckedContinuation<String, any Error>
+    ) {
+        authenticationSession = nil
+
+        if let error {
+            continuation.resume(throwing: error)
+            return
+        }
+        guard let callbackURL,
+              callbackURL.scheme == "candoa",
+              callbackURL.host == "auth",
+              callbackURL.path == "/apple",
+              let components = URLComponents(
+                url: callbackURL,
+                resolvingAgainstBaseURL: false
+              ) else {
+            continuation.resume(throwing: CandoaAccountError.invalidResponse)
+            return
+        }
+        let values = Dictionary(
+            uniqueKeysWithValues: components.queryItems?.compactMap { item in
+                item.value.map { (item.name, $0) }
+            } ?? []
+        )
+        if let code = values["code"], !code.isEmpty {
+            continuation.resume(returning: code)
+        } else {
+            let message = values["error"]
+                .map(Self.readableError)
+                ?? "Candoa could not complete Sign in with Apple."
+            continuation.resume(throwing: CandoaAccountError.server(message))
         }
     }
 

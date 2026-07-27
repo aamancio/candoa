@@ -32,7 +32,10 @@ extension BrowserStore {
     }
 
     private var nextAccountOrTourStep: InitialOnboardingStep {
-        .tour
+        if CandoaAccountKeychain.accessToken != nil || UserStore.hasStoredAccountChoice {
+            return .tour
+        }
+        return .account
     }
 
     func completeInitialSpaceSetup(
@@ -100,10 +103,7 @@ extension BrowserStore {
     }
 
     func reconcileAccountSetup(hasCompletedAccountChoice: Bool) {
-        guard isInitialAccountSetupPresented else { return }
-        if Self.isUITesting, !hasCompletedAccountChoice {
-            return
-        }
+        guard isInitialAccountSetupPresented, hasCompletedAccountChoice else { return }
 
         if needsInitialSpaceSetup() {
             setInitialOnboardingStep(.space)

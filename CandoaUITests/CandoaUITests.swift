@@ -183,7 +183,7 @@ final class CandoaUITests: XCTestCase {
 
         let spaceStep = element("initial-onboarding-space", in: app)
         XCTAssertTrue(spaceStep.waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["2 of 2"].exists)
+        XCTAssertTrue(app.staticTexts["2 of 3"].exists)
         XCTAssertFalse(element("account-onboarding", in: app).exists)
     }
 
@@ -228,7 +228,7 @@ final class CandoaUITests: XCTestCase {
         XCTAssertFalse(app.buttons["Continue"].exists)
     }
 
-    func testCreateSpaceButtonStartsTourWithoutRequiringAnAccount() throws {
+    func testCreateSpaceButtonAdvancesToAccountChoice() throws {
         let app = launchApp(onboardingStep: "space")
         let createSpaceButton = app.buttons["Create Space"]
         XCTAssertTrue(createSpaceButton.waitForExistence(timeout: 10))
@@ -244,10 +244,11 @@ final class CandoaUITests: XCTestCase {
         )
         XCTAssertEqual(XCTWaiter.wait(for: [dismissed], timeout: 5), .completed)
         XCTAssertTrue(
-            element("initial-tour-command-bar", in: app).waitForExistence(timeout: 5),
-            "Creating the initial Space should start the tour without requiring a Candoa account."
+            element("account-onboarding", in: app).waitForExistence(timeout: 5),
+            "Creating the initial Space should offer Sign in with Apple before starting the tour."
         )
-        XCTAssertFalse(element("account-onboarding", in: app).exists)
+        XCTAssertTrue(app.staticTexts["3 of 3"].exists)
+        XCTAssertFalse(element("initial-tour-command-bar", in: app).exists)
     }
 
     func testAccountOnboardingOffersAppleOrLocalUse() throws {

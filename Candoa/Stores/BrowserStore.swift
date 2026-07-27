@@ -114,7 +114,7 @@ enum InitialOnboardingStep: String, CaseIterable {
     case space
     case tour
 
-    static let numberedSetupSteps: [Self] = [.importData, .space]
+    static let numberedSetupSteps: [Self] = [.importData, .space, .account]
 
     var position: Int {
         Self.numberedSetupSteps.firstIndex(of: self).map { $0 + 1 } ?? 0
