@@ -27,6 +27,8 @@ struct ContentView: View {
     @State private var aiSidebarTransitionGeneration = 0
     @State private var aiSidebarUITestingState = ""
     @State private var aiSidebarMessages: [AISidebarMessage] = []
+    @State private var pendingEliSubscriptionSubmission: EliSubmission?
+    @State private var isSignOutConfirmationPresented = false
     @State private var aiSidebarResizeStartWidth: CGFloat?
     @State private var miniPlayerOrigin: CGPoint?
     @State private var miniPlayerExpandedSize = MiniPlayerLayout.defaultExpandedSize
@@ -218,20 +220,31 @@ struct ContentView: View {
                 Color.clear
                     .allowsHitTesting(false)
 
-                if let toast = store.copiedURLToast {
-                    CopiedURLToastView(
-                        toast: toast,
-                        onShareInteractionChanged: { store.setCopiedURLToastSharing($0) }
-                    )
-                    .onHover { store.setCopiedURLToastHovered($0) }
-                    .padding(.top, CopiedURLToastView.windowEdgeSpacing)
-                    .padding(.trailing, CopiedURLToastView.windowEdgeSpacing)
-                    .transition(.asymmetric(
-                        insertion: .scale(scale: 0.01, anchor: .top),
-                        removal: .scale(scale: 0.5, anchor: .top).combined(with: .opacity)
-                    ))
-                    .id(toast.id)
+                VStack(alignment: .trailing, spacing: 8) {
+                    if isSignOutConfirmationPresented {
+                        SignOutConfirmationView()
+                            .transition(
+                                reduceMotion
+                                    ? .opacity
+                                    : .move(edge: .top).combined(with: .opacity)
+                            )
+                    }
+
+                    if let toast = store.copiedURLToast {
+                        CopiedURLToastView(
+                            toast: toast,
+                            onShareInteractionChanged: { store.setCopiedURLToastSharing($0) }
+                        )
+                        .onHover { store.setCopiedURLToastHovered($0) }
+                        .transition(.asymmetric(
+                            insertion: .scale(scale: 0.01, anchor: .top),
+                            removal: .scale(scale: 0.5, anchor: .top).combined(with: .opacity)
+                        ))
+                        .id(toast.id)
+                    }
                 }
+                .padding(.top, CopiedURLToastView.windowEdgeSpacing)
+                .padding(.trailing, CopiedURLToastView.windowEdgeSpacing)
             }
             .ignoresSafeArea(.container, edges: .top)
         }
@@ -259,6 +272,28 @@ struct ContentView: View {
             }
         }
         .animation(.spring(duration: 0.5, bounce: 0.2), value: store.copiedURLToast)
+        .onChange(of: userStore.signOutGeneration) { _, generation in
+            guard generation > 0 else { return }
+
+            let hasPersonalEliAccess =
+                CandoaEliPreferences.usesPersonalOpenAIKey && CandoaEliKeychain.hasAPIKey
+            if !hasPersonalEliAccess {
+                aiSidebarMessages = [.subscriptionGate]
+                pendingEliSubscriptionSubmission = nil
+            }
+
+            withAnimation(.easeOut(duration: reduceMotion ? 0 : 0.15)) {
+                isSignOutConfirmationPresented = true
+            }
+
+            Task {
+                try? await Task.sleep(for: .seconds(2))
+                guard userStore.signOutGeneration == generation else { return }
+                withAnimation(.easeOut(duration: reduceMotion ? 0 : 0.15)) {
+                    isSignOutConfirmationPresented = false
+                }
+            }
+        }
         .background {
             CandoaWindowBackdrop(store: store)
                 .ignoresSafeArea()
@@ -539,7 +574,8 @@ struct ContentView: View {
         EliSidebarView(
             store: store,
             uiTestingState: $aiSidebarUITestingState,
-            messages: $aiSidebarMessages
+            messages: $aiSidebarMessages,
+            pendingSubscriptionSubmission: $pendingEliSubscriptionSubmission
         ) {
             toggleAISidebar()
         }
@@ -696,5 +732,21 @@ struct ContentView: View {
         } else {
             NSApp.keyWindow?.performClose(nil)
         }
+    }
+}
+
+private struct SignOutConfirmationView: View {
+    var body: some View {
+        Label("Signed out", systemImage: "checkmark.circle.fill")
+            .font(.system(size: 13, weight: .semibold))
+            .padding(.horizontal, 12)
+            .frame(minHeight: 36)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .stroke(CandoaInterfaceStyle.popoverBorder, lineWidth: 1)
+            }
+            .shadow(color: Color(nsColor: .shadowColor).opacity(0.18), radius: 9, y: 3)
+            .accessibilityIdentifier("sign-out-confirmation")
     }
 }

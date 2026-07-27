@@ -12,6 +12,7 @@ struct EliSidebarView: View {
     @ObservedObject var store: BrowserStore
     @Binding var uiTestingState: String
     @Binding var messages: [AISidebarMessage]
+    @Binding var pendingSubscriptionSubmission: EliSubmission?
     let onClose: () -> Void
 
     @Environment(\.scenePhase) private var scenePhase
@@ -205,6 +206,7 @@ struct EliSidebarView: View {
         .onAppear {
             uiTestingState = uiTestingAgentState
             removeSubscriptionGateIfActive()
+            resumePendingSubscriptionSubmissionIfNeeded()
             DispatchQueue.main.async {
                 isPromptFocused = true
             }
@@ -244,6 +246,11 @@ struct EliSidebarView: View {
         .onChange(of: userStore.hasActiveSubscription) { _, hasActiveSubscription in
             guard hasActiveSubscription else { return }
             removeSubscriptionGateIfActive()
+            resumePendingSubscriptionSubmissionIfNeeded()
+        }
+        .onChange(of: userStore.signOutGeneration) { _, generation in
+            guard generation > 0, !hasPersonalEliAccess else { return }
+            resetHostedEliAfterSignOut()
         }
         .fileImporter(
             isPresented: $isFileImporterPresented,
@@ -308,6 +315,7 @@ struct EliSidebarView: View {
                 attachmentPreviewData = [:]
                 presentedImagePreview = nil
                 messages = []
+                pendingSubscriptionSubmission = nil
                 includesCurrentPageContext = true
                 lastSubmittedPageContext = nil
                 cancelStream()
@@ -626,39 +634,52 @@ struct EliSidebarView: View {
         guard !isRefreshingEliAccess, !isResolvingPageAction else { return }
         guard CandoaEliPromptPolicy.canSubmit(submittedPrompt, hasConversation: !messages.isEmpty) else { return }
 
+        let submission = makeSubmission(prompt: submittedPrompt)
         if !hasEliAccess {
-            refreshEliAccessThenSubmit(submittedPrompt)
+            refreshEliAccessThenSubmit(submission)
             return
         }
 
+        startSubmission(submission, appendingUserMessage: true)
+    }
+
+    private func makeSubmission(prompt submittedPrompt: String) -> EliSubmission {
+        EliSubmission(
+            prompt: submittedPrompt,
+            contextChips: contextChips.map {
+                AISidebarContextChip(
+                    id: $0.id,
+                    title: $0.title,
+                    subtitle: $0.subtitle,
+                    symbolName: $0.symbolName,
+                    faviconData: $0.faviconData,
+                    previewImageData: $0.previewImageData,
+                    isRemovable: false
+                )
+            },
+            contextMentions: mentionedContext,
+            recentTurns: recentTurns(),
+            currentPageTabID: includesCurrentPageContext ? store.activeTabID : nil,
+            browserControlTabID: store.activeTabID,
+            inheritedPageContext: lastSubmittedPageContext
+        )
+    }
+
+    private func startSubmission(
+        _ submission: EliSubmission,
+        appendingUserMessage: Bool
+    ) {
         prompt = ""
         cancelStream()
 
-        let submittedContextChips = contextChips.map {
-            AISidebarContextChip(
-                id: $0.id,
-                title: $0.title,
-                subtitle: $0.subtitle,
-                symbolName: $0.symbolName,
-                faviconData: $0.faviconData,
-                previewImageData: $0.previewImageData,
-                isRemovable: false
-            )
+        if appendingUserMessage {
+            messages.append(AISidebarMessage(
+                role: .user,
+                text: submission.prompt,
+                isStreaming: false,
+                contextChips: submission.contextChips
+            ))
         }
-        let contextMentions = mentionedContext
-        let existingRecentTurns = recentTurns()
-        let includesCurrentPage = includesCurrentPageContext
-        let currentPageTabID = includesCurrentPage ? store.activeTabID : nil
-        let browserControlTabID = store.activeTabID
-        let inheritedPageContext = lastSubmittedPageContext
-        let recentTurns = existingRecentTurns
-
-        messages.append(AISidebarMessage(
-            role: .user,
-            text: submittedPrompt,
-            isStreaming: false,
-            contextChips: submittedContextChips
-        ))
 
         let responseID = UUID()
         messages.append(AISidebarMessage(id: responseID, role: .assistant, text: "", isStreaming: true))
@@ -671,12 +692,12 @@ struct EliSidebarView: View {
 
         streamTask = Task {
             let submittedPageContext = await combinedContext(
-                for: contextMentions,
-                currentPageTabID: currentPageTabID
+                for: submission.contextMentions,
+                currentPageTabID: submission.currentPageTabID
             )
             let pageContext = submittedPageContext.hasAttachedContext
                 ? submittedPageContext
-                : inheritedPageContext ?? submittedPageContext
+                : submission.inheritedPageContext ?? submittedPageContext
 
             if submittedPageContext.hasAttachedContext {
                 await MainActor.run {
@@ -686,19 +707,19 @@ struct EliSidebarView: View {
 
             let remoteContext = CandoaEliContextCompactor.compactedContextIfNeeded(
                 from: pageContext,
-                prompt: submittedPrompt
+                prompt: submission.prompt
             ) ?? pageContext
             await streamRemoteAIResponse(
-                prompt: submittedPrompt,
+                prompt: submission.prompt,
                 context: remoteContext,
-                recentTurns: recentTurns,
+                recentTurns: submission.recentTurns,
                 responseID: responseID,
-                browserControlTabID: browserControlTabID
+                browserControlTabID: submission.browserControlTabID
             )
         }
     }
 
-    private func refreshEliAccessThenSubmit(_ submittedPrompt: String) {
+    private func refreshEliAccessThenSubmit(_ submission: EliSubmission) {
         isRefreshingEliAccess = true
 
         Task {
@@ -710,39 +731,26 @@ struct EliSidebarView: View {
             isRefreshingEliAccess = false
 
             if hasEliAccess {
-                submitPrompt(submittedPrompt)
+                startSubmission(submission, appendingUserMessage: true)
                 return
             }
 
             prompt = ""
             cancelStream()
 
-            let submittedContextChips = contextChips.map {
-                AISidebarContextChip(
-                    id: $0.id,
-                    title: $0.title,
-                    subtitle: $0.subtitle,
-                    symbolName: $0.symbolName,
-                    faviconData: $0.faviconData,
-                    previewImageData: $0.previewImageData,
-                    isRemovable: false
-                )
-            }
-
             messages.append(AISidebarMessage(
                 role: .user,
-                text: submittedPrompt,
+                text: submission.prompt,
                 isStreaming: false,
-                contextChips: submittedContextChips
+                contextChips: submission.contextChips
             ))
             messages.append(AISidebarMessage(
                 role: .assistant,
-                text: userStore.hasCloudSession && userStore.errorMessage != nil
-                    ? "I couldn’t verify your Candoa subscription. Check the Cloud connection and try again."
-                    : "",
+                text: subscriptionVerificationFailureMessage,
                 isStreaming: false,
                 action: userStore.hasCloudSession && userStore.errorMessage != nil ? nil : .subscribe
             ))
+            pendingSubscriptionSubmission = submission
 
             mentionedContext = []
             attachmentPreviewData = [:]
@@ -755,6 +763,17 @@ struct EliSidebarView: View {
     private func removeSubscriptionGateIfActive() {
         guard userStore.hasActiveSubscription else { return }
         messages.removeAll { $0.action == .subscribe }
+    }
+
+    private var subscriptionVerificationFailureMessage: String {
+        guard userStore.hasCloudSession, userStore.errorMessage != nil else { return "" }
+        return "I couldn’t verify your Candoa subscription. Check the Cloud connection and try again."
+    }
+
+    private func resumePendingSubscriptionSubmissionIfNeeded() {
+        guard hasEliAccess, let submission = pendingSubscriptionSubmission else { return }
+        pendingSubscriptionSubmission = nil
+        startSubmission(submission, appendingUserMessage: false)
     }
 
     private func beginComparisonPrompt() {
@@ -1441,5 +1460,19 @@ struct EliSidebarView: View {
             messages[index].isStreaming = false
             messages[index].transientStatus = nil
         }
+    }
+
+    private func resetHostedEliAfterSignOut() {
+        cancelStream()
+        speechController.cancelListening()
+        prompt = ""
+        mentionedContext = []
+        attachmentPreviewData = [:]
+        presentedImagePreview = nil
+        isFileImporterPresented = false
+        includesCurrentPageContext = true
+        lastSubmittedPageContext = nil
+        isMentionMenuPresented = false
+        isRefreshingEliAccess = false
     }
 }

@@ -509,7 +509,12 @@ final class CandoaUITests: XCTestCase {
     }
 
     func testEliProPromptRendersSubscriptionGateAndCheckoutFailure() throws {
-        let app = launchApp(fixture: "ask", checkoutFailure: true)
+        let app = launchApp(
+            fixture: "ask",
+            checkoutFailure: true,
+            passkeySuccess: true,
+            knownPasskeyAccount: true
+        )
 
         app.typeKey("e", modifierFlags: .command)
         XCTAssertTrue(element("agent-sidebar", in: app).waitForExistence(timeout: 5), currentState(in: app))
@@ -518,17 +523,30 @@ final class CandoaUITests: XCTestCase {
 
         let subscriptionGate = element("agent-subscription-gate", in: app)
         XCTAssertTrue(subscriptionGate.waitForExistence(timeout: 5), askState(in: app))
-        XCTAssertTrue(app.staticTexts["Eli with Candoa Pro"].exists)
+        XCTAssertTrue(app.staticTexts["Sign in to use Eli"].exists)
         XCTAssertTrue(
             app.staticTexts[
-                "Summarize pages, answer questions, and let Eli research and take action across the web."
+                "Use your passkey to restore your Candoa subscription on this Mac."
             ].exists
         )
         XCTAssertFalse(element("agent-feedback-up", in: app).exists)
         XCTAssertFalse(element("agent-copy-text", in: app).exists)
 
+        let signInButton = element("agent-sign-in-button", in: app)
+        XCTAssertTrue(signInButton.exists)
+        XCTAssertEqual(signInButton.label, "Sign In")
+        XCTAssertFalse(element("agent-subscribe-button", in: app).exists)
+
+        let signedOutAttachment = XCTAttachment(screenshot: app.windows.firstMatch.screenshot())
+        signedOutAttachment.name = "Eli signed-out account gate"
+        signedOutAttachment.lifetime = .keepAlways
+        add(signedOutAttachment)
+
+        signInButton.click()
+
         let subscribeButton = element("agent-subscribe-button", in: app)
-        XCTAssertTrue(subscribeButton.exists)
+        XCTAssertTrue(subscribeButton.waitForExistence(timeout: 5), askState(in: app))
+        XCTAssertTrue(app.staticTexts["Eli with Candoa Pro"].exists)
         XCTAssertTrue(subscribeButton.isEnabled)
         XCTAssertEqual(subscribeButton.label, "Subscribe")
         XCTAssertEqual(subscribeButton.value as? String, "idle")
@@ -550,7 +568,12 @@ final class CandoaUITests: XCTestCase {
     }
 
     func testEliSubscriptionGateShowsConfirmationAndDisappearsAfterCheckout() throws {
-        let app = launchApp(fixture: "ask", checkoutSuccess: true)
+        let app = launchApp(
+            fixture: "ask-streaming",
+            checkoutSuccess: true,
+            passkeySuccess: true,
+            knownPasskeyAccount: true
+        )
 
         app.typeKey("e", modifierFlags: .command)
         XCTAssertTrue(element("agent-sidebar", in: app).waitForExistence(timeout: 5))
@@ -558,6 +581,11 @@ final class CandoaUITests: XCTestCase {
 
         let subscriptionGate = element("agent-subscription-gate", in: app)
         XCTAssertTrue(subscriptionGate.waitForExistence(timeout: 5), askState(in: app))
+        element("agent-sign-in-button", in: app).click()
+        XCTAssertTrue(
+            element("agent-subscribe-button", in: app).waitForExistence(timeout: 5),
+            askState(in: app)
+        )
         element("agent-subscribe-button", in: app).click()
 
         let confirming = element("agent-subscription-confirming", in: app)
@@ -575,6 +603,120 @@ final class CandoaUITests: XCTestCase {
         )
         XCTAssertEqual(XCTWaiter.wait(for: [gateRemoved], timeout: 5), .completed)
         XCTAssertFalse(element("agent-subscribe-button", in: app).exists)
+        XCTAssertTrue(
+            waitForAskState(
+                in: app,
+                containing: "lastAssistant=[Streaming response started.]",
+                timeout: 5
+            ),
+            askState(in: app)
+        )
+        XCTAssertTrue(askState(in: app).contains("messages=[0:user:"), askState(in: app))
+        XCTAssertTrue(askState(in: app).contains("||1:assistant:"), askState(in: app))
+        XCTAssertFalse(askState(in: app).contains("||2:user:"), askState(in: app))
+    }
+
+    func testEliMissingPasskeyOffersAccountRecovery() throws {
+        let app = launchApp(
+            fixture: "ask",
+            passkeySuccess: true,
+            passkeyNotFound: true,
+            knownPasskeyAccount: true
+        )
+
+        app.typeKey("e", modifierFlags: .command)
+        XCTAssertTrue(element("agent-sidebar", in: app).waitForExistence(timeout: 5))
+        submitAskText("Summarize this page", in: app)
+
+        XCTAssertTrue(
+            element("agent-subscription-gate", in: app).waitForExistence(timeout: 5),
+            askState(in: app)
+        )
+        element("agent-sign-in-button", in: app).click()
+
+        let passkeyError = element("agent-subscribe-error", in: app)
+        XCTAssertTrue(passkeyError.waitForExistence(timeout: 5), askState(in: app))
+        XCTAssertTrue(app.staticTexts["Passkey not found"].exists)
+
+        let createAccountButton = element("agent-create-account-button", in: app)
+        XCTAssertTrue(createAccountButton.exists)
+        XCTAssertEqual(createAccountButton.label, "Create New Account")
+
+        let recoveryAttachment = XCTAttachment(screenshot: app.windows.firstMatch.screenshot())
+        recoveryAttachment.name = "Eli missing-passkey recovery"
+        recoveryAttachment.lifetime = .keepAlways
+        add(recoveryAttachment)
+
+        createAccountButton.click()
+        XCTAssertTrue(
+            element("agent-subscribe-button", in: app).waitForExistence(timeout: 5),
+            askState(in: app)
+        )
+        XCTAssertFalse(passkeyError.exists)
+        XCTAssertFalse(createAccountButton.exists)
+    }
+
+    func testSignOutKeepsBrowsingAndResetsHostedEli() throws {
+        let app = launchApp(
+            fixture: "ask-streaming",
+            checkoutSuccess: true,
+            passkeySuccess: true,
+            knownPasskeyAccount: true
+        )
+
+        XCTAssertTrue(
+            waitForState(in: app, containing: "url=https://www.apple.com/"),
+            currentState(in: app)
+        )
+        app.typeKey("e", modifierFlags: .command)
+        XCTAssertTrue(element("agent-sidebar", in: app).waitForExistence(timeout: 5))
+        submitAskText("Summarize this page", in: app)
+
+        let subscriptionGate = element("agent-subscription-gate", in: app)
+        XCTAssertTrue(subscriptionGate.waitForExistence(timeout: 5), askState(in: app))
+        element("agent-sign-in-button", in: app).click()
+        XCTAssertTrue(
+            element("agent-subscribe-button", in: app).waitForExistence(timeout: 5),
+            askState(in: app)
+        )
+        element("agent-subscribe-button", in: app).click()
+
+        let gateRemoved = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "exists == false"),
+            object: subscriptionGate
+        )
+        XCTAssertEqual(XCTWaiter.wait(for: [gateRemoved], timeout: 5), .completed)
+
+        submitAskText("Keep streaming", in: app)
+        XCTAssertTrue(
+            waitForAskState(
+                in: app,
+                containing: "lastAssistant=[Streaming response started.]",
+                timeout: 5
+            ),
+            askState(in: app)
+        )
+
+        app.menuBars.menuBarItems["Candoa"].click()
+        let signOutItem = app.menuItems["Sign Out"]
+        XCTAssertTrue(signOutItem.waitForExistence(timeout: 5))
+        XCTAssertTrue(signOutItem.isEnabled)
+        signOutItem.click()
+
+        XCTAssertTrue(element("sign-out-confirmation", in: app).waitForExistence(timeout: 2))
+        XCTAssertTrue(
+            element("agent-subscription-gate", in: app).waitForExistence(timeout: 2),
+            askState(in: app)
+        )
+        XCTAssertTrue(element("agent-sign-in-button", in: app).waitForExistence(timeout: 2))
+        XCTAssertFalse(element("agent-subscribe-button", in: app).exists)
+        XCTAssertTrue(waitForAskState(in: app, containing: "lastUser=[]"), askState(in: app))
+        XCTAssertFalse(askState(in: app).contains("This should never appear after sign-out."))
+        XCTAssertTrue(
+            waitForState(in: app, containing: "url=https://www.apple.com/"),
+            currentState(in: app)
+        )
+        XCTAssertTrue(element("sidebar-address-button", in: app).exists)
     }
 
     func testEliSubscriptionGateIsNotTreatedAsAssistantContent() throws {
@@ -779,6 +921,7 @@ final class CandoaUITests: XCTestCase {
         checkoutFailure: Bool = false,
         checkoutSuccess: Bool = false,
         passkeySuccess: Bool = false,
+        passkeyNotFound: Bool = false,
         knownPasskeyAccount: Bool = false,
         websiteAppearance: String? = nil,
         cloudKitEntitlement: Bool = false
@@ -810,6 +953,9 @@ final class CandoaUITests: XCTestCase {
         }
         if passkeySuccess {
             app.launchEnvironment["CANDOA_UI_TESTING_PASSKEY_SUCCESS"] = "1"
+        }
+        if passkeyNotFound {
+            app.launchEnvironment["CANDOA_UI_TESTING_PASSKEY_NOT_FOUND"] = "1"
         }
         if knownPasskeyAccount {
             app.launchEnvironment["CANDOA_UI_TESTING_KNOWN_PASSKEY_ACCOUNT"] = "1"

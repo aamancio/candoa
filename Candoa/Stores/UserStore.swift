@@ -19,10 +19,19 @@ final class UserStore: ObservableObject {
     @Published private(set) var isLocalOnly: Bool
     @Published private(set) var hasCompletedAccountChoice: Bool
     @Published private(set) var hasKnownPasskeyAccount: Bool
+    @Published private(set) var signOutGeneration = 0
 
     private let accountService: CandoaAccountService
     private let passkeyService: CandoaPasskeyService
     var hasActiveSubscription: Bool { status?.hasActiveSubscription == true }
+    var canCreateReplacementPasskeyAccount: Bool {
+        guard !isSignedIn,
+              hasKnownPasskeyAccount,
+              let errorMessage = errorMessage?.lowercased() else {
+            return false
+        }
+        return errorMessage.contains("passkey") && errorMessage.contains("not found")
+    }
 
     static var hasStoredAccountChoice: Bool {
         UserDefaults.standard.bool(forKey: accountChoiceKey)
@@ -87,8 +96,21 @@ final class UserStore: ObservableObject {
 
     func allowCreatingNewPasskeyAccount() {
         hasKnownPasskeyAccount = false
+        errorMessage = nil
         guard ProcessInfo.processInfo.environment["CANDOA_UI_TESTING"] != "1" else { return }
         UserDefaults.standard.removeObject(forKey: Self.knownPasskeyAccountKey)
+    }
+
+    func createReplacementPasskeyAccount() {
+        try? accountService.removeAccessToken()
+        status = nil
+        isSignedIn = false
+        hasCloudSession = false
+        isLocalOnly = false
+        isAwaitingSubscriptionActivation = false
+        isReconcilingSubscription = false
+        allowCreatingNewPasskeyAccount()
+        createPasskey()
     }
 
     func refresh() async {
@@ -254,6 +276,7 @@ final class UserStore: ObservableObject {
         errorMessage = nil
         subscriptionErrorMessage = nil
         accountMessage = nil
+        signOutGeneration &+= 1
         if let accessToken {
             Task {
                 try? await accountService.signOut(accessToken: accessToken)
@@ -411,6 +434,11 @@ final class UserStore: ObservableObject {
 
     private func restoreWithPasskey() async {
         guard !isSigningInWithPasskey, !isWorking else { return }
+
+        if ProcessInfo.processInfo.environment["CANDOA_UI_TESTING_PASSKEY_NOT_FOUND"] == "1" {
+            errorMessage = "Passkey not found"
+            return
+        }
 
         if ProcessInfo.processInfo.environment["CANDOA_UI_TESTING_PASSKEY_SUCCESS"] == "1" {
             isSignedIn = true

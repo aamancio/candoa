@@ -71,17 +71,26 @@ struct AISidebarSubscriptionGateView: View {
 
     var body: some View {
         let isSubscribing = userStore.isStartingSubscription
+        let isSigningIn = userStore.isSigningInWithPasskey
         let isPending = userStore.isAwaitingSubscriptionActivation
         let isConfirming = userStore.isReconcilingSubscription
+        let requiresSignIn = !userStore.isSignedIn && userStore.hasKnownPasskeyAccount
 
         GroupBox {
             VStack(alignment: .leading, spacing: 12) {
-                Label("Eli with Candoa Pro", systemImage: "lock.fill")
+                Label(
+                    requiresSignIn ? "Sign in to use Eli" : "Eli with Candoa Pro",
+                    systemImage: "lock.fill"
+                )
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(CandoaInterfaceStyle.sidebarText)
                     .accessibilityIdentifier("agent-subscription-gate")
 
-                Text("Summarize pages, answer questions, and let Eli research and take action across the web.")
+                Text(
+                    requiresSignIn
+                        ? "Use your passkey to restore your Candoa subscription on this Mac."
+                        : "Summarize pages, answer questions, and let Eli research and take action across the web."
+                )
                     .font(.system(size: 13.5))
                     .foregroundStyle(CandoaInterfaceStyle.sidebarTextSecondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -106,6 +115,25 @@ struct AISidebarSubscriptionGateView: View {
                     .controlSize(.regular)
                     .disabled(userStore.isWorking)
                     .accessibilityIdentifier("agent-subscription-check-button")
+                } else if requiresSignIn {
+                    Button {
+                        userStore.signInWithPasskey()
+                    } label: {
+                        HStack(spacing: 7) {
+                            if isSigningIn {
+                                ProgressView()
+                                    .controlSize(.small)
+                            }
+
+                            Text(isSigningIn ? "Signing In…" : "Sign In")
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.regular)
+                    .disabled(isSigningIn || userStore.isWorking)
+                    .accessibilityLabel(isSigningIn ? "Signing In" : "Sign In")
+                    .accessibilityValue(isSigningIn ? "signing-in" : "idle")
+                    .accessibilityIdentifier("agent-sign-in-button")
                 } else {
                     Button {
                         Task { await userStore.startProCheckout() }
@@ -127,18 +155,30 @@ struct AISidebarSubscriptionGateView: View {
                     .accessibilityIdentifier("agent-subscribe-button")
                 }
 
-                if let subscriptionErrorMessage = userStore.subscriptionErrorMessage,
+                if let accessErrorMessage = requiresSignIn
+                    ? userStore.errorMessage
+                    : userStore.subscriptionErrorMessage,
                    !isSubscribing,
+                   !isSigningIn,
                    !isConfirming {
                     Label(
-                        subscriptionErrorMessage,
+                        accessErrorMessage,
                         systemImage: "exclamationmark.triangle"
                     )
                     .font(.system(size: 12.5))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
-                    .accessibilityLabel(subscriptionErrorMessage)
+                    .accessibilityLabel(accessErrorMessage)
                     .accessibilityIdentifier("agent-subscribe-error")
+                }
+
+                if userStore.canCreateReplacementPasskeyAccount {
+                    Button("Create New Account") {
+                        userStore.createReplacementPasskeyAccount()
+                    }
+                    .buttonStyle(.link)
+                    .disabled(userStore.isWorking)
+                    .accessibilityIdentifier("agent-create-account-button")
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -1002,6 +1042,16 @@ struct AISidebarFileContext: Equatable {
     var previewImageData: Data? = nil
 }
 
+struct EliSubmission {
+    let prompt: String
+    let contextChips: [AISidebarContextChip]
+    let contextMentions: [AISidebarContextMention]
+    let recentTurns: [CandoaAIConversationTurn]
+    let currentPageTabID: UUID?
+    let browserControlTabID: UUID?
+    let inheritedPageContext: CandoaAIPageContext?
+}
+
 struct AISidebarMessage: Identifiable, Equatable {
     var id = UUID()
     let role: AISidebarMessageRole
@@ -1019,6 +1069,15 @@ struct AISidebarMessage: Identifiable, Equatable {
 
     var hasCopyableContent: Bool {
         !text.isEmpty || responseImageData != nil
+    }
+
+    static var subscriptionGate: Self {
+        AISidebarMessage(
+            role: .assistant,
+            text: "",
+            isStreaming: false,
+            action: .subscribe
+        )
     }
 }
 

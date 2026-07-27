@@ -44,6 +44,11 @@ enum CandoaRemoteEliService {
         recentTurns: [CandoaAIConversationTurn]
     ) -> AsyncThrowingStream<CandoaRemoteEliEvent, Error> {
         if ProcessInfo.processInfo.environment["CANDOA_UI_TESTING"] == "1",
+           ProcessInfo.processInfo.environment["CANDOA_UI_TESTING_FIXTURE"] == "ask-streaming" {
+            return uiTestingStreamingResponse()
+        }
+
+        if ProcessInfo.processInfo.environment["CANDOA_UI_TESTING"] == "1",
            let fixture = ProcessInfo.processInfo.environment["CANDOA_UI_TESTING_FIXTURE"],
            ["ask-agent-navigation", "ask-agent-normalized-navigation", "ask-agent-selection"]
             .contains(fixture) {
@@ -66,6 +71,23 @@ enum CandoaRemoteEliService {
             context: context,
             recentTurns: recentTurns
         )
+    }
+
+    private static func uiTestingStreamingResponse()
+        -> AsyncThrowingStream<CandoaRemoteEliEvent, Error> {
+        AsyncThrowingStream { continuation in
+            let task = Task {
+                continuation.yield(.textDelta("Streaming response started."))
+                do {
+                    try await Task.sleep(for: .seconds(30))
+                    continuation.yield(.textDelta(" This should never appear after sign-out."))
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
     }
 
     private static func streamCandoaResponse(
