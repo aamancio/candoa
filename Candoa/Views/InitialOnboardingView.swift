@@ -385,15 +385,6 @@ private struct AccountOnboardingStep: View {
                     .disabled(userStore.isWorking)
                     .accessibilityIdentifier("onboarding-sign-in-apple")
 
-                    if userStore.hasKnownPasskeyAccount {
-                        Button("Use Existing Candoa Passkey") {
-                            userStore.signInWithPasskey()
-                        }
-                        .candoaButton(.link)
-                        .disabled(userStore.isWorking)
-                        .accessibilityIdentifier("onboarding-sign-in-passkey")
-                    }
-
                     if let errorMessage = userStore.errorMessage, !userStore.isWorking {
                         Text(errorMessage)
                             .font(.system(size: 12))

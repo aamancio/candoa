@@ -175,14 +175,6 @@ struct AISidebarSubscriptionGateView: View {
                     .accessibilityIdentifier("agent-subscribe-error")
                 }
 
-                if requiresSignIn && userStore.hasKnownPasskeyAccount {
-                    Button("Use Existing Candoa Passkey") {
-                        userStore.signInWithPasskey()
-                    }
-                    .buttonStyle(.link)
-                    .disabled(userStore.isWorking)
-                    .accessibilityIdentifier("agent-passkey-recovery-button")
-                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }

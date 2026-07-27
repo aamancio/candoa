@@ -130,26 +130,6 @@ internal struct EliSettingsPane: View {
                         }
                     }
 
-                    if userStore.status?.hasAppleAccount != true
-                        && userStore.hasKnownPasskeyAccount {
-                        SettingsDivider()
-
-                        SettingsRow(
-                            systemImage: "person.crop.circle.badge.checkmark",
-                            title: "Legacy account recovery",
-                            subtitle: "Use an existing Candoa passkey, then connect Apple to keep this account."
-                        ) {
-                            Button(
-                                userStore.isSigningInWithPasskey ? "Signing In…" : "Sign In"
-                            ) {
-                                userStore.signInWithPasskey()
-                            }
-                            .candoaButton(.secondary)
-                            .controlSize(.small)
-                            .disabled(userStore.isWorking)
-                        }
-                    }
-
                     if let accountMessage = userStore.accountMessage {
                         SettingsDivider()
 

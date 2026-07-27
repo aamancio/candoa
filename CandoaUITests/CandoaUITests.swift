@@ -265,7 +265,12 @@ final class CandoaUITests: XCTestCase {
             )
         )
         XCTAssertEqual(description.count, 1)
-        XCTAssertFalse(app.links["Use Existing Candoa Passkey"].exists)
+        XCTAssertEqual(
+            app.descendants(matching: .any)
+                .matching(NSPredicate(format: "label CONTAINS[c] %@", "passkey"))
+                .count,
+            0
+        )
         XCTAssertFalse(app.webViews.firstMatch.exists)
     }
 
@@ -285,20 +290,6 @@ final class CandoaUITests: XCTestCase {
                 "Candoa subscription sign-in does not control or delete your browser workspace."
             ].exists
         )
-    }
-
-    func testReturningPasskeyAccountOffersAppleAndLegacyRecovery() throws {
-        let app = launchApp(
-            onboardingStep: "account",
-            knownPasskeyAccount: true
-        )
-        let accountOnboarding = element("account-onboarding", in: app).firstMatch
-
-        XCTAssertTrue(accountOnboarding.waitForExistence(timeout: 10))
-        XCTAssertTrue(app.staticTexts["Keep your Candoa account with you"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["Continue with Apple"].exists)
-        XCTAssertTrue(app.links["Use Existing Candoa Passkey"].exists)
-        XCTAssertTrue(app.buttons["Not Now"].exists)
     }
 
     func testNotNowCompletesAccountSetup() throws {
@@ -512,8 +503,7 @@ final class CandoaUITests: XCTestCase {
         let app = launchApp(
             fixture: "ask",
             checkoutFailure: true,
-            appleSuccess: true,
-            knownPasskeyAccount: true
+            appleSuccess: true
         )
 
         app.typeKey("e", modifierFlags: .command)
@@ -571,8 +561,7 @@ final class CandoaUITests: XCTestCase {
         let app = launchApp(
             fixture: "ask-streaming",
             checkoutSuccess: true,
-            appleSuccess: true,
-            knownPasskeyAccount: true
+            appleSuccess: true
         )
 
         app.typeKey("e", modifierFlags: .command)
@@ -616,36 +605,11 @@ final class CandoaUITests: XCTestCase {
         XCTAssertFalse(askState(in: app).contains("||2:user:"), askState(in: app))
     }
 
-    func testEliOffersLegacyPasskeyRecoveryAlongsideApple() throws {
-        let app = launchApp(
-            fixture: "ask",
-            knownPasskeyAccount: true
-        )
-
-        app.typeKey("e", modifierFlags: .command)
-        XCTAssertTrue(element("agent-sidebar", in: app).waitForExistence(timeout: 5))
-        submitAskText("Summarize this page", in: app)
-
-        XCTAssertTrue(
-            element("agent-subscription-gate", in: app).waitForExistence(timeout: 5),
-            askState(in: app)
-        )
-        let recoveryButton = element("agent-passkey-recovery-button", in: app)
-        XCTAssertTrue(recoveryButton.exists)
-        XCTAssertEqual(recoveryButton.label, "Use Existing Candoa Passkey")
-
-        let recoveryAttachment = XCTAttachment(screenshot: app.windows.firstMatch.screenshot())
-        recoveryAttachment.name = "Eli Apple sign-in with legacy passkey recovery"
-        recoveryAttachment.lifetime = .keepAlways
-        add(recoveryAttachment)
-    }
-
     func testSignOutKeepsBrowsingAndResetsHostedEli() throws {
         let app = launchApp(
             fixture: "ask-streaming",
             checkoutSuccess: true,
-            appleSuccess: true,
-            knownPasskeyAccount: true
+            appleSuccess: true
         )
 
         XCTAssertTrue(
@@ -905,9 +869,6 @@ final class CandoaUITests: XCTestCase {
         checkoutFailure: Bool = false,
         checkoutSuccess: Bool = false,
         appleSuccess: Bool = false,
-        passkeySuccess: Bool = false,
-        passkeyNotFound: Bool = false,
-        knownPasskeyAccount: Bool = false,
         websiteAppearance: String? = nil,
         cloudKitEntitlement: Bool = false
     ) -> XCUIApplication {
@@ -938,15 +899,6 @@ final class CandoaUITests: XCTestCase {
         }
         if appleSuccess {
             app.launchEnvironment["CANDOA_UI_TESTING_APPLE_SUCCESS"] = "1"
-        }
-        if passkeySuccess {
-            app.launchEnvironment["CANDOA_UI_TESTING_PASSKEY_SUCCESS"] = "1"
-        }
-        if passkeyNotFound {
-            app.launchEnvironment["CANDOA_UI_TESTING_PASSKEY_NOT_FOUND"] = "1"
-        }
-        if knownPasskeyAccount {
-            app.launchEnvironment["CANDOA_UI_TESTING_KNOWN_PASSKEY_ACCOUNT"] = "1"
         }
         if cloudKitEntitlement {
             app.launchEnvironment["CANDOA_UI_TESTING_CLOUDKIT_ENTITLEMENT"] = "1"

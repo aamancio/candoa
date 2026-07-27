@@ -11,7 +11,6 @@ final class UserStore: ObservableObject {
     @Published private(set) var isAwaitingSubscriptionActivation = false
     @Published private(set) var isReconcilingSubscription = false
     @Published private(set) var isSigningInWithApple = false
-    @Published private(set) var isSigningInWithPasskey = false
     @Published private(set) var errorMessage: String?
     @Published private(set) var subscriptionErrorMessage: String?
     @Published private(set) var accountMessage: String?
@@ -19,38 +18,24 @@ final class UserStore: ObservableObject {
     @Published private(set) var hasCloudSession: Bool
     @Published private(set) var isLocalOnly: Bool
     @Published private(set) var hasCompletedAccountChoice: Bool
-    @Published private(set) var hasKnownPasskeyAccount: Bool
     @Published private(set) var signOutGeneration = 0
 
     private let accountService: CandoaAccountService
     private let appleSignInService: CandoaAppleSignInService
-    private let passkeyService: CandoaPasskeyService
     var hasActiveSubscription: Bool { status?.hasActiveSubscription == true }
-    var canCreateReplacementPasskeyAccount: Bool {
-        guard !isSignedIn,
-              hasKnownPasskeyAccount,
-              let errorMessage = errorMessage?.lowercased() else {
-            return false
-        }
-        return errorMessage.contains("passkey") && errorMessage.contains("not found")
-    }
 
     static var hasStoredAccountChoice: Bool {
         UserDefaults.standard.bool(forKey: accountChoiceKey)
     }
 
     private static let accountChoiceKey = "Candoa.HasCompletedAccountChoice"
-    private static let knownPasskeyAccountKey =
-        "Candoa.HasKnownPasskeyAccount.www.candoa.app"
 
     init(
         accountService: CandoaAccountService = CandoaAccountService(),
-        appleSignInService: CandoaAppleSignInService = CandoaAppleSignInService(),
-        passkeyService: CandoaPasskeyService = CandoaPasskeyService()
+        appleSignInService: CandoaAppleSignInService = CandoaAppleSignInService()
     ) {
         self.accountService = accountService
         self.appleSignInService = appleSignInService
-        self.passkeyService = passkeyService
         let hasStoredToken = accountService.accessToken != nil
         isSignedIn = false
         hasCloudSession = hasStoredToken
@@ -59,9 +44,6 @@ final class UserStore: ObservableObject {
         hasCompletedAccountChoice = environment["CANDOA_UI_TESTING"] == "1"
             ? false
             : hasStoredToken || Self.hasStoredAccountChoice
-        hasKnownPasskeyAccount = environment["CANDOA_UI_TESTING"] == "1"
-            ? environment["CANDOA_UI_TESTING_KNOWN_PASSKEY_ACCOUNT"] == "1"
-            : UserDefaults.standard.bool(forKey: Self.knownPasskeyAccountKey)
         isWorking = environment["CANDOA_UI_TESTING"] == "1" ? false : hasStoredToken
     }
 
@@ -86,41 +68,10 @@ final class UserStore: ObservableObject {
         }
     }
 
-    func createPasskey() {
-        Task {
-            await registerPasskey()
-        }
-    }
-
     func signInWithApple() {
         Task {
             await authenticateWithApple()
         }
-    }
-
-    func signInWithPasskey() {
-        Task {
-            await restoreWithPasskey()
-        }
-    }
-
-    func allowCreatingNewPasskeyAccount() {
-        hasKnownPasskeyAccount = false
-        errorMessage = nil
-        guard ProcessInfo.processInfo.environment["CANDOA_UI_TESTING"] != "1" else { return }
-        UserDefaults.standard.removeObject(forKey: Self.knownPasskeyAccountKey)
-    }
-
-    func createReplacementPasskeyAccount() {
-        try? accountService.removeAccessToken()
-        status = nil
-        isSignedIn = false
-        hasCloudSession = false
-        isLocalOnly = false
-        isAwaitingSubscriptionActivation = false
-        isReconcilingSubscription = false
-        allowCreatingNewPasskeyAccount()
-        createPasskey()
     }
 
     func refresh() async {
@@ -169,7 +120,6 @@ final class UserStore: ObservableObject {
             await Task.yield()
             try? await Task.sleep(for: .seconds(2))
             status = CandoaAccountStatus(
-                hasPasskey: true,
                 hasAppleAccount: true,
                 planID: "pro",
                 allowedModelIDs: ["openai/gpt-5"]
@@ -369,7 +319,6 @@ final class UserStore: ObservableObject {
             isLocalOnly = false
             hasCloudSession = true
             status = CandoaAccountStatus(
-                hasPasskey: false,
                 hasAppleAccount: true,
                 planID: status?.planID ?? "free",
                 allowedModelIDs: status?.allowedModelIDs ?? []
@@ -423,131 +372,6 @@ final class UserStore: ObservableObject {
         }
     }
 
-    @discardableResult
-    private func registerPasskey() async -> Bool {
-        guard !isWorking else { return false }
-
-        if ProcessInfo.processInfo.environment["CANDOA_UI_TESTING_PASSKEY_SUCCESS"] == "1" {
-            isSignedIn = true
-            isLocalOnly = false
-            hasCloudSession = true
-            markAccountChoiceCompleted()
-            return true
-        }
-
-        isWorking = true
-        errorMessage = nil
-        accountMessage = nil
-        var createdTemporarySession = false
-        defer { isWorking = false }
-
-        do {
-            if accountService.accessToken == nil {
-                let accessToken = try await accountService.signInAnonymously()
-                try accountService.saveAccessToken(accessToken)
-                try await loadSession(accessToken: accessToken)
-                createdTemporarySession = true
-            }
-
-            guard let accessToken = accountService.accessToken,
-                  hasCloudSession else {
-                throw CandoaAccountError.invalidResponse
-            }
-            if status?.hasPasskey == true {
-                markAccountChoiceCompleted()
-                return true
-            }
-
-            let ceremony = try await accountService.passkeyRegistrationOptions(
-                accessToken: accessToken
-            )
-            let credential = try await passkeyService.createPasskey(options: ceremony.options)
-            try await accountService.verifyPasskeyRegistration(
-                credential,
-                accessToken: accessToken,
-                challengeCookie: ceremony.challengeCookie
-            )
-            try await loadSession(accessToken: accessToken)
-            guard isSignedIn, !isLocalOnly else {
-                throw CandoaAccountError.invalidResponse
-            }
-            try await refreshAccountStatus(accessToken: accessToken)
-            guard status?.hasPasskey == true else {
-                throw CandoaAccountError.invalidResponse
-            }
-            markAccountChoiceCompleted()
-            accountMessage = "Your Candoa account is ready."
-            return true
-        } catch {
-            if createdTemporarySession {
-                if let accessToken = accountService.accessToken {
-                    try? await accountService.signOut(accessToken: accessToken)
-                }
-                try? accountService.removeAccessToken()
-                hasCloudSession = false
-                isLocalOnly = false
-                isSignedIn = false
-            }
-            if isPasskeyCancellation(error) {
-                errorMessage = nil
-            } else {
-                errorMessage = error.localizedDescription
-            }
-            return false
-        }
-    }
-
-    private func restoreWithPasskey() async {
-        guard !isSigningInWithPasskey, !isWorking else { return }
-
-        if ProcessInfo.processInfo.environment["CANDOA_UI_TESTING_PASSKEY_NOT_FOUND"] == "1" {
-            errorMessage = "Passkey not found"
-            return
-        }
-
-        if ProcessInfo.processInfo.environment["CANDOA_UI_TESTING_PASSKEY_SUCCESS"] == "1" {
-            isSignedIn = true
-            isLocalOnly = false
-            hasCloudSession = true
-            markAccountChoiceCompleted()
-            return
-        }
-
-        isSigningInWithPasskey = true
-        isWorking = true
-        errorMessage = nil
-        accountMessage = nil
-        defer {
-            isSigningInWithPasskey = false
-            isWorking = false
-        }
-
-        do {
-            let ceremony = try await accountService.passkeyAuthenticationOptions()
-            let credential = try await passkeyService.signIn(options: ceremony.options)
-            let accessToken = try await accountService.verifyPasskeyAuthentication(
-                credential,
-                challengeCookie: ceremony.challengeCookie
-            )
-            try accountService.saveAccessToken(accessToken)
-            try await loadSession(accessToken: accessToken)
-            guard isSignedIn, !isLocalOnly else {
-                throw CandoaAccountError.invalidResponse
-            }
-            try await refreshAccountStatus(accessToken: accessToken)
-            markAccountChoiceCompleted()
-            accountMessage = hasActiveSubscription
-                ? "Your Candoa subscription has been restored."
-                : "You’re signed in to Candoa."
-        } catch {
-            if isPasskeyCancellation(error) {
-                errorMessage = nil
-            } else {
-                errorMessage = error.localizedDescription
-            }
-        }
-    }
-
     private func loadSession(accessToken: String) async throws {
         let session = try await accountService.session(accessToken: accessToken)
         hasCloudSession = true
@@ -557,20 +381,11 @@ final class UserStore: ObservableObject {
 
     private func refreshAccountStatus(accessToken: String) async throws {
         status = try await accountService.accountStatus(accessToken: accessToken)
-        if status?.hasPasskey == true {
-            markPasskeyAccountKnown()
-        }
     }
 
     private func markAccountChoiceCompleted() {
         UserDefaults.standard.set(true, forKey: Self.accountChoiceKey)
         hasCompletedAccountChoice = true
-    }
-
-    private func markPasskeyAccountKnown() {
-        hasKnownPasskeyAccount = true
-        guard ProcessInfo.processInfo.environment["CANDOA_UI_TESTING"] != "1" else { return }
-        UserDefaults.standard.set(true, forKey: Self.knownPasskeyAccountKey)
     }
 
     private static func isBillingSuccessURL(_ url: URL) -> Bool {
@@ -581,12 +396,6 @@ final class UserStore: ObservableObject {
         default:
             return false
         }
-    }
-
-    private func isPasskeyCancellation(_ error: any Error) -> Bool {
-        let error = error as NSError
-        return error.domain == ASAuthorizationError.errorDomain
-            && error.code == ASAuthorizationError.canceled.rawValue
     }
 
     private static func isAppleSignInCancellation(_ error: any Error) -> Bool {

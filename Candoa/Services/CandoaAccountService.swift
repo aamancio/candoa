@@ -64,25 +64,21 @@ enum CandoaAccountKeychain {
 }
 
 struct CandoaAccountStatus: Decodable, Sendable {
-    let hasPasskey: Bool
     let hasAppleAccount: Bool
     let planID: String
     let allowedModelIDs: [String]
 
     private enum CodingKeys: String, CodingKey {
-        case hasPasskey
         case hasAppleAccount
         case planID
         case allowedModelIDs
     }
 
     init(
-        hasPasskey: Bool,
         hasAppleAccount: Bool = false,
         planID: String,
         allowedModelIDs: [String]
     ) {
-        self.hasPasskey = hasPasskey
         self.hasAppleAccount = hasAppleAccount
         self.planID = planID
         self.allowedModelIDs = allowedModelIDs
@@ -90,7 +86,6 @@ struct CandoaAccountStatus: Decodable, Sendable {
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        hasPasskey = try container.decodeIfPresent(Bool.self, forKey: .hasPasskey) ?? false
         hasAppleAccount = try container.decodeIfPresent(
             Bool.self,
             forKey: .hasAppleAccount
@@ -125,11 +120,6 @@ struct CandoaCloudUser: Decodable, Sendable {
         id = try container.decode(String.self, forKey: .id)
         isAnonymous = try container.decodeIfPresent(Bool.self, forKey: .isAnonymous) ?? false
     }
-}
-
-struct CandoaPasskeyCeremony<Options: Sendable>: Sendable {
-    let options: Options
-    let challengeCookie: String
 }
 
 enum CandoaCloudAPI {
@@ -212,81 +202,6 @@ enum CandoaCloudAPI {
         return accessToken
     }
 
-    static func passkeyRegistrationOptions(
-        accessToken: String
-    ) async throws -> CandoaPasskeyCeremony<CandoaPasskeyRegistrationOptions> {
-        var components = URLComponents(
-            url: endpoint("auth/passkey/generate-register-options"),
-            resolvingAgainstBaseURL: false
-        )
-        components?.queryItems = [
-            URLQueryItem(name: "authenticatorAttachment", value: "platform"),
-            URLQueryItem(name: "name", value: "Candoa")
-        ]
-        guard let url = components?.url else { throw CandoaAccountError.invalidResponse }
-        let (data, response) = try await dataRequest(
-            url,
-            method: "GET",
-            body: Optional<String>.none,
-            accessToken: accessToken
-        )
-        return CandoaPasskeyCeremony(
-            options: try JSONDecoder().decode(CandoaPasskeyRegistrationOptions.self, from: data),
-            challengeCookie: try passkeyChallengeCookie(from: response)
-        )
-    }
-
-    static func verifyPasskeyRegistration(
-        _ credential: CandoaPasskeyRegistrationCredential,
-        accessToken: String,
-        challengeCookie: String
-    ) async throws {
-        let (_, response) = try await dataRequest(
-            endpoint("auth/passkey/verify-registration"),
-            method: "POST",
-            body: CandoaPasskeyVerificationRequest(response: credential),
-            accessToken: accessToken,
-            originHeader: cloudOrigin,
-            cookie: challengeCookie
-        )
-        guard (200...299).contains(response.statusCode) else {
-            throw CandoaAccountError.invalidResponse
-        }
-    }
-
-    static func passkeyAuthenticationOptions()
-        async throws -> CandoaPasskeyCeremony<CandoaPasskeyAuthenticationOptions> {
-        let (data, response) = try await dataRequest(
-            endpoint("auth/passkey/generate-authenticate-options"),
-            method: "GET",
-            body: Optional<String>.none,
-            accessToken: nil
-        )
-        return CandoaPasskeyCeremony(
-            options: try JSONDecoder().decode(CandoaPasskeyAuthenticationOptions.self, from: data),
-            challengeCookie: try passkeyChallengeCookie(from: response)
-        )
-    }
-
-    static func verifyPasskeyAuthentication(
-        _ credential: CandoaPasskeyAuthenticationCredential,
-        challengeCookie: String
-    ) async throws -> String {
-        let (_, response) = try await dataRequest(
-            endpoint("auth/passkey/verify-authentication"),
-            method: "POST",
-            body: CandoaPasskeyVerificationRequest(response: credential),
-            accessToken: nil,
-            originHeader: cloudOrigin,
-            cookie: challengeCookie
-        )
-        guard let accessToken = response.value(forHTTPHeaderField: "set-auth-token"),
-              !accessToken.isEmpty else {
-            throw CandoaAccountError.invalidResponse
-        }
-        return accessToken
-    }
-
     static func accountStatus(accessToken: String) async throws -> CandoaAccountStatus {
         try await request(
             endpoint("account"),
@@ -320,10 +235,6 @@ enum CandoaCloudAPI {
 
     private static func endpoint(_ path: String) -> URL {
         cloudBaseURL.appending(path: path)
-    }
-
-    private static var cloudOrigin: String {
-        origin(for: cloudBaseURL)
     }
 
     private static var cloudBaseURL: URL {
@@ -370,20 +281,15 @@ enum CandoaCloudAPI {
         _ url: URL,
         method: String,
         body: Body?,
-        accessToken: String?,
-        originHeader: String? = nil,
-        cookie: String? = nil
+        accessToken: String?
     ) async throws -> (Data, HTTPURLResponse) {
         var request = URLRequest(url: url)
         request.httpMethod = method
         request.timeoutInterval = 30
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue(originHeader ?? origin(for: url), forHTTPHeaderField: "Origin")
+        request.setValue(origin(for: url), forHTTPHeaderField: "Origin")
         if let accessToken {
             request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
-        }
-        if let cookie {
-            request.setValue(cookie, forHTTPHeaderField: "Cookie")
         }
         if let body {
             request.httpBody = try JSONEncoder().encode(body)
@@ -400,26 +306,6 @@ enum CandoaCloudAPI {
             )
         }
         return (data, httpResponse)
-    }
-
-    private static func passkeyChallengeCookie(
-        from response: HTTPURLResponse
-    ) throws -> String {
-        guard let header = response.value(forHTTPHeaderField: "Set-Cookie") else {
-            throw CandoaAccountError.invalidResponse
-        }
-
-        for rawCookie in header.split(separator: ",") {
-            let pair = rawCookie.split(separator: ";", maxSplits: 1)[0]
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-            guard let separator = pair.firstIndex(of: "=") else { continue }
-            let name = pair[..<separator]
-            if name.hasSuffix("better-auth-passkey") {
-                return pair
-            }
-        }
-
-        throw CandoaAccountError.invalidResponse
     }
 
     private static func origin(for url: URL) -> String {
@@ -478,39 +364,6 @@ struct CandoaAccountService {
         try await CandoaCloudAPI.exchangeAppleSignInCode(code)
     }
 
-    func passkeyRegistrationOptions(
-        accessToken: String
-    ) async throws -> CandoaPasskeyCeremony<CandoaPasskeyRegistrationOptions> {
-        try await CandoaCloudAPI.passkeyRegistrationOptions(accessToken: accessToken)
-    }
-
-    func verifyPasskeyRegistration(
-        _ credential: CandoaPasskeyRegistrationCredential,
-        accessToken: String,
-        challengeCookie: String
-    ) async throws {
-        try await CandoaCloudAPI.verifyPasskeyRegistration(
-            credential,
-            accessToken: accessToken,
-            challengeCookie: challengeCookie
-        )
-    }
-
-    func passkeyAuthenticationOptions()
-        async throws -> CandoaPasskeyCeremony<CandoaPasskeyAuthenticationOptions> {
-        try await CandoaCloudAPI.passkeyAuthenticationOptions()
-    }
-
-    func verifyPasskeyAuthentication(
-        _ credential: CandoaPasskeyAuthenticationCredential,
-        challengeCookie: String
-    ) async throws -> String {
-        try await CandoaCloudAPI.verifyPasskeyAuthentication(
-            credential,
-            challengeCookie: challengeCookie
-        )
-    }
-
     func saveAccessToken(_ accessToken: String) throws {
         try CandoaAccountKeychain.save(accessToken)
     }
@@ -535,7 +388,6 @@ struct CandoaAccountService {
 enum CandoaAccountError: LocalizedError, Sendable {
     case invalidResponse
     case keychainUnavailable
-    case passkeyUnavailable
     case server(String)
 
     var isAuthenticationFailure: Bool {
@@ -552,8 +404,6 @@ enum CandoaAccountError: LocalizedError, Sendable {
             return "Candoa returned an invalid response."
         case .keychainUnavailable:
             return "Candoa could not save your session in Keychain."
-        case .passkeyUnavailable:
-            return "Candoa couldn’t use a passkey. Please try again."
         case .server(let message):
             return message
         }
