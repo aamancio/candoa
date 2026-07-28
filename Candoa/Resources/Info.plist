@@ -37,6 +37,7 @@
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>candoa</string>
+				<string>candoa-dev</string>
 			</array>
 		</dict>
 	</array>

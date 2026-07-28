@@ -48,6 +48,7 @@ enum CandoaDockIconPreference: String, CaseIterable, Identifiable {
     }
 }
 struct CandoaSettingsView: View {
+    @EnvironmentObject private var userStore: UserStore
     @State private var selectedTab = CandoaSettingsTab.general
 
     var body: some View {
@@ -114,6 +115,9 @@ struct CandoaSettingsView: View {
         }
         .tabViewStyle(.automatic)
         .frame(width: 780, height: 590)
+        .onOpenURL { url in
+            _ = userStore.handleAppleSignInCallback(url)
+        }
     }
 }
 

@@ -74,12 +74,12 @@
       <EnvironmentVariables>
          <EnvironmentVariable
             key = "CANDOA_CLOUD_API_URL"
-            value = "https://www.candoa.app/api"
+            value = "http://127.0.0.1:3000/api"
             isEnabled = "YES">
          </EnvironmentVariable>
          <EnvironmentVariable
-            key = "CANDOA_ALLOW_PRODUCTION_CLOUD_IN_DEBUG"
-            value = "1"
+            key = "CANDOA_APPLE_AUTH_BASE_URL"
+            value = "https://candoa.a.pinggy.link/api"
             isEnabled = "YES">
          </EnvironmentVariable>
       </EnvironmentVariables>

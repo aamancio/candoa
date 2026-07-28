@@ -68,6 +68,12 @@ private final class CandoaAppDelegate: NSObject, NSApplicationDelegate {
         browserPasskeyAuthorizationService.requestAuthorizationIfNeeded()
     }
 
+    func application(_ application: NSApplication, open urls: [URL]) {
+        for url in urls {
+            _ = CandoaAppleSignInService.handleApplicationCallback(url)
+        }
+    }
+
     @objc private func systemAppearanceDidChange(_ notification: Notification) {
         updateDockIcon()
     }

@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 import Security
 
 enum CandoaAccountKeychain {
@@ -123,8 +124,14 @@ struct CandoaCloudUser: Decodable, Sendable {
 }
 
 enum CandoaCloudAPI {
+    private static let logger = Logger(
+        subsystem: "app.candoa.browser",
+        category: "CloudAPI"
+    )
     private static let productionBaseURL = URL(string: "https://www.candoa.app/api")!
     private static let developmentBaseURL = URL(string: "http://127.0.0.1:3000/api")!
+    private static let developmentAppleAuthenticationBaseURL =
+        URL(string: "https://candoa.a.pinggy.link/api")!
 
     private static var appleAuthenticationBaseURL: URL {
 #if DEBUG
@@ -134,8 +141,10 @@ enum CandoaCloudAPI {
            url.host(percentEncoded: false) != nil {
             return url
         }
-#endif
+        return developmentAppleAuthenticationBaseURL
+#else
         return productionBaseURL
+#endif
     }
 
     static var aiChatURL: URL {
@@ -192,9 +201,21 @@ enum CandoaCloudAPI {
             body: EmptyRequest(),
             accessToken: accessToken
         )
-        guard let url = URL(string: response.url),
-              url.scheme == "https",
+        guard let url = URL(string: response.url) else {
+            logger.error("Apple authentication intent returned a malformed URL.")
+            throw CandoaAccountError.invalidResponse
+        }
+        guard url.scheme == "https",
               url.host == appleAuthenticationBaseURL.host else {
+            logger.error(
+                """
+                Apple authentication intent origin mismatch: \
+                \(url.scheme ?? "nil", privacy: .public)://\
+                \(url.host ?? "nil", privacy: .public), expected \
+                \(appleAuthenticationBaseURL.scheme ?? "nil", privacy: .public)://\
+                \(appleAuthenticationBaseURL.host ?? "nil", privacy: .public)
+                """
+            )
             throw CandoaAccountError.invalidResponse
         }
         return url
@@ -262,12 +283,10 @@ enum CandoaCloudAPI {
         let configuredURL = ProcessInfo.processInfo.environment[key]
             .flatMap(URL.init(string:))
 #if DEBUG
-        // Production remains unavailable to arbitrary Debug launches. The shared
-        // Xcode scheme opts in explicitly so normal development can exercise the
-        // deployed account and subscription attached to the developer's session.
-        let allowsProductionCloud =
-            ProcessInfo.processInfo.environment["CANDOA_ALLOW_PRODUCTION_CLOUD_IN_DEBUG"] == "1"
-        guard configuredURL?.host != productionBaseURL.host || allowsProductionCloud else {
+        // Debug builds must never read or write production Cloud data. Apple
+        // web authentication uses its separately configured registered HTTPS
+        // endpoint; every ordinary API remains local.
+        guard configuredURL?.host != productionBaseURL.host else {
             return nil
         }
 #endif

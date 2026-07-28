@@ -411,7 +411,9 @@ struct ContentView: View {
             )
         }
         .onOpenURL { url in
-            store.openExternalURL(url)
+            if !userStore.handleAppleSignInCallback(url) {
+                store.openExternalURL(url)
+            }
         }
         .onDisappear {
             store.flushSession()

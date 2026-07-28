@@ -74,7 +74,15 @@ final class UserStore: ObservableObject {
         }
     }
 
+    func handleAppleSignInCallback(_ url: URL) -> Bool {
+        appleSignInService.handleCallbackURL(url)
+    }
+
     func refresh() async {
+        // Returning from ASWebAuthenticationSession activates the app before
+        // the Apple code exchange has necessarily finished. Ignore that scene
+        // refresh so it cannot overwrite the in-flight sign-in state.
+        guard !isSigningInWithApple else { return }
         guard let accessToken = accountService.accessToken else {
             status = nil
             isSignedIn = false
@@ -83,12 +91,28 @@ final class UserStore: ObservableObject {
         }
 
         isWorking = true
-        defer { isWorking = false }
+        defer {
+            if !isSigningInWithApple {
+                isWorking = false
+            }
+        }
         do {
-            try await loadSession(accessToken: accessToken)
-            try await refreshAccountStatus(accessToken: accessToken)
+            let session = try await accountService.session(accessToken: accessToken)
+            let refreshedStatus = try await accountService.accountStatus(
+                accessToken: accessToken
+            )
+            guard !isSigningInWithApple,
+                  accountService.accessToken == accessToken else {
+                return
+            }
+            apply(session: session)
+            status = refreshedStatus
             errorMessage = nil
         } catch {
+            guard !isSigningInWithApple,
+                  accountService.accessToken == accessToken else {
+                return
+            }
             status = nil
             if (error as? CandoaAccountError)?.isAuthenticationFailure == true {
                 try? accountService.removeAccessToken()
@@ -183,7 +207,32 @@ final class UserStore: ObservableObject {
 
     func reconcilePendingSubscriptionIfNeeded(for url: URL? = nil) async {
         guard isAwaitingSubscriptionActivation, !isReconcilingSubscription else { return }
-        if let url, !Self.isBillingSuccessURL(url) {
+
+        if let url, Self.isBillingCancellationURL(url) {
+            isAwaitingSubscriptionActivation = false
+            subscriptionErrorMessage = nil
+            return
+        }
+
+        if url == nil {
+            // Becoming active after opening Checkout usually means the person
+            // returned to Candoa or closed the payment page. Check once for a
+            // webhook that already arrived, then restore the Subscribe action
+            // instead of showing a long confirmation loop for a canceled flow.
+            isReconcilingSubscription = true
+            defer { isReconcilingSubscription = false }
+            subscriptionErrorMessage = nil
+            await refresh()
+            if hasActiveSubscription {
+                isAwaitingSubscriptionActivation = false
+                accountMessage = "Your Candoa subscription is active."
+            } else {
+                isAwaitingSubscriptionActivation = false
+            }
+            return
+        }
+
+        guard let url, Self.isBillingSuccessURL(url) else {
             return
         }
 
@@ -340,23 +389,29 @@ final class UserStore: ObservableObject {
         }
 
         do {
-            let shouldLinkExistingAccount =
-                isSignedIn && !isLocalOnly && previousAccessToken != nil
+            // A local-only account is still an authenticated Better Auth
+            // session. Preserve that account (and any subscription attached to
+            // it) by explicitly linking Apple whenever a session token exists.
+            let shouldLinkExistingAccount = previousAccessToken != nil
             let authorizationURL = try await accountService.appleSignInURL(
                 accessToken: shouldLinkExistingAccount ? previousAccessToken : nil
             )
             let code = try await appleSignInService.authenticate(at: authorizationURL)
             let accessToken = try await accountService.exchangeAppleSignInCode(code)
+            let session = try await accountService.session(accessToken: accessToken)
+            let refreshedStatus = try await accountService.accountStatus(
+                accessToken: accessToken
+            )
+            guard !session.user.isAnonymous, refreshedStatus.hasAppleAccount else {
+                throw CandoaAccountError.invalidResponse
+            }
 
             if let previousAccessToken, previousAccessToken != accessToken {
                 try? await accountService.signOut(accessToken: previousAccessToken)
             }
             try accountService.saveAccessToken(accessToken)
-            try await loadSession(accessToken: accessToken)
-            try await refreshAccountStatus(accessToken: accessToken)
-            guard isSignedIn, status?.hasAppleAccount == true else {
-                throw CandoaAccountError.invalidResponse
-            }
+            apply(session: session)
+            status = refreshedStatus
 
             markAccountChoiceCompleted()
             errorMessage = nil
@@ -374,6 +429,10 @@ final class UserStore: ObservableObject {
 
     private func loadSession(accessToken: String) async throws {
         let session = try await accountService.session(accessToken: accessToken)
+        apply(session: session)
+    }
+
+    private func apply(session: CandoaCloudSession) {
         hasCloudSession = true
         isLocalOnly = session.user.isAnonymous
         isSignedIn = !session.user.isAnonymous
@@ -390,6 +449,25 @@ final class UserStore: ObservableObject {
 
     private static func isBillingSuccessURL(_ url: URL) -> Bool {
         guard url.path == "/billing/success" else { return false }
+        switch url.host(percentEncoded: false)?.lowercased() {
+        case "candoa.app", "www.candoa.app", "localhost", "127.0.0.1":
+            return true
+        default:
+            return false
+        }
+    }
+
+    private static func isBillingCancellationURL(_ url: URL) -> Bool {
+        guard let components = URLComponents(
+            url: url,
+            resolvingAgainstBaseURL: false
+        ),
+        components.queryItems?.contains(where: {
+            $0.name == "billing" && $0.value == "cancelled"
+        }) == true else {
+            return false
+        }
+
         switch url.host(percentEncoded: false)?.lowercased() {
         case "candoa.app", "www.candoa.app", "localhost", "127.0.0.1":
             return true
