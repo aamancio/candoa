@@ -12,8 +12,11 @@ final class CandoaAppleSignInService: NSObject {
     private var authenticationSession: ASWebAuthenticationSession?
     private var pendingContinuation: CheckedContinuation<String, any Error>?
     private var requestedURL: URL?
-    private var browserLaunchFallbackTask: Task<Void, Never>?
     private var fallbackTimeoutTask: Task<Void, Never>?
+    private var externalBrowserReturnTask: Task<Void, Never>?
+    private var externalBrowserReturnObserver: NSObjectProtocol?
+    private var externalBrowserActivationObserver: NSObjectProtocol?
+    private var hasActivatedSafari = false
     private var hasContinuedInSafari = false
     private var ignoresNextSessionCancellation = false
     private static weak var pendingService: CandoaAppleSignInService?
@@ -80,22 +83,6 @@ final class CandoaAppleSignInService: NSObject {
                 )
                 return
             }
-
-#if DEBUG
-            // Arc can accept the AuthenticationServices request without ever
-            // loading it when the Debug-only callback scheme is in use. Give
-            // the system session first chance, then continue the same request
-            // in Safari once if no browser has progressed it.
-            browserLaunchFallbackTask = Task { @MainActor [weak self] in
-                try? await Task.sleep(nanoseconds: 2 * 1_000_000_000)
-                guard !Task.isCancelled,
-                      self?.pendingContinuation != nil,
-                      self?.requestedURL == url else {
-                    return
-                }
-                self?.continueInSafari(url)
-            }
-#endif
         }
     }
 
@@ -184,8 +171,7 @@ final class CandoaAppleSignInService: NSObject {
     private func continueInSafari(_ url: URL) {
         guard pendingContinuation != nil, !hasContinuedInSafari else { return }
         hasContinuedInSafari = true
-        browserLaunchFallbackTask?.cancel()
-        browserLaunchFallbackTask = nil
+        observeExternalBrowserReturn()
         if let authenticationSession {
             ignoresNextSessionCancellation = true
             self.authenticationSession = nil
@@ -228,14 +214,74 @@ final class CandoaAppleSignInService: NSObject {
         }
     }
 
+    private func observeExternalBrowserReturn() {
+        guard externalBrowserReturnObserver == nil else { return }
+        externalBrowserActivationObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didActivateApplicationNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let application = notification.userInfo?[
+                NSWorkspace.applicationUserInfoKey
+            ] as? NSRunningApplication,
+            application.bundleIdentifier == "com.apple.Safari" else {
+                return
+            }
+            Task { @MainActor [weak self] in
+                self?.hasActivatedSafari = true
+            }
+        }
+        externalBrowserReturnObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.didBecomeActiveNotification,
+            object: NSApp,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self,
+                      self.hasContinuedInSafari,
+                      self.hasActivatedSafari,
+                      self.pendingContinuation != nil else {
+                    return
+                }
+
+                // A successful custom-scheme callback can activate Candoa just
+                // before application(_:open:) delivers the URL. Give that
+                // callback a brief chance to finish before treating a plain
+                // return from Safari as cancellation.
+                self.externalBrowserReturnTask?.cancel()
+                self.externalBrowserReturnTask = Task { @MainActor [weak self] in
+                    try? await Task.sleep(for: .milliseconds(500))
+                    guard !Task.isCancelled,
+                          let self,
+                          self.hasContinuedInSafari,
+                          self.pendingContinuation != nil else {
+                        return
+                    }
+                    self.finish(with: .failure(Self.canceledLoginError))
+                }
+            }
+        }
+    }
+
     private func finish(with result: Result<String, any Error>) {
         authenticationSession?.cancel()
         authenticationSession = nil
         requestedURL = nil
-        browserLaunchFallbackTask?.cancel()
-        browserLaunchFallbackTask = nil
         fallbackTimeoutTask?.cancel()
         fallbackTimeoutTask = nil
+        externalBrowserReturnTask?.cancel()
+        externalBrowserReturnTask = nil
+        if let externalBrowserReturnObserver {
+            NotificationCenter.default.removeObserver(externalBrowserReturnObserver)
+            self.externalBrowserReturnObserver = nil
+        }
+        if let externalBrowserActivationObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(
+                externalBrowserActivationObserver
+            )
+            self.externalBrowserActivationObserver = nil
+        }
+        hasActivatedSafari = false
         hasContinuedInSafari = false
         ignoresNextSessionCancellation = false
         if Self.pendingService === self {
@@ -244,6 +290,13 @@ final class CandoaAppleSignInService: NSObject {
         let continuation = pendingContinuation
         pendingContinuation = nil
         continuation?.resume(with: result)
+    }
+
+    private static var canceledLoginError: NSError {
+        NSError(
+            domain: ASWebAuthenticationSessionError.errorDomain,
+            code: ASWebAuthenticationSessionError.canceledLogin.rawValue
+        )
     }
 
     private func isAppleCallback(_ url: URL) -> Bool {

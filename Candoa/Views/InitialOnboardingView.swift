@@ -354,8 +354,7 @@ private struct AccountOnboardingStep: View {
                             .multilineTextAlignment(.center)
 
                         Text(
-                            "Sign in with Apple to restore subscriptions and hosted services "
-                                + "on any Mac. Your Spaces and tabs continue to sync privately through iCloud."
+                            "Sign in with Apple to restore your subscription and use Eli on any Mac."
                         )
                             .font(.system(size: 14))
                             .foregroundStyle(.secondary)
@@ -364,44 +363,46 @@ private struct AccountOnboardingStep: View {
                             .accessibilityIdentifier("account-onboarding-description")
                     }
 
-                    Button {
-                        userStore.signInWithApple()
-                    } label: {
-                        HStack(spacing: 8) {
-                            if userStore.isSigningInWithApple {
-                                ProgressView()
-                                    .controlSize(.small)
-                            } else {
-                                Image(systemName: "apple.logo")
-                                Text("Continue with Apple")
+                    VStack(spacing: 12) {
+                        Button {
+                            userStore.signInWithApple()
+                        } label: {
+                            HStack(spacing: 8) {
+                                if userStore.isSigningInWithApple {
+                                    ProgressView()
+                                        .controlSize(.small)
+                                } else {
+                                    Image(systemName: "apple.logo")
+                                    Text("Continue with Apple")
+                                }
                             }
+                            .frame(maxWidth: .infinity)
                         }
+                        .candoaButton(.primary)
+                        .controlSize(.large)
                         .frame(maxWidth: .infinity)
-                    }
-                    .candoaButton(.primary)
-                    .controlSize(.large)
-                    .frame(maxWidth: .infinity)
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(userStore.isWorking)
-                    .accessibilityIdentifier("onboarding-sign-in-apple")
+                        .keyboardShortcut(.defaultAction)
+                        .disabled(userStore.isWorking)
+                        .accessibilityIdentifier("onboarding-sign-in-apple")
 
-                    if let errorMessage = userStore.errorMessage, !userStore.isWorking {
-                        Text(errorMessage)
-                            .font(.system(size: 12))
-                            .foregroundStyle(CandoaColor.danger)
-                            .fixedSize(horizontal: false, vertical: true)
+                        if let errorMessage = userStore.errorMessage, !userStore.isWorking {
+                            Text(errorMessage)
+                                .font(.system(size: 12))
+                                .foregroundStyle(CandoaColor.danger)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+
+                        Button("Not Now") {
+                            userStore.continueOnThisMac()
+                        }
+                        .candoaButton(.quiet)
+                        .controlSize(.large)
+                        .disabled(userStore.isWorking)
+                        .accessibilityIdentifier("onboarding-not-now")
                     }
                 }
 
                 Spacer(minLength: 20)
-
-                Button("Not Now") {
-                    userStore.continueOnThisMac()
-                }
-                .candoaButton(.quiet)
-                .controlSize(.large)
-                .disabled(userStore.isWorking)
-                .accessibilityIdentifier("onboarding-not-now")
             }
             .frame(maxWidth: 310)
         }
