@@ -746,9 +746,9 @@ struct EliSidebarView: View {
             ))
             messages.append(AISidebarMessage(
                 role: .assistant,
-                text: subscriptionVerificationFailureMessage,
+                text: "",
                 isStreaming: false,
-                action: userStore.hasCloudSession && userStore.errorMessage != nil ? nil : .subscribe
+                action: .subscribe
             ))
             pendingSubscriptionSubmission = submission
 
@@ -763,11 +763,6 @@ struct EliSidebarView: View {
     private func removeSubscriptionGateIfActive() {
         guard userStore.hasActiveSubscription else { return }
         messages.removeAll { $0.action == .subscribe }
-    }
-
-    private var subscriptionVerificationFailureMessage: String {
-        guard userStore.hasCloudSession, userStore.errorMessage != nil else { return "" }
-        return "I couldn’t verify your Candoa subscription. Check the Cloud connection and try again."
     }
 
     private func resumePendingSubscriptionSubmissionIfNeeded() {

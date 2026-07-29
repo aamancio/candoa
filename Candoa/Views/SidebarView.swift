@@ -43,7 +43,6 @@ struct SidebarView: View {
     @Environment(\.accessibilityReduceMotion) private var accessibilityReduceMotion
     let availableUpdate: AppUpdate?
     let automaticUpdatesEnabled: Binding<Bool>
-    let windowControlsHiddenOffset: CGFloat
     let onUpdateBannerTapped: () -> Void
     let onToggleSidebar: () -> Void
 
@@ -130,15 +129,18 @@ struct SidebarView: View {
         ZStack {
             spaceSwipeContent
 
-            sidebarChrome(for: store.activeSpaceID)
-                .opacity(isSpaceSwipePrepared ? 0 : 1)
-                .allowsHitTesting(!isSpaceSwipePrepared)
+            if !isSpaceSwipePrepared {
+                sidebarChrome(
+                    for: store.activeSpaceID,
+                    showsWindowControls: true
+                )
+            }
         }
     }
 
     private var setupSidebar: some View {
         VStack(alignment: .leading, spacing: 12) {
-            sidebarHeader
+            sidebarHeader(showsWindowControls: true)
 
             if store.isInitialAccountSetupPresented {
                 Spacer(minLength: 0)
@@ -184,9 +186,12 @@ struct SidebarView: View {
         )
     }
 
-    private func sidebarChrome(for spaceID: UUID) -> some View {
+    private func sidebarChrome(
+        for spaceID: UUID,
+        showsWindowControls: Bool
+    ) -> some View {
         VStack(alignment: .leading, spacing: sidebarVerticalSpacing) {
-            sidebarHeader
+            sidebarHeader(showsWindowControls: showsWindowControls)
             addressPill(for: spaceID)
 
             Spacer(minLength: 0)
@@ -292,7 +297,10 @@ struct SidebarView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
 
                 if isSpaceSwipePrepared {
-                    sidebarChrome(for: spaceID)
+                    sidebarChrome(
+                        for: spaceID,
+                        showsWindowControls: slot == selectedSpaceTransitionDirection
+                    )
                 }
             }
             .background {
@@ -323,10 +331,10 @@ struct SidebarView: View {
         return store.spaces[destinationIndex].id
     }
 
-    private func beginSpaceSwipeGesture() {
+    private func beginSpaceSwipeGesture(_ direction: Int) {
         guard !isSettlingSpaceSwipe else { return }
         selectedSpaceTransitionID = nil
-        selectedSpaceTransitionDirection = nil
+        selectedSpaceTransitionDirection = direction
         spaceSwipeSettleRequest = nil
         spaceSwipeSourceID = store.activeSpaceID
         isSpaceSwipePrepared = true
@@ -423,17 +431,19 @@ struct SidebarView: View {
 
     // MARK: - Header
 
-    private var sidebarHeader: some View {
-        HStack(alignment: .top, spacing: 6) {
-            WindowControlsView(
-                hiddenOffset: windowControlsHiddenOffset
-            )
-                .frame(width: windowControlsWidth, height: 24)
+    private func sidebarHeader(showsWindowControls: Bool) -> some View {
+        HStack(alignment: .center, spacing: 6) {
+            if showsWindowControls {
+                WindowControlsView()
+                    .frame(width: windowControlsWidth, height: 24)
+            } else {
+                Color.clear
+                    .frame(width: windowControlsWidth, height: 24)
+            }
 
             Spacer(minLength: 8)
 
             navigationControls
-                .offset(y: -5)
                 .opacity(hidesNavigationControlsForAddressPalette ? 0 : 1)
                 .allowsHitTesting(!hidesNavigationControlsForAddressPalette)
 
@@ -443,7 +453,6 @@ struct SidebarView: View {
                 Image(systemName: "sidebar.left")
             }
             .toolbarIconButton()
-            .offset(y: -5)
             .help("Hide Sidebar")
             .accessibilityIdentifier("sidebar-toggle-button")
         }

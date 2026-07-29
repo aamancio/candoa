@@ -79,6 +79,18 @@ final class UserStore: ObservableObject {
     }
 
     func refresh() async {
+        let environment = ProcessInfo.processInfo.environment
+        if environment["CANDOA_UI_TESTING"] == "1",
+           environment["CANDOA_UI_TESTING_FIXTURE"] == "ask-cloud-unavailable" {
+            status = nil
+            isWorking = false
+            isSignedIn = false
+            hasCloudSession = true
+            isLocalOnly = false
+            errorMessage = "Could not connect to the local Candoa Cloud."
+            return
+        }
+
         // Returning from ASWebAuthenticationSession activates the app before
         // the Apple code exchange has necessarily finished. Ignore that scene
         // refresh so it cannot overwrite the in-flight sign-in state.
@@ -393,10 +405,9 @@ final class UserStore: ObservableObject {
             // session. Preserve that account (and any subscription attached to
             // it) by explicitly linking Apple whenever a session token exists.
             let shouldLinkExistingAccount = previousAccessToken != nil
-            let authorizationURL = try await accountService.appleSignInURL(
-                accessToken: shouldLinkExistingAccount ? previousAccessToken : nil
+            let code = try await appleAuthorizationCode(
+                linkingAccessToken: shouldLinkExistingAccount ? previousAccessToken : nil
             )
-            let code = try await appleSignInService.authenticate(at: authorizationURL)
             let accessToken = try await accountService.exchangeAppleSignInCode(code)
             let session = try await accountService.session(accessToken: accessToken)
             let refreshedStatus = try await accountService.accountStatus(
@@ -424,6 +435,24 @@ final class UserStore: ObservableObject {
             } else {
                 errorMessage = error.localizedDescription
             }
+        }
+    }
+
+    private func appleAuthorizationCode(
+        linkingAccessToken: String?
+    ) async throws -> String {
+        let authorizationURL = try await accountService.appleSignInURL(
+            accessToken: linkingAccessToken
+        )
+        do {
+            return try await appleSignInService.authenticate(at: authorizationURL)
+        } catch CandoaAccountError.appleAccountAlreadyLinked
+            where linkingAccessToken != nil {
+            // The temporary local account cannot claim an Apple identity that
+            // already belongs to a Candoa account. Restore that existing
+            // account instead, then discard the superseded anonymous session.
+            let signInURL = try await accountService.appleSignInURL(accessToken: nil)
+            return try await appleSignInService.authenticate(at: signInURL)
         }
     }
 

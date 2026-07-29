@@ -36,29 +36,25 @@ private extension EnvironmentValues {
 
 internal struct WindowControlsView: View {
     @Environment(\.sidebarRevealProgress) private var revealProgress
-    let hiddenOffset: CGFloat
 
     var body: some View {
         NativeWindowControlsView(
-            revealProgress: revealProgress,
-            hiddenOffset: hiddenOffset
+            revealProgress: revealProgress
         )
     }
 }
 internal struct NativeWindowControlsView: NSViewRepresentable {
     let revealProgress: CGFloat
-    let hiddenOffset: CGFloat
 
     func makeNSView(context: Context) -> NSView {
         let view = NativeWindowControlsHost()
-        view.configure(revealProgress: revealProgress, hiddenOffset: hiddenOffset)
+        view.configure(revealProgress: revealProgress)
         return view
     }
 
     func updateNSView(_ nsView: NSView, context: Context) {
         (nsView as? NativeWindowControlsHost)?.configure(
-            revealProgress: revealProgress,
-            hiddenOffset: hiddenOffset
+            revealProgress: revealProgress
         )
     }
 
@@ -68,17 +64,8 @@ internal struct NativeWindowControlsView: NSViewRepresentable {
 }
 
 private final class NativeWindowControlsHost: NSView {
-    private static let buttonTypes: [NSWindow.ButtonType] = [
-        .closeButton,
-        .miniaturizeButton,
-        .zoomButton
-    ]
-    private static let fallbackButtonSize = NSSize(width: 14, height: 14)
-    private weak var attachedWindow: NSWindow?
-    private var originalFrames: [Int: NSRect] = [:]
-    private var originalHiddenStates: [Int: Bool] = [:]
+    private weak var controlsCoordinator: NativeWindowControlsCoordinator?
     private var revealProgress: CGFloat = 1
-    private var hiddenOffset: CGFloat = 0
     private var attachmentGeneration = 0
 
     override var intrinsicContentSize: NSSize {
@@ -87,7 +74,7 @@ private final class NativeWindowControlsHost: NSView {
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
-        attachWindowControls()
+        attachWindowControlsIfPossible()
 
         guard let window else { return }
         attachmentGeneration += 1
@@ -102,96 +89,163 @@ private final class NativeWindowControlsHost: NSView {
                   let window,
                   self.window === window,
                   self.attachmentGeneration == generation else { return }
-            self.attachWindowControls()
+            self.attachWindowControlsIfPossible()
         }
     }
 
-    func configure(revealProgress: CGFloat, hiddenOffset: CGFloat) {
+    func configure(revealProgress: CGFloat) {
         self.revealProgress = min(max(revealProgress, 0), 1)
-        self.hiddenOffset = hiddenOffset
-        attachWindowControls()
+        attachWindowControlsIfPossible()
     }
 
-    func attachWindowControls() {
+    private func attachWindowControlsIfPossible() {
         guard let window else { return }
+        let coordinator = NativeWindowControlsCoordinator.coordinator(for: window)
+        controlsCoordinator = coordinator
+        coordinator.attachControls(to: self, revealProgress: revealProgress)
+    }
 
-        if let attachedWindow, attachedWindow !== window {
-            restoreWindowControls()
+    func restoreWindowControls() {
+        attachmentGeneration += 1
+        controlsCoordinator?.detachControls(from: self)
+        controlsCoordinator = nil
+    }
+
+    override func layout() {
+        super.layout()
+        controlsCoordinator?.layoutControls(
+            in: self,
+            revealProgress: revealProgress
+        )
+    }
+}
+
+@MainActor
+private final class NativeWindowControlsCoordinator {
+    @MainActor
+    private final class OriginalPlacement {
+        weak var superview: NSView?
+        let frame: NSRect
+        let isHidden: Bool
+        let translatesAutoresizingMaskIntoConstraints: Bool
+
+        init(button: NSButton) {
+            superview = button.superview
+            frame = button.frame
+            isHidden = button.isHidden
+            translatesAutoresizingMaskIntoConstraints = button.translatesAutoresizingMaskIntoConstraints
+        }
+    }
+
+    private static let coordinators = NSMapTable<NSWindow, NativeWindowControlsCoordinator>(
+        keyOptions: .weakMemory,
+        valueOptions: .strongMemory
+    )
+    private static let buttonTypes: [NSWindow.ButtonType] = [
+        .closeButton,
+        .miniaturizeButton,
+        .zoomButton
+    ]
+    private static let fallbackButtonSize = NSSize(width: 14, height: 14)
+    private static let leadingInset: CGFloat = 4
+    private static let buttonSpacing: CGFloat = 6
+
+    private weak var window: NSWindow?
+    private weak var activeHost: NativeWindowControlsHost?
+    private var originalPlacements: [Int: OriginalPlacement] = [:]
+
+    private init(window: NSWindow) {
+        self.window = window
+    }
+
+    static func coordinator(for window: NSWindow) -> NativeWindowControlsCoordinator {
+        if let existing = coordinators.object(forKey: window) {
+            return existing
         }
 
-        attachedWindow = window
+        let coordinator = NativeWindowControlsCoordinator(window: window)
+        coordinators.setObject(coordinator, forKey: window)
+        return coordinator
+    }
+
+    func attachControls(
+        to host: NativeWindowControlsHost,
+        revealProgress: CGFloat
+    ) {
+        guard let window else { return }
+        activeHost = host
 
         for buttonType in Self.buttonTypes {
             guard let button = window.standardWindowButton(buttonType) else { continue }
             let key = Int(buttonType.rawValue)
 
-            if originalFrames[key] == nil {
-                originalFrames[key] = button.frame
-                originalHiddenStates[key] = button.isHidden
+            if originalPlacements[key] == nil,
+               !(button.superview is NativeWindowControlsHost) {
+                originalPlacements[key] = OriginalPlacement(button: button)
             }
+
+            if button.superview !== host {
+                button.removeFromSuperview()
+                host.addSubview(button)
+            }
+            button.translatesAutoresizingMaskIntoConstraints = true
         }
 
-        layoutWindowControls()
+        layoutControls(in: host, revealProgress: revealProgress)
     }
 
-    func restoreWindowControls() {
-        guard let attachedWindow else { return }
+    func layoutControls(
+        in host: NativeWindowControlsHost,
+        revealProgress: CGFloat
+    ) {
+        guard activeHost === host, let window else { return }
 
-        attachmentGeneration += 1
-
+        var nextX = Self.leadingInset
         for buttonType in Self.buttonTypes {
-            guard let button = attachedWindow.standardWindowButton(buttonType) else { continue }
-            let key = Int(buttonType.rawValue)
-
-            if let originalFrame = originalFrames[key] {
-                button.frame = originalFrame
-            }
-
-            if let wasHidden = originalHiddenStates[key] {
-                button.isHidden = wasHidden
-            }
-        }
-
-        originalFrames.removeAll()
-        originalHiddenStates.removeAll()
-        self.attachedWindow = nil
-    }
-
-    override func layout() {
-        super.layout()
-        layoutWindowControls()
-    }
-
-    private func layoutWindowControls() {
-        guard let attachedWindow else { return }
-
-        for buttonType in Self.buttonTypes {
-            guard let button = attachedWindow.standardWindowButton(buttonType) else { continue }
-            let key = Int(buttonType.rawValue)
-
-            // The controls belong to the sidebar, not the web-content lane.
-            // Keep AppKit as their owner and hide them at the landed closed
-            // state so a later title-bar layout pass cannot expose them over
-            // the active WKWebView.
-            guard revealProgress > 0 else {
-                button.isHidden = true
-                continue
-            }
-
+            guard let button = window.standardWindowButton(buttonType) else { continue }
             let currentSize = button.frame.size
             let buttonSize = currentSize.width > 0 && currentSize.height > 0
                 ? currentSize
                 : Self.fallbackButtonSize
-            button.isHidden = false
-            let originalFrame = originalFrames[key] ?? button.frame
+            button.isHidden = revealProgress <= 0
             button.frame = NSRect(
-                origin: CGPoint(
-                    x: originalFrame.minX + hiddenOffset * (1 - revealProgress),
-                    y: originalFrame.minY
-                ),
-                size: buttonSize
+                x: nextX,
+                y: (host.bounds.height - buttonSize.height) / 2,
+                width: buttonSize.width,
+                height: buttonSize.height
             )
+            nextX += buttonSize.width + Self.buttonSpacing
         }
+    }
+
+    func detachControls(from host: NativeWindowControlsHost) {
+        guard activeHost === host else { return }
+        restoreControls()
+    }
+
+    private func restoreControls() {
+        guard let window else { return }
+
+        for buttonType in Self.buttonTypes {
+            guard
+                let button = window.standardWindowButton(buttonType),
+                let placement = originalPlacements[Int(buttonType.rawValue)],
+                let originalSuperview = placement.superview
+            else {
+                continue
+            }
+
+            if button.superview !== originalSuperview {
+                button.removeFromSuperview()
+                originalSuperview.addSubview(button)
+            }
+            button.translatesAutoresizingMaskIntoConstraints =
+                placement.translatesAutoresizingMaskIntoConstraints
+            button.frame = placement.frame
+            button.isHidden = placement.isHidden
+        }
+
+        activeHost = nil
     }
 }
 

@@ -11,7 +11,7 @@ struct SpaceSwipeTrackingView<Content: View>: NSViewRepresentable {
     let contentID: UUID
     let settleRequest: SpaceSwipeSettleRequest?
     let reduceMotion: Bool
-    let onGestureBegan: () -> Void
+    let onGestureBegan: (Int) -> Void
     let onCompletion: (Int) -> Void
     private let content: Content
 
@@ -20,7 +20,7 @@ struct SpaceSwipeTrackingView<Content: View>: NSViewRepresentable {
         contentID: UUID,
         settleRequest: SpaceSwipeSettleRequest?,
         reduceMotion: Bool,
-        onGestureBegan: @escaping () -> Void,
+        onGestureBegan: @escaping (Int) -> Void,
         onCompletion: @escaping (Int) -> Void,
         @ViewBuilder content: () -> Content
     ) {
@@ -59,7 +59,7 @@ struct SpaceSwipeTrackingView<Content: View>: NSViewRepresentable {
 final class SpaceSwipeScrollView<Content: View>: NSScrollView {
     var isSwipeEnabled = false
     var reduceMotion = false
-    var onGestureBegan: () -> Void = {}
+    var onGestureBegan: (Int) -> Void = { _ in }
     var onCompletion: (Int) -> Void = { _ in }
 
     private let hostingView: NSHostingView<Content>
@@ -68,7 +68,6 @@ final class SpaceSwipeScrollView<Content: View>: NSScrollView {
     private var isTrackingSwipe = false
     private var isSettlingSwipe = false
     private var trackedSwipeAmount: CGFloat = 0
-    private var lastHorizontalDelta: CGFloat = 0
     private var animationToken = UUID()
     private let translationAnimationKey = "candoa.space-swipe.translation"
 
@@ -114,7 +113,6 @@ final class SpaceSwipeScrollView<Content: View>: NSScrollView {
         isTrackingSwipe = false
         isSettlingSwipe = false
         trackedSwipeAmount = 0
-        lastHorizontalDelta = 0
         contentView.scroll(to: .zero)
         reflectScrolledClipView(contentView)
     }
@@ -153,14 +151,29 @@ final class SpaceSwipeScrollView<Content: View>: NSScrollView {
         }
 
         if isTrackingSwipe {
-            updateTrackedSwipe(with: event)
+            return
+        }
+
+        let isHorizontalScroll =
+            event.scrollingDeltaX != 0 &&
+            abs(event.scrollingDeltaX) > abs(event.scrollingDeltaY)
+
+        if isSwipeEnabled,
+           isHorizontalScroll,
+           event.phase.isEmpty,
+           event.momentumPhase.isEmpty {
+            let destination = event.scrollingDeltaX > 0 ? -1 : 1
+            resetVerticalScrollPosition()
+            onGestureBegan(destination)
+            settleSwipe(to: destination)
             return
         }
 
         guard
             isSwipeEnabled,
+            NSEvent.isSwipeTrackingFromScrollEventsEnabled,
             event.hasPreciseScrollingDeltas,
-            abs(event.scrollingDeltaX) > abs(event.scrollingDeltaY),
+            isHorizontalScroll,
             event.phase.contains(.began) || event.phase.contains(.changed)
         else {
             super.scrollWheel(with: event)
@@ -169,42 +182,40 @@ final class SpaceSwipeScrollView<Content: View>: NSScrollView {
 
         isTrackingSwipe = true
         trackedSwipeAmount = 0
-        lastHorizontalDelta = 0
         resetVerticalScrollPosition()
-        onGestureBegan()
-        updateTrackedSwipe(with: event)
+        onGestureBegan(event.scrollingDeltaX > 0 ? -1 : 1)
+
+        event.trackSwipeEvent(
+            options: [.lockDirection, .clampGestureAmount],
+            dampenAmountThresholdMin: -1,
+            max: 1
+        ) { [weak self] gestureAmount, _, isComplete, stop in
+            guard let self else {
+                stop.pointee = true
+                return
+            }
+
+            guard self.isSwipeEnabled else {
+                stop.pointee = true
+                self.finishNativeSwipe(at: 0)
+                return
+            }
+
+            self.trackedSwipeAmount = gestureAmount
+            self.applySwipeAmount(gestureAmount)
+
+            if isComplete {
+                self.finishNativeSwipe(at: gestureAmount)
+            }
+        }
     }
 
-    private func updateTrackedSwipe(with event: NSEvent) {
-        guard isSwipeEnabled else {
-            settleSwipe(to: 0)
-            return
-        }
-
-        if event.phase.contains(.cancelled) {
-            settleSwipe(to: 0)
-            return
-        }
-
-        let horizontalDelta = event.scrollingDeltaX
-        if horizontalDelta != 0 {
-            let viewportWidth = max(contentSize.width, 1)
-            trackedSwipeAmount = min(
-                1,
-                max(-1, trackedSwipeAmount + horizontalDelta / viewportWidth)
-            )
-            lastHorizontalDelta = horizontalDelta
-            applySwipeAmount(trackedSwipeAmount)
-        }
-
-        if event.phase.contains(.ended) {
-            let passedDistanceThreshold = abs(trackedSwipeAmount) >= 0.18
-            let passedVelocityThreshold = abs(lastHorizontalDelta) >= 8
-            let destination = passedDistanceThreshold || passedVelocityThreshold
-                ? (trackedSwipeAmount > 0 ? -1 : 1)
-                : 0
-            settleSwipe(to: destination)
-        }
+    private func finishNativeSwipe(at gestureAmount: CGFloat) {
+        guard isTrackingSwipe else { return }
+        isTrackingSwipe = false
+        trackedSwipeAmount = 0
+        let destination = -Int(gestureAmount.rounded())
+        onCompletion(destination)
     }
 
     private func applySwipeAmount(_ amount: CGFloat) {
@@ -271,7 +282,6 @@ final class SpaceSwipeScrollView<Content: View>: NSScrollView {
         guard animationToken == token else { return }
         isSettlingSwipe = false
         trackedSwipeAmount = 0
-        lastHorizontalDelta = 0
         onCompletion(destination)
     }
 }

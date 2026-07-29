@@ -558,6 +558,33 @@ final class CandoaUITests: XCTestCase {
         add(attachment)
     }
 
+    func testEliCloudFailureRendersSignInGate() throws {
+        let app = launchApp(fixture: "ask-cloud-unavailable")
+
+        app.typeKey("e", modifierFlags: .command)
+        XCTAssertTrue(element("agent-sidebar", in: app).waitForExistence(timeout: 5))
+        submitAskText("Summarize this page", in: app)
+
+        let subscriptionGate = element("agent-subscription-gate", in: app)
+        XCTAssertTrue(subscriptionGate.waitForExistence(timeout: 5), askState(in: app))
+        XCTAssertTrue(app.staticTexts["Sign in to use Eli"].exists)
+        XCTAssertTrue(element("agent-sign-in-button", in: app).exists)
+        XCTAssertTrue(
+            app.staticTexts["Could not connect to the local Candoa Cloud."]
+                .waitForExistence(timeout: 5)
+        )
+        XCTAssertFalse(
+            app.staticTexts[
+                "I couldn’t verify your Candoa subscription. Check the Cloud connection and try again."
+            ].exists
+        )
+
+        let attachment = XCTAttachment(screenshot: app.windows.firstMatch.screenshot())
+        attachment.name = "Eli local Cloud sign-in gate"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+
     func testEliSubscriptionGateShowsConfirmationAndDisappearsAfterCheckout() throws {
         let app = launchApp(
             fixture: "ask-streaming",

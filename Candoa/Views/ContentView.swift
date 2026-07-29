@@ -546,7 +546,6 @@ struct ContentView: View {
                         updateService.setAutomaticUpdatesEnabled(isEnabled)
                     }
                 ),
-                windowControlsHiddenOffset: -sidebarTotalWidth,
                 onUpdateBannerTapped: {
                     updateService.openAvailableUpdate()
                 },

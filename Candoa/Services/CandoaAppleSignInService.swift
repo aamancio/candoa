@@ -10,6 +10,7 @@ final class CandoaAppleSignInService: NSObject {
         category: "AppleSignIn"
     )
     private var authenticationSession: ASWebAuthenticationSession?
+    private var authenticationAttemptID: UUID?
     private var pendingContinuation: CheckedContinuation<String, any Error>?
     private var requestedURL: URL?
     private var fallbackTimeoutTask: Task<Void, Never>?
@@ -41,6 +42,8 @@ final class CandoaAppleSignInService: NSObject {
         }
 
         return try await withCheckedThrowingContinuation { continuation in
+            let attemptID = UUID()
+            authenticationAttemptID = attemptID
             pendingContinuation = continuation
             requestedURL = url
             Self.pendingService = self
@@ -50,7 +53,8 @@ final class CandoaAppleSignInService: NSObject {
                 Task { @MainActor in
                     self?.completeAuthentication(
                         callbackURL: callbackURL,
-                        error: error
+                        error: error,
+                        attemptID: attemptID
                     )
                 }
             }
@@ -89,7 +93,12 @@ final class CandoaAppleSignInService: NSObject {
     func handleCallbackURL(_ url: URL) -> Bool {
         guard isAppleCallback(url) else { return false }
         Self.logger.notice("Received the Sign in with Apple application callback.")
-        guard pendingContinuation != nil else { return true }
+        guard pendingContinuation != nil else {
+            Self.logger.error(
+                "Received the Apple application callback without a pending authentication."
+            )
+            return true
+        }
         complete(with: url)
         return true
     }
@@ -100,8 +109,15 @@ final class CandoaAppleSignInService: NSObject {
 
     private func completeAuthentication(
         callbackURL: URL?,
-        error: (any Error)?
+        error: (any Error)?,
+        attemptID: UUID
     ) {
+        guard authenticationAttemptID == attemptID else {
+            Self.logger.notice(
+                "Ignoring a callback from a superseded Apple authentication attempt."
+            )
+            return
+        }
         authenticationSession = nil
 
         if let error {
@@ -159,7 +175,13 @@ final class CandoaAppleSignInService: NSObject {
             } ?? []
         )
         if let code = values["code"], !code.isEmpty {
+            Self.logger.notice("Completing Apple authentication with an exchange code.")
             finish(with: .success(code))
+        } else if values["error"] == "account_already_linked_to_different_user" {
+            Self.logger.notice(
+                "Apple identity belongs to an existing account; falling back to sign-in."
+            )
+            finish(with: .failure(CandoaAccountError.appleAccountAlreadyLinked))
         } else {
             let message = values["error"]
                 .map(Self.readableError)
@@ -266,6 +288,7 @@ final class CandoaAppleSignInService: NSObject {
     private func finish(with result: Result<String, any Error>) {
         authenticationSession?.cancel()
         authenticationSession = nil
+        authenticationAttemptID = nil
         requestedURL = nil
         fallbackTimeoutTask?.cancel()
         fallbackTimeoutTask = nil

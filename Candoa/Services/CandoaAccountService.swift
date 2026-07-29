@@ -417,6 +417,7 @@ struct CandoaAccountService {
 }
 
 enum CandoaAccountError: LocalizedError, Sendable {
+    case appleAccountAlreadyLinked
     case invalidResponse
     case keychainUnavailable
     case server(String)
@@ -431,6 +432,8 @@ enum CandoaAccountError: LocalizedError, Sendable {
 
     var errorDescription: String? {
         switch self {
+        case .appleAccountAlreadyLinked:
+            return "This Apple account is already connected to another Candoa account."
         case .invalidResponse:
             return "Candoa returned an invalid response."
         case .keychainUnavailable:

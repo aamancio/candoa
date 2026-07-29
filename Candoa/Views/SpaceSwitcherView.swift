@@ -129,6 +129,12 @@ struct SpaceSwitcherView: View {
                 }
             }
             .frame(width: 34, height: 28)
+            .background(
+                bottomButtonBackground(
+                    isActive: isActive,
+                    isHovering: false
+                )
+            )
             .contentShape(Rectangle())
         }
         .candoaButton(.content)
