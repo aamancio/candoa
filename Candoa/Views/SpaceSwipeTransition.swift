@@ -68,8 +68,13 @@ final class SpaceSwipeScrollView<Content: View>: NSScrollView {
     private var isTrackingSwipe = false
     private var isSettlingSwipe = false
     private var trackedSwipeAmount: CGFloat = 0
+    private var discreteScrollAmount: CGFloat = 0
+    private var isDiscreteScrollGestureConsumed = false
+    private var lastDiscreteScrollTimestamp: TimeInterval = -.infinity
     private var animationToken = UUID()
     private let translationAnimationKey = "candoa.space-swipe.translation"
+    private let discreteScrollThreshold: CGFloat = 1
+    private let discreteScrollCooldown: TimeInterval = 0.2
 
     init(rootView: Content) {
         hostingView = NSHostingView(rootView: rootView)
@@ -96,6 +101,10 @@ final class SpaceSwipeScrollView<Content: View>: NSScrollView {
     override func layout() {
         super.layout()
         layoutHostingView()
+    }
+
+    override func wantsScrollEventsForSwipeTracking(on axis: NSEvent.GestureAxis) -> Bool {
+        axis == .horizontal
     }
 
     func updateRootView(_ rootView: Content) {
@@ -155,26 +164,24 @@ final class SpaceSwipeScrollView<Content: View>: NSScrollView {
         }
 
         let isHorizontalScroll =
+            !event.modifierFlags.contains(.shift) &&
             event.scrollingDeltaX != 0 &&
             abs(event.scrollingDeltaX) > abs(event.scrollingDeltaY)
-
+        let canTrackNativeSwipe =
+            event.hasPreciseScrollingDeltas &&
+            (event.phase.contains(.began) || event.phase.contains(.changed))
         if isSwipeEnabled,
            isHorizontalScroll,
-           event.phase.isEmpty,
+           !canTrackNativeSwipe,
            event.momentumPhase.isEmpty {
-            let destination = event.scrollingDeltaX > 0 ? -1 : 1
-            resetVerticalScrollPosition()
-            onGestureBegan(destination)
-            settleSwipe(to: destination)
+            handleDiscreteHorizontalScroll(event)
             return
         }
 
         guard
             isSwipeEnabled,
-            NSEvent.isSwipeTrackingFromScrollEventsEnabled,
-            event.hasPreciseScrollingDeltas,
             isHorizontalScroll,
-            event.phase.contains(.began) || event.phase.contains(.changed)
+            canTrackNativeSwipe
         else {
             super.scrollWheel(with: event)
             return
@@ -208,6 +215,43 @@ final class SpaceSwipeScrollView<Content: View>: NSScrollView {
                 self.finishNativeSwipe(at: gestureAmount)
             }
         }
+    }
+
+    private func handleDiscreteHorizontalScroll(_ event: NSEvent) {
+        if event.phase.contains(.began) {
+            discreteScrollAmount = 0
+            isDiscreteScrollGestureConsumed = false
+        }
+
+        defer {
+            if event.phase.contains(.ended) || event.phase.contains(.cancelled) {
+                discreteScrollAmount = 0
+                isDiscreteScrollGestureConsumed = false
+            }
+        }
+
+        guard !isDiscreteScrollGestureConsumed else { return }
+
+        let lineDistance = event.hasPreciseScrollingDeltas
+            ? max(horizontalLineScroll, 1)
+            : 1
+        discreteScrollAmount += event.scrollingDeltaX / lineDistance
+
+        guard abs(discreteScrollAmount) >= discreteScrollThreshold else { return }
+        guard event.timestamp - lastDiscreteScrollTimestamp >= discreteScrollCooldown else {
+            if !event.phase.isEmpty {
+                isDiscreteScrollGestureConsumed = true
+            }
+            return
+        }
+
+        let destination = discreteScrollAmount > 0 ? -1 : 1
+        discreteScrollAmount = 0
+        isDiscreteScrollGestureConsumed = !event.phase.isEmpty
+        lastDiscreteScrollTimestamp = event.timestamp
+        resetVerticalScrollPosition()
+        onGestureBegan(destination)
+        settleSwipe(to: destination)
     }
 
     private func finishNativeSwipe(at gestureAmount: CGFloat) {
