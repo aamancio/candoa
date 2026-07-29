@@ -24,6 +24,7 @@
 		010000000000000000000115 /* CommandPaletteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000015 /* CommandPaletteView.swift */; };
 		010000000000000000000116 /* TabRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000016 /* TabRowView.swift */; };
 		010000000000000000000117 /* SpaceSwitcherView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000017 /* SpaceSwitcherView.swift */; };
+		E60000000000000000000101 /* SpaceSwipeTransition.swift in Sources */ = {isa = PBXBuildFile; fileRef = E60000000000000000000001 /* SpaceSwipeTransition.swift */; };
 		010000000000000000000118 /* TabSwitcherOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01000000000000000000001B /* TabSwitcherOverlay.swift */; };
 		010000000000000000000119 /* AppConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01000000000000000000001C /* AppConfiguration.swift */; };
 		010000000000000000000120 /* AppUpdateService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01000000000000000000001D /* AppUpdateService.swift */; };
@@ -136,6 +137,7 @@
 		010000000000000000000015 /* CommandPaletteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandPaletteView.swift; sourceTree = "<group>"; };
 		010000000000000000000016 /* TabRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabRowView.swift; sourceTree = "<group>"; };
 		010000000000000000000017 /* SpaceSwitcherView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpaceSwitcherView.swift; sourceTree = "<group>"; };
+		E60000000000000000000001 /* SpaceSwipeTransition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpaceSwipeTransition.swift; sourceTree = "<group>"; };
 		010000000000000000000018 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		010000000000000000000019 /* Candoa.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Candoa.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		01000000000000000000001A /* Candoa.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Candoa.entitlements; sourceTree = "<group>"; };
@@ -322,6 +324,7 @@
 				010000000000000000000065 /* CommandPaletteModels.swift */,
 				010000000000000000000016 /* TabRowView.swift */,
 				010000000000000000000017 /* SpaceSwitcherView.swift */,
+				E60000000000000000000001 /* SpaceSwipeTransition.swift */,
 				01000000000000000000001B /* TabSwitcherOverlay.swift */,
 				010000000000000000000031 /* KeyboardShortcutMonitor.swift */,
 				010000000000000000000032 /* SidebarRevealMonitor.swift */,
@@ -620,6 +623,7 @@
 				010000000000000000000175 /* CommandPaletteModels.swift in Sources */,
 				010000000000000000000116 /* TabRowView.swift in Sources */,
 				010000000000000000000117 /* SpaceSwitcherView.swift in Sources */,
+				E60000000000000000000101 /* SpaceSwipeTransition.swift in Sources */,
 				010000000000000000000118 /* TabSwitcherOverlay.swift in Sources */,
 				010000000000000000000119 /* AppConfiguration.swift in Sources */,
 				010000000000000000000120 /* AppUpdateService.swift in Sources */,

@@ -6,6 +6,8 @@ import UniformTypeIdentifiers
 /// pinned to the bottom of the sidebar, with a trailing "add space" control.
 struct SpaceSwitcherView: View {
     @ObservedObject var store: BrowserStore
+    let displayedActiveSpaceID: UUID
+    let onSelectSpace: (UUID) -> Void
     @State private var isDownloadsPresented = false
     @State private var isHoveringDownloads = false
     @State private var isActionMenuPresented = false
@@ -16,21 +18,17 @@ struct SpaceSwitcherView: View {
         HStack(spacing: 8) {
             downloadsButton
 
-            Spacer(minLength: 8)
-
-            ScrollView(.horizontal, showsIndicators: false) {
-                // 22pt items + 8pt spacing keeps the same 30pt center rhythm
-                // the old 16pt items had with 14pt spacing.
-                HStack(spacing: 8) {
-                    ForEach(store.spaces) { space in
-                        workspaceButton(for: space)
+            GeometryReader { proxy in
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(store.spaces) { space in
+                            workspaceButton(for: space)
+                        }
                     }
+                    .frame(minWidth: proxy.size.width, minHeight: 28, alignment: .center)
                 }
-                .frame(minHeight: 28)
             }
-            .frame(maxWidth: 150)
-
-            Spacer(minLength: 0)
+            .frame(maxWidth: .infinity, maxHeight: 28)
 
             addSpaceButton
         }
@@ -105,11 +103,11 @@ struct SpaceSwitcherView: View {
     }
 
     private func workspaceButton(for space: BrowserSpace) -> some View {
-        let isActive = space.id == store.activeSpaceID
+        let isActive = space.id == displayedActiveSpaceID
         let themeColor = CandoaThemeStyle.identityColor(for: space.themeColorHex)
 
         return Button {
-            store.switchSpace(to: space.id)
+            onSelectSpace(space.id)
         } label: {
             Group {
                 if let emoji = space.iconEmoji {
@@ -130,12 +128,11 @@ struct SpaceSwitcherView: View {
                         }
                 }
             }
-            // 22pt fits the active ring (16pt circle + 5pt stroke = 21pt) so
-            // the ScrollView's clip no longer cuts it off.
-            .frame(width: 22, height: 28)
+            .frame(width: 34, height: 28)
             .contentShape(Rectangle())
         }
         .candoaButton(.content)
+        .animation(.easeOut(duration: 0.20), value: isActive)
         .help(space.name)
         .contextMenu {
             Button("Edit Space...") {

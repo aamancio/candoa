@@ -40,6 +40,7 @@ internal struct SidebarFolderIcon: View {
 
 struct SidebarView: View {
     @ObservedObject var store: BrowserStore
+    @Environment(\.accessibilityReduceMotion) private var accessibilityReduceMotion
     let availableUpdate: AppUpdate?
     let automaticUpdatesEnabled: Binding<Bool>
     let windowControlsHiddenOffset: CGFloat
@@ -49,6 +50,12 @@ struct SidebarView: View {
     @State private var isHoveringNewTab = false
     @State private var isHoveringAddressPill = false
     @State private var isSpaceDropTargeted = false
+    @State private var isSpaceSwipePrepared = false
+    @State private var isSettlingSpaceSwipe = false
+    @State private var spaceSwipeSourceID: UUID?
+    @State private var spaceSwipeSettleRequest: SpaceSwipeSettleRequest?
+    @State private var selectedSpaceTransitionID: UUID?
+    @State private var selectedSpaceTransitionDirection: Int?
     @AppStorage("Candoa.FavoritesDropZoneDismissed") private var isFavoritesDropZoneDismissed = false
     @AppStorage(DeveloperModeConfiguration.storageKey) private var developerModeOverrides = ""
 
@@ -57,6 +64,13 @@ struct SidebarView: View {
     private let windowControlsWidth: CGFloat = 70
     private let spaceLabelToPinnedGap: CGFloat = 3
     private let pinnedSectionSpacing: CGFloat = 10
+    private let sidebarTopPadding: CGFloat = 8
+    private let sidebarBottomPadding: CGFloat = 10
+    private let sidebarVerticalSpacing: CGFloat = 12
+    private let sidebarHeaderHeight: CGFloat = 34
+    private let sidebarAddressHeight: CGFloat = 40
+    private let spaceSwitcherHeight: CGFloat = 32
+    private let updateBannerHeight: CGFloat = 38
 
     /// Zen-style Essentials collapse unused grid tracks, so one or two tiles
     /// still consume the full row instead of leaving empty reserved slots.
@@ -83,12 +97,52 @@ struct SidebarView: View {
     }
 
     var body: some View {
+        Group {
+            if usesBrowsingSidebarLayout {
+                browsingSidebar
+            } else {
+                setupSidebar
+            }
+        }
+        .animation(.easeOut(duration: 0.16), value: availableUpdate)
+        .animation(.easeOut(duration: 0.16), value: store.mediaControllerTabID)
+        .ignoresSafeArea(.container, edges: .top)
+        .onChange(of: store.activeSpaceID) { _, _ in
+            resetSpaceSwipeProgress()
+        }
+        .onChange(of: store.spaces.map(\.id)) { _, _ in
+            resetSpaceSwipeProgress()
+        }
+        .onDisappear {
+            resetSpaceSwipeProgress()
+        }
+    }
+
+    private var usesBrowsingSidebarLayout: Bool {
+        !store.isInitialAccountSetupPresented && !store.isSpaceSetupPresented
+    }
+
+    private var showsSpaceSwitcher: Bool {
+        !store.isInitialOnboardingPresented || store.initialOnboardingStep == .tour
+    }
+
+    private var browsingSidebar: some View {
+        ZStack {
+            spaceSwipeContent
+
+            sidebarChrome(for: store.activeSpaceID)
+                .opacity(isSpaceSwipePrepared ? 0 : 1)
+                .allowsHitTesting(!isSpaceSwipePrepared)
+        }
+    }
+
+    private var setupSidebar: some View {
         VStack(alignment: .leading, spacing: 12) {
             sidebarHeader
 
             if store.isInitialAccountSetupPresented {
                 Spacer(minLength: 0)
-            } else if store.isSpaceSetupPresented {
+            } else {
                 UpsertSpaceSidebarComposer(
                     store: store,
                     mode: store.isInitialSpaceSetupPresented
@@ -96,45 +150,275 @@ struct SidebarView: View {
                         : (store.editingSpaceID != nil ? .edit : .create)
                 )
                 .id(store.editingSpaceID)
-            } else {
-                addressPill
-
-                ScrollView(.vertical, showsIndicators: false) {
-                    VStack(alignment: .leading, spacing: 12) {
-                        favoritesSection
-                        spaceAndPinnedSection
-
-                        VStack(alignment: .leading, spacing: 2) {
-                            newTabButton
-                            tabsSection
-                        }
-                    }
-                    .padding(.top, 1)
-                }
-
-                Spacer(minLength: 6)
             }
 
-            if let availableUpdate {
-                AppUpdateBanner(
-                    update: availableUpdate,
-                    automaticUpdatesEnabled: automaticUpdatesEnabled,
-                    action: onUpdateBannerTapped
-                )
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-            }
+            updateBanner
 
-            if !store.isInitialOnboardingPresented || store.initialOnboardingStep == .tour {
-                SpaceSwitcherView(store: store)
+            if showsSpaceSwitcher {
+                spaceSwitcher(displaying: store.activeSpaceID)
             }
         }
-        .animation(.easeOut(duration: 0.16), value: availableUpdate)
-        .animation(.easeOut(duration: 0.16), value: store.mediaControllerTabID)
         .padding(.leading, leadingInset)
         .padding(.trailing, trailingInset)
-        .padding(.top, 8)
-        .padding(.bottom, 10)
-        .ignoresSafeArea(.container, edges: .top)
+        .padding(.top, sidebarTopPadding)
+        .padding(.bottom, sidebarBottomPadding)
+    }
+
+    @ViewBuilder
+    private var updateBanner: some View {
+        if let availableUpdate {
+            AppUpdateBanner(
+                update: availableUpdate,
+                automaticUpdatesEnabled: automaticUpdatesEnabled,
+                action: onUpdateBannerTapped
+            )
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+        }
+    }
+
+    private func spaceSwitcher(displaying activeSpaceID: UUID) -> some View {
+        SpaceSwitcherView(
+            store: store,
+            displayedActiveSpaceID: activeSpaceID,
+            onSelectSpace: animateSpaceSelection
+        )
+    }
+
+    private func sidebarChrome(for spaceID: UUID) -> some View {
+        VStack(alignment: .leading, spacing: sidebarVerticalSpacing) {
+            sidebarHeader
+            addressPill(for: spaceID)
+
+            Spacer(minLength: 0)
+
+            updateBanner
+
+            if showsSpaceSwitcher {
+                spaceSwitcher(displaying: spaceID)
+            }
+        }
+        .padding(.horizontal, leadingInset)
+        .padding(.top, sidebarTopPadding)
+        .padding(.bottom, sidebarBottomPadding)
+    }
+
+    private var canSwipeSpaces: Bool {
+        store.spaces.count > 1 &&
+            !store.isInitialAccountSetupPresented &&
+            !store.isInitialOnboardingPresented &&
+            !store.isSpaceSetupPresented &&
+            !store.isCommandPalettePresented &&
+            store.draggedTabID == nil
+    }
+
+    private var spaceSwipeContent: some View {
+        GeometryReader { proxy in
+            let width = max(proxy.size.width, 1)
+
+            SpaceSwipeTrackingView(
+                isEnabled: canSwipeSpaces,
+                contentID: store.activeSpaceID,
+                settleRequest: spaceSwipeSettleRequest,
+                reduceMotion: accessibilityReduceMotion,
+                onGestureBegan: beginSpaceSwipeGesture,
+                onCompletion: completeSpaceSwipe
+            ) {
+                ZStack(alignment: .leading) {
+                    HStack(alignment: .top, spacing: 0) {
+                        ForEach([-1, 0, 1], id: \.self) { slot in
+                            spaceSwipePage(
+                                slot: slot,
+                                minimumHeight: proxy.size.height
+                            )
+                                .frame(width: width)
+                        }
+                    }
+                    .offset(x: -width)
+                }
+                .frame(width: width, alignment: .leading)
+            }
+        }
+        .frame(maxHeight: .infinity)
+        .clipped()
+        .accessibilityIdentifier("sidebar-space-swipe-area")
+    }
+
+    private var spaceSwipeTopInset: CGFloat {
+        sidebarTopPadding +
+            sidebarHeaderHeight +
+            sidebarVerticalSpacing +
+            sidebarAddressHeight +
+            sidebarVerticalSpacing
+    }
+
+    private var spaceSwipeBottomInset: CGFloat {
+        var inset = sidebarBottomPadding
+
+        if showsSpaceSwitcher {
+            inset += spaceSwitcherHeight + sidebarVerticalSpacing
+        }
+
+        if availableUpdate != nil {
+            inset += updateBannerHeight + sidebarVerticalSpacing
+        }
+
+        return inset
+    }
+
+    @ViewBuilder
+    private func spaceSwipePage(slot: Int, minimumHeight: CGFloat) -> some View {
+        if let spaceID = spaceID(forSwipeSlot: slot),
+           let space = store.spaces.first(where: { $0.id == spaceID }) {
+            let contentHeight = max(
+                minimumHeight - spaceSwipeTopInset - spaceSwipeBottomInset,
+                1
+            )
+
+            ZStack {
+                Group {
+                    if slot == 0 || isSpaceSwipePrepared || selectedSpaceTransitionID != nil {
+                        spaceScrollContent(for: spaceID)
+                    } else {
+                        Color.clear
+                    }
+                }
+                .padding(.horizontal, leadingInset)
+                .frame(
+                    minHeight: contentHeight,
+                    alignment: .top
+                )
+                .padding(.top, spaceSwipeTopInset)
+                .padding(.bottom, spaceSwipeBottomInset)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                if isSpaceSwipePrepared {
+                    sidebarChrome(for: spaceID)
+                }
+            }
+            .background {
+                SpaceSwipeSidebarBackdrop(space: space)
+            }
+            .allowsHitTesting(slot == 0)
+            .accessibilityHidden(slot != 0)
+        } else {
+            Color.clear
+        }
+    }
+
+    private func spaceID(forSwipeSlot slot: Int) -> UUID? {
+        guard
+            !store.spaces.isEmpty,
+            let activeIndex = store.spaces.firstIndex(where: { $0.id == store.activeSpaceID })
+        else {
+            return nil
+        }
+
+        if slot != 0,
+           slot == selectedSpaceTransitionDirection,
+           let selectedSpaceTransitionID {
+            return selectedSpaceTransitionID
+        }
+
+        let destinationIndex = (activeIndex + slot + store.spaces.count) % store.spaces.count
+        return store.spaces[destinationIndex].id
+    }
+
+    private func beginSpaceSwipeGesture() {
+        guard !isSettlingSpaceSwipe else { return }
+        selectedSpaceTransitionID = nil
+        selectedSpaceTransitionDirection = nil
+        spaceSwipeSettleRequest = nil
+        spaceSwipeSourceID = store.activeSpaceID
+        isSpaceSwipePrepared = true
+        isSettlingSpaceSwipe = true
+    }
+
+    private func animateSpaceSelection(_ spaceID: UUID) {
+        guard
+            canSwipeSpaces,
+            !isSettlingSpaceSwipe,
+            spaceID != store.activeSpaceID,
+            let activeIndex = store.spaces.firstIndex(where: { $0.id == store.activeSpaceID }),
+            let destinationIndex = store.spaces.firstIndex(where: { $0.id == spaceID })
+        else {
+            return
+        }
+
+        var transaction = Transaction(animation: nil)
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            let direction = destinationIndex > activeIndex ? 1 : -1
+            selectedSpaceTransitionID = spaceID
+            selectedSpaceTransitionDirection = direction
+            spaceSwipeSourceID = store.activeSpaceID
+            isSpaceSwipePrepared = true
+            isSettlingSpaceSwipe = true
+            spaceSwipeSettleRequest = SpaceSwipeSettleRequest(destination: direction)
+        }
+    }
+
+    private func completeSpaceSwipe(_ destinationOffset: Int) {
+        guard let sourceSpaceID = spaceSwipeSourceID else {
+            resetSpaceSwipeProgress()
+            return
+        }
+        commitSpaceSwipe(destinationOffset, from: sourceSpaceID)
+    }
+
+    private func commitSpaceSwipe(_ destinationOffset: Int, from sourceSpaceID: UUID) {
+        defer { isSettlingSpaceSwipe = false }
+
+        guard
+            store.activeSpaceID == sourceSpaceID,
+            destinationOffset != 0,
+            let destinationSpaceID = spaceID(forSwipeSlot: destinationOffset),
+            let destination = store.spaces.first(where: { $0.id == destinationSpaceID })
+        else {
+            resetSpaceSwipeProgress()
+            return
+        }
+
+        var transaction = Transaction(animation: nil)
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            store.switchSpace(to: destinationSpaceID)
+        }
+
+        NSAccessibility.post(
+            element: NSApp as Any,
+            notification: .announcementRequested,
+            userInfo: [
+                .announcement: "\(destination.name) Space",
+                .priority: NSAccessibilityPriorityLevel.medium.rawValue
+            ]
+        )
+    }
+
+    private func resetSpaceSwipeProgress() {
+        var transaction = Transaction(animation: nil)
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            isSpaceSwipePrepared = false
+            isSettlingSpaceSwipe = false
+            spaceSwipeSourceID = nil
+            spaceSwipeSettleRequest = nil
+            selectedSpaceTransitionID = nil
+            selectedSpaceTransitionDirection = nil
+        }
+    }
+
+    private func spaceScrollContent(for spaceID: UUID) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            favoritesSection(for: spaceID)
+            spaceAndPinnedSection(for: spaceID)
+
+            VStack(alignment: .leading, spacing: 2) {
+                newTabButton
+                tabsSection(for: spaceID)
+            }
+        }
+        .padding(.top, 1)
+        .id(spaceID)
     }
 
     // MARK: - Header
@@ -206,21 +490,24 @@ struct SidebarView: View {
         }
     }
 
-    private var addressPill: some View {
-        Button {
+    private func addressPill(for spaceID: UUID) -> some View {
+        let url = displayedURL(for: spaceID)
+        let developerModeEnabled = isDeveloperModeEnabled(for: url)
+
+        return Button {
             store.focusSidebarAddressBar()
         } label: {
             HStack(spacing: 10) {
-                Image(systemName: isDeveloperModeEnabled ? "info.circle" : "magnifyingglass")
+                Image(systemName: developerModeEnabled ? "info.circle" : "magnifyingglass")
                     .font(.system(size: 15, weight: .medium))
                     .frame(width: 18)
                     .foregroundStyle(CandoaInterfaceStyle.sidebarIcon)
 
-                Text(sidebarAddressText)
+                Text(sidebarAddressText(for: url, developerModeEnabled: developerModeEnabled))
                     .lineLimit(1)
                     .truncationMode(.tail)
                     .font(
-                        isDeveloperModeEnabled
+                        developerModeEnabled
                             ? .system(size: 13, weight: .medium, design: .monospaced)
                             : .system(size: 14, weight: .semibold)
                     )
@@ -239,9 +526,9 @@ struct SidebarView: View {
         }
         .candoaButton(.content)
         .onHover { isHoveringAddressPill = $0 }
-        .help(isDeveloperModeEnabled ? "Developer Mode" : BrowserDefaults.addressPlaceholder)
+        .help(developerModeEnabled ? "Developer Mode" : BrowserDefaults.addressPlaceholder)
         .contextMenu {
-            if let url = store.activeTab?.url,
+            if let url,
                let host = DeveloperModeConfiguration.displayHost(for: url) {
                 Toggle(
                     "Developer Mode",
@@ -265,20 +552,28 @@ struct SidebarView: View {
 
     // Arc's Developer Mode shows the full URL for local servers by default
     // and for any site the user has enabled through site controls.
-    private var isDeveloperModeEnabled: Bool {
-        guard let url = store.activeTab?.url else { return false }
+    private func isDeveloperModeEnabled(for url: URL?) -> Bool {
+        guard let url else { return false }
         return DeveloperModeConfiguration.isEnabled(
             for: url,
             storedOverrides: developerModeOverrides
         )
     }
 
-    private var sidebarAddressText: String {
-        guard let url = store.activeTab?.url else {
+    private func displayedURL(for spaceID: UUID) -> URL? {
+        guard let tabID = displayedActiveTabID(for: spaceID) else { return nil }
+        return store.tabs.first(where: { $0.id == tabID })?.url
+    }
+
+    private func sidebarAddressText(
+        for url: URL?,
+        developerModeEnabled: Bool
+    ) -> String {
+        guard let url else {
             return "Search..."
         }
 
-        if isDeveloperModeEnabled {
+        if developerModeEnabled {
             return url.localDevelopmentDisplayText
         }
 
@@ -292,8 +587,8 @@ struct SidebarView: View {
     // MARK: - Favorites
 
     @ViewBuilder
-    private var favoritesSection: some View {
-        let favorites = store.favoriteTabsForActiveSpace
+    private func favoritesSection(for spaceID: UUID) -> some View {
+        let favorites = store.favoriteTabs(in: spaceID)
 
         VStack(alignment: .leading, spacing: 6) {
             if favorites.isEmpty && !isFavoritesDropZoneDismissed {
@@ -311,19 +606,23 @@ struct SidebarView: View {
             } else {
                 LazyVGrid(columns: essentialColumns(for: favorites.count), spacing: 6) {
                     ForEach(favorites) { tab in
-                        favoriteTile(for: tab, favorites: favorites)
+                        favoriteTile(for: tab, favorites: favorites, spaceID: spaceID)
                     }
                 }
             }
         }
         .animation(.easeOut(duration: 0.18), value: favorites.map(\.id))
-        .id(store.activeSpaceID)
+        .id(spaceID)
     }
 
-    private func favoriteTile(for tab: BrowserTab, favorites: [BrowserTab]) -> some View {
+    private func favoriteTile(
+        for tab: BrowserTab,
+        favorites: [BrowserTab],
+        spaceID: UUID
+    ) -> some View {
         EssentialTileView(
             tab: tab,
-            isActive: tab.id == store.activeTabID &&
+            isActive: tab.id == displayedActiveTabID(for: spaceID) &&
                 !store.isNewTabPaletteActive,
             accentColor: CandoaColor.accent,
             placement: .favorite,
@@ -363,18 +662,18 @@ struct SidebarView: View {
 
     // MARK: - Pinned Items
 
-    private var spaceAndPinnedSection: some View {
+    private func spaceAndPinnedSection(for spaceID: UUID) -> some View {
         VStack(alignment: .leading, spacing: spaceLabelToPinnedGap) {
-            spaceLabel
-            pinnedAndFoldersSection
+            spaceLabel(for: spaceID)
+            pinnedAndFoldersSection(for: spaceID)
         }
     }
 
     @ViewBuilder
-    private var pinnedAndFoldersSection: some View {
-        let splitTabIDs = store.activeSplitGroupTabIDs
-        let pinned = store.pinnedTabsForActiveSpace.filter { !splitTabIDs.contains($0.id) }
-        let folders = store.foldersForActiveSpace
+    private func pinnedAndFoldersSection(for spaceID: UUID) -> some View {
+        let splitTabIDs = spaceID == store.activeSpaceID ? store.activeSplitGroupTabIDs : []
+        let pinned = store.pinnedTabs(in: spaceID).filter { !splitTabIDs.contains($0.id) }
+        let folders = store.rootFolders(in: spaceID)
 
         if !pinned.isEmpty || !folders.isEmpty || store.draggedTabID != nil {
             let showsPinnedAreaDivider = !pinned.isEmpty || !folders.isEmpty
@@ -383,12 +682,12 @@ struct SidebarView: View {
                 if !pinned.isEmpty {
                     VStack(spacing: 2) {
                         ForEach(pinned) { tab in
-                            pinnedTabRow(for: tab, pinned: pinned)
+                            pinnedTabRow(for: tab, pinned: pinned, spaceID: spaceID)
                         }
                     }
                 }
 
-                if store.draggedTabID != nil {
+                if store.draggedTabID != nil, spaceID == store.activeSpaceID {
                     pinnedAppendDropTarget
                 }
 
@@ -421,7 +720,7 @@ struct SidebarView: View {
             // Pin, folder, and close settle the section instead of popping; the
             // per-space identity keeps space switches an instant context cut.
             .animation(.easeOut(duration: 0.18), value: pinned.map(\.id) + folders.map(\.id))
-            .id(store.activeSpaceID)
+            .id(spaceID)
         }
     }
 
@@ -448,11 +747,15 @@ struct SidebarView: View {
         )
     }
 
-    private func pinnedTabRow(for tab: BrowserTab, pinned: [BrowserTab]) -> some View {
+    private func pinnedTabRow(
+        for tab: BrowserTab,
+        pinned: [BrowserTab],
+        spaceID: UUID
+    ) -> some View {
         TabRowView(
             tab: tab,
-            isActive: tab.id == store.activeTabID && !store.isNewTabPaletteActive,
-            isSplit: store.activeSplitGroupTabIDs.contains(tab.id),
+            isActive: tab.id == displayedActiveTabID(for: spaceID) && !store.isNewTabPaletteActive,
+            isSplit: spaceID == store.activeSpaceID && store.activeSplitGroupTabIDs.contains(tab.id),
             accentColor: CandoaColor.accent,
             mediaState: store.mediaStates[tab.id],
             onSelect: { store.switchTab(to: tab.id) },
@@ -503,8 +806,8 @@ struct SidebarView: View {
     // MARK: - Tabs
 
     @ViewBuilder
-    private var spaceLabel: some View {
-        if let space = store.activeSpace,
+    private func spaceLabel(for spaceID: UUID) -> some View {
+        if let space = store.spaces.first(where: { $0.id == spaceID }),
            !space.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             HStack(spacing: 8) {
                 if space.symbolName != "square.dashed" {
@@ -555,10 +858,10 @@ struct SidebarView: View {
     }
 
     @ViewBuilder
-    private var tabsSection: some View {
-        let splitTabs = store.activeSplitGroupTabs
+    private func tabsSection(for spaceID: UUID) -> some View {
+        let splitTabs = spaceID == store.activeSpaceID ? store.activeSplitGroupTabs : []
         let splitTabIDs = Set(splitTabs.map(\.id))
-        let tabs = store.regularTabsForActiveSpace.filter { !splitTabIDs.contains($0.id) }
+        let tabs = store.regularTabs(in: spaceID).filter { !splitTabIDs.contains($0.id) }
 
         VStack(alignment: .leading, spacing: 0) {
             if tabs.isEmpty && splitTabs.isEmpty {
@@ -591,8 +894,8 @@ struct SidebarView: View {
                     ForEach(tabs) { tab in
                         TabRowView(
                             tab: tab,
-                            isActive: tab.id == store.activeTabID && !store.isNewTabPaletteActive,
-                            isSplit: store.activeSplitGroupTabIDs.contains(tab.id),
+                            isActive: tab.id == displayedActiveTabID(for: spaceID) && !store.isNewTabPaletteActive,
+                            isSplit: spaceID == store.activeSpaceID && store.activeSplitGroupTabIDs.contains(tab.id),
                             accentColor: CandoaColor.accent,
                             mediaState: store.mediaStates[tab.id],
                             onSelect: { store.switchTab(to: tab.id) },
@@ -655,7 +958,7 @@ struct SidebarView: View {
                 // Safari's sidebar does instead of rows popping in place; the
                 // per-space identity keeps space switches an instant cut.
                 .animation(.easeOut(duration: 0.18), value: tabs.map(\.id))
-                .id(store.activeSpaceID)
+                .id(spaceID)
             }
         }
         .contentShape(Rectangle())
@@ -663,6 +966,17 @@ struct SidebarView: View {
             of: [UTType.text],
             delegate: RegularTabSectionDropDelegate(store: store)
         )
+    }
+
+    private func displayedActiveTabID(for spaceID: UUID) -> UUID? {
+        if spaceID == store.activeSpaceID {
+            return store.activeTabID
+        }
+
+        return store.tabs
+            .filter { $0.spaceID == spaceID }
+            .max(by: { $0.lastAccessedAt < $1.lastAccessedAt })?
+            .id
     }
 
     private var newTabButton: some View {

@@ -35,21 +35,15 @@ extension BrowserStore {
     }
 
     var favoriteTabsForActiveSpace: [BrowserTab] {
-        tabs
-            .filter { $0.spaceID == activeSpaceID && $0.isFavorite }
-            .sorted { $0.sortOrder < $1.sortOrder }
+        favoriteTabs(in: activeSpaceID)
     }
 
     var pinnedTabsForActiveSpace: [BrowserTab] {
-        tabs
-            .filter { $0.spaceID == activeSpaceID && $0.folderID == nil && $0.isPinned && !$0.isFavorite }
-            .sorted { $0.sortOrder < $1.sortOrder }
+        pinnedTabs(in: activeSpaceID)
     }
 
     var foldersForActiveSpace: [BrowserFolder] {
-        folders
-            .filter { $0.spaceID == activeSpaceID && $0.parentFolderID == nil }
-            .sorted { $0.sortOrder < $1.sortOrder }
+        rootFolders(in: activeSpaceID)
     }
 
     var folderedTabsForActiveSpace: [BrowserTab] {
@@ -62,27 +56,43 @@ extension BrowserStore {
     }
 
     var regularTabsForActiveSpace: [BrowserTab] {
+        regularTabs(in: activeSpaceID)
+    }
+
+    func favoriteTabs(in spaceID: UUID) -> [BrowserTab] {
         tabs
-            .filter { $0.spaceID == activeSpaceID && $0.folderID == nil && !$0.isFavorite && !$0.isPinned }
+            .filter { $0.spaceID == spaceID && $0.isFavorite }
+            .sorted { $0.sortOrder < $1.sortOrder }
+    }
+
+    func pinnedTabs(in spaceID: UUID) -> [BrowserTab] {
+        tabs
+            .filter { $0.spaceID == spaceID && $0.folderID == nil && $0.isPinned && !$0.isFavorite }
+            .sorted { $0.sortOrder < $1.sortOrder }
+    }
+
+    func rootFolders(in spaceID: UUID) -> [BrowserFolder] {
+        folders
+            .filter { $0.spaceID == spaceID && $0.parentFolderID == nil }
+            .sorted { $0.sortOrder < $1.sortOrder }
+    }
+
+    func regularTabs(in spaceID: UUID) -> [BrowserTab] {
+        tabs
+            .filter { $0.spaceID == spaceID && $0.folderID == nil && !$0.isFavorite && !$0.isPinned }
             .sorted { $0.sortOrder < $1.sortOrder }
     }
 
     func visibleTabs(in spaceID: UUID) -> [BrowserTab] {
-        let favorites = tabs
-            .filter { $0.spaceID == spaceID && $0.isFavorite }
-            .sorted { $0.sortOrder < $1.sortOrder }
-        let pinned = tabs
-            .filter { $0.spaceID == spaceID && $0.folderID == nil && $0.isPinned && !$0.isFavorite }
-            .sorted { $0.sortOrder < $1.sortOrder }
+        let favorites = favoriteTabs(in: spaceID)
+        let pinned = pinnedTabs(in: spaceID)
         let foldered = folders
             .filter { $0.spaceID == spaceID }
             .sorted { $0.sortOrder < $1.sortOrder }
             .flatMap { folder in
                 tabsInFolder(folder.id)
             }
-        let regular = tabs
-            .filter { $0.spaceID == spaceID && $0.folderID == nil && !$0.isFavorite && !$0.isPinned }
-            .sorted { $0.sortOrder < $1.sortOrder }
+        let regular = regularTabs(in: spaceID)
 
         return favorites + pinned + foldered + regular
     }
