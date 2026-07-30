@@ -329,9 +329,3 @@ final class SpaceSwipeScrollView<Content: View>: NSScrollView {
         onCompletion(destination)
     }
 }
-
-struct SpaceSwipeSidebarBackdrop: View {
-    var body: some View {
-        CandoaInterfaceStyle.workspaceBackground
-    }
-}

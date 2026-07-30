@@ -137,8 +137,10 @@ struct WebViewContainer: View {
                     .fill(CandoaInterfaceStyle.surfaceFill.opacity(0.74))
             )
             .compositingGroup()
-            .shadow(color: Color.black.opacity(0.10), radius: 16, x: -2, y: 2)
-            .shadow(color: Color.black.opacity(0.06), radius: 8, x: 0, y: 3)
+            // Kept tight: the surrounding gutter is only 8pt, so a wide
+            // falloff visibly darkens the whole gap and breaks the flat
+            // chrome surface around the card.
+            .shadow(color: Color.black.opacity(0.08), radius: 5, x: 0, y: 1)
     }
 
     private var containedSurfaceInsets: EdgeInsets {

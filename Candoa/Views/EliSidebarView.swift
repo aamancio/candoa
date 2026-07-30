@@ -202,7 +202,6 @@ struct EliSidebarView: View {
 
             composer
         }
-        .background(CandoaInterfaceStyle.workspaceBackground)
         .onAppear {
             uiTestingState = uiTestingAgentState
             removeSubscriptionGateIfActive()

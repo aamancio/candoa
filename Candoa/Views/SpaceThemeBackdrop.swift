@@ -17,21 +17,21 @@ struct CandoaWindowBackdrop: View {
     }
 
     private var backdropIntensity: Double {
-        if usesSetupInterface {
-            // Near-flat during preview: the gradient's brightened leading
-            // blob sits under the sidebar and visibly whitens it otherwise.
-            return isSetupThemePreviewActive ? 0.04 : 0.08
-        }
-
-        return 0.16
+        // Near-flat during preview: the gradient's brightened leading
+        // blob sits under the sidebar and visibly whitens it otherwise.
+        isSetupThemePreviewActive ? 0.04 : 0.08
     }
 
     // During create/initial setup theme preview the workspace mirrors
-    // SpaceSetupCanvas's fill. Editing keeps the normal browsing interface so
-    // preview and saved state match.
+    // SpaceSetupCanvas's fill. While browsing, the chosen theme is the
+    // chrome surface itself (Zen-style), scaled by the space's intensity
+    // dial and capped so neutral sidebar foregrounds stay legible.
     private var spaceTintOpacity: Double {
         guard hasThemeTint else { return 0 }
-        return usesSetupInterface ? 0.74 : 0.050
+        if usesSetupInterface {
+            return 0.74
+        }
+        return min(0.52, 0.38 * store.activeThemeIntensityMultiplier)
     }
 
     private var setupReadability: SpaceThemeReadability {
@@ -40,27 +40,50 @@ struct CandoaWindowBackdrop: View {
 
     var body: some View {
         ZStack {
+            // Opaque base so this backdrop resolves the same wherever it is
+            // drawn, instead of compositing over whatever sits beneath it.
+            // underPageBackgroundColor is translucent in light appearance.
+            Color(nsColor: .windowBackgroundColor)
             CandoaInterfaceStyle.neutralWindowBackdrop
             if let themeHex = store.activeThemeColorHexes.first {
                 Color(spaceHex: themeHex)
                     .opacity(spaceTintOpacity)
             }
-            SpaceThemeBackdrop(
-                hexes: store.activeThemeColorHexes,
-                intensity: backdropIntensity * store.activeThemeIntensityMultiplier,
-                texture: store.activeThemeTexture
-            )
-            if isSetupThemePreviewActive, setupReadability.overlayOpacity > 0 {
-                setupReadability.overlayColor.opacity(setupReadability.overlayOpacity)
+            if usesSetupInterface {
+                SpaceThemeBackdrop(
+                    hexes: store.activeThemeColorHexes,
+                    intensity: backdropIntensity * store.activeThemeIntensityMultiplier,
+                    texture: store.activeThemeTexture
+                )
+                if isSetupThemePreviewActive, setupReadability.overlayOpacity > 0 {
+                    setupReadability.overlayColor.opacity(setupReadability.overlayOpacity)
+                }
+            } else if store.activeThemeTexture > 0 {
+                // Browsing chrome is deliberately flat — a single uniform
+                // color at every point of the window, so the sidebar lanes
+                // and the center frame can never drift apart. Positioned
+                // gradient blobs would reintroduce edge-to-edge variation.
+                DotPattern(
+                    opacity: 0.025 + min(1, max(0, store.activeThemeTexture)) * 0.12,
+                    spacing: 5,
+                    dotSize: 1.2
+                )
+                .blendMode(.overlay)
             }
         }
+        .compositingGroup()
     }
 }
 
-/// The same flat, opaque workspace surface used by the Ask sidebar.
+/// Opaque stand-in for the shared window backdrop, used only while a sidebar
+/// overlays the web surface. Docked sidebars draw no backdrop of their own so
+/// the one window-wide surface shows through and both lanes match the center
+/// exactly.
 struct CandoaSidebarBackdrop: View {
+    @ObservedObject var store: BrowserStore
+
     var body: some View {
-        CandoaInterfaceStyle.workspaceBackground
+        CandoaWindowBackdrop(store: store)
     }
 }
 
