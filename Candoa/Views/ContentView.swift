@@ -47,6 +47,13 @@ struct ContentView: View {
         activeThemeAppearance.colorScheme ?? systemAppearance.colorScheme
     }
 
+    private var sidebarColorScheme: ColorScheme {
+        guard let pageUsesDarkAppearance = store.activePageUsesDarkAppearance else {
+            return resolvedColorScheme
+        }
+        return pageUsesDarkAppearance ? .dark : .light
+    }
+
     private var websiteAppearance: WebsiteAppearance {
         WebsiteAppearance(storedValue: websiteAppearanceValue)
     }
@@ -297,6 +304,10 @@ struct ContentView: View {
         .background {
             CandoaWindowBackdrop(store: store)
                 .ignoresSafeArea()
+                // The sidebars resolve their appearance from the page; the
+                // shared backdrop they sit on must resolve identically or the
+                // lanes and the center frame split into different grays.
+                .environment(\.colorScheme, sidebarColorScheme)
         }
         .preferredColorScheme(resolvedColorScheme)
         .background(
@@ -556,8 +567,11 @@ struct ContentView: View {
         .frame(width: sidebarTotalWidth, alignment: .leading)
         .frame(maxHeight: .infinity)
         .background {
-            if isSidebarPresented {
-                CandoaSidebarBackdrop()
+            // Docked, the lane stays transparent so the shared window backdrop
+            // shows through and the sidebar matches the center exactly. Only
+            // the hover overlay needs its own opaque copy over the page.
+            if isSidebarOverlaying {
+                CandoaSidebarBackdrop(store: store)
                     .ignoresSafeArea(.container, edges: .top)
             }
         }
@@ -567,6 +581,9 @@ struct ContentView: View {
             x: 3,
             y: 0
         )
+        // Match the page's light/dark appearance without inheriting its brand
+        // color or the active Space's tint.
+        .environment(\.colorScheme, sidebarColorScheme)
     }
 
     private func aiSidebarPanel(width: CGFloat) -> some View {
@@ -583,7 +600,13 @@ struct ContentView: View {
 
     private func aiSidebarLayout(width: CGFloat) -> some View {
         ZStack {
-            CandoaInterfaceStyle.workspaceBackground
+            // While Eli slides over the page the lane needs an opaque surface;
+            // once the web layout reserves this lane the shared window
+            // backdrop sits behind it, and staying transparent keeps the lane
+            // pixel-identical to the center.
+            if !isAISidebarReservingWebLayout {
+                CandoaSidebarBackdrop(store: store)
+            }
 
             aiSidebarPanel(width: width)
         }
@@ -612,6 +635,7 @@ struct ContentView: View {
         }
         .allowsHitTesting(isAISidebarVisible)
         .accessibilityHidden(!isAISidebarVisible)
+        .environment(\.colorScheme, sidebarColorScheme)
     }
 
     private func toggleSidebar() {

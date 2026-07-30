@@ -75,6 +75,17 @@ struct WindowInteractionConfigurator: NSViewRepresentable {
             window.styleMask.insert(.fullSizeContentView)
             window.collectionBehavior.insert(.fullScreenPrimary)
             window.isMovableByWindowBackground = false
+
+            // A unified-toolbar title bar makes AppKit center its own
+            // standard window buttons lower, in line with the sidebar
+            // header. The buttons stay AppKit-owned and AppKit-placed; the
+            // sidebar only reserves space under them.
+            window.toolbarStyle = .unified
+            if window.toolbar == nil {
+                window.toolbar = NSToolbar(
+                    identifier: "CandoaWindowControlsAlignment"
+                )
+            }
         }
 
         private static func initialWindowFrame(for window: NSWindow) -> NSRect {

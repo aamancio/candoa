@@ -179,14 +179,10 @@ struct SidebarView: View {
 
     private func sidebarChrome(
         for spaceID: UUID,
-        showsWindowControls: Bool,
-        showsWindowControlsReplica: Bool = false
+        showsWindowControls: Bool
     ) -> some View {
         VStack(alignment: .leading, spacing: sidebarVerticalSpacing) {
-            sidebarHeader(
-                showsWindowControls: showsWindowControls,
-                showsWindowControlsReplica: showsWindowControlsReplica
-            )
+            sidebarHeader(showsWindowControls: showsWindowControls)
             addressPill(for: spaceID)
 
             Spacer(minLength: 0)
@@ -293,13 +289,9 @@ struct SidebarView: View {
                 if slot == 0 || isSpaceSwipePrepared {
                     sidebarChrome(
                         for: spaceID,
-                        showsWindowControls: slot == 0,
-                        showsWindowControlsReplica: slot != 0
+                        showsWindowControls: slot == 0
                     )
                 }
-            }
-            .background {
-                SpaceSwipeSidebarBackdrop()
             }
             .allowsHitTesting(slot == 0)
             .accessibilityHidden(slot != 0)
@@ -426,16 +418,10 @@ struct SidebarView: View {
 
     // MARK: - Header
 
-    private func sidebarHeader(
-        showsWindowControls: Bool,
-        showsWindowControlsReplica: Bool = false
-    ) -> some View {
+    private func sidebarHeader(showsWindowControls: Bool) -> some View {
         HStack(alignment: .center, spacing: 6) {
             if showsWindowControls {
                 WindowControlsView()
-                    .frame(width: windowControlsWidth, height: 24)
-            } else if showsWindowControlsReplica {
-                WindowControlsReplicaView()
                     .frame(width: windowControlsWidth, height: 24)
             } else {
                 Color.clear
