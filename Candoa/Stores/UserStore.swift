@@ -25,10 +25,55 @@ final class UserStore: ObservableObject {
     var hasActiveSubscription: Bool { status?.hasActiveSubscription == true }
 
     static var hasStoredAccountChoice: Bool {
-        UserDefaults.standard.bool(forKey: accountChoiceKey)
+#if DEBUG
+        if isUITesting { return uiTestingAccountChoice }
+#endif
+        return UserDefaults.standard.bool(forKey: accountChoiceKey)
+    }
+
+    /// Whether this Mac already has an account decision (a stored Cloud
+    /// session or an explicit local-only choice). Lets callers avoid reading
+    /// the account keychain directly.
+    static var hasStoredAccountDecision: Bool {
+        CandoaAccountKeychain.accessToken != nil || hasStoredAccountChoice
     }
 
     private static let accountChoiceKey = "Candoa.HasCompletedAccountChoice"
+
+#if DEBUG
+    // UI tests must not read or write the real defaults domain: a choice made
+    // by the person using this Mac (or leaked from an earlier test) would
+    // change which onboarding steps appear. Per-launch state keeps each test
+    // process clean.
+    private static var uiTestingAccountChoice = false
+#endif
+
+    // UI-testing fixtures are compiled out of release builds so the shipping
+    // binary cannot be nudged into a fake account state via the environment.
+    private static var isUITesting: Bool {
+#if DEBUG
+        ProcessInfo.processInfo.environment["CANDOA_UI_TESTING"] == "1"
+#else
+        false
+#endif
+    }
+
+    private static func uiTestingFlag(_ key: String) -> Bool {
+#if DEBUG
+        ProcessInfo.processInfo.environment[key] == "1"
+#else
+        false
+#endif
+    }
+
+    private static var uiTestingFixture: String? {
+#if DEBUG
+        guard isUITesting else { return nil }
+        return ProcessInfo.processInfo.environment["CANDOA_UI_TESTING_FIXTURE"]
+#else
+        return nil
+#endif
+    }
 
     init(
         accountService: CandoaAccountService = CandoaAccountService(),
@@ -40,15 +85,14 @@ final class UserStore: ObservableObject {
         isSignedIn = false
         hasCloudSession = hasStoredToken
         isLocalOnly = false
-        let environment = ProcessInfo.processInfo.environment
-        hasCompletedAccountChoice = environment["CANDOA_UI_TESTING"] == "1"
+        hasCompletedAccountChoice = Self.isUITesting
             ? false
             : hasStoredToken || Self.hasStoredAccountChoice
-        isWorking = environment["CANDOA_UI_TESTING"] == "1" ? false : hasStoredToken
+        isWorking = Self.isUITesting ? false : hasStoredToken
     }
 
     func restoreSessionIfNeeded() async {
-        guard ProcessInfo.processInfo.environment["CANDOA_UI_TESTING"] != "1" else { return }
+        guard !Self.isUITesting else { return }
         guard accountService.accessToken != nil else {
             isWorking = false
             isSignedIn = false
@@ -79,9 +123,7 @@ final class UserStore: ObservableObject {
     }
 
     func refresh() async {
-        let environment = ProcessInfo.processInfo.environment
-        if environment["CANDOA_UI_TESTING"] == "1",
-           environment["CANDOA_UI_TESTING_FIXTURE"] == "ask-cloud-unavailable" {
+        if Self.uiTestingFixture == "ask-cloud-unavailable" {
             status = nil
             isWorking = false
             isSignedIn = false
@@ -143,14 +185,14 @@ final class UserStore: ObservableObject {
         defer { isStartingSubscription = false }
         subscriptionErrorMessage = nil
 
-        if ProcessInfo.processInfo.environment["CANDOA_UI_TESTING_CHECKOUT_FAILURE"] == "1" {
+        if Self.uiTestingFlag("CANDOA_UI_TESTING_CHECKOUT_FAILURE") {
             isWorking = true
             await Task.yield()
             isWorking = false
             subscriptionErrorMessage = "Candoa checkout is temporarily unavailable."
             return
         }
-        if ProcessInfo.processInfo.environment["CANDOA_UI_TESTING_CHECKOUT_SUCCESS"] == "1" {
+        if Self.uiTestingFlag("CANDOA_UI_TESTING_CHECKOUT_SUCCESS") {
             isAwaitingSubscriptionActivation = true
             isReconcilingSubscription = true
             await Task.yield()
@@ -285,7 +327,15 @@ final class UserStore: ObservableObject {
         hasCompletedAccountChoice = false
         isAwaitingSubscriptionActivation = false
         isReconcilingSubscription = false
+#if DEBUG
+        if Self.isUITesting {
+            Self.uiTestingAccountChoice = false
+        } else {
+            UserDefaults.standard.removeObject(forKey: Self.accountChoiceKey)
+        }
+#else
         UserDefaults.standard.removeObject(forKey: Self.accountChoiceKey)
+#endif
         status = nil
         errorMessage = nil
         subscriptionErrorMessage = nil
@@ -335,7 +385,7 @@ final class UserStore: ObservableObject {
     private func createAnonymousSession() async {
         guard !isWorking else { return }
 
-        if ProcessInfo.processInfo.environment["CANDOA_UI_TESTING"] == "1" {
+        if Self.isUITesting {
             markAccountChoiceCompleted()
             isSignedIn = false
             isLocalOnly = true
@@ -375,7 +425,7 @@ final class UserStore: ObservableObject {
     private func authenticateWithApple() async {
         guard !isSigningInWithApple, !isWorking else { return }
 
-        if ProcessInfo.processInfo.environment["CANDOA_UI_TESTING_APPLE_SUCCESS"] == "1" {
+        if Self.uiTestingFlag("CANDOA_UI_TESTING_APPLE_SUCCESS") {
             isSignedIn = true
             isLocalOnly = false
             hasCloudSession = true
@@ -409,12 +459,22 @@ final class UserStore: ObservableObject {
                 linkingAccessToken: shouldLinkExistingAccount ? previousAccessToken : nil
             )
             let accessToken = try await accountService.exchangeAppleSignInCode(code)
-            let session = try await accountService.session(accessToken: accessToken)
-            let refreshedStatus = try await accountService.accountStatus(
-                accessToken: accessToken
-            )
-            guard !session.user.isAnonymous, refreshedStatus.hasAppleAccount else {
-                throw CandoaAccountError.invalidResponse
+            let session: CandoaCloudSession
+            let refreshedStatus: CandoaAccountStatus
+            do {
+                session = try await accountService.session(accessToken: accessToken)
+                refreshedStatus = try await accountService.accountStatus(
+                    accessToken: accessToken
+                )
+                guard !session.user.isAnonymous, refreshedStatus.hasAppleAccount else {
+                    throw CandoaAccountError.invalidResponse
+                }
+            } catch {
+                // The exchange already created a server session. Revoke it so
+                // a failed validation doesn't strand a live session this Mac
+                // holds no token for.
+                try? await accountService.signOut(accessToken: accessToken)
+                throw error
             }
 
             if let previousAccessToken, previousAccessToken != accessToken {
@@ -472,6 +532,13 @@ final class UserStore: ObservableObject {
     }
 
     private func markAccountChoiceCompleted() {
+#if DEBUG
+        if Self.isUITesting {
+            Self.uiTestingAccountChoice = true
+            hasCompletedAccountChoice = true
+            return
+        }
+#endif
         UserDefaults.standard.set(true, forKey: Self.accountChoiceKey)
         hasCompletedAccountChoice = true
     }

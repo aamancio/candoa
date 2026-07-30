@@ -12,6 +12,8 @@ struct SpaceSwipeTrackingView<Content: View>: NSViewRepresentable {
     let settleRequest: SpaceSwipeSettleRequest?
     let reduceMotion: Bool
     let onGestureBegan: (Int) -> Void
+    let onSwipeProgress: (CGFloat) -> Void
+    let onSettleBegan: (Int) -> Void
     let onCompletion: (Int) -> Void
     private let content: Content
 
@@ -21,6 +23,8 @@ struct SpaceSwipeTrackingView<Content: View>: NSViewRepresentable {
         settleRequest: SpaceSwipeSettleRequest?,
         reduceMotion: Bool,
         onGestureBegan: @escaping (Int) -> Void,
+        onSwipeProgress: @escaping (CGFloat) -> Void = { _ in },
+        onSettleBegan: @escaping (Int) -> Void = { _ in },
         onCompletion: @escaping (Int) -> Void,
         @ViewBuilder content: () -> Content
     ) {
@@ -29,6 +33,8 @@ struct SpaceSwipeTrackingView<Content: View>: NSViewRepresentable {
         self.settleRequest = settleRequest
         self.reduceMotion = reduceMotion
         self.onGestureBegan = onGestureBegan
+        self.onSwipeProgress = onSwipeProgress
+        self.onSettleBegan = onSettleBegan
         self.onCompletion = onCompletion
         self.content = content()
     }
@@ -38,6 +44,8 @@ struct SpaceSwipeTrackingView<Content: View>: NSViewRepresentable {
         view.isSwipeEnabled = isEnabled
         view.reduceMotion = reduceMotion
         view.onGestureBegan = onGestureBegan
+        view.onSwipeProgress = onSwipeProgress
+        view.onSettleBegan = onSettleBegan
         view.onCompletion = onCompletion
         view.updateContentID(contentID)
         view.updateSettleRequest(settleRequest)
@@ -49,6 +57,8 @@ struct SpaceSwipeTrackingView<Content: View>: NSViewRepresentable {
         nsView.isSwipeEnabled = isEnabled
         nsView.reduceMotion = reduceMotion
         nsView.onGestureBegan = onGestureBegan
+        nsView.onSwipeProgress = onSwipeProgress
+        nsView.onSettleBegan = onSettleBegan
         nsView.onCompletion = onCompletion
         nsView.updateContentID(contentID)
         nsView.updateSettleRequest(settleRequest)
@@ -60,6 +70,8 @@ final class SpaceSwipeScrollView<Content: View>: NSScrollView {
     var isSwipeEnabled = false
     var reduceMotion = false
     var onGestureBegan: (Int) -> Void = { _ in }
+    var onSwipeProgress: (CGFloat) -> Void = { _ in }
+    var onSettleBegan: (Int) -> Void = { _ in }
     var onCompletion: (Int) -> Void = { _ in }
 
     private let hostingView: NSHostingView<Content>
@@ -210,6 +222,7 @@ final class SpaceSwipeScrollView<Content: View>: NSScrollView {
 
             self.trackedSwipeAmount = gestureAmount
             self.applySwipeAmount(gestureAmount)
+            self.onSwipeProgress(gestureAmount)
 
             if isComplete {
                 self.finishNativeSwipe(at: gestureAmount)
@@ -281,6 +294,7 @@ final class SpaceSwipeScrollView<Content: View>: NSScrollView {
         guard !isSettlingSwipe else { return }
         isSettlingSwipe = true
         isTrackingSwipe = false
+        onSettleBegan(destination)
 
         let token = UUID()
         animationToken = token

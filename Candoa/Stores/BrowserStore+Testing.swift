@@ -3,7 +3,11 @@ import SQLite3
 
 extension BrowserStore {
     static var isUITesting: Bool {
+#if DEBUG
         ProcessInfo.processInfo.environment["CANDOA_UI_TESTING"] == "1"
+#else
+        false
+#endif
     }
 
     static var uiTestingOnboardingStep: InitialOnboardingStep? {

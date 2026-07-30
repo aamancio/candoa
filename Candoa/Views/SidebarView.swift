@@ -55,6 +55,7 @@ struct SidebarView: View {
     @State private var spaceSwipeSettleRequest: SpaceSwipeSettleRequest?
     @State private var selectedSpaceTransitionID: UUID?
     @State private var selectedSpaceTransitionDirection: Int?
+    @StateObject private var windowControlsGeometry = WindowControlsGeometry()
     @AppStorage("Candoa.FavoritesDropZoneDismissed") private var isFavoritesDropZoneDismissed = false
     @AppStorage(DeveloperModeConfiguration.storageKey) private var developerModeOverrides = ""
 
@@ -179,10 +180,14 @@ struct SidebarView: View {
 
     private func sidebarChrome(
         for spaceID: UUID,
-        showsWindowControls: Bool
+        showsWindowControls: Bool,
+        isSwipingSpaces: Bool
     ) -> some View {
         VStack(alignment: .leading, spacing: sidebarVerticalSpacing) {
-            sidebarHeader(showsWindowControls: showsWindowControls)
+            sidebarHeader(
+                showsWindowControls: showsWindowControls,
+                isSwipingSpaces: isSwipingSpaces
+            )
             addressPill(for: spaceID)
 
             Spacer(minLength: 0)
@@ -217,6 +222,8 @@ struct SidebarView: View {
                 settleRequest: spaceSwipeSettleRequest,
                 reduceMotion: accessibilityReduceMotion,
                 onGestureBegan: beginSpaceSwipeGesture,
+                onSwipeProgress: updateSpaceSwipeThemeProgress,
+                onSettleBegan: settleSpaceSwipeTheme,
                 onCompletion: completeSpaceSwipe
             ) {
                 ZStack(alignment: .leading) {
@@ -289,7 +296,8 @@ struct SidebarView: View {
                 if slot == 0 || isSpaceSwipePrepared {
                     sidebarChrome(
                         for: spaceID,
-                        showsWindowControls: slot == 0
+                        showsWindowControls: slot == 0,
+                        isSwipingSpaces: isSpaceSwipePrepared
                     )
                 }
             }
@@ -326,6 +334,38 @@ struct SidebarView: View {
         spaceSwipeSourceID = store.activeSpaceID
         isSpaceSwipePrepared = true
         isSettlingSpaceSwipe = true
+        store.chromeTransition.update(
+            fraction: 0,
+            toward: spaceID(forSwipeSlot: direction)
+        )
+    }
+
+    /// The chrome tint follows the finger: blend toward the revealed Space's
+    /// theme in proportion to how far the pages have slid.
+    private func updateSpaceSwipeThemeProgress(_ gestureAmount: CGFloat) {
+        guard isSpaceSwipePrepared else { return }
+
+        let direction = gestureAmount > 0 ? -1 : 1
+        let destinationID = gestureAmount == 0
+            ? store.chromeTransition.destinationSpaceID
+            : spaceID(forSwipeSlot: direction)
+        store.chromeTransition.update(
+            fraction: min(1, abs(gestureAmount)),
+            toward: destinationID
+        )
+    }
+
+    /// Non-tracked settles (discrete scrolls, Space-switcher clicks) get no
+    /// per-frame gesture updates, so ease the tint alongside the page spring.
+    private func settleSpaceSwipeTheme(_ destination: Int) {
+        let destinationID = spaceID(forSwipeSlot: destination)
+        if accessibilityReduceMotion {
+            store.chromeTransition.update(fraction: 1, toward: destinationID)
+        } else {
+            withAnimation(.easeOut(duration: 0.2)) {
+                store.chromeTransition.update(fraction: 1, toward: destinationID)
+            }
+        }
     }
 
     private func animateSpaceSelection(_ spaceID: UUID) {
@@ -399,6 +439,7 @@ struct SidebarView: View {
             spaceSwipeSettleRequest = nil
             selectedSpaceTransitionID = nil
             selectedSpaceTransitionDirection = nil
+            store.chromeTransition.reset()
         }
     }
 
@@ -418,30 +459,47 @@ struct SidebarView: View {
 
     // MARK: - Header
 
-    private func sidebarHeader(showsWindowControls: Bool) -> some View {
+    private func sidebarHeader(
+        showsWindowControls: Bool,
+        isSwipingSpaces: Bool = false
+    ) -> some View {
         HStack(alignment: .center, spacing: 6) {
-            if showsWindowControls {
-                WindowControlsView()
-                    .frame(width: windowControlsWidth, height: 24)
-            } else {
-                Color.clear
-                    .frame(width: windowControlsWidth, height: 24)
+            Group {
+                if showsWindowControls {
+                    WindowControlsView(
+                        isSuppressed: isSwipingSpaces,
+                        geometry: windowControlsGeometry
+                    )
+                } else {
+                    Color.clear
+                }
+            }
+            .frame(width: windowControlsWidth, height: 24)
+            .overlay(alignment: .topLeading) {
+                if isSwipingSpaces {
+                    FauxWindowControlsView(geometry: windowControlsGeometry)
+                }
             }
 
             Spacer(minLength: 8)
 
-            navigationControls
-                .opacity(hidesNavigationControlsForAddressPalette ? 0 : 1)
-                .allowsHitTesting(!hidesNavigationControlsForAddressPalette)
+            HStack(spacing: 6) {
+                navigationControls
+                    .opacity(hidesNavigationControlsForAddressPalette ? 0 : 1)
+                    .allowsHitTesting(!hidesNavigationControlsForAddressPalette)
 
-            Button {
-                onToggleSidebar()
-            } label: {
-                Image(systemName: "sidebar.left")
+                Button {
+                    onToggleSidebar()
+                } label: {
+                    Image(systemName: "sidebar.left")
+                }
+                .toolbarIconButton()
+                .help("Hide Sidebar")
+                .accessibilityIdentifier("sidebar-toggle-button")
             }
-            .toolbarIconButton()
-            .help("Hide Sidebar")
-            .accessibilityIdentifier("sidebar-toggle-button")
+            // Sit the icons on the measured centerline of the native window
+            // buttons, wherever AppKit put them.
+            .offset(y: windowControlsGeometry.controlsCenterOffsetY)
         }
         .candoaButton(.content)
         .foregroundStyle(sidebarIconColor)

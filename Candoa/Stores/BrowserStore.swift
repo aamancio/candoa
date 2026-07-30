@@ -138,6 +138,11 @@ final class BrowserStore: ObservableObject {
         let spaceID: UUID
     }
 
+    /// Chrome-tint blend state for in-flight Space swipes. A separate
+    /// observable so per-frame gesture updates invalidate only the window
+    /// backdrop, never every store observer.
+    let chromeTransition = SpaceChromeTransition()
+
     static let spaceNameCharacterLimit = 24
     static let splitViewMaxTabs = 4
     static let sidebarDropSettleDelayNanoseconds: UInt64 = 480_000_000

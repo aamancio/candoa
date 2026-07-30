@@ -1,8 +1,41 @@
 import AppKit
 import SwiftUI
 
+/// Blend state for the window chrome while a Space swipe is in flight.
+/// The sidebar's swipe gesture writes it per frame; only the window backdrop
+/// observes it, so the whole store isn't invalidated at gesture rate.
+@MainActor
+final class SpaceChromeTransition: ObservableObject {
+    @Published private(set) var destinationSpaceID: UUID?
+    @Published private(set) var fraction: Double = 0
+
+    func update(fraction: Double, toward spaceID: UUID?) {
+        if destinationSpaceID != spaceID {
+            destinationSpaceID = spaceID
+        }
+        if self.fraction != fraction {
+            self.fraction = fraction
+        }
+    }
+
+    func reset() {
+        update(fraction: 0, toward: nil)
+    }
+}
+
 struct CandoaWindowBackdrop: View {
     @ObservedObject var store: BrowserStore
+    @ObservedObject private var chromeTransition: SpaceChromeTransition
+
+    init(store: BrowserStore) {
+        self._store = ObservedObject(wrappedValue: store)
+        self._chromeTransition = ObservedObject(wrappedValue: store.chromeTransition)
+    }
+
+    private struct ResolvedTint {
+        let color: NSColor
+        let opacity: Double
+    }
 
     private var hasThemeTint: Bool {
         !store.activeThemeColorHexes.isEmpty
@@ -38,6 +71,83 @@ struct CandoaWindowBackdrop: View {
         SpaceThemeReadability.resolved(for: store.activeThemeColorHexes)
     }
 
+    /// The Space the chrome is currently blending toward, while a swipe is in
+    /// flight. Nil once the switch commits (destination becomes active) or
+    /// when nothing is transitioning, so the plain active theme applies.
+    private var transitionDestinationSpace: BrowserSpace? {
+        guard
+            !usesSetupInterface,
+            chromeTransition.fraction > 0,
+            let destinationID = chromeTransition.destinationSpaceID,
+            destinationID != store.activeSpaceID
+        else {
+            return nil
+        }
+        return store.spaces.first { $0.id == destinationID }
+    }
+
+    private var transitionFraction: Double {
+        min(1, max(0, chromeTransition.fraction))
+    }
+
+    private func browsingTint(hex: String?, themeOpacity: Double) -> ResolvedTint? {
+        guard let hex, let color = NSColor(spaceHex: hex) else { return nil }
+        let multiplier = BrowserStore.themeIntensityMultiplier(forOpacity: themeOpacity)
+        return ResolvedTint(color: color, opacity: min(0.52, 0.38 * multiplier))
+    }
+
+    /// Browsing tint with the in-flight swipe blend applied: the surface
+    /// color follows the gesture between the two Spaces' themes instead of
+    /// snapping when the switch commits.
+    private var blendedChromeTint: ResolvedTint? {
+        let source = browsingTint(
+            hex: store.activeThemeColorHexes.first,
+            themeOpacity: store.activeThemeOpacity
+        )
+        guard let destinationSpace = transitionDestinationSpace else { return source }
+
+        let destination = browsingTint(
+            hex: destinationSpace.themeColorHex,
+            themeOpacity: destinationSpace.themeOpacity
+        )
+        let fraction = transitionFraction
+
+        switch (source, destination) {
+        case (nil, nil):
+            return nil
+        case (let source?, nil):
+            return ResolvedTint(color: source.color, opacity: source.opacity * (1 - fraction))
+        case (nil, let destination?):
+            return ResolvedTint(color: destination.color, opacity: destination.opacity * fraction)
+        case (let source?, let destination?):
+            let color = source.color.blended(withFraction: fraction, of: destination.color)
+            return ResolvedTint(
+                color: color ?? destination.color,
+                opacity: source.opacity + (destination.opacity - source.opacity) * fraction
+            )
+        }
+    }
+
+    private var chromeTexture: Double {
+        let source = store.activeThemeTexture
+        guard let destinationSpace = transitionDestinationSpace else { return source }
+        return source + (destinationSpace.themeTexture - source) * transitionFraction
+    }
+
+    /// Crossfade theme changes that arrive without a gesture (keyboard or
+    /// menu Space switches). Live setup/edit previews stay immediate so the
+    /// theme dials track the pointer.
+    private var animatesThemeChanges: Bool {
+        !store.isSpaceSetupPresented && !store.isSpaceThemeColorPreviewActive
+    }
+
+    private var themeChangeSignature: [String] {
+        store.activeThemeColorHexes + [
+            String(store.activeThemeOpacity),
+            String(store.activeThemeTexture)
+        ]
+    }
+
     var body: some View {
         ZStack {
             // Opaque base so this backdrop resolves the same wherever it is
@@ -45,11 +155,11 @@ struct CandoaWindowBackdrop: View {
             // underPageBackgroundColor is translucent in light appearance.
             Color(nsColor: .windowBackgroundColor)
             CandoaInterfaceStyle.neutralWindowBackdrop
-            if let themeHex = store.activeThemeColorHexes.first {
-                Color(spaceHex: themeHex)
-                    .opacity(spaceTintOpacity)
-            }
             if usesSetupInterface {
+                if let themeHex = store.activeThemeColorHexes.first {
+                    Color(spaceHex: themeHex)
+                        .opacity(spaceTintOpacity)
+                }
                 SpaceThemeBackdrop(
                     hexes: store.activeThemeColorHexes,
                     intensity: backdropIntensity * store.activeThemeIntensityMultiplier,
@@ -58,20 +168,43 @@ struct CandoaWindowBackdrop: View {
                 if isSetupThemePreviewActive, setupReadability.overlayOpacity > 0 {
                     setupReadability.overlayColor.opacity(setupReadability.overlayOpacity)
                 }
-            } else if store.activeThemeTexture > 0 {
-                // Browsing chrome is deliberately flat — a single uniform
-                // color at every point of the window, so the sidebar lanes
-                // and the center frame can never drift apart. Positioned
-                // gradient blobs would reintroduce edge-to-edge variation.
-                DotPattern(
-                    opacity: 0.025 + min(1, max(0, store.activeThemeTexture)) * 0.12,
-                    spacing: 5,
-                    dotSize: 1.2
-                )
-                .blendMode(.overlay)
+            } else {
+                if let tint = blendedChromeTint {
+                    Color(nsColor: tint.color)
+                        .opacity(tint.opacity)
+                }
+                if chromeTexture > 0 {
+                    // Browsing chrome is deliberately flat — a single uniform
+                    // color at every point of the window, so the sidebar lanes
+                    // and the center frame can never drift apart. Positioned
+                    // gradient blobs would reintroduce edge-to-edge variation.
+                    DotPattern(
+                        opacity: 0.025 + min(1, max(0, chromeTexture)) * 0.12,
+                        spacing: 5,
+                        dotSize: 1.2
+                    )
+                    .blendMode(.overlay)
+                }
             }
         }
         .compositingGroup()
+        .animation(
+            animatesThemeChanges ? .easeInOut(duration: 0.28) : nil,
+            value: themeChangeSignature
+        )
+    }
+}
+
+private extension NSColor {
+    convenience init?(spaceHex: String) {
+        let hex = spaceHex.trimmingCharacters(in: CharacterSet(charactersIn: "#"))
+        guard hex.count == 6, let value = Int(hex, radix: 16) else { return nil }
+        self.init(
+            srgbRed: CGFloat((value >> 16) & 0xFF) / 255,
+            green: CGFloat((value >> 8) & 0xFF) / 255,
+            blue: CGFloat(value & 0xFF) / 255,
+            alpha: 1
+        )
     }
 }
 

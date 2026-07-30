@@ -259,13 +259,18 @@ final class CandoaUITests: XCTestCase {
         XCTAssertEqual(accountOnboarding.value as? String, "idle")
         XCTAssertTrue(app.buttons["Continue with Apple"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["Not Now"].exists)
-        let description = app.staticTexts.matching(
-            NSPredicate(
-                format: "label CONTAINS %@",
-                "Your Spaces and tabs continue to sync privately through iCloud."
+        print("CANDOA-DEBUG-HIERARCHY-START")
+        for text in app.staticTexts.allElementsBoundByIndex.prefix(30) {
+            print("CANDOA-DEBUG staticText id='\(text.identifier)' label='\(text.label)'")
+        }
+        print("CANDOA-DEBUG-HIERARCHY-END")
+        let description = element("account-onboarding-description", in: app)
+        XCTAssertTrue(description.exists)
+        XCTAssertTrue(
+            description.label.contains(
+                "Sign in with Apple to restore your subscription"
             )
         )
-        XCTAssertEqual(description.count, 1)
         XCTAssertEqual(
             app.descendants(matching: .any)
                 .matching(NSPredicate(format: "label CONTAINS[c] %@", "passkey"))

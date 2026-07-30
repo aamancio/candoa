@@ -417,6 +417,8 @@ private struct AccountOnboardingStep: View {
 }
 
 private struct AccountOnboardingSurface<Content: View>: View {
+    private static var step: InitialOnboardingStep { .account }
+
     let onBack: () -> Void
     @ViewBuilder let content: Content
 
@@ -445,7 +447,7 @@ private struct AccountOnboardingSurface<Content: View>: View {
 
                     Spacer()
 
-                    Text("3 of 3")
+                    Text("\(Self.step.position) of \(Self.step.count)")
                         .font(.system(size: 11, weight: .medium, design: .rounded))
                         .foregroundStyle(.tertiary)
                 }
@@ -468,7 +470,7 @@ private struct AccountOnboardingSurface<Content: View>: View {
         .background(CandoaInterfaceStyle.surfaceFill.opacity(0.72))
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .accessibilityIdentifier("initial-onboarding-account")
-        .accessibilityValue("Step 3 of 3")
+        .accessibilityValue("Step \(Self.step.position) of \(Self.step.count)")
     }
 }
 

@@ -268,11 +268,12 @@ final class CandoaAppleSignInService: NSObject {
 
                 // A successful custom-scheme callback can activate Candoa just
                 // before application(_:open:) delivers the URL. Give that
-                // callback a brief chance to finish before treating a plain
-                // return from Safari as cancellation.
+                // callback a chance to finish before treating a plain return
+                // from Safari as cancellation — on a busy system URL delivery
+                // can lag activation by well over a second.
                 self.externalBrowserReturnTask?.cancel()
                 self.externalBrowserReturnTask = Task { @MainActor [weak self] in
-                    try? await Task.sleep(for: .milliseconds(500))
+                    try? await Task.sleep(for: .milliseconds(1500))
                     guard !Task.isCancelled,
                           let self,
                           self.hasContinuedInSafari,

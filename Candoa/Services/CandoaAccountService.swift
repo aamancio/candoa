@@ -7,7 +7,11 @@ enum CandoaAccountKeychain {
     private static let account = "cloud-session"
 
     private static var isUITesting: Bool {
+#if DEBUG
         ProcessInfo.processInfo.environment["CANDOA_UI_TESTING"] == "1"
+#else
+        false
+#endif
     }
 
     static var accessToken: String? {
@@ -163,7 +167,7 @@ enum CandoaCloudAPI {
             accessToken: accessToken
         )
         guard let session else {
-            throw CandoaAccountError.server("Your Candoa session has expired.")
+            throw CandoaAccountError.sessionExpired
         }
         return session
     }
@@ -332,9 +336,12 @@ enum CandoaCloudAPI {
         }
         guard (200...299).contains(httpResponse.statusCode) else {
             let error = try? JSONDecoder().decode(CandoaErrorResponse.self, from: data)
-            throw CandoaAccountError.server(
-                error?.error ?? error?.message ?? "Candoa could not complete that request."
-            )
+            let message = error?.error ?? error?.message
+                ?? "Candoa could not complete that request."
+            if httpResponse.statusCode == 401 {
+                throw CandoaAccountError.unauthorized(message)
+            }
+            throw CandoaAccountError.server(message)
         }
         return (data, httpResponse)
     }
@@ -420,14 +427,17 @@ enum CandoaAccountError: LocalizedError, Sendable {
     case appleAccountAlreadyLinked
     case invalidResponse
     case keychainUnavailable
+    case sessionExpired
+    case unauthorized(String)
     case server(String)
 
     var isAuthenticationFailure: Bool {
-        if case .server(let message) = self {
-            return message.localizedCaseInsensitiveContains("session")
-                || message.localizedCaseInsensitiveContains("authentication")
+        switch self {
+        case .sessionExpired, .unauthorized:
+            return true
+        case .appleAccountAlreadyLinked, .invalidResponse, .keychainUnavailable, .server:
+            return false
         }
-        return false
     }
 
     var errorDescription: String? {
@@ -438,7 +448,9 @@ enum CandoaAccountError: LocalizedError, Sendable {
             return "Candoa returned an invalid response."
         case .keychainUnavailable:
             return "Candoa could not save your session in Keychain."
-        case .server(let message):
+        case .sessionExpired:
+            return "Your Candoa session has expired."
+        case .unauthorized(let message), .server(let message):
             return message
         }
     }

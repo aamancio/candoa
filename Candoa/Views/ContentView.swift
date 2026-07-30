@@ -47,13 +47,6 @@ struct ContentView: View {
         activeThemeAppearance.colorScheme ?? systemAppearance.colorScheme
     }
 
-    private var sidebarColorScheme: ColorScheme {
-        guard let pageUsesDarkAppearance = store.activePageUsesDarkAppearance else {
-            return resolvedColorScheme
-        }
-        return pageUsesDarkAppearance ? .dark : .light
-    }
-
     private var websiteAppearance: WebsiteAppearance {
         WebsiteAppearance(storedValue: websiteAppearanceValue)
     }
@@ -304,10 +297,6 @@ struct ContentView: View {
         .background {
             CandoaWindowBackdrop(store: store)
                 .ignoresSafeArea()
-                // The sidebars resolve their appearance from the page; the
-                // shared backdrop they sit on must resolve identically or the
-                // lanes and the center frame split into different grays.
-                .environment(\.colorScheme, sidebarColorScheme)
         }
         .preferredColorScheme(resolvedColorScheme)
         .background(
@@ -581,9 +570,6 @@ struct ContentView: View {
             x: 3,
             y: 0
         )
-        // Match the page's light/dark appearance without inheriting its brand
-        // color or the active Space's tint.
-        .environment(\.colorScheme, sidebarColorScheme)
     }
 
     private func aiSidebarPanel(width: CGFloat) -> some View {
@@ -635,7 +621,6 @@ struct ContentView: View {
         }
         .allowsHitTesting(isAISidebarVisible)
         .accessibilityHidden(!isAISidebarVisible)
-        .environment(\.colorScheme, sidebarColorScheme)
     }
 
     private func toggleSidebar() {

@@ -7,10 +7,6 @@ extension BrowserStore {
         return tabs.first { $0.id == activeTabID }
     }
 
-    var activePageUsesDarkAppearance: Bool? {
-        webCoordinator.pageUsesDarkAppearance(for: activeTabID)
-    }
-
     var activeSplitTab: BrowserTab? {
         activeSplitTabs.first
     }

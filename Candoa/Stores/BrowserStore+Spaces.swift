@@ -30,7 +30,11 @@ extension BrowserStore {
     }
 
     var activeThemeIntensityMultiplier: Double {
-        let normalizedOpacity = (activeThemeOpacity - 0.3) / 0.6
+        Self.themeIntensityMultiplier(forOpacity: activeThemeOpacity)
+    }
+
+    static func themeIntensityMultiplier(forOpacity opacity: Double) -> Double {
+        let normalizedOpacity = (opacity - 0.3) / 0.6
         return min(1.45, max(0.25, 0.25 + normalizedOpacity * 1.2))
     }
 

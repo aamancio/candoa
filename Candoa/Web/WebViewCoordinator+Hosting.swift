@@ -105,35 +105,6 @@ extension WebViewCoordinator {
         container.layer?.backgroundColor = webView.underPageBackgroundColor.cgColor
     }
 
-    /// Resolve only the page's light/dark appearance for surrounding chrome.
-    /// WebKit already derives this color from the page's html/body backgrounds,
-    /// so this requires no injected script, polling, or additional observation.
-    func pageUsesDarkAppearance(for tabID: UUID?) -> Bool? {
-        guard
-            let tabID,
-            let webView = webViews[tabID],
-            let color = webView.underPageBackgroundColor.usingColorSpace(.sRGB),
-            color.alphaComponent > 0.01
-        else {
-            return nil
-        }
-
-        let red = linearizedColorComponent(Double(color.redComponent))
-        let green = linearizedColorComponent(Double(color.greenComponent))
-        let blue = linearizedColorComponent(Double(color.blueComponent))
-        let relativeLuminance = 0.2126 * red + 0.7152 * green + 0.0722 * blue
-
-        // WCAG's contrast crossover: above this, dark foreground chrome has
-        // sufficient contrast; below it, native dark chrome is more legible.
-        return relativeLuminance < 0.179
-    }
-
-    private func linearizedColorComponent(_ component: Double) -> Double {
-        component <= 0.04045
-            ? component / 12.92
-            : pow((component + 0.055) / 1.055, 2.4)
-    }
-
     func applyObscuredContentInsets(_ insets: BrowserInterfaceInsets, to webView: WKWebView) {
         guard #available(macOS 26.0, *) else { return }
         let edgeInsets = NSEdgeInsets(top: 0, left: insets.leading, bottom: 0, right: insets.trailing)
