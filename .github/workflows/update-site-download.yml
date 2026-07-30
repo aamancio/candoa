@@ -122,6 +122,22 @@ jobs:
             echo "Provisioning profile must allow the Associated Domains capability." >&2
             exit 1
           fi
+          PROFILE_ICLOUD_CONTAINER="$(
+            /usr/libexec/PlistBuddy \
+              -c 'Print :Entitlements:com.apple.developer.icloud-container-identifiers:0' \
+              "$PROFILE_PLIST" 2>/dev/null || true
+          )"
+          if [ "$PROFILE_ICLOUD_CONTAINER" != "iCloud.app.candoa.browser" ]; then
+            echo "Provisioning profile must allow the iCloud.app.candoa.browser container." >&2
+            exit 1
+          fi
+          if ! /usr/libexec/PlistBuddy \
+            -c 'Print :Entitlements:com.apple.developer.icloud-services' \
+            "$PROFILE_PLIST" >/dev/null 2>&1
+          then
+            echo "Provisioning profile must allow the iCloud/CloudKit service." >&2
+            exit 1
+          fi
 
           MOBILEDEVICE_PROFILE_DIRECTORY="$HOME/Library/MobileDevice/Provisioning Profiles"
           XCODE_PROFILE_DIRECTORY="$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"
