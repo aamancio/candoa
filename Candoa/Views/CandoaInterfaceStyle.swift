@@ -50,9 +50,6 @@ enum CandoaInterfaceStyle {
     static let sidebarBackground = Color(nsColor: .windowBackgroundColor)
     /// Neutral foreground for noninteractive artwork and supporting symbols.
     static let decorativeSymbol = Color(nsColor: .secondaryLabelColor)
-    static var sidebarSurfaceOverlay: Color {
-        shadowTone.opacity(increasesContrast ? 0.14 : 0.10)
-    }
     static var sidebarBorder: Color { separatorTone.opacity(increasesContrast ? 1 : 0.90) }
     static var sidebarSeparator: Color { separatorTone.opacity(increasesContrast ? 1 : 0.75) }
     static var sidebarControlFill: Color { subtleTone.opacity(increasesContrast ? 1 : 0.72) }
@@ -102,7 +99,6 @@ enum CandoaInterfaceStyle {
     private static var subtleTone: Color { Color(nsColor: .quaternaryLabelColor) }
     private static var tertiaryTone: Color { Color(nsColor: .tertiaryLabelColor) }
     private static var separatorTone: Color { Color(nsColor: .separatorColor) }
-    private static var shadowTone: Color { Color(nsColor: .shadowColor) }
 
     private static var increasesContrast: Bool {
         NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast
@@ -183,6 +179,6 @@ internal struct SpaceThemeReadability {
     }
 }
 
-/// The shared interface surface painted across the window. Space tint remains
-/// continuous through the sidebar, title-bar strip, and web-view gutter;
-/// individual interface regions can add a restrained semantic tonal layer above it.
+/// The shared interface surface painted behind the browser workspace. Space
+/// tint remains visible around the web surface while chrome such as the
+/// sidebar can keep its own semantic background.

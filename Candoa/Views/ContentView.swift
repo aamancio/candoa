@@ -556,10 +556,8 @@ struct ContentView: View {
         .frame(width: sidebarTotalWidth, alignment: .leading)
         .frame(maxHeight: .infinity)
         .background {
-            // The sidebar retains the Space tint but has its own restrained
-            // semantic tone, matching native macOS sidebar separation.
             if isSidebarPresented {
-                CandoaSidebarBackdrop(store: store)
+                CandoaSidebarBackdrop()
                     .ignoresSafeArea(.container, edges: .top)
             }
         }

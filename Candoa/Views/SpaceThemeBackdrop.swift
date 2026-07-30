@@ -26,10 +26,9 @@ struct CandoaWindowBackdrop: View {
         return 0.16
     }
 
-    // During create/initial setup theme preview the interface mirrors
-    // SpaceSetupCanvas's fill so sidebar, title bar, and canvas read as one
-    // continuous color. Editing keeps the normal browsing interface so preview and
-    // saved state match.
+    // During create/initial setup theme preview the workspace mirrors
+    // SpaceSetupCanvas's fill. Editing keeps the normal browsing interface so
+    // preview and saved state match.
     private var spaceTintOpacity: Double {
         guard hasThemeTint else { return 0 }
         return usesSetupInterface ? 0.74 : 0.050
@@ -58,21 +57,10 @@ struct CandoaWindowBackdrop: View {
     }
 }
 
-/// Finder-style sidebar treatment: retain the Space backdrop while lifting the
-/// sidebar just enough to remain identifiable beside dark or similarly colored
-/// page surfaces. The native shadow tone keeps the neutral hierarchy calm in
-/// both appearances and strengthens when Increase Contrast is enabled.
+/// The same flat, opaque workspace surface used by the Ask sidebar.
 struct CandoaSidebarBackdrop: View {
-    @ObservedObject var store: BrowserStore
-
     var body: some View {
-        if store.activeThemeColorHexes.isEmpty {
-            CandoaInterfaceStyle.sidebarBackground
-                .overlay(CandoaInterfaceStyle.sidebarSurfaceOverlay)
-        } else {
-            CandoaWindowBackdrop(store: store)
-                .overlay(CandoaInterfaceStyle.sidebarSurfaceOverlay)
-        }
+        CandoaInterfaceStyle.workspaceBackground
     }
 }
 

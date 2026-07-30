@@ -267,8 +267,7 @@ struct SidebarView: View {
 
     @ViewBuilder
     private func spaceSwipePage(slot: Int, minimumHeight: CGFloat) -> some View {
-        if let spaceID = spaceID(forSwipeSlot: slot),
-           let space = store.spaces.first(where: { $0.id == spaceID }) {
+        if let spaceID = spaceID(forSwipeSlot: slot) {
             let contentHeight = max(
                 minimumHeight - spaceSwipeTopInset - spaceSwipeBottomInset,
                 1
@@ -300,7 +299,7 @@ struct SidebarView: View {
                 }
             }
             .background {
-                SpaceSwipeSidebarBackdrop(space: space)
+                SpaceSwipeSidebarBackdrop()
             }
             .allowsHitTesting(slot == 0)
             .accessibilityHidden(slot != 0)

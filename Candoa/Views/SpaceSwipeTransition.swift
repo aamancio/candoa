@@ -331,29 +331,7 @@ final class SpaceSwipeScrollView<Content: View>: NSScrollView {
 }
 
 struct SpaceSwipeSidebarBackdrop: View {
-    let space: BrowserSpace
-
-    private var intensityMultiplier: Double {
-        let normalizedOpacity = (space.themeOpacity - 0.3) / 0.6
-        return min(1.45, max(0.25, 0.25 + normalizedOpacity * 1.2))
-    }
-
     var body: some View {
-        if let themeHex = space.themeColorHex {
-            ZStack {
-                CandoaInterfaceStyle.neutralWindowBackdrop
-                Color(spaceHex: themeHex)
-                    .opacity(0.050)
-                SpaceThemeBackdrop(
-                    hexes: [themeHex],
-                    intensity: 0.16 * intensityMultiplier,
-                    texture: space.themeTexture
-                )
-                CandoaInterfaceStyle.sidebarSurfaceOverlay
-            }
-        } else {
-            CandoaInterfaceStyle.sidebarBackground
-                .overlay(CandoaInterfaceStyle.sidebarSurfaceOverlay)
-        }
+        CandoaInterfaceStyle.workspaceBackground
     }
 }
