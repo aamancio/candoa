@@ -95,7 +95,7 @@ final class SpaceSwipeScrollView<Content: View>: NSScrollView {
 
     @available(*, unavailable)
     required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
+        return nil
     }
 
     override func layout() {

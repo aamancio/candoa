@@ -126,16 +126,7 @@ struct SidebarView: View {
     }
 
     private var browsingSidebar: some View {
-        ZStack {
-            spaceSwipeContent
-
-            if !isSpaceSwipePrepared {
-                sidebarChrome(
-                    for: store.activeSpaceID,
-                    showsWindowControls: true
-                )
-            }
-        }
+        spaceSwipeContent
     }
 
     private var setupSidebar: some View {
@@ -188,10 +179,14 @@ struct SidebarView: View {
 
     private func sidebarChrome(
         for spaceID: UUID,
-        showsWindowControls: Bool
+        showsWindowControls: Bool,
+        showsWindowControlsReplica: Bool = false
     ) -> some View {
         VStack(alignment: .leading, spacing: sidebarVerticalSpacing) {
-            sidebarHeader(showsWindowControls: showsWindowControls)
+            sidebarHeader(
+                showsWindowControls: showsWindowControls,
+                showsWindowControlsReplica: showsWindowControlsReplica
+            )
             addressPill(for: spaceID)
 
             Spacer(minLength: 0)
@@ -296,10 +291,11 @@ struct SidebarView: View {
                 .padding(.bottom, spaceSwipeBottomInset)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-                if isSpaceSwipePrepared {
+                if slot == 0 || isSpaceSwipePrepared {
                     sidebarChrome(
                         for: spaceID,
-                        showsWindowControls: slot == selectedSpaceTransitionDirection
+                        showsWindowControls: slot == 0,
+                        showsWindowControlsReplica: slot != 0
                     )
                 }
             }
@@ -431,10 +427,16 @@ struct SidebarView: View {
 
     // MARK: - Header
 
-    private func sidebarHeader(showsWindowControls: Bool) -> some View {
+    private func sidebarHeader(
+        showsWindowControls: Bool,
+        showsWindowControlsReplica: Bool = false
+    ) -> some View {
         HStack(alignment: .center, spacing: 6) {
             if showsWindowControls {
                 WindowControlsView()
+                    .frame(width: windowControlsWidth, height: 24)
+            } else if showsWindowControlsReplica {
+                WindowControlsReplicaView()
                     .frame(width: windowControlsWidth, height: 24)
             } else {
                 Color.clear

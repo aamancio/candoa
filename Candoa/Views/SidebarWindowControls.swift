@@ -43,6 +43,15 @@ internal struct WindowControlsView: View {
         )
     }
 }
+
+internal struct WindowControlsReplicaView: View {
+    var body: some View {
+        NativeWindowControlsReplicaView()
+            .accessibilityHidden(true)
+            .allowsHitTesting(false)
+    }
+}
+
 internal struct NativeWindowControlsView: NSViewRepresentable {
     let revealProgress: CGFloat
 
@@ -60,6 +69,83 @@ internal struct NativeWindowControlsView: NSViewRepresentable {
 
     static func dismantleNSView(_ nsView: NSView, coordinator: ()) {
         (nsView as? NativeWindowControlsHost)?.restoreWindowControls()
+    }
+}
+
+private struct NativeWindowControlsReplicaView: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView {
+        NativeWindowControlsReplicaHost()
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {}
+}
+
+private final class NativeWindowControlsReplicaHost: NSView {
+    private static let buttonTypes: [NSWindow.ButtonType] = [
+        .closeButton,
+        .miniaturizeButton,
+        .zoomButton
+    ]
+    private static let fallbackButtonSize = NSSize(width: 14, height: 14)
+    private static let leadingInset: CGFloat = 4
+    private static let buttonSpacing: CGFloat = 6
+
+    private var buttons: [NSButton] = []
+
+    override var intrinsicContentSize: NSSize {
+        NSSize(width: 60, height: 24)
+    }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        rebuildButtons()
+    }
+
+    override func layout() {
+        super.layout()
+
+        var nextX = Self.leadingInset
+        for button in buttons {
+            let currentSize = button.frame.size
+            let buttonSize = currentSize.width > 0 && currentSize.height > 0
+                ? currentSize
+                : Self.fallbackButtonSize
+            button.frame = NSRect(
+                x: nextX,
+                y: (bounds.height - buttonSize.height) / 2,
+                width: buttonSize.width,
+                height: buttonSize.height
+            )
+            nextX += buttonSize.width + Self.buttonSpacing
+        }
+    }
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        nil
+    }
+
+    private func rebuildButtons() {
+        buttons.forEach { $0.removeFromSuperview() }
+        buttons.removeAll(keepingCapacity: true)
+
+        guard let window else { return }
+
+        for buttonType in Self.buttonTypes {
+            guard let button = NSWindow.standardWindowButton(
+                buttonType,
+                for: window.styleMask
+            ) else {
+                continue
+            }
+            button.target = nil
+            button.action = nil
+            button.translatesAutoresizingMaskIntoConstraints = true
+            button.setAccessibilityElement(false)
+            addSubview(button)
+            buttons.append(button)
+        }
+
+        needsLayout = true
     }
 }
 
@@ -207,7 +293,8 @@ private final class NativeWindowControlsCoordinator {
             let buttonSize = currentSize.width > 0 && currentSize.height > 0
                 ? currentSize
                 : Self.fallbackButtonSize
-            button.isHidden = revealProgress <= 0
+            let isHidden = revealProgress <= 0
+            button.isHidden = isHidden
             button.frame = NSRect(
                 x: nextX,
                 y: (host.bounds.height - buttonSize.height) / 2,
