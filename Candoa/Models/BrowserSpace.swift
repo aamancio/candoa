@@ -56,10 +56,14 @@ struct BrowserSpace: Identifiable, Codable, Hashable {
     /// appearance is configured independently in General settings.
     static let defaultThemeAppearance = SpaceThemeAppearance.automatic
 
+    /// The theme editor supports one primary plus up to two auxiliary colors.
+    static let maximumAuxiliaryThemeColorCount = 2
+
     var id: UUID
     var name: String
     var symbolName: String
     var themeColorHex: String?
+    var themeAuxiliaryColorHexes: [String]
     var themeAppearance: SpaceThemeAppearance
     var themeOpacity: Double
     var themeTexture: Double
@@ -71,6 +75,7 @@ struct BrowserSpace: Identifiable, Codable, Hashable {
         name: String,
         symbolName: String = "sparkle",
         themeColorHex: String? = nil,
+        themeAuxiliaryColorHexes: [String] = [],
         themeAppearance: SpaceThemeAppearance = .automatic,
         themeOpacity: Double = 0.5,
         themeTexture: Double = 0,
@@ -81,11 +86,33 @@ struct BrowserSpace: Identifiable, Codable, Hashable {
         self.name = name
         self.symbolName = symbolName
         self.themeColorHex = themeColorHex
+        self.themeAuxiliaryColorHexes = Self.normalizedAuxiliaryThemeColorHexes(
+            themeAuxiliaryColorHexes,
+            primaryHex: themeColorHex
+        )
         self.themeAppearance = themeAppearance
         self.themeOpacity = min(0.9, max(0.3, themeOpacity))
         self.themeTexture = min(1, max(0, themeTexture))
         self.dataStoreID = dataStoreID ?? id
         self.createdAt = createdAt
+    }
+
+    /// The full ordered palette the Space's theme renders from: the primary
+    /// color followed by the auxiliary colors. Empty when the Space is
+    /// unthemed.
+    var themePaletteHexes: [String] {
+        themeColorHex.map { [$0] + themeAuxiliaryColorHexes } ?? []
+    }
+
+    /// Auxiliary colors only exist alongside a primary color and are capped at
+    /// the editor's limit. Legacy single-color Spaces normalize to an empty
+    /// list.
+    static func normalizedAuxiliaryThemeColorHexes(
+        _ hexes: [String],
+        primaryHex: String?
+    ) -> [String] {
+        guard primaryHex != nil else { return [] }
+        return Array(hexes.filter { !$0.isEmpty }.prefix(maximumAuxiliaryThemeColorCount))
     }
 
     var iconEmoji: String? {
@@ -98,6 +125,7 @@ struct BrowserSpace: Identifiable, Codable, Hashable {
         case name
         case symbolName
         case themeColorHex
+        case themeAuxiliaryColorHexes
         case themeAppearance
         case themeOpacity
         case themeTexture
@@ -111,6 +139,10 @@ struct BrowserSpace: Identifiable, Codable, Hashable {
         name = try container.decodeIfPresent(String.self, forKey: .name) ?? "Space"
         symbolName = try container.decodeIfPresent(String.self, forKey: .symbolName) ?? "sparkle"
         themeColorHex = try container.decodeIfPresent(String.self, forKey: .themeColorHex)
+        themeAuxiliaryColorHexes = Self.normalizedAuxiliaryThemeColorHexes(
+            try container.decodeIfPresent([String].self, forKey: .themeAuxiliaryColorHexes) ?? [],
+            primaryHex: themeColorHex
+        )
         themeAppearance = try container.decodeIfPresent(SpaceThemeAppearance.self, forKey: .themeAppearance) ?? .automatic
         themeOpacity = min(0.9, max(0.3, try container.decodeIfPresent(Double.self, forKey: .themeOpacity) ?? 0.5))
         themeTexture = min(1, max(0, try container.decodeIfPresent(Double.self, forKey: .themeTexture) ?? 0))

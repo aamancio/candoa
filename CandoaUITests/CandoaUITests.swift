@@ -251,6 +251,148 @@ final class CandoaUITests: XCTestCase {
         XCTAssertFalse(element("initial-tour-command-bar", in: app).exists)
     }
 
+    func testSpaceThemePaletteSavesRestoresAndSurvivesRelaunch() throws {
+        let app = launchApp()
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
+
+        openSpaceEditor(forSpaceNamed: "TestingBot", in: app)
+
+        let editThemeButton = app.buttons["Edit Theme"]
+        XCTAssertTrue(editThemeButton.waitForExistence(timeout: 10))
+        editThemeButton.click()
+
+        // The fixture Space already uses the primary Blue; each click adds
+        // the next palette color as an auxiliary.
+        let addColorButton = app.buttons["Add Color"]
+        XCTAssertTrue(addColorButton.waitForExistence(timeout: 5))
+        addColorButton.click()
+        addColorButton.click()
+        XCTAssertFalse(addColorButton.isEnabled, "Two auxiliaries should fill the palette")
+        app.typeKey(.escape, modifierFlags: [])
+
+        let saveButton = app.buttons["Save Changes"]
+        XCTAssertTrue(saveButton.waitForExistence(timeout: 5))
+        saveButton
+            .coordinate(withNormalizedOffset: CGVector(dx: 0.05, dy: 0.5))
+            .click()
+
+        let expectedPalette = "spaceTheme=#007AFF|#74E0AA|#E0A84F"
+        XCTAssertTrue(waitForState(in: app, containing: expectedPalette), currentState(in: app))
+
+        app.terminate()
+
+        // Relaunching against the persisted workspace proves the palette
+        // round-trips through Core Data, not just the in-memory store.
+        let relaunchedApp = launchApp(fixture: "persisted-workspace", preservesStore: true)
+        XCTAssertTrue(relaunchedApp.wait(for: .runningForeground, timeout: 10))
+        XCTAssertTrue(
+            waitForState(in: relaunchedApp, containing: expectedPalette, timeout: 10),
+            currentState(in: relaunchedApp)
+        )
+
+        // Reopening the editor restores the saved palette's color controls:
+        // with both auxiliary slots occupied, Add Color is disabled.
+        openSpaceEditor(forSpaceNamed: "TestingBot", in: relaunchedApp)
+
+        let editThemeAgain = relaunchedApp.buttons["Edit Theme"]
+        XCTAssertTrue(editThemeAgain.waitForExistence(timeout: 5))
+        editThemeAgain.click()
+
+        let addColorAgain = relaunchedApp.buttons["Add Color"]
+        XCTAssertTrue(addColorAgain.waitForExistence(timeout: 5))
+        XCTAssertFalse(addColorAgain.isEnabled, "A restored three-color palette should leave no room to add colors")
+        XCTAssertTrue(relaunchedApp.buttons["Remove Color"].isEnabled)
+
+        // Capture the blended browsing chrome in both explicit appearances
+        // for rendered-app verification.
+        relaunchedApp.buttons["Dark"].click()
+        relaunchedApp.typeKey(.escape, modifierFlags: [])
+        let saveAgain = relaunchedApp.buttons["Save Changes"]
+        XCTAssertTrue(saveAgain.waitForExistence(timeout: 5))
+        saveAgain
+            .coordinate(withNormalizedOffset: CGVector(dx: 0.05, dy: 0.5))
+            .click()
+        XCTAssertTrue(waitForState(in: relaunchedApp, containing: expectedPalette), currentState(in: relaunchedApp))
+        attachScreenshot(of: relaunchedApp, named: "Blended three-color theme, dark appearance")
+
+        openSpaceEditor(forSpaceNamed: "TestingBot", in: relaunchedApp)
+        let editThemeOnceMore = relaunchedApp.buttons["Edit Theme"]
+        XCTAssertTrue(editThemeOnceMore.waitForExistence(timeout: 5))
+        editThemeOnceMore.click()
+        relaunchedApp.buttons["Light"].click()
+        relaunchedApp.typeKey(.escape, modifierFlags: [])
+        let saveLight = relaunchedApp.buttons["Save Changes"]
+        XCTAssertTrue(saveLight.waitForExistence(timeout: 5))
+        saveLight
+            .coordinate(withNormalizedOffset: CGVector(dx: 0.05, dy: 0.5))
+            .click()
+        XCTAssertTrue(waitForState(in: relaunchedApp, containing: expectedPalette), currentState(in: relaunchedApp))
+        attachScreenshot(of: relaunchedApp, named: "Blended three-color theme, light appearance")
+    }
+
+    private func attachScreenshot(of app: XCUIApplication, named name: String) {
+        let attachment = XCTAttachment(screenshot: app.windows.firstMatch.screenshot())
+        attachment.name = name
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+
+    func testSpaceThemeHarmonyToggleSnapsAuxiliaryColors() throws {
+        let app = launchApp()
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
+
+        openSpaceEditor(forSpaceNamed: "TestingBot", in: app)
+
+        let editThemeButton = app.buttons["Edit Theme"]
+        XCTAssertTrue(editThemeButton.waitForExistence(timeout: 10))
+        editThemeButton.click()
+
+        // One auxiliary color: deterministically the palette color after
+        // the fixture's primary Blue.
+        let addColorButton = app.buttons["Add Color"]
+        XCTAssertTrue(addColorButton.waitForExistence(timeout: 5))
+        addColorButton.click()
+
+        // Harmony starts enabled; the first click turns it off (colors stay
+        // put), the second re-enables it and snaps the auxiliary hue into a
+        // triad around the primary.
+        let harmonyButton = app.buttons["Color Harmony"]
+        harmonyButton.click()
+        harmonyButton.click()
+        app.typeKey(.escape, modifierFlags: [])
+
+        let saveButton = app.buttons["Save Changes"]
+        XCTAssertTrue(saveButton.waitForExistence(timeout: 5))
+        saveButton
+            .coordinate(withNormalizedOffset: CGVector(dx: 0.05, dy: 0.5))
+            .click()
+
+        XCTAssertTrue(waitForState(in: app, containing: "spaceTheme=#007AFF|#"), currentState(in: app))
+
+        let state = currentState(in: app)
+        let palette = state
+            .split(separator: ";")
+            .first { $0.hasPrefix("spaceTheme=") }
+            .map { $0.dropFirst("spaceTheme=".count).split(separator: "|").map(String.init) } ?? []
+        XCTAssertEqual(palette.count, 2, state)
+        XCTAssertEqual(palette.first, "#007AFF", "Harmony must not move the primary color")
+        XCTAssertNotEqual(
+            palette.last,
+            "#74E0AA",
+            "Harmony should snap the auxiliary color into a hue derived from the primary"
+        )
+    }
+
+    private func openSpaceEditor(forSpaceNamed name: String, in app: XCUIApplication) {
+        let spaceButton = app.buttons[name].firstMatch
+        XCTAssertTrue(spaceButton.waitForExistence(timeout: 10))
+        spaceButton.rightClick()
+
+        let editSpaceItem = app.menuItems["Edit Space..."]
+        XCTAssertTrue(editSpaceItem.waitForExistence(timeout: 5))
+        editSpaceItem.click()
+    }
+
     func testAccountOnboardingOffersAppleOrLocalUse() throws {
         let app = launchApp(onboardingStep: "account")
         let accountOnboarding = element("account-onboarding", in: app).firstMatch
@@ -903,7 +1045,8 @@ final class CandoaUITests: XCTestCase {
         checkoutSuccess: Bool = false,
         appleSuccess: Bool = false,
         websiteAppearance: String? = nil,
-        cloudKitEntitlement: Bool = false
+        cloudKitEntitlement: Bool = false,
+        preservesStore: Bool = false
     ) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments += ["-ApplePersistenceIgnoreState", "YES"]
@@ -935,6 +1078,9 @@ final class CandoaUITests: XCTestCase {
         }
         if cloudKitEntitlement {
             app.launchEnvironment["CANDOA_UI_TESTING_CLOUDKIT_ENTITLEMENT"] = "1"
+        }
+        if preservesStore {
+            app.launchEnvironment["CANDOA_UI_TESTING_PRESERVES_STORE"] = "1"
         }
 
         app.launch()

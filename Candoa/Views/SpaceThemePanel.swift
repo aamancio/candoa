@@ -3,13 +3,13 @@ import SwiftUI
 
 internal struct SpaceThemePanel: View {
     @Binding var selectedHex: String?
+    @Binding var auxiliaryHexes: [String]
     @Binding var selectedAppearance: SpaceThemeAppearance
     @Binding var selectedOpacity: Double
     @Binding var selectedTexture: Double
     let themeOptions: [(name: String, hex: String)]
     let onThemePreviewChange: ([String], Double, Double) -> Void
 
-    @State private var auxiliaryHexes: [String] = []
     @State private var palettePage = 0
     @State private var palettePageDirection = 1
     @State private var usesHarmony = true
@@ -150,6 +150,7 @@ internal struct SpaceThemePanel: View {
                 }
                 .candoaButton(.content)
                 .help(option.title)
+                .accessibilityLabel(option.title)
             }
         }
     }
@@ -313,7 +314,10 @@ internal struct SpaceThemePanel: View {
     private func initializeDotPositionsIfNeeded() {
         guard !didInitializeDotPositions else { return }
         didInitializeDotPositions = true
-        dotPositions = selectedHex.map { [Self.position(forHex: $0)] } ?? []
+        // Reopening the editor restores each saved color's dot from that
+        // color, so the field shows the persisted palette rather than a
+        // freshly suggested layout.
+        dotPositions = activeHexes.map(Self.position(forHex:))
         ensureDotPositionCount()
     }
 

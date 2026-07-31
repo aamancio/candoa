@@ -113,7 +113,11 @@ struct PersistenceService: @unchecked Sendable {
             .appendingPathComponent(safeStoreID, isDirectory: true)
             .appendingPathComponent("Candoa.sqlite")
 
-        try? FileManager.default.removeItem(at: storeURL.deletingLastPathComponent())
+        // Relaunch-persistence tests reuse the prior launch's store instead
+        // of starting from an empty one.
+        if environment["CANDOA_UI_TESTING_PRESERVES_STORE"] != "1" {
+            try? FileManager.default.removeItem(at: storeURL.deletingLastPathComponent())
+        }
 
         return PersistenceService(
             storeURL: storeURL,
@@ -456,6 +460,12 @@ struct PersistenceService: @unchecked Sendable {
             object.setValue(space.name, forKey: Key.name)
             object.setValue(space.symbolName, forKey: Key.symbolName)
             object.setValue(space.themeColorHex, forKey: Key.themeColorHex)
+            object.setValue(
+                space.themeAuxiliaryColorHexes.isEmpty
+                    ? nil
+                    : space.themeAuxiliaryColorHexes.joined(separator: ","),
+                forKey: Key.themeAuxiliaryColorHexes
+            )
             object.setValue(space.themeAppearance.rawValue, forKey: Key.themeAppearance)
             object.setValue(space.themeOpacity, forKey: Key.themeOpacity)
             object.setValue(space.themeTexture, forKey: Key.themeTexture)
@@ -623,6 +633,9 @@ struct PersistenceService: @unchecked Sendable {
             name: object.string(for: Key.name) ?? "Space",
             symbolName: object.string(for: Key.symbolName) ?? "sparkle",
             themeColorHex: object.string(for: Key.themeColorHex),
+            themeAuxiliaryColorHexes: object.string(for: Key.themeAuxiliaryColorHexes)?
+                .split(separator: ",")
+                .map(String.init) ?? [],
             themeAppearance: object.string(for: Key.themeAppearance)
                 .flatMap(SpaceThemeAppearance.init(rawValue:)) ?? .automatic,
             themeOpacity: object.optionalDouble(for: Key.themeOpacity) ?? 0.5,
@@ -754,6 +767,7 @@ struct PersistenceService: @unchecked Sendable {
                 attribute(Key.name, .stringAttributeType, optional: false),
                 attribute(Key.symbolName, .stringAttributeType, optional: false),
                 attribute(Key.themeColorHex, .stringAttributeType),
+                attribute(Key.themeAuxiliaryColorHexes, .stringAttributeType),
                 attribute(Key.themeAppearance, .stringAttributeType),
                 attribute(Key.themeOpacity, .doubleAttributeType),
                 attribute(Key.themeTexture, .doubleAttributeType),
@@ -880,6 +894,7 @@ private enum Key {
     static let name = "name"
     static let symbolName = "symbolName"
     static let themeColorHex = "themeColorHex"
+    static let themeAuxiliaryColorHexes = "themeAuxiliaryColorHexes"
     static let themeAppearance = "themeAppearance"
     static let themeOpacity = "themeOpacity"
     static let themeTexture = "themeTexture"

@@ -277,6 +277,7 @@ extension BrowserStore {
             "find=\(isFindBarPresented)",
             "sidebar=\(sidebarVisible)",
             "space=\(activeSpaceName)",
+            "spaceTheme=\(activeSpace.map { $0.themePaletteHexes.joined(separator: "|") } ?? "none")",
             "active=\(activeTitle)",
             "url=\(activeURL)",
             "tabs=\(tabTitles)",
@@ -314,6 +315,12 @@ extension BrowserStore {
         let environment = ProcessInfo.processInfo.environment
         guard environment["CANDOA_UI_TESTING"] == "1" else { return nil }
         let fixture = environment["CANDOA_UI_TESTING_FIXTURE"]
+
+        // Relaunch coverage: fall through to the persisted Core Data
+        // workspace instead of seeding fixture state.
+        if fixture == "persisted-workspace" {
+            return nil
+        }
 
         if fixture == "ask" {
             return testingBotFixtureState(includesSeedTabs: false)
