@@ -127,7 +127,21 @@ struct SidebarView: View {
     }
 
     private var browsingSidebar: some View {
+        // Zen/Arc pin the space switcher while workspaces page horizontally.
+        // The strip is a sibling of the swipe carousel — never a child of the
+        // translated hosting view — so gestures slide only the space content
+        // and the strip stays put as persistent navigation chrome.
         spaceSwipeContent
+            .overlay(alignment: .bottom) {
+                if showsSpaceSwitcher {
+                    HoistedSpaceSwitcherStrip(
+                        store: store,
+                        onSelectSpace: animateSpaceSelection
+                    )
+                    .padding(.horizontal, leadingInset)
+                    .padding(.bottom, sidebarBottomPadding)
+                }
+            }
     }
 
     private var setupSidebar: some View {
@@ -193,14 +207,22 @@ struct SidebarView: View {
             Spacer(minLength: 0)
 
             updateBanner
-
-            if showsSpaceSwitcher {
-                spaceSwitcher(displaying: spaceID)
-            }
         }
         .padding(.horizontal, leadingInset)
         .padding(.top, sidebarTopPadding)
-        .padding(.bottom, sidebarBottomPadding)
+        .padding(.bottom, swipeChromeBottomPadding)
+    }
+
+    /// The hoisted switcher still occupies the bottom strip, so the per-page
+    /// chrome must end above it — the banner keeps its resting position.
+    private var swipeChromeBottomPadding: CGFloat {
+        var padding = sidebarBottomPadding
+
+        if showsSpaceSwitcher {
+            padding += spaceSwitcherHeight + sidebarVerticalSpacing
+        }
+
+        return padding
     }
 
     private var canSwipeSpaces: Bool {
@@ -1109,5 +1131,40 @@ struct SidebarView: View {
             return CandoaInterfaceStyle.sidebarControlFillHover
         }
         return Color.clear
+    }
+}
+
+/// The pinned strip's active indicator tracks an in-flight space swipe the
+/// way Zen's workspace indicator does: the strip itself never moves, and the
+/// highlight hands off to the destination once the gesture passes halfway.
+private struct HoistedSpaceSwitcherStrip: View {
+    @ObservedObject var store: BrowserStore
+    @ObservedObject private var chromeTransition: SpaceChromeTransition
+    let onSelectSpace: (UUID) -> Void
+
+    init(store: BrowserStore, onSelectSpace: @escaping (UUID) -> Void) {
+        self._store = ObservedObject(wrappedValue: store)
+        self._chromeTransition = ObservedObject(wrappedValue: store.chromeTransition)
+        self.onSelectSpace = onSelectSpace
+    }
+
+    var body: some View {
+        SpaceSwitcherView(
+            store: store,
+            displayedActiveSpaceID: displayedActiveSpaceID,
+            onSelectSpace: onSelectSpace
+        )
+    }
+
+    private var displayedActiveSpaceID: UUID {
+        guard
+            chromeTransition.fraction > 0.5,
+            let destinationID = chromeTransition.destinationSpaceID,
+            store.spaces.contains(where: { $0.id == destinationID })
+        else {
+            return store.activeSpaceID
+        }
+
+        return destinationID
     }
 }
