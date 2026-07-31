@@ -40,17 +40,46 @@ return (() => {
     if (element.matches("a[href],[role='link']")) return "link";
     return "button";
   };
-  const seen = new Set();
+  const credentialField = (element) => {
+    const autocomplete = clean(element.getAttribute("autocomplete")).toLocaleLowerCase();
+    return element.matches("input[type='password']")
+      || /(^|\s)(cc-number|cc-csc|cc-exp|cc-exp-month|cc-exp-year|current-password|new-password|one-time-code)(\s|$)/.test(autocomplete);
+  };
+  const personalField = (element) => {
+    const autocomplete = clean(element.getAttribute("autocomplete")).toLocaleLowerCase();
+    return element.matches("input[type='email'],input[type='tel']")
+      || /(^|\s)(name|given-name|family-name|username|email|tel|street-address|address-line1|address-line2|address-line3|postal-code|bday|organization|country|country-name|cc-name)(\s|$)/.test(autocomplete);
+  };
+  const sensitiveFor = (element, controlKind) => {
+    if (controlKind === "field") return personalField(element);
+    const form = element.form || element.closest("form");
+    const submits = element.matches("input[type='submit'],input[type='image']")
+      || (element instanceof HTMLButtonElement && element.type === "submit");
+    return Boolean(form && submits && Array.from(form.elements || [])
+      .some((field) => personalField(field) || credentialField(field)));
+  };
+  const canonicalFor = (element) => (
+    element instanceof HTMLLabelElement
+      && element.control?.matches("input[type='radio'],input[type='checkbox']")
+  ) ? element.control : element;
+  const seenElements = new Set();
+  const seenLinks = new Set();
   const controls = Array.from(document.querySelectorAll(selectors))
     .filter(visibleInDocument)
     .map((element) => {
+      if (credentialField(element)) return null;
       const label = labelFor(element);
       const kind = kindFor(element);
       const url = kind === "link" ? clean(element.href || element.getAttribute("href")) : "";
       if (!label) return null;
-      const key = `${kind}|${label.toLocaleLowerCase()}|${url}`;
-      if (seen.has(key)) return null;
-      seen.add(key);
+      const canonical = canonicalFor(element);
+      if (seenElements.has(canonical)) return null;
+      seenElements.add(canonical);
+      if (kind === "link") {
+        const key = `${label.toLocaleLowerCase()}|${url}`;
+        if (seenLinks.has(key)) return null;
+        seenLinks.add(key);
+      }
       return {
         kind,
         label: label.slice(0, 240),
@@ -67,6 +96,7 @@ return (() => {
             || element.getAttribute("aria-checked") === "true"
             || element.getAttribute("aria-selected") === "true"
         ),
+        sensitive: sensitiveFor(element, kind),
         options: element instanceof HTMLSelectElement
           ? Array.from(element.options).filter((option) => !option.disabled).map((option) => clean(option.label || option.textContent)).filter(Boolean).slice(0, 80)
           : []

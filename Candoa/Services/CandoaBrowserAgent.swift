@@ -22,6 +22,7 @@ struct CandoaBrowserAgentControl: Codable, Sendable {
     let url: String?
     let disabled: Bool
     let selected: Bool
+    let sensitive: Bool
     let options: [String]
 
     init(
@@ -31,6 +32,7 @@ struct CandoaBrowserAgentControl: Codable, Sendable {
         url: String?,
         disabled: Bool,
         selected: Bool = false,
+        sensitive: Bool = false,
         options: [String] = []
     ) {
         self.ref = ref
@@ -39,11 +41,12 @@ struct CandoaBrowserAgentControl: Codable, Sendable {
         self.url = url
         self.disabled = disabled
         self.selected = selected
+        self.sensitive = sensitive
         self.options = options
     }
 
     private enum CodingKeys: String, CodingKey {
-        case ref, kind, label, url, disabled, selected, options
+        case ref, kind, label, url, disabled, selected, sensitive, options
     }
 
     init(from decoder: Decoder) throws {
@@ -54,6 +57,7 @@ struct CandoaBrowserAgentControl: Codable, Sendable {
         url = try container.decodeIfPresent(String.self, forKey: .url)
         disabled = try container.decode(Bool.self, forKey: .disabled)
         selected = try container.decodeIfPresent(Bool.self, forKey: .selected) ?? false
+        sensitive = try container.decodeIfPresent(Bool.self, forKey: .sensitive) ?? false
         options = try container.decodeIfPresent([String].self, forKey: .options) ?? []
     }
 }
@@ -172,6 +176,18 @@ struct CandoaBrowserAgentAction: Codable, Sendable {
 }
 
 enum CandoaBrowserAgentPolicy {
+    /// The model's `requiresApproval` judgment is a floor, never a ceiling: an action
+    /// that targets a structurally sensitive control (per the snapshot's DOM semantics)
+    /// must be confirmed natively even when the server marked it routine.
+    static func requiresNativeApproval(
+        for action: CandoaBrowserAgentAction,
+        on page: CandoaBrowserAgentPage
+    ) -> Bool {
+        if action.requiresApproval { return true }
+        guard action.kind != .scroll else { return false }
+        return page.controls.first(where: { $0.ref == action.target })?.sensitive == true
+    }
+
     static func sensitiveConfirmationMessage(for action: CandoaPageActionProposal) -> String {
         switch action.kind {
         case .click:

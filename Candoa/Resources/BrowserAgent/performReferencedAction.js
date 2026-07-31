@@ -42,17 +42,33 @@ return (() => {
     if (element.matches("a[href],[role='link']")) return "link";
     return "button";
   };
-  const seen = new Set();
+  const credentialField = (element) => {
+    const autocomplete = clean(element.getAttribute("autocomplete")).toLocaleLowerCase();
+    return element.matches("input[type='password']")
+      || /(^|\s)(cc-number|cc-csc|cc-exp|cc-exp-month|cc-exp-year|current-password|new-password|one-time-code)(\s|$)/.test(autocomplete);
+  };
+  const canonicalFor = (element) => (
+    element instanceof HTMLLabelElement
+      && element.control?.matches("input[type='radio'],input[type='checkbox']")
+  ) ? element.control : element;
+  const seenElements = new Set();
+  const seenLinks = new Set();
   const controls = Array.from(document.querySelectorAll(selectors))
     .filter(visibleInDocument)
     .map((element) => {
+      if (credentialField(element)) return null;
       const label = labelFor(element);
       const controlKind = kindFor(element);
       const url = controlKind === "link" ? clean(element.href || element.getAttribute("href")) : "";
       if (!label) return null;
-      const key = `${controlKind}|${label.toLocaleLowerCase()}|${url}`;
-      if (seen.has(key)) return null;
-      seen.add(key);
+      const canonical = canonicalFor(element);
+      if (seenElements.has(canonical)) return null;
+      seenElements.add(canonical);
+      if (controlKind === "link") {
+        const key = `${label.toLocaleLowerCase()}|${url}`;
+        if (seenLinks.has(key)) return null;
+        seenLinks.add(key);
+      }
       return { element, label: label.slice(0, 240), kind: controlKind };
     })
     .filter(Boolean)
@@ -106,6 +122,9 @@ return (() => {
     return activateChoice();
   }
   if (kind === "fill") {
+    if (element instanceof HTMLInputElement && element.type === "password") {
+      return "Candoa does not enter credentials.";
+    }
     if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) {
       element.focus();
       element.value = value;

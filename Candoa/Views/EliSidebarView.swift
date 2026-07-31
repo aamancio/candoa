@@ -883,7 +883,7 @@ struct EliSidebarView: View {
 
             updateBrowserAgentStatus(state, text: browserAgentStatus(for: pendingAction))
 
-            if pendingAction.requiresApproval {
+            if CandoaBrowserAgentPolicy.requiresNativeApproval(for: pendingAction, on: page) {
                 pendingSensitiveAgentAction = PendingSensitiveAgentAction(
                     action: action,
                     state: state,
