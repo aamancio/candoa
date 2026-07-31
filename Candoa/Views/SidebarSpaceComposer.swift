@@ -161,7 +161,9 @@ internal struct UpsertSpaceSidebarComposer: View {
             }
             publishCurrentThemePreview()
 
-            guard mode != .initial else { return }
+            // Only Create pre-focuses the name field; Edit Space opens
+            // neutral so an accidental keystroke can't replace the name.
+            guard mode == .create else { return }
             DispatchQueue.main.async {
                 isNameFocused = true
             }
