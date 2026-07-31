@@ -418,6 +418,35 @@ final class CandoaUITests: XCTestCase {
         XCTAssertEqual(XCTWaiter.wait(for: [composerDismissed], timeout: 5), .completed)
     }
 
+    func testEditSpaceOpensWithoutFocusingTheNameField() throws {
+        let app = launchApp()
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
+
+        createSpace(named: "Work", in: app)
+        XCTAssertTrue(waitForState(in: app, containing: "space=Work"), currentState(in: app))
+
+        openSpaceEditor(forSpaceNamed: "Work", in: app)
+
+        let nameField = element("space-name-field", in: app)
+        XCTAssertTrue(nameField.waitForExistence(timeout: 5))
+
+        // The old auto-focus landed one runloop turn after onAppear, so give
+        // it a moment to (wrongly) arrive before asserting neutrality.
+        Thread.sleep(forTimeInterval: 0.5)
+        XCTAssertEqual(nameField.value as? String, "Work")
+        XCTAssertNotEqual(
+            nameField.value(forKey: "hasKeyboardFocus") as? Bool,
+            true,
+            "Edit Space must open without focusing the Space name field"
+        )
+
+        // Clicking the field must still focus it and allow normal editing.
+        nameField.click()
+        app.typeKey("a", modifierFlags: .command)
+        app.typeText("Refit")
+        XCTAssertEqual(nameField.value as? String, "Refit")
+    }
+
     private func createSpace(named name: String, in app: XCUIApplication, dismissesPalette: Bool = true) {
         let existingSpaceButton = app.buttons["TestingBot"].firstMatch
         XCTAssertTrue(existingSpaceButton.waitForExistence(timeout: 10))
