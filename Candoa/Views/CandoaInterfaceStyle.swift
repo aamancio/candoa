@@ -67,11 +67,14 @@ enum CandoaInterfaceStyle {
     static var spaceSetupPillFill: Color {
         tertiaryTone.opacity(increasesContrast ? 0.64 : 0.40)
     }
-    /// Neutral content treatment for a message written by the person. Message
-    /// content remains distinct from controls and never borrows the Space theme
-    /// or the macOS interaction accent.
-    static var userMessageFill: Color { Color(nsColor: .controlColor) }
-    static var userMessageText: Color { Color(nsColor: .controlTextColor) }
+    /// The person's own messages carry the primary action treatment: the
+    /// dynamic macOS accent (never a hard-coded brand blue), paired with the
+    /// same white foreground the system uses on prominent accent-filled
+    /// controls so text stays legible for every accent choice, including
+    /// Graphite and multicolor, in both appearances. Assistant messages and
+    /// Space themes keep their neutral treatments.
+    static var userMessageFill: Color { CandoaColor.accent }
+    static var userMessageText: Color { Color(nsColor: .alternateSelectedControlTextColor) }
 
     /// Transient feedback floats above content using a system material rather
     /// than turning the current Space identity color into an interaction color.
