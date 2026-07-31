@@ -83,6 +83,11 @@ struct ActiveWebViewHost: NSViewRepresentable {
 
     func makeNSView(context: Context) -> NSView {
         let container = WebViewHostContainer()
+        // A plain NSView is accessibility-ignored, and ignored views are
+        // dropped from the accessibility tree along with their identifier.
+        // Expose the container as a group so it stays addressable.
+        container.setAccessibilityElement(true)
+        container.setAccessibilityRole(.group)
         container.setAccessibilityIdentifier("active-webview-host")
         return container
     }

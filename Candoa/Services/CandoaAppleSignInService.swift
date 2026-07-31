@@ -20,7 +20,6 @@ final class CandoaAppleSignInService: NSObject {
     private var hasActivatedSafari = false
     private var hasContinuedInSafari = false
     private var ignoresNextSessionCancellation = false
-    private static weak var pendingService: CandoaAppleSignInService?
 
     private static var callbackScheme: String {
 #if DEBUG
@@ -46,7 +45,6 @@ final class CandoaAppleSignInService: NSObject {
             authenticationAttemptID = attemptID
             pendingContinuation = continuation
             requestedURL = url
-            Self.pendingService = self
 
             let completionHandler: @Sendable (URL?, (any Error)?) -> Void = {
                 [weak self] callbackURL, error in
@@ -101,10 +99,6 @@ final class CandoaAppleSignInService: NSObject {
         }
         complete(with: url)
         return true
-    }
-
-    static func handleApplicationCallback(_ url: URL) -> Bool {
-        pendingService?.handleCallbackURL(url) ?? false
     }
 
     private func completeAuthentication(
@@ -308,9 +302,6 @@ final class CandoaAppleSignInService: NSObject {
         hasActivatedSafari = false
         hasContinuedInSafari = false
         ignoresNextSessionCancellation = false
-        if Self.pendingService === self {
-            Self.pendingService = nil
-        }
         let continuation = pendingContinuation
         pendingContinuation = nil
         continuation?.resume(with: result)

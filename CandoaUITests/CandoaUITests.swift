@@ -58,9 +58,13 @@ final class CandoaUITests: XCTestCase {
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
 
         let url = try XCTUnwrap(URL(string: "https://example.com/candoa-external-url-test?source=macos"))
+        // Another Candoa instance (an installed copy or a leftover Xcode
+        // debug session) may share the bundle identifier; the app under
+        // test is always the most recently launched instance.
         let appURL = try XCTUnwrap(
             NSRunningApplication.runningApplications(withBundleIdentifier: "app.candoa.browser")
-                .first?.bundleURL
+                .max { ($0.launchDate ?? .distantPast) < ($1.launchDate ?? .distantPast) }?
+                .bundleURL
         )
         let opened = expectation(description: "macOS delivered the external URL to Candoa")
         var openError: Error?
