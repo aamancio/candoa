@@ -8,7 +8,7 @@ extension BrowserStore {
         }
 
         guard !isSpaceSetupPresented else { return [] }
-        return activeSpace?.themeColorHex.map { [$0] } ?? []
+        return activeSpace?.themePaletteHexes ?? []
     }
 
     var activeThemeOpacity: Double {
@@ -71,6 +71,7 @@ extension BrowserStore {
         name: String? = nil,
         symbolName: String? = nil,
         themeColorHex: String? = nil,
+        themeAuxiliaryColorHexes: [String] = [],
         themeAppearance: SpaceThemeAppearance = .automatic,
         themeOpacity: Double = 0.5,
         themeTexture: Double = 0,
@@ -86,6 +87,7 @@ extension BrowserStore {
             name: resolvedName ?? "Space \(spaceNumber)",
             symbolName: symbolName ?? spaceSymbols[paletteIndex],
             themeColorHex: themeColorHex,
+            themeAuxiliaryColorHexes: themeAuxiliaryColorHexes,
             themeAppearance: themeAppearance,
             themeOpacity: themeOpacity,
             themeTexture: themeTexture,
@@ -109,6 +111,7 @@ extension BrowserStore {
         name: String,
         symbolName: String,
         themeColorHex: String?,
+        themeAuxiliaryColorHexes: [String] = [],
         themeAppearance: SpaceThemeAppearance,
         themeOpacity: Double,
         themeTexture: Double
@@ -119,6 +122,10 @@ extension BrowserStore {
         spaces[index].name = normalizedName
         spaces[index].symbolName = symbolName
         spaces[index].themeColorHex = themeColorHex
+        spaces[index].themeAuxiliaryColorHexes = BrowserSpace.normalizedAuxiliaryThemeColorHexes(
+            themeAuxiliaryColorHexes,
+            primaryHex: themeColorHex
+        )
         spaces[index].themeAppearance = themeAppearance
         spaces[index].themeOpacity = min(0.9, max(0.3, themeOpacity))
         spaces[index].themeTexture = min(1, max(0, themeTexture))
@@ -131,6 +138,7 @@ extension BrowserStore {
     func updateSpaceTheme(_ id: UUID, colorHex: String?) {
         guard let index = spaces.firstIndex(where: { $0.id == id }) else { return }
         spaces[index].themeColorHex = colorHex
+        spaces[index].themeAuxiliaryColorHexes = []
         flushSession()
     }
 

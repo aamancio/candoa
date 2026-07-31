@@ -8,6 +8,7 @@ internal struct UpsertSpaceSidebarComposer: View {
     @State private var name = ""
     @State private var symbolName = "square.dashed"
     @State private var themeColorHex: String?
+    @State private var themeAuxiliaryHexes: [String] = []
     @State private var themeAppearance = BrowserSpace.defaultThemeAppearance
     @State private var themeOpacity = 0.5
     @State private var themeTexture = 0.0
@@ -153,6 +154,7 @@ internal struct UpsertSpaceSidebarComposer: View {
                 name = space.name
                 symbolName = space.symbolName
                 themeColorHex = space.themeColorHex
+                themeAuxiliaryHexes = space.themeAuxiliaryColorHexes
                 themeAppearance = space.themeAppearance
                 themeOpacity = space.themeOpacity
                 themeTexture = space.themeTexture
@@ -333,6 +335,7 @@ internal struct UpsertSpaceSidebarComposer: View {
         .popover(isPresented: $isThemeEditorPresented, arrowEdge: .trailing) {
             SpaceThemePanel(
                 selectedHex: $themeColorHex,
+                auxiliaryHexes: $themeAuxiliaryHexes,
                 selectedAppearance: themeAppearanceSelection,
                 selectedOpacity: $themeOpacity,
                 selectedTexture: $themeTexture,
@@ -350,7 +353,7 @@ internal struct UpsertSpaceSidebarComposer: View {
 
     private func publishCurrentThemePreview() {
         store.previewSpaceThemeAppearance(themeAppearance)
-        store.previewSpaceThemeColors(primaryHex: themeColorHex)
+        store.previewSpaceThemeColors(primaryHex: themeColorHex, auxiliaryHexes: themeAuxiliaryHexes)
         store.previewSpaceThemeControls(opacity: themeOpacity, texture: themeTexture)
     }
 
@@ -362,6 +365,7 @@ internal struct UpsertSpaceSidebarComposer: View {
                     name: trimmedName,
                     symbolName: symbolName,
                     themeColorHex: themeColorHex,
+                    themeAuxiliaryColorHexes: themeAuxiliaryHexes,
                     themeAppearance: themeAppearance,
                     themeOpacity: themeOpacity,
                     themeTexture: themeTexture
@@ -376,6 +380,7 @@ internal struct UpsertSpaceSidebarComposer: View {
                 name: trimmedName,
                 symbolName: symbolName,
                 themeColorHex: themeColorHex,
+                themeAuxiliaryColorHexes: themeAuxiliaryHexes,
                 themeAppearance: themeAppearance,
                 themeOpacity: themeOpacity,
                 themeTexture: themeTexture,
@@ -389,6 +394,7 @@ internal struct UpsertSpaceSidebarComposer: View {
             name: trimmedName,
             symbolName: symbolName,
             themeColorHex: themeColorHex,
+            themeAuxiliaryColorHexes: themeAuxiliaryHexes,
             themeAppearance: themeAppearance,
             themeOpacity: themeOpacity,
             themeTexture: themeTexture,

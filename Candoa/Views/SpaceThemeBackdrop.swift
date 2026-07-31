@@ -90,10 +90,22 @@ struct CandoaWindowBackdrop: View {
         min(1, max(0, chromeTransition.fraction))
     }
 
-    private func browsingTint(hex: String?, themeOpacity: Double) -> ResolvedTint? {
-        guard let hex, let color = NSColor(spaceHex: hex) else { return nil }
+    // The browsing chrome stays one flat color, so a multi-color palette
+    // contributes by mixing evenly into that single tint rather than by
+    // reintroducing positioned gradients.
+    private func browsingTint(hexes: [String], themeOpacity: Double) -> ResolvedTint? {
+        let colors = hexes.compactMap { NSColor(spaceHex: $0)?.usingColorSpace(.sRGB) }
+        guard let first = colors.first else { return nil }
+
+        let count = CGFloat(colors.count)
+        let mixed = NSColor(
+            srgbRed: colors.reduce(0) { $0 + $1.redComponent } / count,
+            green: colors.reduce(0) { $0 + $1.greenComponent } / count,
+            blue: colors.reduce(0) { $0 + $1.blueComponent } / count,
+            alpha: 1
+        )
         let multiplier = BrowserStore.themeIntensityMultiplier(forOpacity: themeOpacity)
-        return ResolvedTint(color: color, opacity: min(0.52, 0.38 * multiplier))
+        return ResolvedTint(color: colors.count > 1 ? mixed : first, opacity: min(0.52, 0.38 * multiplier))
     }
 
     /// Browsing tint with the in-flight swipe blend applied: the surface
@@ -101,13 +113,13 @@ struct CandoaWindowBackdrop: View {
     /// snapping when the switch commits.
     private var blendedChromeTint: ResolvedTint? {
         let source = browsingTint(
-            hex: store.activeThemeColorHexes.first,
+            hexes: store.activeThemeColorHexes,
             themeOpacity: store.activeThemeOpacity
         )
         guard let destinationSpace = transitionDestinationSpace else { return source }
 
         let destination = browsingTint(
-            hex: destinationSpace.themeColorHex,
+            hexes: destinationSpace.themePaletteHexes,
             themeOpacity: destinationSpace.themeOpacity
         )
         let fraction = transitionFraction

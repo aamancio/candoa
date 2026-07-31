@@ -39,6 +39,7 @@ extension BrowserStore {
         name: String,
         symbolName: String,
         themeColorHex: String?,
+        themeAuxiliaryColorHexes: [String] = [],
         themeAppearance: SpaceThemeAppearance = .automatic,
         themeOpacity: Double = 0.5,
         themeTexture: Double = 0,
@@ -52,6 +53,7 @@ extension BrowserStore {
                 name: normalizedName,
                 symbolName: symbolName,
                 themeColorHex: themeColorHex,
+                themeAuxiliaryColorHexes: themeAuxiliaryColorHexes,
                 themeAppearance: themeAppearance,
                 themeOpacity: themeOpacity,
                 themeTexture: themeTexture,
@@ -71,6 +73,10 @@ extension BrowserStore {
         spaces[index].name = normalizedName
         spaces[index].symbolName = symbolName
         spaces[index].themeColorHex = themeColorHex
+        spaces[index].themeAuxiliaryColorHexes = BrowserSpace.normalizedAuxiliaryThemeColorHexes(
+            themeAuxiliaryColorHexes,
+            primaryHex: themeColorHex
+        )
         spaces[index].themeAppearance = themeAppearance
         spaces[index].themeOpacity = min(0.9, max(0.3, themeOpacity))
         spaces[index].themeTexture = min(1, max(0, themeTexture))

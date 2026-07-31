@@ -140,6 +140,7 @@ struct SpaceSwitcherView: View {
         .candoaButton(.content)
         .animation(.easeOut(duration: 0.20), value: isActive)
         .help(space.name)
+        .accessibilityLabel(space.name)
         .contextMenu {
             Button("Edit Space...") {
                 store.beginSpaceEditing(space.id)

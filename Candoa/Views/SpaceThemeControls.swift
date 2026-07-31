@@ -162,6 +162,7 @@ internal struct ThemeIconButton: View {
         }
         .candoaButton(.content)
         .help(help)
+        .accessibilityLabel(help)
     }
 }
 
@@ -191,6 +192,7 @@ internal struct ThemeHarmonyButton: View {
         }
         .candoaButton(.content)
         .help(isEnabled ? "Auto-arrange colors" : "Add another color to use harmony")
+        .accessibilityLabel("Color Harmony")
         .onHover { hovering in
             isHovering = hovering
             updateCursor()
