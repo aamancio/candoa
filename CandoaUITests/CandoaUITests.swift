@@ -383,13 +383,83 @@ final class CandoaUITests: XCTestCase {
         )
     }
 
+    func testNewlyCreatedSpaceButtonsSwitchSpaces() throws {
+        let app = launchApp()
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
+
+        createSpace(named: "Personal", in: app)
+        XCTAssertTrue(waitForState(in: app, containing: "space=Personal"), currentState(in: app))
+
+        createSpace(named: "Work", in: app)
+        XCTAssertTrue(waitForState(in: app, containing: "space=Work"), currentState(in: app))
+
+        // Clicking a newly created Space's switcher button must activate it.
+        app.buttons["Personal"].firstMatch.click()
+        XCTAssertTrue(waitForState(in: app, containing: "space=Personal"), currentState(in: app))
+
+        app.buttons["TestingBot"].firstMatch.click()
+        XCTAssertTrue(waitForState(in: app, containing: "space=TestingBot"), currentState(in: app))
+
+        app.buttons["Work"].firstMatch.click()
+        XCTAssertTrue(waitForState(in: app, containing: "space=Work"), currentState(in: app))
+
+        // A Space click while the edit composer is open must still act:
+        // it cancels editing and switches instead of being dropped.
+        openSpaceEditor(forSpaceNamed: "Work", in: app)
+        XCTAssertTrue(app.buttons["Save Changes"].waitForExistence(timeout: 5))
+
+        app.buttons["Personal"].firstMatch.click()
+        XCTAssertTrue(waitForState(in: app, containing: "space=Personal"), currentState(in: app))
+
+        let composerDismissed = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "exists == false"),
+            object: app.buttons["Save Changes"]
+        )
+        XCTAssertEqual(XCTWaiter.wait(for: [composerDismissed], timeout: 5), .completed)
+    }
+
+    private func createSpace(named name: String, in app: XCUIApplication, dismissesPalette: Bool = true) {
+        let existingSpaceButton = app.buttons["TestingBot"].firstMatch
+        XCTAssertTrue(existingSpaceButton.waitForExistence(timeout: 10))
+        existingSpaceButton.rightClick()
+
+        let newSpaceItem = app.menuItems["New Space"]
+        XCTAssertTrue(newSpaceItem.waitForExistence(timeout: 5))
+        newSpaceItem.click()
+
+        let nameField = element("space-name-field", in: app)
+        XCTAssertTrue(nameField.waitForExistence(timeout: 5))
+        nameField.click()
+        nameField.typeText(name)
+
+        let createButton = app.buttons["Create Space"]
+        XCTAssertTrue(createButton.waitForExistence(timeout: 5))
+        createButton
+            .coordinate(withNormalizedOffset: CGVector(dx: 0.05, dy: 0.5))
+            .click()
+
+        // Creating a Space opens the new-tab palette; dismiss it so the
+        // switcher is interactive again.
+        guard dismissesPalette else { return }
+        if waitForState(in: app, containing: "newTabPalette=true", timeout: 3) {
+            app.typeKey(.escape, modifierFlags: [])
+            XCTAssertTrue(waitForState(in: app, containing: "newTabPalette=false"), currentState(in: app))
+        }
+    }
+
     private func openSpaceEditor(forSpaceNamed name: String, in app: XCUIApplication) {
+        // Reclaim foreground focus and retry the right-click: context menus
+        // are flaky under XCUITest immediately after animated UI changes.
+        app.activate()
         let spaceButton = app.buttons[name].firstMatch
         XCTAssertTrue(spaceButton.waitForExistence(timeout: 10))
-        spaceButton.rightClick()
 
         let editSpaceItem = app.menuItems["Edit Space..."]
-        XCTAssertTrue(editSpaceItem.waitForExistence(timeout: 5))
+        for _ in 0..<3 {
+            spaceButton.rightClick()
+            if editSpaceItem.waitForExistence(timeout: 3) { break }
+        }
+        XCTAssertTrue(editSpaceItem.waitForExistence(timeout: 2), currentState(in: app))
         editSpaceItem.click()
     }
 

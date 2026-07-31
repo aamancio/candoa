@@ -370,12 +370,22 @@ struct SidebarView: View {
 
     private func animateSpaceSelection(_ spaceID: UUID) {
         guard
+            spaceID != store.activeSpaceID,
+            store.spaces.contains(where: { $0.id == spaceID })
+        else {
+            return
+        }
+
+        guard
             canSwipeSpaces,
             !isSettlingSpaceSwipe,
-            spaceID != store.activeSpaceID,
             let activeIndex = store.spaces.firstIndex(where: { $0.id == store.activeSpaceID }),
             let destinationIndex = store.spaces.firstIndex(where: { $0.id == spaceID })
         else {
+            // The animated transition is unavailable (a settle is in flight,
+            // or the switcher is visible outside plain browsing). The click
+            // must still switch Spaces rather than being dropped.
+            selectSpaceWithoutAnimation(spaceID)
             return
         }
 
@@ -390,6 +400,17 @@ struct SidebarView: View {
             isSettlingSpaceSwipe = true
             spaceSwipeSettleRequest = SpaceSwipeSettleRequest(destination: direction)
         }
+    }
+
+    private func selectSpaceWithoutAnimation(_ spaceID: UUID) {
+        if store.editingSpaceID != nil || store.isCreateSpacePresented {
+            store.clearSpaceThemePreview()
+            store.editingSpaceID = nil
+            store.isCreateSpacePresented = false
+        }
+        store.dismissCommandPalette()
+        resetSpaceSwipeProgress()
+        store.switchSpace(to: spaceID)
     }
 
     private func completeSpaceSwipe(_ destinationOffset: Int) {
