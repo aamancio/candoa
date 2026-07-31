@@ -187,7 +187,12 @@ final class SpaceSwipeScrollView<Content: View>: NSScrollView {
             !event.modifierFlags.contains(.shift) &&
             event.scrollingDeltaX != 0 &&
             abs(event.scrollingDeltaX) > abs(event.scrollingDeltaY)
+        // trackSwipeEvent's handler never runs when the person has disabled
+        // system swipe tracking ("Swipe between pages"), which would leave
+        // the swipe begun but permanently unfinished. Route those scrolls
+        // through the discrete handler instead.
         let canTrackNativeSwipe =
+            NSEvent.isSwipeTrackingFromScrollEventsEnabled &&
             event.hasPreciseScrollingDeltas &&
             (event.phase.contains(.began) || event.phase.contains(.changed))
         if isSwipeEnabled,
