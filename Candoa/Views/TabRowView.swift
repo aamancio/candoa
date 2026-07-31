@@ -59,7 +59,7 @@ struct TabRowView: View {
             Text(tab.title)
                 .lineLimit(1)
                 .truncationMode(.tail)
-                .font(.system(size: 13.5, weight: .semibold))
+                .font(.system(size: 13, weight: isActive ? .medium : .regular))
                 .foregroundStyle(isActive ? CandoaInterfaceStyle.sidebarText : CandoaInterfaceStyle.sidebarTextSecondary)
 
             Spacer(minLength: 8)

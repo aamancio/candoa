@@ -6,6 +6,14 @@ struct SpaceSwipeSettleRequest: Equatable, Sendable {
     let destination: Int
 }
 
+/// The sidebar spans the title-bar strip, where AppKit turns any click whose
+/// hit view permits window-moving into a window drag. The sidebar's own
+/// controls live in that strip, so its hosting view must claim those clicks.
+@MainActor
+private final class SidebarSwipeHostingView<Content: View>: NSHostingView<Content> {
+    override var mouseDownCanMoveWindow: Bool { false }
+}
+
 struct SpaceSwipeTrackingView<Content: View>: NSViewRepresentable {
     let isEnabled: Bool
     let contentID: UUID
@@ -89,7 +97,7 @@ final class SpaceSwipeScrollView<Content: View>: NSScrollView {
     private let discreteScrollCooldown: TimeInterval = 0.2
 
     init(rootView: Content) {
-        hostingView = NSHostingView(rootView: rootView)
+        hostingView = SidebarSwipeHostingView(rootView: rootView)
         super.init(frame: .zero)
 
         drawsBackground = false

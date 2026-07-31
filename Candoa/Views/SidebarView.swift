@@ -63,7 +63,7 @@ struct SidebarView: View {
     private let trailingInset: CGFloat = 9
     private let windowControlsWidth: CGFloat = 70
     private let spaceLabelToPinnedGap: CGFloat = 3
-    private let pinnedSectionSpacing: CGFloat = 10
+    private let pinnedSectionSpacing: CGFloat = 8
     private let sidebarTopPadding: CGFloat = 8
     private let sidebarBottomPadding: CGFloat = 10
     private let sidebarVerticalSpacing: CGFloat = 12
@@ -76,7 +76,7 @@ struct SidebarView: View {
     /// still consume the full row instead of leaving empty reserved slots.
     private func essentialColumns(for itemCount: Int) -> [GridItem] {
         let visibleColumns = min(max(itemCount, 1), 4)
-        return Array(repeating: GridItem(.flexible(), spacing: 12), count: visibleColumns)
+        return Array(repeating: GridItem(.flexible(), spacing: 6), count: visibleColumns)
     }
 
     private var hasActiveThemeTint: Bool {
@@ -444,7 +444,7 @@ struct SidebarView: View {
     }
 
     private func spaceScrollContent(for spaceID: UUID) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 10) {
             favoritesSection(for: spaceID)
             spaceAndPinnedSection(for: spaceID)
 
@@ -880,7 +880,7 @@ struct SidebarView: View {
                 Text(space.name)
                     .lineLimit(1)
                     .truncationMode(.tail)
-                    .font(.system(size: 13.5, weight: .semibold))
+                    .font(.system(size: 13, weight: .medium))
 
                 Spacer(minLength: 0)
             }
@@ -1053,7 +1053,7 @@ struct SidebarView: View {
 
                 Text(BrowserCommandTitles.newTab)
                     .lineLimit(1)
-                    .font(.system(size: 13.5, weight: .semibold))
+                    .font(.system(size: 13, weight: isArmed ? .medium : .regular))
                     .foregroundStyle(isArmed ? CandoaInterfaceStyle.sidebarText : CandoaInterfaceStyle.sidebarTextSecondary)
 
                 Spacer(minLength: 8)

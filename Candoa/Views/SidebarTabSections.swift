@@ -31,9 +31,9 @@ internal struct EssentialTileView: View {
                     )
 
                 faviconImage
-                    .frame(width: 18, height: 18)
+                    .frame(width: 20, height: 20)
             }
-            .frame(maxWidth: .infinity, minHeight: 44, maxHeight: 44)
+            .frame(maxWidth: .infinity, minHeight: 40, maxHeight: 40)
             .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 11, style: .continuous)
@@ -72,7 +72,7 @@ internal struct EssentialTileView: View {
                 .scaledToFit()
         } else {
             Image(systemName: placement == .favorite ? tab.favoriteDisplayFaviconSymbol : tab.faviconSymbol)
-                .font(.system(size: 18, weight: .medium))
+                .font(.system(size: 20, weight: .medium))
                 .foregroundStyle(isActive ? CandoaInterfaceStyle.sidebarText : CandoaInterfaceStyle.sidebarTextSecondary)
         }
     }
@@ -407,7 +407,7 @@ internal struct FolderSectionView: View {
             if isEditing {
                 TextField("Folder Name", text: $draftName)
                     .textFieldStyle(.plain)
-                    .font(.system(size: 13.5, weight: .semibold))
+                    .font(.system(size: 13, weight: .regular))
                     .foregroundStyle(CandoaInterfaceStyle.sidebarText)
                     .focused($isNameFocused)
                     .lineLimit(1)
@@ -420,7 +420,7 @@ internal struct FolderSectionView: View {
                 Text(folder.name)
                     .lineLimit(1)
                     .truncationMode(.tail)
-                    .font(.system(size: 13.5, weight: .semibold))
+                    .font(.system(size: 13, weight: .regular))
                     .foregroundStyle(CandoaInterfaceStyle.sidebarText)
             }
 

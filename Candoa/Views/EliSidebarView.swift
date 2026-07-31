@@ -171,33 +171,42 @@ struct EliSidebarView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            topBar
-
-            if messages.isEmpty {
-                Spacer(minLength: 60)
-                emptyState
-                Spacer(minLength: 60)
-            } else {
-                ScrollViewReader { proxy in
-                    ScrollView(.vertical) {
-                        VStack(alignment: .leading, spacing: 0) {
-                            ForEach($messages) { $message in
-                                AISidebarMessageRow(
-                                    message: $message
-                                )
-                                .padding(.bottom, spacingAfterMessage(message))
-                                .id(message.id)
-                            }
-                        }
-                        .padding(14)
+            Group {
+                if messages.isEmpty {
+                    VStack(spacing: 0) {
+                        Spacer(minLength: 60)
+                        emptyState
+                        Spacer(minLength: 60)
                     }
-                    .onChange(of: messages) { _, updatedMessages in
-                        guard let lastID = updatedMessages.last?.id else { return }
-                        withAnimation(.easeOut(duration: 0.14)) {
-                            proxy.scrollTo(lastID, anchor: .bottom)
+                } else {
+                    ScrollViewReader { proxy in
+                        ScrollView(.vertical) {
+                            VStack(alignment: .leading, spacing: 0) {
+                                ForEach($messages) { $message in
+                                    AISidebarMessageRow(
+                                        message: $message
+                                    )
+                                    .padding(.bottom, spacingAfterMessage(message))
+                                    .id(message.id)
+                                }
+                            }
+                            .padding(14)
+                        }
+                        .onChange(of: messages) { _, updatedMessages in
+                            guard let lastID = updatedMessages.last?.id else { return }
+                            withAnimation(.easeOut(duration: 0.14)) {
+                                proxy.scrollTo(lastID, anchor: .bottom)
+                            }
                         }
                     }
                 }
+            }
+            // The top bar must be the scroll view's safe-area inset, not a
+            // VStack sibling: with the window's unified toolbar, SwiftUI
+            // extends the scroll view's AppKit surface up into the title-bar
+            // strip, and a sibling top bar there never receives clicks.
+            .safeAreaInset(edge: .top, spacing: 0) {
+                topBar
             }
 
             composer
