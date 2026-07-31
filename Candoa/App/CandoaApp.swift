@@ -68,11 +68,10 @@ private final class CandoaAppDelegate: NSObject, NSApplicationDelegate {
         browserPasskeyAuthorizationService.requestAuthorizationIfNeeded()
     }
 
-    func application(_ application: NSApplication, open urls: [URL]) {
-        for url in urls {
-            _ = CandoaAppleSignInService.handleApplicationCallback(url)
-        }
-    }
+    // URL opens are routed solely through .onOpenURL (Apple sign-in
+    // callbacks first, every other URL into a browser tab). A delegate
+    // application(_:open:) would deliver each URL a second time — and on
+    // macOS versions where it preempts .onOpenURL, swallow them entirely.
 
     @objc private func systemAppearanceDidChange(_ notification: Notification) {
         updateDockIcon()
