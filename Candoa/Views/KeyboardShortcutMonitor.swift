@@ -16,6 +16,8 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
     let onFindNext: () -> Void
     let onFindPrevious: () -> Void
     let onReload: () -> Void
+    let onReloadFromOrigin: () -> Void
+    let onStopLoading: () -> Bool
     let onClearUnpinnedTabs: () -> Void
     let onControlTab: () -> Void
     let onControlShiftTab: () -> Void
@@ -65,6 +67,8 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
         coordinator.onFindNext = onFindNext
         coordinator.onFindPrevious = onFindPrevious
         coordinator.onReload = onReload
+        coordinator.onReloadFromOrigin = onReloadFromOrigin
+        coordinator.onStopLoading = onStopLoading
         coordinator.onClearUnpinnedTabs = onClearUnpinnedTabs
         coordinator.onControlTab = onControlTab
         coordinator.onControlShiftTab = onControlShiftTab
@@ -99,6 +103,8 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
         var onFindNext: () -> Void = {}
         var onFindPrevious: () -> Void = {}
         var onReload: () -> Void = {}
+        var onReloadFromOrigin: () -> Void = {}
+        var onStopLoading: () -> Bool = { false }
         var onClearUnpinnedTabs: () -> Void = {}
         var onControlTab: () -> Void = {}
         var onControlShiftTab: () -> Void = {}
@@ -207,6 +213,18 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
 
                 if Self.matchesConfiguredShortcut(.reloadTab, event) {
                     onReload()
+                    return nil
+                }
+
+                if Self.matchesConfiguredShortcut(.reloadTabFromOrigin, event) {
+                    onReloadFromOrigin()
+                    return nil
+                }
+
+                // Command-. doubles as the system cancel key: consume it only
+                // when a load was actually stopped so dialogs keep their
+                // cancel behavior.
+                if Self.matchesConfiguredShortcut(.stopLoading, event), onStopLoading() {
                     return nil
                 }
 

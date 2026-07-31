@@ -661,6 +661,45 @@ final class CandoaUITests: XCTestCase {
         assertEqualFrame(webViewHost.frame, expandedSidebarHostFrame)
     }
 
+    func testViewMenuOffersStopAndReloadCommands() throws {
+        let app = launchApp()
+
+        XCTAssertTrue(waitForState(in: app, containing: "space=TestingBot"), currentState(in: app))
+
+        app.typeKey("t", modifierFlags: .command)
+        submitCommandPaletteText("https://example.com", in: app)
+        XCTAssertTrue(
+            waitForState(in: app, containing: "url=https://example.com/", timeout: 10),
+            currentState(in: app)
+        )
+        XCTAssertTrue(waitForState(in: app, containing: "loading=false", timeout: 10), currentState(in: app))
+
+        let viewMenu = app.menuBarItems["View"]
+        XCTAssertTrue(viewMenu.waitForExistence(timeout: 5))
+        viewMenu.click()
+
+        let stopItem = app.menuItems["Stop"]
+        let reloadItem = app.menuItems["Reload Page"]
+        let reloadFromOriginItem = app.menuItems["Reload Page From Origin"]
+        XCTAssertTrue(stopItem.waitForExistence(timeout: 3))
+        XCTAssertTrue(reloadItem.exists)
+        XCTAssertTrue(reloadFromOriginItem.exists)
+
+        // With an idle page the reload commands are enabled and Stop is not.
+        XCTAssertFalse(stopItem.isEnabled)
+        XCTAssertTrue(reloadItem.isEnabled)
+        XCTAssertTrue(reloadFromOriginItem.isEnabled)
+
+        // Reload From Origin performs a real reload that settles back on the
+        // same page with the tab intact.
+        reloadFromOriginItem.click()
+        XCTAssertTrue(
+            waitForState(in: app, containing: "url=https://example.com/", timeout: 10),
+            currentState(in: app)
+        )
+        XCTAssertTrue(waitForState(in: app, containing: "loading=false", timeout: 10), currentState(in: app))
+    }
+
     func testTestingBotFixtureCoversAddressAndCommandPaletteTabCreation() throws {
         let app = launchApp()
 

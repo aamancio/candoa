@@ -280,6 +280,7 @@ extension BrowserStore {
             "spaceTheme=\(activeSpace.map { $0.themePaletteHexes.joined(separator: "|") } ?? "none")",
             "active=\(activeTitle)",
             "url=\(activeURL)",
+            "loading=\(activeTab?.isLoading == true)",
             "tabs=\(tabTitles)",
             "folders=\(folderNames)",
             "popover=\(uiTestingVisibleFolderPopoverDescription)",
