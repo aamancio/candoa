@@ -785,6 +785,91 @@ final class CandoaUITests: XCTestCase {
         )
     }
 
+    func testEliUserMessageBubbleUsesAccentPrimaryColor() throws {
+        try assertEliUserMessageBubbleTracksAccent(appearanceName: "system")
+        try assertEliUserMessageBubbleTracksAccent(appearanceName: "light", forcesLightAppearance: true)
+    }
+
+    private func assertEliUserMessageBubbleTracksAccent(
+        appearanceName: String,
+        forcesLightAppearance: Bool = false
+    ) throws {
+        let app = launchApp(
+            fixture: "ask",
+            checkoutFailure: true,
+            appleSuccess: true,
+            forcesLightAppearance: forcesLightAppearance
+        )
+
+        app.typeKey("e", modifierFlags: .command)
+        XCTAssertTrue(element("agent-sidebar", in: app).waitForExistence(timeout: 5), currentState(in: app))
+
+        submitAskText("Accent bubble check", in: app)
+
+        let bubble = element("user-message-bubble", in: app)
+        XCTAssertTrue(bubble.waitForExistence(timeout: 5), askState(in: app))
+
+        let windowAttachment = XCTAttachment(screenshot: app.windows.firstMatch.screenshot())
+        windowAttachment.name = "Eli user message bubble (\(appearanceName))"
+        windowAttachment.lifetime = .keepAlways
+        add(windowAttachment)
+
+        // The bubble is mostly fill with some text glyphs, so the per-channel
+        // median over a sampling grid recovers the fill color regardless of
+        // where the glyphs land. Compare it against the runner's own dynamic
+        // accent so the assertion holds for whatever accent this Mac uses.
+        let shot = bubble.screenshot().image
+        guard
+            let tiff = shot.tiffRepresentation,
+            let rep = NSBitmapImageRep(data: tiff)
+        else {
+            return XCTFail("Could not decode the bubble screenshot")
+        }
+
+        var reds: [CGFloat] = []
+        var greens: [CGFloat] = []
+        var blues: [CGFloat] = []
+        for row in 1..<20 {
+            for column in 1..<20 {
+                let x = rep.pixelsWide * column / 20
+                let y = rep.pixelsHigh * row / 20
+                guard let color = rep.colorAt(x: x, y: y)?.usingColorSpace(.sRGB) else { continue }
+                reds.append(color.redComponent)
+                greens.append(color.greenComponent)
+                blues.append(color.blueComponent)
+            }
+        }
+
+        guard !reds.isEmpty, let accent = NSColor.controlAccentColor.usingColorSpace(.sRGB) else {
+            return XCTFail("Could not resolve the sampled or accent colors")
+        }
+
+        // Screenshots come back in the display's color space, so exact
+        // channel values drift; hue and saturation survive that. Skip the
+        // color check entirely for achromatic accents (Graphite) where hue
+        // is meaningless.
+        guard accent.saturationComponent > 0.2 else {
+            throw XCTSkip("Achromatic accent color; hue comparison is meaningless")
+        }
+
+        func median(_ values: [CGFloat]) -> CGFloat {
+            values.sorted()[values.count / 2]
+        }
+
+        let fill = NSColor(srgbRed: median(reds), green: median(greens), blue: median(blues), alpha: 1)
+        XCTAssertEqual(
+            fill.hueComponent,
+            accent.hueComponent,
+            accuracy: 0.06,
+            "bubble fill hue should track the accent, got \(fill) vs \(accent)"
+        )
+        XCTAssertGreaterThan(
+            fill.saturationComponent,
+            0.3,
+            "bubble fill should be saturated like the accent, not neutral gray, got \(fill)"
+        )
+    }
+
     func testEliProPromptRendersSubscriptionGateAndCheckoutFailure() throws {
         let app = launchApp(
             fixture: "ask",
@@ -1184,10 +1269,14 @@ final class CandoaUITests: XCTestCase {
         appleSuccess: Bool = false,
         websiteAppearance: String? = nil,
         cloudKitEntitlement: Bool = false,
-        preservesStore: Bool = false
+        preservesStore: Bool = false,
+        forcesLightAppearance: Bool = false
     ) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments += ["-ApplePersistenceIgnoreState", "YES"]
+        if forcesLightAppearance {
+            app.launchArguments += ["-NSRequiresAquaSystemAppearance", "YES"]
+        }
         if let websiteAppearance {
             app.launchArguments += ["-Candoa.Settings.ZenOption.WebsiteAppearance", websiteAppearance]
         }

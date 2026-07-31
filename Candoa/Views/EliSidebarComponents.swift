@@ -244,6 +244,7 @@ struct AISidebarMessageRow: View {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
                     .fill(messageBackground)
             }
+            .accessibilityIdentifier("user-message-bubble")
     }
 
     @ViewBuilder
