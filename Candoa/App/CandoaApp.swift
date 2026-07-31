@@ -177,10 +177,22 @@ private struct BrowserCommands: Commands {
 
             Divider()
 
+            Button(BrowserCommandTitles.stopLoading) {
+                actions?.stopLoading()
+            }
+            .keyboardShortcut(".", modifiers: .command)
+            .disabled(actions?.isActiveTabLoading != true)
+
             Button(BrowserCommandTitles.reloadTab) {
                 actions?.reloadTab()
             }
-            .disabled(actions == nil)
+            .disabled(actions?.canReloadActiveTab != true)
+
+            Button(BrowserCommandTitles.reloadTabFromOrigin) {
+                actions?.reloadTabFromOrigin()
+            }
+            .keyboardShortcut("r", modifiers: [.command, .option])
+            .disabled(actions?.canReloadActiveTab != true)
 
             Divider()
 
@@ -365,6 +377,10 @@ struct BrowserCommandActions {
     var isHistoryVisible: Bool
     var showQuickTour: () -> Void
     var reloadTab: () -> Void
+    var reloadTabFromOrigin: () -> Void
+    var stopLoading: () -> Void
+    var isActiveTabLoading: Bool
+    var canReloadActiveTab: Bool
     var goBack: () -> Void
     var goForward: () -> Void
     var closeCurrentTab: () -> Void

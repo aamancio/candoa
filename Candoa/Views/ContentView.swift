@@ -340,6 +340,10 @@ struct ContentView: View {
                 store.findPrevious()
             } onReload: {
                 store.reloadActiveTab()
+            } onReloadFromOrigin: {
+                store.reloadActiveTabFromOrigin()
+            } onStopLoading: {
+                store.stopLoadingActiveTabIfLoading()
             } onClearUnpinnedTabs: {
                 store.clearUnpinnedTabs()
             } onControlTab: {
@@ -495,6 +499,10 @@ struct ContentView: View {
             isHistoryVisible: isHistoryPresented,
             showQuickTour: showQuickTour,
             reloadTab: store.reloadActiveTab,
+            reloadTabFromOrigin: store.reloadActiveTabFromOrigin,
+            stopLoading: store.stopLoadingActiveTab,
+            isActiveTabLoading: store.activeTab?.isLoading == true,
+            canReloadActiveTab: store.activeTab?.url != nil,
             goBack: store.goBack,
             goForward: store.goForward,
             closeCurrentTab: closeTabOrWindow,

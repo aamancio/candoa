@@ -325,6 +325,10 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         webViews[tabID]?.reload()
     }
 
+    func reloadFromOrigin(tabID: UUID) {
+        webViews[tabID]?.reloadFromOrigin()
+    }
+
     func stopLoading(tabID: UUID) {
         webViews[tabID]?.stopLoading()
     }

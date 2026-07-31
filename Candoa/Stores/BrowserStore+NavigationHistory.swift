@@ -71,10 +71,24 @@ extension BrowserStore {
         webCoordinator.reload(tabID: activeTabID)
     }
 
+    func reloadActiveTabFromOrigin() {
+        guard let activeTabID else { return }
+        webCoordinator.reloadFromOrigin(tabID: activeTabID)
+    }
+
     func stopLoadingActiveTab() {
         guard let activeTabID else { return }
         webCoordinator.stopLoading(tabID: activeTabID)
         setLoading(false, for: activeTabID)
+    }
+
+    /// Stops only when a load is actually in progress, reporting whether the
+    /// shortcut was handled — an idle Command-. must stay available to
+    /// dialogs as the system cancel key.
+    func stopLoadingActiveTabIfLoading() -> Bool {
+        guard let activeTab, activeTab.isLoading else { return false }
+        stopLoadingActiveTab()
+        return true
     }
 
     func updateTabFromWebView(

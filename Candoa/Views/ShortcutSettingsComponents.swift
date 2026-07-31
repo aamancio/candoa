@@ -551,6 +551,8 @@ enum CandoaShortcutDefinition: String, CaseIterable, Identifiable {
     case findNext
     case findPrevious
     case reloadTab
+    case reloadTabFromOrigin
+    case stopLoading
     case zoomIn
     case zoomOut
     case resetZoom
@@ -585,6 +587,8 @@ enum CandoaShortcutDefinition: String, CaseIterable, Identifiable {
         case .findNext: return BrowserCommandTitles.findNext
         case .findPrevious: return BrowserCommandTitles.findPrevious
         case .reloadTab: return BrowserCommandTitles.reloadTab
+        case .reloadTabFromOrigin: return BrowserCommandTitles.reloadTabFromOrigin
+        case .stopLoading: return BrowserCommandTitles.stopLoading
         case .zoomIn: return BrowserCommandTitles.zoomIn
         case .zoomOut: return BrowserCommandTitles.zoomOut
         case .resetZoom: return BrowserCommandTitles.resetZoom
@@ -637,6 +641,8 @@ enum CandoaShortcutDefinition: String, CaseIterable, Identifiable {
         case .findNext: return "Command-G"
         case .findPrevious: return "Shift-Command-G"
         case .reloadTab: return "Command-R"
+        case .reloadTabFromOrigin: return "Option-Command-R"
+        case .stopLoading: return "Command-."
         case .zoomIn: return "Command-="
         case .zoomOut: return "Command--"
         case .resetZoom: return "Command-0"
@@ -665,6 +671,8 @@ enum CandoaShortcutDefinition: String, CaseIterable, Identifiable {
         case .copyURL, .copyURLAsMarkdown: return "link"
         case .findInPage, .findNext, .findPrevious: return "magnifyingglass"
         case .reloadTab: return "arrow.clockwise"
+        case .reloadTabFromOrigin: return "arrow.clockwise.circle"
+        case .stopLoading: return "xmark.circle"
         case .pinOrUnpinTab: return "pin"
         case .toggleSidebar: return "sidebar.left"
         case .toggleAISidebar: return "sidebar.right"
