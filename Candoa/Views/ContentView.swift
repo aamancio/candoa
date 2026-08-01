@@ -25,25 +25,18 @@ struct ContentView: View {
     @State private var isSidebarVisible = true
     @State private var isSidebarHoverRevealed = false
     @State private var isSidebarRevealSuppressed = false
-    // Pinned-toggle analogs of the Eli slide machinery: the reservation flag
-    // commits the web layout (mask lane + WebKit obscured insets) exactly
-    // once per transition, the slide mask pins the card's visible edge while
-    // the sidebar covers it, and the holding flag keeps the sidebar at full
-    // reveal while a hide hands the lane back before sliding out.
-    @State private var isSidebarReservingLeadingLayout = true
-    @State private var sidebarSlideMaskInset: CGFloat = 0
-    @State private var isSidebarSlideHolding = false
-    @State private var sidebarTransitionGeneration = 0
     @State private var isAISidebarVisible = false
     @State private var isAISidebarMounted = false
     @State private var isAISidebarReservingWebLayout = false
     @State private var isHistoryPresented = false
     @State private var reservedAISidebarInset: CGFloat = 0
     // Compositor-only trailing clip applied to the web surface while Eli
-    // slides over it (or covers it during a widening resize drag). It keeps
-    // the card's rounded trailing corner pinned to Eli's moving edge without
-    // ever touching the live WKWebView's frame; it must be exactly 0 whenever
-    // the reserved web layout owns the trailing edge.
+    // covers it beyond the reserved web layout: during a widening resize
+    // drag, and during a close's paint-fence hold, where the page has
+    // already expanded under the still-mounted panel. It keeps the card's
+    // rounded trailing corner pinned to Eli's edge without ever touching the
+    // live WKWebView's frame; it must be exactly 0 whenever the reserved
+    // layout owns the trailing edge.
     @State private var aiSidebarSlideMaskInset: CGFloat = 0
     @State private var aiSidebarTransitionGeneration = 0
     @State private var aiSidebarUITestingState = ""
@@ -88,19 +81,7 @@ struct ContentView: View {
     }
 
     private var isSidebarPresented: Bool {
-        isSidebarVisible || isSidebarHoverRevealed || isSidebarSlideHolding
-    }
-
-    /// True while the sidebar still occupies its lane visually, including the
-    /// hide handoff beat where the logical state is already hidden.
-    private var isSidebarOccupyingLane: Bool {
-        isSidebarVisible || isSidebarSlideHolding
-    }
-
-    private var sidebarSlideAnimation: Animation? {
-        reduceMotion
-            ? nil
-            : .easeInOut(duration: AISidebarLayout.slideAnimationDuration)
+        isSidebarVisible || isSidebarHoverRevealed
     }
 
     private var isSidebarOverlaying: Bool {
@@ -144,7 +125,7 @@ struct ContentView: View {
                             }
                         )
                         .id(store.activeSpaceID)
-                        .padding(.leading, isSidebarOccupyingLane ? sidebarTotalWidth : 0)
+                        .padding(.leading, isSidebarVisible ? sidebarTotalWidth : 0)
                         .tint(CandoaColor.accent)
                     } else {
                         // Keep the WebKit host at one stable width when the left
@@ -156,10 +137,9 @@ struct ContentView: View {
                         WebViewContainer(
                             store: store,
                             visibleInterfaceInsets: BrowserInterfaceInsets(
-                                leading: isSidebarReservingLeadingLayout ? sidebarTotalWidth : 0
+                                leading: isSidebarVisible ? sidebarTotalWidth : 0
                             ),
                             attachesToTrailingPanel: isAISidebarMounted,
-                            slideOverLeadingInset: sidebarSlideMaskInset,
                             slideOverTrailingInset: aiSidebarSlideMaskInset
                         )
                         // Resize WebKit once, after Eli has finished sliding over
@@ -226,7 +206,7 @@ struct ContentView: View {
             if let mediaTab = store.floatingMiniPlayerTab,
                let mediaState = store.floatingMiniPlayerState {
                 GeometryReader { proxy in
-                    let leadingInset = isSidebarOccupyingLane ? sidebarTotalWidth : 0
+                    let leadingInset = isSidebarVisible ? sidebarTotalWidth : 0
                     let trailingInset = currentAISidebarInset
                     let availableSize = CGSize(
                         width: max(1, proxy.size.width - leadingInset - trailingInset),
@@ -681,81 +661,19 @@ struct ContentView: View {
         .accessibilityHidden(!isAISidebarVisible)
     }
 
+    // The pinned toggle deliberately snaps in a single frame: sidebar
+    // translation, mask lane, and WebKit obscured insets all switch in one
+    // commit, so the sidebar can never separate from the content beside it.
+    // Only the pointer-driven hover reveal slides, as a floating overlay.
     private func toggleSidebar() {
         if isSidebarVisible {
-            hidePinnedSidebar()
+            isSidebarVisible = false
+            isSidebarHoverRevealed = false
+            isSidebarRevealSuppressed = true
         } else {
-            showPinnedSidebar()
-        }
-    }
-
-    private func showPinnedSidebar() {
-        guard !isSidebarVisible else { return }
-        sidebarTransitionGeneration += 1
-        let generation = sidebarTransitionGeneration
-
-        // Docking a hover-revealed sidebar is a logical swap, not a
-        // movement: the sidebar already sits at full reveal exactly over its
-        // docked position, so everything commits in one unanimated update.
-        // Running the slide here would sweep the mask under a stationary
-        // sidebar and read as a quick close-and-reopen.
-        if isSidebarHoverRevealed {
+            isSidebarVisible = true
             isSidebarHoverRevealed = false
             isSidebarRevealSuppressed = false
-            isSidebarSlideHolding = false
-            isSidebarVisible = true
-            isSidebarReservingLeadingLayout = true
-            sidebarSlideMaskInset = 0
-            return
-        }
-
-        isSidebarRevealSuppressed = false
-        isSidebarSlideHolding = false
-        // Slide in over the page. The mask trails the sidebar's edge so the
-        // card's rounded corner is never squared off, and the WebKit layout
-        // commit waits until the lane is fully covered.
-        withAnimation(sidebarSlideAnimation) {
-            isSidebarVisible = true
-            sidebarSlideMaskInset = sidebarTotalWidth
-        }
-
-        let delay = reduceMotion ? 0 : AISidebarLayout.slideAnimationDuration
-        DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
-            guard sidebarTransitionGeneration == generation,
-                  isSidebarVisible else { return }
-            // Hand the visible card edge from the mask to the reserved
-            // layout in one unanimated update — no pixel change.
-            isSidebarReservingLeadingLayout = true
-            sidebarSlideMaskInset = 0
-        }
-    }
-
-    private func hidePinnedSidebar() {
-        guard isSidebarVisible else { return }
-        sidebarTransitionGeneration += 1
-        let generation = sidebarTransitionGeneration
-
-        isSidebarHoverRevealed = false
-        isSidebarRevealSuppressed = true
-        // Free the web layout while the sidebar still covers the lane; the
-        // slide mask pins the visible card edge and the holding flag keeps
-        // the sidebar at full reveal, so this swap cannot be seen.
-        isSidebarSlideHolding = true
-        isSidebarVisible = false
-        isSidebarReservingLeadingLayout = false
-        sidebarSlideMaskInset = sidebarTotalWidth
-        // As with Eli's close: start the slide only after the handoff commit
-        // has rendered, and only once WebKit has painted the widened layout,
-        // so the moving edge reveals content rather than leading it.
-        CATransaction.setCompletionBlock {
-            guard sidebarTransitionGeneration == generation else { return }
-            store.waitForWebContentPaint(at: .leading, timeout: 0.25) {
-                guard sidebarTransitionGeneration == generation else { return }
-                withAnimation(sidebarSlideAnimation) {
-                    isSidebarSlideHolding = false
-                    sidebarSlideMaskInset = 0
-                }
-            }
         }
     }
 
@@ -797,33 +715,16 @@ struct ContentView: View {
     private func openAISidebar() {
         guard !isAISidebarVisible else { return }
         aiSidebarTransitionGeneration += 1
-        let generation = aiSidebarTransitionGeneration
 
-        // Mount the panel in a trailing overlay, then reveal it. The live
-        // WKWebView stays at its current size for the animated portion; the
-        // slide mask clips the card at Eli's moving edge so its rounded
-        // trailing corner and the shared backdrop stay correct mid-flight.
-        isAISidebarReservingWebLayout = false
+        // Open snaps in one commit, matching the pinned left sidebar: the
+        // panel appears docked, the card ends at its edge with the rounded
+        // corner from its own clip shape, and the single native WKWebView
+        // resize happens in the same frame.
         reservedAISidebarInset = clampedAISidebarWidth(CGFloat(aiSidebarWidth))
-        withAnimation(aiSidebarAnimation) {
-            isAISidebarMounted = true
-            isAISidebarVisible = true
-            aiSidebarSlideMaskInset = reservedAISidebarInset
-        }
-
-        let delay = reduceMotion ? 0 : AISidebarLayout.slideAnimationDuration
-        DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
-            guard aiSidebarTransitionGeneration == generation,
-                  isAISidebarVisible else { return }
-            // The panel now fully covers the changing edge. Commit one native
-            // WebKit resize without animation so its system overlay scroller
-            // belongs to the page instead of a synthetic interface gutter.
-            // Releasing the slide mask in the same unanimated update hands the
-            // visible card edge from the mask to the reserved layout with no
-            // pixel change.
-            isAISidebarReservingWebLayout = true
-            aiSidebarSlideMaskInset = 0
-        }
+        isAISidebarReservingWebLayout = true
+        isAISidebarMounted = true
+        isAISidebarVisible = true
+        aiSidebarSlideMaskInset = 0
     }
 
     private func closeAISidebar() {
@@ -832,42 +733,31 @@ struct ContentView: View {
         let generation = aiSidebarTransitionGeneration
 
         aiSidebarResizeStartWidth = nil
-        // Expand the page once while Eli still covers the changing edge. The
-        // slide mask takes over the exact visible card edge in the same
-        // unanimated update, so the swap cannot be seen.
+        // Close also snaps, but in two invisible beats: expand the page once
+        // while Eli still covers the changing edge — the slide mask takes
+        // over the exact visible card edge in the same unanimated update —
+        // then remove the panel only after WebKit has painted the widened
+        // layout, so the snap uncovers real content instead of the page's
+        // background fill. The panel lingers for the fence (typically a
+        // frame or two, capped at 250ms) but is logically closed and inert
+        // immediately.
+        isAISidebarVisible = false
         isAISidebarReservingWebLayout = false
         aiSidebarSlideMaskInset = clampedAISidebarWidth(CGFloat(aiSidebarWidth))
-        // Start the slide only after the handoff above has been rendered.
-        // A main-queue async block can run before SwiftUI commits, which
-        // coalesces both mask writes into a no-op and drops the card's
-        // clipped corner for the whole slide; the CATransaction completion
-        // is guaranteed to fire after the handoff commit.
+        // The CATransaction completion is guaranteed to run only after the
+        // handoff above has rendered; a main-queue async block is not.
         CATransaction.setCompletionBlock {
             guard aiSidebarTransitionGeneration == generation else { return }
-            // The page just expanded under Eli, and WebKit paints the newly
-            // exposed region asynchronously in its own process — a region
-            // that sits exactly under the docked panel. Hold the slide until
-            // that paint lands (bounded by a short cap) so the moving edge
-            // reveals real content instead of leading it with background fill.
             store.waitForWebContentPaint(at: .trailing, timeout: 0.25) {
                 guard aiSidebarTransitionGeneration == generation else { return }
-                withAnimation(aiSidebarAnimation) {
-                    isAISidebarVisible = false
-                    isAISidebarMounted = false
-                    aiSidebarSlideMaskInset = 0
-                }
+                isAISidebarMounted = false
+                aiSidebarSlideMaskInset = 0
             }
         }
     }
 
     private func clampedAISidebarWidth(_ width: CGFloat) -> CGFloat {
         min(max(width, AISidebarLayout.minWidth), AISidebarLayout.maxWidth)
-    }
-
-    private var aiSidebarAnimation: Animation? {
-        reduceMotion
-            ? nil
-            : .easeInOut(duration: AISidebarLayout.slideAnimationDuration)
     }
 
     private func openNewTabFlow() {
