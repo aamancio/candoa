@@ -5,6 +5,7 @@ enum AppConfiguration {
     static let minimumWindowWidth: CGFloat = 980
     static let minimumWindowHeight: CGFloat = 640
     static let browserWindowSceneID = "browser"
+    static let privateBrowserWindowSceneID = "browser.private"
     static let windowAutosaveNamePrefix = "Candoa.BrowserWindow"
 }
 

@@ -43,8 +43,10 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
     }
 
     func makeNSView(context: Context) -> NSView {
+        let view = NSView(frame: .zero)
+        context.coordinator.hostView = view
         context.coordinator.installMonitorIfNeeded()
-        return NSView(frame: .zero)
+        return view
     }
 
     func updateNSView(_ nsView: NSView, context: Context) {
@@ -123,6 +125,11 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
         var onAddSplit: () -> Void = {}
         var onCloseSplit: () -> Void = {}
         private var monitor: Any?
+        /// The monitor is app-wide (NSEvent local monitors always are), but
+        /// every window mounts its own instance against its own store. Each
+        /// handler therefore acts only while its window is key, or two
+        /// windows would both run the side effect of every shortcut.
+        weak var hostView: NSView?
 
         private static let closeBracketKeyCode: UInt16 = 30
         private static let openBracketKeyCode: UInt16 = 33
@@ -136,6 +143,10 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
 
             monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .flagsChanged]) { [weak self] event in
                 guard let self else {
+                    return event
+                }
+
+                guard hostView?.window?.isKeyWindow == true else {
                     return event
                 }
 

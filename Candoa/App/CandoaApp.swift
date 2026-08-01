@@ -26,6 +26,27 @@ struct CandoaApp: App {
             BrowserCommands(userStore: userStore)
         }
 
+        // Private windows: same interface, but the store persists nothing
+        // and web content runs against a non-persistent data store. The
+        // empty external-events set keeps URLs from other apps out of
+        // private windows — they always open ordinarily unless the user
+        // explicitly chooses otherwise.
+        WindowGroup(id: AppConfiguration.privateBrowserWindowSceneID) {
+            ContentView(isPrivate: true)
+                .environmentObject(userStore)
+                .tint(CandoaColor.accent)
+                .frame(
+                    minWidth: AppConfiguration.minimumWindowWidth,
+                    minHeight: AppConfiguration.minimumWindowHeight
+                )
+        }
+        .windowStyle(.hiddenTitleBar)
+        .defaultSize(
+            width: Self.initialWindowSize.width,
+            height: Self.initialWindowSize.height
+        )
+        .handlesExternalEvents(matching: [])
+
         Settings {
             CandoaSettingsView()
                 .environmentObject(userStore)
@@ -102,6 +123,11 @@ private struct BrowserCommands: Commands {
                 openWindow(id: AppConfiguration.browserWindowSceneID)
             }
             .keyboardShortcut("n", modifiers: .command)
+
+            Button("New Private Window") {
+                openWindow(id: AppConfiguration.privateBrowserWindowSceneID)
+            }
+            .keyboardShortcut("n", modifiers: [.command, .shift])
 
             Button(BrowserCommandTitles.newTab) {
                 actions?.newTab()

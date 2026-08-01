@@ -39,14 +39,16 @@ extension BrowserStore {
     }
 
     func beginSpaceCreation() {
-        guard !isInitialOnboardingPresented else { return }
+        // Private windows have no Spaces to manage — their single space is
+        // an unnamed ephemeral container, never presented as a Space.
+        guard !isPrivate, !isInitialOnboardingPresented else { return }
         dismissCommandPalette()
         editingSpaceID = nil
         isCreateSpacePresented = true
     }
 
     func beginSpaceEditing(_ id: UUID) {
-        guard !isInitialOnboardingPresented, spaces.contains(where: { $0.id == id }) else { return }
+        guard !isPrivate, !isInitialOnboardingPresented, spaces.contains(where: { $0.id == id }) else { return }
         dismissCommandPalette()
         isCreateSpacePresented = false
         switchSpace(to: id)

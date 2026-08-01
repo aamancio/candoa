@@ -122,8 +122,11 @@ extension WebViewCoordinator {
                 guard let self, let webView else { return }
                 let candidateString = (value as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
                 let candidateURL = candidateString.flatMap { $0.isEmpty ? nil : URL(string: $0) }
-                let data = await FaviconService.shared.faviconData(for: webView.url, candidateURL: candidateURL)
-                self.store?.updateFavicon(tabID: tabID, data: data)
+                // The store's favicon service, not the shared one: private
+                // windows fetch favicons over an ephemeral session.
+                guard let store = self.store else { return }
+                let data = await store.faviconService.faviconData(for: webView.url, candidateURL: candidateURL)
+                store.updateFavicon(tabID: tabID, data: data)
             }
         }
     }

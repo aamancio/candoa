@@ -3,6 +3,7 @@ import SwiftUI
 
 struct WindowInteractionConfigurator: NSViewRepresentable {
     let autosaveName: String
+    var isPrivate = false
 
     func makeCoordinator() -> Coordinator {
         Coordinator()
@@ -11,7 +12,7 @@ struct WindowInteractionConfigurator: NSViewRepresentable {
     func makeNSView(context: Context) -> NSView {
         let view = WindowAttachmentView(frame: .zero)
         view.configureWindow = { [coordinator = context.coordinator] window in
-            coordinator.configure(window: window, autosaveName: autosaveName)
+            coordinator.configure(window: window, autosaveName: autosaveName, isPrivate: isPrivate)
         }
         return view
     }
@@ -19,12 +20,13 @@ struct WindowInteractionConfigurator: NSViewRepresentable {
     func updateNSView(_ nsView: NSView, context: Context) {
         if let view = nsView as? WindowAttachmentView {
             view.configureWindow = { [coordinator = context.coordinator] window in
-                coordinator.configure(window: window, autosaveName: autosaveName)
+                coordinator.configure(window: window, autosaveName: autosaveName, isPrivate: isPrivate)
             }
         }
         context.coordinator.configure(
             window: nsView.window,
-            autosaveName: autosaveName
+            autosaveName: autosaveName,
+            isPrivate: isPrivate
         )
     }
 
@@ -47,9 +49,20 @@ struct WindowInteractionConfigurator: NSViewRepresentable {
         private weak var configuredWindow: NSWindow?
         private var configuredAutosaveName: String?
 
-        func configure(window: NSWindow?, autosaveName: String) {
+        func configure(window: NSWindow?, autosaveName: String, isPrivate: Bool = false) {
             guard let window else { return }
             configureWindowInterface(for: window)
+
+            if isPrivate {
+                // Untitled elsewhere, but the Window menu and Mission
+                // Control list windows by title — the one place a private
+                // window must identify itself. titleVisibility stays
+                // .hidden, so nothing changes in the title bar itself.
+                window.title = String(localized: "Private Browsing")
+                // No restoration and no frame autosave: a private window
+                // leaves nothing behind, not even its geometry.
+                window.isRestorable = false
+            }
 
             guard configuredWindow !== window || configuredAutosaveName != autosaveName else {
                 return
@@ -57,6 +70,14 @@ struct WindowInteractionConfigurator: NSViewRepresentable {
 
             configuredWindow = window
             configuredAutosaveName = autosaveName
+            if isPrivate {
+                window.setFrame(
+                    Self.initialWindowFrame(for: window),
+                    display: window.isVisible,
+                    animate: false
+                )
+                return
+            }
             let restoredSavedFrame = window.setFrameUsingName(autosaveName)
             if !restoredSavedFrame {
                 window.setFrame(

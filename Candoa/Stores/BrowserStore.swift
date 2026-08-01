@@ -252,6 +252,20 @@ final class BrowserStore: ObservableObject {
     var recentlyClosedTabs: [ClosedTabSnapshot] = []
     static let recentlyClosedTabLimit = 50
 
+    /// Private-browsing mode: web content runs against a non-persistent
+    /// data store, and nothing this store does is written anywhere —
+    /// no workspace snapshot, no history, no CloudKit, no restoration.
+    ///
+    /// Policy for the explicit surfaces:
+    /// - Downloads and page captures still land in ~/Downloads: they are
+    ///   deliberate user acts that produce a file, exactly as in Safari.
+    /// - Sharing and copy-URL remain available for the same reason.
+    /// - Printing: not implemented anywhere yet (issue #31); when it lands
+    ///   it inherits this policy (allowed, no persisted print history).
+    /// - Passkeys/WebAuthn stay available: credentials are OS-mediated and
+    ///   never touch the site data store.
+    let isPrivate: Bool
+
     let navigationService: NavigationService
     let webCoordinator: WebViewCoordinator
 
@@ -299,26 +313,37 @@ final class BrowserStore: ObservableObject {
     ]
 
     init(
+        isPrivate: Bool = false,
         persistenceService: PersistenceService = .shared,
         workspaceRepository: (any WorkspaceRepository)? = nil,
         historyRepository: (any HistoryRepository)? = nil,
         navigationService: NavigationService = .shared,
-        faviconService: FaviconService = .shared,
+        faviconService: FaviconService? = nil,
         browserImportService: BrowserImportService? = nil,
-        webCoordinator: WebViewCoordinator = WebViewCoordinator(),
+        webCoordinator: WebViewCoordinator? = nil,
         restoresWebViews: Bool = true
     ) {
+        self.isPrivate = isPrivate
         self.persistenceService = persistenceService
-        self.workspaceRepository = workspaceRepository ?? CoreDataWorkspaceRepository(persistence: persistenceService)
-        self.historyRepository = historyRepository ?? CoreDataHistoryRepository(persistence: persistenceService)
+        self.workspaceRepository = workspaceRepository ?? (isPrivate
+            ? EphemeralWorkspaceRepository()
+            : CoreDataWorkspaceRepository(persistence: persistenceService))
+        self.historyRepository = historyRepository ?? (isPrivate
+            ? PrivateBrowsingHistoryRepository(base: CoreDataHistoryRepository(persistence: persistenceService))
+            : CoreDataHistoryRepository(persistence: persistenceService))
         self.navigationService = navigationService
-        self.faviconService = faviconService
+        self.faviconService = faviconService ?? (isPrivate ? .makeEphemeral() : .shared)
         self.browserImportService = browserImportService
             ?? Self.uiTestingBrowserImportService()
             ?? BrowserImportService()
-        self.webCoordinator = webCoordinator
+        self.webCoordinator = webCoordinator ?? WebViewCoordinator(isPrivate: isPrivate)
 
-        let restoredState = Self.uiTestingFixtureState() ?? self.workspaceRepository.loadWorkspace()
+        // Private windows never restore anything — not the persisted
+        // workspace, and not a UI-testing fixture either: fixtures describe
+        // the ordinary window's world.
+        let restoredState = isPrivate
+            ? nil
+            : Self.uiTestingFixtureState() ?? self.workspaceRepository.loadWorkspace()
         var shouldPresentInitialSpaceSetup = false
 
         if let restoredState, !restoredState.spaces.isEmpty {
@@ -356,7 +381,7 @@ final class BrowserStore: ObservableObject {
             activeTabID = nil
             splitTabIDs = []
             isSplitViewEnabled = false
-            shouldPresentInitialSpaceSetup = restoredState?.spaces.isEmpty ?? true
+            shouldPresentInitialSpaceSetup = !isPrivate && (restoredState?.spaces.isEmpty ?? true)
         }
 
         self.webCoordinator.attach(store: self)
@@ -368,13 +393,18 @@ final class BrowserStore: ObservableObject {
         )
         repairSessionState()
         markActiveTabAsActivated()
-        shouldPresentInitialSpaceSetup = shouldPresentInitialSpaceSetup || needsInitialSpaceSetup()
+        shouldPresentInitialSpaceSetup = !isPrivate
+            && (shouldPresentInitialSpaceSetup || needsInitialSpaceSetup())
         let storedOnboardingStep = UserDefaults.standard.string(forKey: Self.onboardingStepKey)
             .flatMap(InitialOnboardingStep.init(rawValue:))
         let hasCompletedOnboarding = UserDefaults.standard.bool(
             forKey: Self.hasCompletedOnboardingKey
         )
-        if let uiTestingOnboardingStep = Self.uiTestingOnboardingStep {
+        if isPrivate {
+            // Onboarding belongs to the ordinary window; a private window is
+            // always ready to browse and persists no onboarding progress.
+            setInitialOnboardingStep(nil, persists: false)
+        } else if let uiTestingOnboardingStep = Self.uiTestingOnboardingStep {
             setInitialOnboardingStep(uiTestingOnboardingStep, persists: false)
         } else if Self.isUITesting {
             setInitialOnboardingStep(nil, persists: false)
@@ -401,8 +431,12 @@ final class BrowserStore: ObservableObject {
             restoreVisibleWebViews()
         }
         updateNavigationState()
-        configureAutosave()
-        configureRemoteSyncObservation()
+        if !isPrivate {
+            // Private windows neither autosave nor listen for CloudKit
+            // deltas — remote state must never stomp an ephemeral session.
+            configureAutosave()
+            configureRemoteSyncObservation()
+        }
         if needsWorkspaceSaveAfterRepair {
             needsWorkspaceSaveAfterRepair = false
             flushSession()

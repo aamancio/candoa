@@ -6,6 +6,20 @@ final class FaviconService {
     static let shared = FaviconService()
 
     private let cache = NSCache<NSURL, NSData>()
+    private let session: URLSession
+
+    init(session: URLSession = .shared) {
+        self.session = session
+    }
+
+    /// Favicon service for private windows: fetches carry no shared cookies
+    /// and write no shared URL cache, and the in-memory favicon cache dies
+    /// with the window's store. URLSession.shared would leak every private
+    /// page's favicon (and discovery HTML) request into the app-wide
+    /// cookie and cache stores.
+    static func makeEphemeral() -> FaviconService {
+        FaviconService(session: URLSession(configuration: .ephemeral))
+    }
 
     func placeholderSymbol(for url: URL?) -> String {
         guard let host = url?.host(percentEncoded: false)?.lowercased() else {
@@ -46,7 +60,7 @@ final class FaviconService {
             request.timeoutInterval = 8
             request.setValue("text/html,application/xhtml+xml", forHTTPHeaderField: "Accept")
 
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await session.data(for: request)
             guard
                 let httpResponse = response as? HTTPURLResponse,
                 (200..<300).contains(httpResponse.statusCode),
@@ -135,7 +149,7 @@ final class FaviconService {
         do {
             var request = URLRequest(url: url)
             request.timeoutInterval = 8
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await session.data(for: request)
             guard
                 let httpResponse = response as? HTTPURLResponse,
                 (200..<300).contains(httpResponse.statusCode),
