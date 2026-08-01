@@ -11,13 +11,10 @@ struct WebViewContainer: View {
     @ObservedObject var store: BrowserStore
     let visibleInterfaceInsets: BrowserInterfaceInsets
     let attachesToTrailingPanel: Bool
-    /// Extra leading clip while the left sidebar slides over the reserved
-    /// web layout. Mask-only: it never reaches the WKWebView's obscured
-    /// content insets or frame.
-    let slideOverLeadingInset: CGFloat
-    /// Extra trailing clip while Eli slides over (or is dragged wider than)
-    /// the reserved web layout. Mask-only: it never reaches the WKWebView's
-    /// obscured content insets or frame.
+    /// Extra trailing clip while Eli covers the page beyond the reserved web
+    /// layout (widening resize drags, and the close paint-fence hold).
+    /// Mask-only: it never reaches the WKWebView's obscured content insets
+    /// or frame.
     let slideOverTrailingInset: CGFloat
     @AppStorage(DeveloperModeConfiguration.storageKey) private var developerModeOverrides = ""
     private let surfaceCornerRadius: CGFloat = 12
@@ -88,7 +85,6 @@ struct WebViewContainer: View {
         .modifier(
             BrowserInterfaceMaskModifier(
                 insets: visibleInterfaceInsets,
-                slideOverLeadingInset: slideOverLeadingInset,
                 slideOverTrailingInset: slideOverTrailingInset,
                 surfaceCornerRadius: surfaceCornerRadius,
                 surfacePadding: surfacePadding,
@@ -320,18 +316,17 @@ struct WebViewContainer: View {
 /// sidebar toggle.
 private struct BrowserInterfaceMaskModifier: ViewModifier {
     let insets: BrowserInterfaceInsets
-    let slideOverLeadingInset: CGFloat
     let slideOverTrailingInset: CGFloat
     let surfaceCornerRadius: CGFloat
     let surfacePadding: CGFloat
     let trailingSurfacePadding: CGFloat
     let drawsFullSurfaceBorder: Bool
 
-    // Each lane is reserved either persistently (insets) or transiently
-    // while a sidebar slides over the page (the slide-over insets). Both
-    // clip the same way, so every measurement uses their sum.
+    // The trailing lane is reserved either persistently (insets) or
+    // transiently while Eli covers the page beyond the reserved layout.
+    // Both clip the same way, so every trailing measurement uses their sum.
     private var leadingInset: CGFloat {
-        insets.leading + slideOverLeadingInset
+        insets.leading
     }
 
     private var trailingInset: CGFloat {
