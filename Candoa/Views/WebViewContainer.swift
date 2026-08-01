@@ -11,6 +11,10 @@ struct WebViewContainer: View {
     @ObservedObject var store: BrowserStore
     let visibleInterfaceInsets: BrowserInterfaceInsets
     let attachesToTrailingPanel: Bool
+    /// Extra trailing clip while Eli slides over (or is dragged wider than)
+    /// the reserved web layout. Mask-only: it never reaches the WKWebView's
+    /// obscured content insets or frame.
+    let slideOverTrailingInset: CGFloat
     @AppStorage(DeveloperModeConfiguration.storageKey) private var developerModeOverrides = ""
     private let surfaceCornerRadius: CGFloat = 12
     private let surfacePadding: CGFloat = 8
@@ -80,6 +84,7 @@ struct WebViewContainer: View {
         .modifier(
             BrowserInterfaceMaskModifier(
                 insets: visibleInterfaceInsets,
+                slideOverTrailingInset: slideOverTrailingInset,
                 surfaceCornerRadius: surfaceCornerRadius,
                 surfacePadding: surfacePadding,
                 trailingSurfacePadding: attachesToTrailingPanel ? 0 : surfacePadding,
@@ -310,20 +315,28 @@ struct WebViewContainer: View {
 /// sidebar toggle.
 private struct BrowserInterfaceMaskModifier: ViewModifier {
     let insets: BrowserInterfaceInsets
+    let slideOverTrailingInset: CGFloat
     let surfaceCornerRadius: CGFloat
     let surfacePadding: CGFloat
     let trailingSurfacePadding: CGFloat
     let drawsFullSurfaceBorder: Bool
 
+    // The trailing lane is reserved either persistently (insets) or
+    // transiently while Eli slides over the page (slideOverTrailingInset).
+    // Both clip the same way, so every trailing measurement uses their sum.
+    private var trailingInset: CGFloat {
+        insets.trailing + slideOverTrailingInset
+    }
+
     func body(content: Content) -> some View {
         content
             .mask {
-                if insets.leading > 0 || insets.trailing > 0 {
+                if insets.leading > 0 || trailingInset > 0 {
                     ZStack {
                         RoundedRectangle(cornerRadius: surfaceCornerRadius, style: .continuous)
                             .padding(.vertical, surfacePadding)
                             .padding(.leading, insets.leading + surfacePadding)
-                            .padding(.trailing, insets.trailing + trailingSurfacePadding)
+                            .padding(.trailing, trailingInset + trailingSurfacePadding)
 
                         // Preserve the surface's existing top, trailing, and
                         // bottom shadow. Only the interface regions need clipping.
@@ -336,8 +349,8 @@ private struct BrowserInterfaceMaskModifier: ViewModifier {
                             )
                             .padding(
                                 .trailing,
-                                insets.trailing > 0
-                                    ? insets.trailing + surfacePadding + surfaceCornerRadius
+                                trailingInset > 0
+                                    ? trailingInset + surfacePadding + surfaceCornerRadius
                                     : 0
                             )
                     }
@@ -351,7 +364,7 @@ private struct BrowserInterfaceMaskModifier: ViewModifier {
                         .stroke(CandoaInterfaceStyle.surfaceBorder, lineWidth: 1)
                         .padding(.vertical, surfacePadding)
                         .padding(.leading, insets.leading + surfacePadding)
-                        .padding(.trailing, insets.trailing + trailingSurfacePadding)
+                        .padding(.trailing, trailingInset + trailingSurfacePadding)
                         .allowsHitTesting(false)
                 } else {
                     // Split panes own their individual borders. Add only sides
@@ -365,11 +378,11 @@ private struct BrowserInterfaceMaskModifier: ViewModifier {
                             }
                             .padding(.vertical, surfacePadding)
                             .padding(.leading, insets.leading + surfacePadding)
-                            .padding(.trailing, insets.trailing + trailingSurfacePadding)
+                            .padding(.trailing, trailingInset + trailingSurfacePadding)
                             .allowsHitTesting(false)
                     }
 
-                    if insets.trailing > 0 {
+                    if trailingInset > 0 {
                         RoundedRectangle(cornerRadius: surfaceCornerRadius, style: .continuous)
                             .stroke(CandoaInterfaceStyle.surfaceBorder, lineWidth: 1)
                             .mask(alignment: .trailing) {
@@ -378,7 +391,7 @@ private struct BrowserInterfaceMaskModifier: ViewModifier {
                             }
                             .padding(.vertical, surfacePadding)
                             .padding(.leading, insets.leading + surfacePadding)
-                            .padding(.trailing, insets.trailing + trailingSurfacePadding)
+                            .padding(.trailing, trailingInset + trailingSurfacePadding)
                             .allowsHitTesting(false)
                     }
                 }
