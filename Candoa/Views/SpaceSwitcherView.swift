@@ -129,6 +129,16 @@ struct SpaceSwitcherView: View {
             }
     }
 
+    /// ⌃1–⌃9 switch to a space by position (KeyboardShortcutMonitor's
+    /// control-digit handling); spaces past the ninth have no shortcut.
+    private func switchShortcutKeys(for space: BrowserSpace) -> [String] {
+        guard
+            let index = store.spaces.firstIndex(where: { $0.id == space.id }),
+            index < 9
+        else { return [] }
+        return ["⌃", "\(index + 1)"]
+    }
+
     private func workspaceButton(for space: BrowserSpace) -> some View {
         let isActive = space.id == displayedActiveSpaceID
         let themeColor = CandoaThemeStyle.identityColor(for: space.themeColorHex)
@@ -166,7 +176,7 @@ struct SpaceSwitcherView: View {
         }
         .candoaButton(.content)
         .animation(.easeOut(duration: 0.20), value: isActive)
-        .help(space.name)
+        .shortcutTooltip(space.name, keys: switchShortcutKeys(for: space))
         .accessibilityLabel(space.name)
         .contextMenu {
             Button("Edit Space...") {

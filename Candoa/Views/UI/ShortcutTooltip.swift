@@ -318,16 +318,16 @@ private struct ShortcutTooltipAnchor: NSViewRepresentable {
 
 private struct ShortcutTooltipModifier: ViewModifier {
     let title: String
-    let shortcut: CandoaShortcutDefinition?
+    let keyCaps: (() -> [String])?
 
     @ViewBuilder
     func body(content: Content) -> some View {
-        if let shortcut {
+        if let keyCaps {
             let title = title
             content
                 .background(
                     ShortcutTooltipAnchor {
-                        (title, ShortcutKeyCaps.current(for: shortcut))
+                        (title, keyCaps())
                     }
                 )
                 .accessibilityLabel(title)
@@ -348,6 +348,28 @@ extension View {
         _ title: String,
         shortcut: CandoaShortcutDefinition? = nil
     ) -> some View {
-        modifier(ShortcutTooltipModifier(title: title, shortcut: shortcut))
+        modifier(
+            ShortcutTooltipModifier(
+                title: title,
+                keyCaps: shortcut.map { definition in
+                    { ShortcutKeyCaps.current(for: definition) }
+                }
+            )
+        )
+    }
+
+    /// Pill variant for shortcuts that are not user-configurable
+    /// (e.g. the hardwired ⌃1–⌃9 space switching). Empty `keys` falls back
+    /// to the plain system `.help()` tooltip.
+    func shortcutTooltip(
+        _ title: String,
+        keys: [String]
+    ) -> some View {
+        modifier(
+            ShortcutTooltipModifier(
+                title: title,
+                keyCaps: keys.isEmpty ? nil : { keys }
+            )
+        )
     }
 }
