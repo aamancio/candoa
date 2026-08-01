@@ -694,7 +694,21 @@ struct ContentView: View {
         sidebarTransitionGeneration += 1
         let generation = sidebarTransitionGeneration
 
-        isSidebarHoverRevealed = false
+        // Docking a hover-revealed sidebar is a logical swap, not a
+        // movement: the sidebar already sits at full reveal exactly over its
+        // docked position, so everything commits in one unanimated update.
+        // Running the slide here would sweep the mask under a stationary
+        // sidebar and read as a quick close-and-reopen.
+        if isSidebarHoverRevealed {
+            isSidebarHoverRevealed = false
+            isSidebarRevealSuppressed = false
+            isSidebarSlideHolding = false
+            isSidebarVisible = true
+            isSidebarReservingLeadingLayout = true
+            sidebarSlideMaskInset = 0
+            return
+        }
+
         isSidebarRevealSuppressed = false
         isSidebarSlideHolding = false
         // Slide in over the page. The mask trails the sidebar's edge so the
