@@ -181,7 +181,13 @@ struct CandoaWindowBackdrop: View {
                     setupReadability.overlayColor.opacity(setupReadability.overlayOpacity)
                 }
             } else {
-                if let tint = blendedChromeTint {
+                if store.isPrivate {
+                    // Private chrome: one flat neutral smoke over the dark
+                    // base — a slightly lifted graphite, hue-free so it
+                    // never reads as a Space theme or an accent color.
+                    Color(nsColor: NSColor(srgbRed: 0.62, green: 0.62, blue: 0.64, alpha: 1))
+                        .opacity(0.10)
+                } else if let tint = blendedChromeTint {
                     Color(nsColor: tint.color)
                         .opacity(tint.opacity)
                 }

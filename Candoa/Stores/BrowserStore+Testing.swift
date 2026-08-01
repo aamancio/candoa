@@ -267,6 +267,7 @@ extension BrowserStore {
         let activeSpaceName = activeSpace?.name ?? "none"
 
         return [
+            "private=\(isPrivate)",
             "setup=\(isInitialSpaceSetupPresented)",
             "accountSetup=\(isInitialAccountSetupPresented)",
             "onboarding=\(initialOnboardingStep?.rawValue ?? "none")",

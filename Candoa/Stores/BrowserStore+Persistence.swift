@@ -81,7 +81,10 @@ extension BrowserStore {
     }
 
     func saveSnapshot() {
-        guard !isInitialOnboardingPresented, !isApplyingRemoteState else { return }
+        // The isPrivate guard is defense in depth on top of the ephemeral
+        // repository: upsert deletes rows absent from the snapshot, so a
+        // private snapshot reaching Core Data would wipe the real workspace.
+        guard !isPrivate, !isInitialOnboardingPresented, !isApplyingRemoteState else { return }
 
         workspaceRepository.saveWorkspace(currentSnapshot())
     }

@@ -28,6 +28,19 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         return "\(safariMajorVersion).0"
     }
 
+    /// Private windows browse against a single non-persistent data store:
+    /// cookies, caches, and site state live only in memory and vanish when
+    /// the coordinator (and its window) goes away. WebKit hands popups the
+    /// opener's configuration, so `target=_blank` pages inherit it for free.
+    let isPrivate: Bool
+    private let privateDataStore: WKWebsiteDataStore?
+
+    init(isPrivate: Bool = false) {
+        self.isPrivate = isPrivate
+        self.privateDataStore = isPrivate ? .nonPersistent() : nil
+        super.init()
+    }
+
     weak var store: BrowserStore?
     var webViews: [UUID: WKWebView] = [:]
     var tabIDsByWebView = NSMapTable<WKWebView, NSString>.weakToStrongObjects()
@@ -89,8 +102,13 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
     }
 
     func makeWebView(for tab: BrowserTab) -> WKWebView {
-        let dataStoreID = store?.dataStoreID(for: tab.spaceID) ?? tab.spaceID
-        let dataStore = WKWebsiteDataStore(forIdentifier: dataStoreID)
+        let dataStore: WKWebsiteDataStore
+        if let privateDataStore {
+            dataStore = privateDataStore
+        } else {
+            let dataStoreID = store?.dataStoreID(for: tab.spaceID) ?? tab.spaceID
+            dataStore = WKWebsiteDataStore(forIdentifier: dataStoreID)
+        }
 
         let configuration = WKWebViewConfiguration()
         configuration.allowsAirPlayForMediaPlayback = true
@@ -276,6 +294,20 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
 
     func removeWebView(for tabID: UUID) {
         removeWebView(for: tabID, keepingHibernationData: false)
+    }
+
+    /// Tears down every web view and all in-memory page residue —
+    /// hibernated interaction states, wake snapshots, restore overlays.
+    /// Called when a private window closes so nothing of the session
+    /// outlives it beyond the deallocation of the data store itself.
+    func purgeAllWebContent() {
+        hibernationScanTask?.cancel()
+        for tabID in Array(webViews.keys) {
+            removeWebView(for: tabID)
+        }
+        hibernatedInteractionStates.removeAll()
+        wakeSnapshots.removeAll()
+        restoringTabIDs.removeAll()
     }
 
     func hasLoadedWebView(for tabID: UUID) -> Bool {

@@ -132,6 +132,174 @@ final class CandoaUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["https://fixture.candoa.test/history"].exists)
     }
 
+    func testPrivateWindowOpensIsolatedAndRecordsNoHistory() throws {
+        let app = launchApp(fixture: "history")
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
+        XCTAssertTrue(waitForState(in: app, containing: "private=false"), currentState(in: app))
+
+        // Give shared history one ordinary visit to compare against.
+        app.typeKey("t", modifierFlags: .command)
+        XCTAssertTrue(waitForState(in: app, containing: "newTabPalette=true"), currentState(in: app))
+        submitCommandPaletteText("https://fixture.candoa.test/history", in: app)
+        XCTAssertTrue(app.staticTexts["Candoa History Fixture"].firstMatch.waitForExistence(timeout: 10))
+
+        app.typeKey("n", modifierFlags: [.command, .shift])
+        let privateWindow = app.windows["Private Browsing"]
+        XCTAssertTrue(privateWindow.waitForExistence(timeout: 10))
+        XCTAssertTrue(
+            element("private-browsing-label", in: privateWindow).waitForExistence(timeout: 5)
+        )
+        XCTAssertTrue(
+            waitForState(in: privateWindow, containing: "private=true"),
+            currentState(in: privateWindow)
+        )
+        XCTAssertTrue(
+            element("private-browsing-explainer", in: privateWindow).waitForExistence(timeout: 5),
+            "An empty private window should present the Private Browsing explainer"
+        )
+
+        // Force key status onto the private window before typing: window
+        // existence in the accessibility tree can precede key status.
+        element("private-browsing-label", in: privateWindow).click()
+        openNewTabPalette(in: privateWindow, of: app)
+        submitCommandPaletteText("https://fixture.candoa.test/private-visit", in: privateWindow)
+        XCTAssertTrue(
+            waitForState(
+                in: privateWindow,
+                containing: "url=https://fixture.candoa.test/private-visit",
+                timeout: 15
+            ),
+            currentState(in: privateWindow)
+        )
+        XCTAssertTrue(
+            privateWindow.staticTexts["Candoa History Fixture"].firstMatch.waitForExistence(timeout: 10)
+        )
+
+        let screenshot = privateWindow.screenshot()
+        let attachment = XCTAttachment(screenshot: screenshot)
+        attachment.name = "Private window with page loaded"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+
+        // A private window with one tab closes outright on Command-W.
+        app.typeKey("w", modifierFlags: .command)
+        let privateWindowClosed = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "exists == false"),
+            object: privateWindow
+        )
+        XCTAssertEqual(XCTWaiter.wait(for: [privateWindowClosed], timeout: 10), .completed)
+
+        // Back in the ordinary window: its own visit is in history, the
+        // private one never was.
+        app.typeKey("y", modifierFlags: .command)
+        XCTAssertTrue(element("history-view", in: app).waitForExistence(timeout: 5))
+        XCTAssertTrue(
+            app.staticTexts["https://fixture.candoa.test/history"]
+                .firstMatch.waitForExistence(timeout: 5),
+            "The ordinary visit should appear in history"
+        )
+        XCTAssertFalse(
+            app.staticTexts["https://fixture.candoa.test/private-visit"].exists,
+            "A private visit must not appear in history"
+        )
+    }
+
+    func testOrdinaryNewWindowShortcutIsUnchangedByPrivateBrowsing() throws {
+        let app = launchApp(fixture: "history")
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
+        XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 10))
+
+        app.typeKey("n", modifierFlags: .command)
+        let secondWindowExists = NSPredicate(format: "count == 2")
+        let windowCount = XCTNSPredicateExpectation(
+            predicate: secondWindowExists,
+            object: app.windows
+        )
+        XCTAssertEqual(XCTWaiter.wait(for: [windowCount], timeout: 10), .completed)
+        XCTAssertFalse(
+            app.windows["Private Browsing"].exists,
+            "Command-N must keep opening ordinary windows"
+        )
+    }
+
+    func testPrivateBrowsingLeavesNoPersistedStateAfterRelaunch() throws {
+        let app = launchApp(fixture: "history")
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
+
+        // One ordinary visit, so relaunch can prove ordinary persistence
+        // still works while private browsing left nothing behind.
+        app.typeKey("t", modifierFlags: .command)
+        XCTAssertTrue(waitForState(in: app, containing: "newTabPalette=true"), currentState(in: app))
+        submitCommandPaletteText("https://fixture.candoa.test/history", in: app)
+        XCTAssertTrue(app.staticTexts["Candoa History Fixture"].firstMatch.waitForExistence(timeout: 10))
+
+        app.typeKey("n", modifierFlags: [.command, .shift])
+        let privateWindow = app.windows["Private Browsing"]
+        XCTAssertTrue(privateWindow.waitForExistence(timeout: 10))
+        XCTAssertTrue(
+            element("private-browsing-label", in: privateWindow).waitForExistence(timeout: 5)
+        )
+        XCTAssertTrue(
+            waitForState(in: privateWindow, containing: "private=true"),
+            currentState(in: privateWindow)
+        )
+
+        // Force key status onto the private window before typing: window
+        // existence in the accessibility tree can precede key status.
+        element("private-browsing-label", in: privateWindow).click()
+        openNewTabPalette(in: privateWindow, of: app)
+        submitCommandPaletteText("https://fixture.candoa.test/private-leak", in: privateWindow)
+        XCTAssertTrue(
+            waitForState(
+                in: privateWindow,
+                containing: "url=https://fixture.candoa.test/private-leak",
+                timeout: 15
+            ),
+            currentState(in: privateWindow)
+        )
+
+        // A private window with one tab closes outright on Command-W.
+        app.typeKey("w", modifierFlags: .command)
+        let privateWindowClosed = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "exists == false"),
+            object: privateWindow
+        )
+        XCTAssertEqual(XCTWaiter.wait(for: [privateWindowClosed], timeout: 10), .completed)
+
+        app.terminate()
+
+        let relaunchedApp = launchApp(fixture: "persisted-workspace", preservesStore: true)
+        XCTAssertTrue(relaunchedApp.wait(for: .runningForeground, timeout: 10))
+        XCTAssertFalse(
+            relaunchedApp.windows["Private Browsing"].exists,
+            "Private windows must not be restored across launches"
+        )
+
+        // The ordinary workspace round-tripped intact — the private
+        // session neither replaced it nor rode along inside it.
+        XCTAssertTrue(
+            waitForState(in: relaunchedApp, containing: "space=TestingBot", timeout: 10),
+            currentState(in: relaunchedApp)
+        )
+        XCTAssertTrue(
+            waitForState(in: relaunchedApp, containing: "url=https://fixture.candoa.test/history", timeout: 10),
+            currentState(in: relaunchedApp)
+        )
+        XCTAssertFalse(currentState(in: relaunchedApp).contains("private-leak"))
+
+        relaunchedApp.typeKey("y", modifierFlags: .command)
+        XCTAssertTrue(element("history-view", in: relaunchedApp).waitForExistence(timeout: 5))
+        XCTAssertTrue(
+            relaunchedApp.staticTexts["https://fixture.candoa.test/history"]
+                .firstMatch.waitForExistence(timeout: 5),
+            "Ordinary history must survive the relaunch"
+        )
+        XCTAssertFalse(
+            relaunchedApp.staticTexts["https://fixture.candoa.test/private-leak"].exists,
+            "Private browsing must leave no history behind"
+        )
+    }
+
     func testBrowserMigrationImportsSafariFixtureThroughRealParser() throws {
         let app = launchApp(
             onboardingStep: "importData",
@@ -1452,6 +1620,68 @@ final class CandoaUITests: XCTestCase {
 
     private func element(_ identifier: String, in app: XCUIApplication) -> XCUIElement {
         app.descendants(matching: .any)[identifier]
+    }
+
+    /// Window-scoped variant for multi-window tests: with two windows open,
+    /// app-wide identifier queries match one state element per window and
+    /// become ambiguous.
+    private func element(_ identifier: String, in window: XCUIElement) -> XCUIElement {
+        window.descendants(matching: .any)[identifier]
+    }
+
+    /// Opens the new-tab palette in the given window, retrying if the
+    /// shortcut landed in another window: right after a window opens,
+    /// synthesized key events can race its key status.
+    private func openNewTabPalette(in window: XCUIElement, of app: XCUIApplication) {
+        for _ in 0..<3 {
+            app.typeKey("t", modifierFlags: .command)
+            if waitForState(in: window, containing: "newTabPalette=true", timeout: 2) { return }
+            app.typeKey(.escape, modifierFlags: [])
+        }
+        XCTFail("New-tab palette did not open in the expected window: \(currentState(in: window))")
+    }
+
+    private func waitForState(
+        in window: XCUIElement,
+        containing expectedText: String,
+        timeout: TimeInterval = 5
+    ) -> Bool {
+        guard element("ui-testing-state", in: window).waitForExistence(timeout: timeout) else { return false }
+
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if currentState(in: window).contains(expectedText) {
+                return true
+            }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        }
+
+        XCTContext.runActivity(named: "Current UI testing state") { activity in
+            let attachment = XCTAttachment(string: currentState(in: window))
+            attachment.lifetime = .keepAlways
+            activity.add(attachment)
+        }
+        return false
+    }
+
+    private func currentState(in window: XCUIElement) -> String {
+        let stateElement = element("ui-testing-state", in: window)
+        if let value = stateElement.value as? String, !value.isEmpty {
+            return value
+        }
+        if !stateElement.label.isEmpty {
+            return stateElement.label
+        }
+        return stateElement.debugDescription
+    }
+
+    private func submitCommandPaletteText(_ text: String, in window: XCUIElement) {
+        let field = element("command-palette-field", in: window)
+        XCTAssertTrue(field.waitForExistence(timeout: 5), currentState(in: window))
+        field.click()
+        field.typeKey("a", modifierFlags: .command)
+        pasteText(text, into: field)
+        field.typeKey(.return, modifierFlags: [])
     }
 
     private func assertEqualFrame(

@@ -524,6 +524,10 @@ struct SidebarView: View {
                 }
             }
 
+            // The badge overlays the flexible gap instead of joining the
+            // HStack: this row's fixed members already nearly fill the
+            // 234pt sidebar, and any added layout width overflows the
+            // frame and shifts the whole sidebar's content off-edge.
             Spacer(minLength: 8)
 
             HStack(spacing: 6) {
@@ -904,7 +908,28 @@ struct SidebarView: View {
 
     @ViewBuilder
     private func spaceLabel(for spaceID: UUID) -> some View {
-        if let space = store.spaces.first(where: { $0.id == spaceID }),
+        if store.isPrivate {
+            // Zen/Arc-style static label in place of the space name. It is
+            // not a space: no editing, no drops, no context menu.
+            HStack(spacing: 8) {
+                Image(systemName: "eye")
+                    .font(.system(size: 15, weight: .medium))
+                    .symbolRenderingMode(.hierarchical)
+                    .frame(width: 18, height: 18)
+
+                Text("Private")
+                    .font(.system(size: 13, weight: .semibold))
+
+                Spacer(minLength: 0)
+            }
+            .foregroundStyle(CandoaInterfaceStyle.sidebarTextSecondary)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 5)
+            .frame(minHeight: 32)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Private Browsing")
+            .accessibilityIdentifier("private-browsing-label")
+        } else if let space = store.spaces.first(where: { $0.id == spaceID }),
            !space.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             HStack(spacing: 8) {
                 if space.symbolName != "square.dashed" {
@@ -961,7 +986,9 @@ struct SidebarView: View {
         let tabs = store.regularTabs(in: spaceID).filter { !splitTabIDs.contains($0.id) }
 
         VStack(alignment: .leading, spacing: 0) {
-            if tabs.isEmpty && splitTabs.isEmpty {
+            // Private windows open empty by design; announcing "No tabs"
+            // under the New Tab row is just noise there.
+            if tabs.isEmpty && splitTabs.isEmpty && !store.isPrivate {
                 Text("No tabs")
                     .font(.system(size: 11))
                     .foregroundStyle(.tertiary)

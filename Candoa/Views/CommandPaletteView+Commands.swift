@@ -300,6 +300,14 @@ extension CommandPaletteView {
             PaletteCommand(title: BrowserCommandTitles.focusAddressBar, symbolName: "text.cursor", action: .focusAddressBar)
         ]
 
+        if store.isPrivate {
+            // Private windows have no Spaces to manage.
+            commands.removeAll { command in
+                if case .createSpace = command.action { return true }
+                return false
+            }
+        }
+
         if let url = store.activeTab?.url,
            let host = DeveloperModeConfiguration.displayHost(for: url) {
             let isEnabled = DeveloperModeConfiguration.isEnabled(for: url)

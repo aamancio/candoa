@@ -6,8 +6,14 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct ContentView: View {
-    @StateObject private var store = BrowserStore()
+    let isPrivate: Bool
+    @StateObject private var store: BrowserStore
     @StateObject private var updateService = AppUpdateService.shared
+
+    init(isPrivate: Bool = false) {
+        self.isPrivate = isPrivate
+        _store = StateObject(wrappedValue: BrowserStore(isPrivate: isPrivate))
+    }
     @StateObject private var systemAppearance = SystemAppearanceObserver()
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -43,8 +49,11 @@ struct ContentView: View {
     // SwiftUI latches the last explicit color scheme on its window; passing
     // nil ("no preference") never releases it. So "automatic" is resolved to
     // the live system appearance instead of nil — see SystemAppearanceObserver.
+    // Private windows are always dark — the native macOS private-browsing
+    // identity, matching Safari — regardless of system or Space appearance.
     private var resolvedColorScheme: ColorScheme {
-        activeThemeAppearance.colorScheme ?? systemAppearance.colorScheme
+        if isPrivate { return .dark }
+        return activeThemeAppearance.colorScheme ?? systemAppearance.colorScheme
     }
 
     private var websiteAppearance: WebsiteAppearance {
@@ -301,7 +310,8 @@ struct ContentView: View {
         .preferredColorScheme(resolvedColorScheme)
         .background(
             WindowInteractionConfigurator(
-                autosaveName: "\(AppConfiguration.windowAutosaveNamePrefix).\(windowAutosaveID)"
+                autosaveName: "\(AppConfiguration.windowAutosaveNamePrefix).\(windowAutosaveID)",
+                isPrivate: isPrivate
             )
         )
         .background(
@@ -422,6 +432,12 @@ struct ContentView: View {
         .onDisappear {
             store.flushSession()
             updateService.stopCheckingForUpdates()
+            if isPrivate {
+                // The window is gone: tear down every web view and all
+                // in-memory page residue now rather than waiting for the
+                // store to deallocate.
+                store.webCoordinator.purgeAllWebContent()
+            }
         }
         .onChange(of: scenePhase) { _, phase in
             if phase != .active {

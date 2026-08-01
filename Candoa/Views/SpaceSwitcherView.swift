@@ -18,19 +18,27 @@ struct SpaceSwitcherView: View {
         HStack(spacing: 8) {
             downloadsButton
 
-            GeometryReader { proxy in
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(store.spaces) { space in
-                            workspaceButton(for: space)
-                        }
-                    }
-                    .frame(minWidth: proxy.size.width, minHeight: 28, alignment: .center)
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: 28)
+            if store.isPrivate {
+                // Zen-style private strip: no workspace icons, no space
+                // management — just Downloads and a New Tab control.
+                Spacer()
 
-            addSpaceButton
+                newTabButton
+            } else {
+                GeometryReader { proxy in
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(store.spaces) { space in
+                                workspaceButton(for: space)
+                            }
+                        }
+                        .frame(minWidth: proxy.size.width, minHeight: 28, alignment: .center)
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: 28)
+
+                addSpaceButton
+            }
         }
         .frame(height: 32)
         .initialTourPopover(.spaces, store: store, arrowEdge: .leading)
@@ -68,6 +76,25 @@ struct SpaceSwitcherView: View {
                 openDownloadsFolder()
             }
         }
+    }
+
+    @State private var isHoveringNewTab = false
+
+    private var newTabButton: some View {
+        Button {
+            store.openNewTabCommandPalette()
+        } label: {
+            Image(systemName: "plus")
+                .font(.system(size: 18, weight: .regular))
+                .frame(width: 28, height: 28)
+                .foregroundStyle(CandoaInterfaceStyle.sidebarTextSecondary)
+                .background(bottomButtonBackground(isActive: false, isHovering: isHoveringNewTab))
+                .contentShape(Rectangle())
+        }
+        .candoaButton(.content)
+        .onHover { isHoveringNewTab = $0 }
+        .animation(.easeOut(duration: 0.10), value: isHoveringNewTab)
+        .help(BrowserCommandTitles.newTab)
     }
 
     private var addSpaceButton: some View {
