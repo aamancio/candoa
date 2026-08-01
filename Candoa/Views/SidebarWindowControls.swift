@@ -112,12 +112,26 @@ internal struct WindowControlsView: View {
 
     @Environment(\.sidebarRevealProgress) private var revealProgress
 
+    private var isRevealSlideInFlight: Bool {
+        revealProgress > 0.0001 && revealProgress < 0.9999
+    }
+
     var body: some View {
         NativeWindowControlsView(
             revealProgress: revealProgress,
             isSuppressed: isSuppressed,
             geometry: geometry
         )
+        .overlay(alignment: .topLeading) {
+            // The real AppKit buttons never move, so while the sidebar slides
+            // they stay hidden in place and these snapshots ride the
+            // translation instead — the same trick Space swipes use. At full
+            // reveal the measured frames coincide with the native positions,
+            // so the swap back to the live buttons is pixel-identical.
+            if isRevealSlideInFlight, !isSuppressed {
+                FauxWindowControlsView(geometry: geometry)
+            }
+        }
     }
 }
 
@@ -379,15 +393,18 @@ private final class NativeWindowControlsCoordinator {
             guard let button = window.standardWindowButton(buttonType) else { continue }
             let key = Int(buttonType.rawValue)
             let placement = originalPlacements[key]
-            let shouldShow = effectiveProgress > 0
+            // The buttons cannot ride the sidebar's translation, so they show
+            // only at full reveal; while a reveal slide is in flight the faux
+            // snapshots in WindowControlsView carry their appearance instead.
+            // Fading them by partial progress here would leave them ghosting
+            // at their absolute window position, detached from the sidebar.
+            let shouldShow = effectiveProgress >= 0.9999
 
             // Keep the native buttons participating in title-bar layout.
             // Transparency avoids AppKit's per-button hidden-state relayout
             // when the whole sidebar is hidden.
             button.isHidden = placement?.isHidden ?? false
-            button.alphaValue = shouldShow
-                ? (placement?.alphaValue ?? 1) * effectiveProgress
-                : 0
+            button.alphaValue = shouldShow ? (placement?.alphaValue ?? 1) : 0
             button.isEnabled = shouldShow && (placement?.isEnabled ?? true)
             button.setAccessibilityElement(
                 shouldShow && (placement?.isAccessibilityElement ?? true)

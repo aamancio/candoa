@@ -1,7 +1,53 @@
 import AppKit
 import Foundation
+import WebKit
 
 extension BrowserStore {
+    enum WebContentPaintEdge {
+        case leading
+        case trailing
+    }
+
+    /// Calls `completion` once the WebContent process has produced a frame
+    /// for the current layout of the web view nearest `edge`, or after
+    /// `timeout` if the page is too slow. Chrome transitions that reveal a
+    /// freshly re-laid-out page use this as a one-shot paint fence so they
+    /// uncover painted content rather than the page's background fill. The
+    /// 1×1 snapshot exists only to observe the paint and is discarded
+    /// immediately.
+    func waitForWebContentPaint(
+        at edge: WebContentPaintEdge,
+        timeout: TimeInterval,
+        completion: @escaping @MainActor () -> Void
+    ) {
+        let edgeTab = edge == .trailing
+            ? activeSplitGroupTabs.last
+            : activeSplitGroupTabs.first
+        guard let tab = edgeTab ?? activeTab,
+              tab.url != nil,
+              let webView = webCoordinator.webViews[tab.id]
+        else {
+            completion()
+            return
+        }
+
+        var isCompleted = false
+        let completeOnce: @MainActor () -> Void = {
+            guard !isCompleted else { return }
+            isCompleted = true
+            completion()
+        }
+
+        let configuration = WKSnapshotConfiguration()
+        configuration.rect = CGRect(x: 0, y: 0, width: 1, height: 1)
+        webView.takeSnapshot(with: configuration) { _, _ in
+            completeOnce()
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + timeout) {
+            completeOnce()
+        }
+    }
+
     func copyActiveTabURL(asMarkdown: Bool = false) {
         guard let tab = activeTab, let url = tab.url else { return }
         let value = asMarkdown ? "[\(tab.title)](\(url.absoluteString))" : url.absoluteString
