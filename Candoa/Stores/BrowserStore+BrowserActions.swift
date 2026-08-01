@@ -3,18 +3,27 @@ import Foundation
 import WebKit
 
 extension BrowserStore {
+    enum WebContentPaintEdge {
+        case leading
+        case trailing
+    }
+
     /// Calls `completion` once the WebContent process has produced a frame
-    /// for the trailing web view's current size, or after `timeout` if the
-    /// page is too slow. Chrome transitions that reveal a freshly resized
-    /// page use this as a one-shot paint fence so they uncover painted
-    /// content rather than the page's background fill. The 1×1 snapshot
-    /// exists only to observe the paint and is discarded immediately.
-    func waitForTrailingWebContentPaint(
+    /// for the current layout of the web view nearest `edge`, or after
+    /// `timeout` if the page is too slow. Chrome transitions that reveal a
+    /// freshly re-laid-out page use this as a one-shot paint fence so they
+    /// uncover painted content rather than the page's background fill. The
+    /// 1×1 snapshot exists only to observe the paint and is discarded
+    /// immediately.
+    func waitForWebContentPaint(
+        at edge: WebContentPaintEdge,
         timeout: TimeInterval,
         completion: @escaping @MainActor () -> Void
     ) {
-        let trailingTab = activeSplitGroupTabs.last ?? activeTab
-        guard let tab = trailingTab,
+        let edgeTab = edge == .trailing
+            ? activeSplitGroupTabs.last
+            : activeSplitGroupTabs.first
+        guard let tab = edgeTab ?? activeTab,
               tab.url != nil,
               let webView = webCoordinator.webViews[tab.id]
         else {

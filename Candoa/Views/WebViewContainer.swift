@@ -11,6 +11,10 @@ struct WebViewContainer: View {
     @ObservedObject var store: BrowserStore
     let visibleInterfaceInsets: BrowserInterfaceInsets
     let attachesToTrailingPanel: Bool
+    /// Extra leading clip while the left sidebar slides over the reserved
+    /// web layout. Mask-only: it never reaches the WKWebView's obscured
+    /// content insets or frame.
+    let slideOverLeadingInset: CGFloat
     /// Extra trailing clip while Eli slides over (or is dragged wider than)
     /// the reserved web layout. Mask-only: it never reaches the WKWebView's
     /// obscured content insets or frame.
@@ -84,6 +88,7 @@ struct WebViewContainer: View {
         .modifier(
             BrowserInterfaceMaskModifier(
                 insets: visibleInterfaceInsets,
+                slideOverLeadingInset: slideOverLeadingInset,
                 slideOverTrailingInset: slideOverTrailingInset,
                 surfaceCornerRadius: surfaceCornerRadius,
                 surfacePadding: surfacePadding,
@@ -315,15 +320,20 @@ struct WebViewContainer: View {
 /// sidebar toggle.
 private struct BrowserInterfaceMaskModifier: ViewModifier {
     let insets: BrowserInterfaceInsets
+    let slideOverLeadingInset: CGFloat
     let slideOverTrailingInset: CGFloat
     let surfaceCornerRadius: CGFloat
     let surfacePadding: CGFloat
     let trailingSurfacePadding: CGFloat
     let drawsFullSurfaceBorder: Bool
 
-    // The trailing lane is reserved either persistently (insets) or
-    // transiently while Eli slides over the page (slideOverTrailingInset).
-    // Both clip the same way, so every trailing measurement uses their sum.
+    // Each lane is reserved either persistently (insets) or transiently
+    // while a sidebar slides over the page (the slide-over insets). Both
+    // clip the same way, so every measurement uses their sum.
+    private var leadingInset: CGFloat {
+        insets.leading + slideOverLeadingInset
+    }
+
     private var trailingInset: CGFloat {
         insets.trailing + slideOverTrailingInset
     }
@@ -331,11 +341,11 @@ private struct BrowserInterfaceMaskModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .mask {
-                if insets.leading > 0 || trailingInset > 0 {
+                if leadingInset > 0 || trailingInset > 0 {
                     ZStack {
                         RoundedRectangle(cornerRadius: surfaceCornerRadius, style: .continuous)
                             .padding(.vertical, surfacePadding)
-                            .padding(.leading, insets.leading + surfacePadding)
+                            .padding(.leading, leadingInset + surfacePadding)
                             .padding(.trailing, trailingInset + trailingSurfacePadding)
 
                         // Preserve the surface's existing top, trailing, and
@@ -343,8 +353,8 @@ private struct BrowserInterfaceMaskModifier: ViewModifier {
                         Rectangle()
                             .padding(
                                 .leading,
-                                insets.leading > 0
-                                    ? insets.leading + surfacePadding + surfaceCornerRadius
+                                leadingInset > 0
+                                    ? leadingInset + surfacePadding + surfaceCornerRadius
                                     : 0
                             )
                             .padding(
@@ -363,13 +373,13 @@ private struct BrowserInterfaceMaskModifier: ViewModifier {
                     RoundedRectangle(cornerRadius: surfaceCornerRadius, style: .continuous)
                         .stroke(CandoaInterfaceStyle.surfaceBorder, lineWidth: 1)
                         .padding(.vertical, surfacePadding)
-                        .padding(.leading, insets.leading + surfacePadding)
+                        .padding(.leading, leadingInset + surfacePadding)
                         .padding(.trailing, trailingInset + trailingSurfacePadding)
                         .allowsHitTesting(false)
                 } else {
                     // Split panes own their individual borders. Add only sides
                     // introduced by this mask so shared edges are not repainted.
-                    if insets.leading > 0 {
+                    if leadingInset > 0 {
                         RoundedRectangle(cornerRadius: surfaceCornerRadius, style: .continuous)
                             .stroke(CandoaInterfaceStyle.surfaceBorder, lineWidth: 1)
                             .mask(alignment: .leading) {
@@ -377,7 +387,7 @@ private struct BrowserInterfaceMaskModifier: ViewModifier {
                                     .frame(width: surfaceCornerRadius + 1)
                             }
                             .padding(.vertical, surfacePadding)
-                            .padding(.leading, insets.leading + surfacePadding)
+                            .padding(.leading, leadingInset + surfacePadding)
                             .padding(.trailing, trailingInset + trailingSurfacePadding)
                             .allowsHitTesting(false)
                     }
@@ -390,7 +400,7 @@ private struct BrowserInterfaceMaskModifier: ViewModifier {
                                     .frame(width: surfaceCornerRadius + 1)
                             }
                             .padding(.vertical, surfacePadding)
-                            .padding(.leading, insets.leading + surfacePadding)
+                            .padding(.leading, leadingInset + surfacePadding)
                             .padding(.trailing, trailingInset + trailingSurfacePadding)
                             .allowsHitTesting(false)
                     }
