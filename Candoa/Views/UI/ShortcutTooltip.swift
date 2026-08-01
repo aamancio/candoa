@@ -320,23 +320,30 @@ private struct ShortcutTooltipModifier: ViewModifier {
     let title: String
     let shortcut: CandoaShortcutDefinition?
 
+    @ViewBuilder
     func body(content: Content) -> some View {
-        let title = title
-        let shortcut = shortcut
-        return content
-            .background(
-                ShortcutTooltipAnchor {
-                    (title, shortcut.map(ShortcutKeyCaps.current(for:)) ?? [])
-                }
-            )
-            .accessibilityLabel(title)
+        if let shortcut {
+            let title = title
+            content
+                .background(
+                    ShortcutTooltipAnchor {
+                        (title, ShortcutKeyCaps.current(for: shortcut))
+                    }
+                )
+                .accessibilityLabel(title)
+        } else {
+            // The pill exists to surface key caps; icons without a shortcut
+            // keep the plain system tooltip.
+            content.help(title)
+        }
     }
 }
 
 extension View {
-    /// Replaces `.help()` on chrome icons with the Dia-style tooltip pill.
-    /// Pass the matching shortcut definition to append the person's configured
-    /// key caps; omit it for icons without a shortcut.
+    /// Replaces `.help()` on chrome icons that have a keyboard shortcut with
+    /// the Dia-style tooltip pill showing the person's configured key caps.
+    /// Without a shortcut definition it falls back to the plain system
+    /// `.help()` tooltip.
     func shortcutTooltip(
         _ title: String,
         shortcut: CandoaShortcutDefinition? = nil
