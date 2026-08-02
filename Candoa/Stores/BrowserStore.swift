@@ -1,6 +1,7 @@
 import AppKit
 import Combine
 import Foundation
+import Network
 import SwiftUI
 
 struct TabMediaState: Equatable {
@@ -235,6 +236,14 @@ final class BrowserStore: ObservableObject {
     /// Resolved destination of the link under the pointer in a visible pane,
     /// shown as a transient pill over the page's bottom-leading corner.
     @Published var hoveredLinkHref: String?
+    /// Navigation and WebContent failures that need recovery UI, per tab.
+    /// Entries clear when a navigation commits content again.
+    @Published var tabLoadFailures: [UUID: TabLoadFailure] = [:]
+    /// Exists only while an offline failure is on screen, so reconnection
+    /// can retry automatically; cancelled the moment no offline failure
+    /// remains. Never runs during normal browsing.
+    var offlineRecoveryMonitor: NWPathMonitor?
+    var offlineMonitorSawUnsatisfiedPath = false
     @Published var mediaStates: [UUID: TabMediaState] = [:]
     @Published var mediaControllerTabID: UUID?
     @Published var dismissedMiniPlayerTabID: UUID?
