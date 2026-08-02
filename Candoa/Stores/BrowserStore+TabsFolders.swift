@@ -11,19 +11,35 @@ extension BrowserStore {
         activeSplitTabs.first
     }
 
+    /// The on-screen panes other than the active tab. Empty while the split
+    /// group is suspended (active tab outside the group).
     var activeSplitTabs: [BrowserTab] {
         let activeID = activeTabID
-        return splitGroupTabIDs()
-            .filter { $0 != activeID }
-            .compactMap(tab)
+        return displayedSplitTabs.filter { $0.id != activeID }
     }
 
+    /// The active Space's split group members, whether or not the group is
+    /// currently displayed. Sidebar surfaces (the group pill, row filtering)
+    /// key off this so a suspended split keeps its grouped identity.
     var activeSplitGroupTabs: [BrowserTab] {
         splitGroupTabIDs().compactMap(tab)
     }
 
     var activeSplitGroupTabIDs: Set<UUID> {
         Set(splitGroupTabIDs())
+    }
+
+    /// The tabs rendered as side-by-side panes right now. Empty unless the
+    /// active tab is a group member — everything about visible web content
+    /// (hosting, hibernation exemptions, navigation state, crash visibility)
+    /// keys off this, never off suspended membership.
+    var displayedSplitTabs: [BrowserTab] {
+        guard isSplitViewDisplayed else { return [] }
+        return splitGroupTabIDs().compactMap(tab)
+    }
+
+    var displayedSplitTabIDs: Set<UUID> {
+        Set(displayedSplitTabs.map(\.id))
     }
 
     var activeSidebarDropIndicator: SidebarTabDropIndicator? {

@@ -13,7 +13,7 @@ extension BrowserStore {
 
     var backgroundMediaControllerTab: BrowserTab? {
         guard let tab = mediaControllerTab, tab.id != activeTabID else { return nil }
-        if activeSplitGroupTabIDs.contains(tab.id) { return nil }
+        if displayedSplitTabIDs.contains(tab.id) { return nil }
         return tab
     }
 
@@ -120,7 +120,7 @@ extension BrowserStore {
         } else {
             pendingMiniPlayerSummon = nil
         }
-        if let previousID, !activeSplitGroupTabIDs.contains(previousID), tabs.contains(where: { $0.id == previousID }) {
+        if let previousID, !displayedSplitTabIDs.contains(previousID), tabs.contains(where: { $0.id == previousID }) {
             webCoordinator.refreshMediaState(tabID: previousID)
         }
         if let activeTabID { webCoordinator.refreshMediaState(tabID: activeTabID) }

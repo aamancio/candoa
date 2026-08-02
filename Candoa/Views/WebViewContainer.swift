@@ -17,8 +17,14 @@ struct WebViewContainer: View {
     /// or frame.
     let slideOverTrailingInset: CGFloat
     @AppStorage(DeveloperModeConfiguration.storageKey) private var developerModeOverrides = ""
+    /// In-flight divider drag. Panes keep their committed widths while it
+    /// exists — only the preview line follows the pointer — so the live
+    /// WKWebViews never relayout mid-drag; the single web layout happens at
+    /// release, when the new ratios commit.
+    @State private var splitDividerDrag: SplitDividerDragState?
     private let surfaceCornerRadius: CGFloat = 12
     private let surfacePadding: CGFloat = 8
+    private static let splitPaneMinimumWidth: CGFloat = 160
 
     var body: some View {
         ZStack {
@@ -33,18 +39,11 @@ struct WebViewContainer: View {
                 .padding(containedSurfaceInsets)
                 .transition(.opacity)
             } else if let tab = store.activeTab {
-                let splitTabs = store.activeSplitGroupTabs
+                let splitTabs = store.displayedSplitTabs
                 if splitTabs.count >= 2 {
-                    HStack(spacing: surfacePadding) {
-                        ForEach(splitTabs) { splitTab in
-                            browserSurface {
-                                webPane(for: splitTab)
-                            }
-                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                    .padding(containedSurfaceInsets)
+                    splitPaneRow(for: splitTabs)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                        .padding(containedSurfaceInsets)
                 } else {
                     browserSurface(drawsBorder: false) {
                         singleTabContent(for: tab)
@@ -89,7 +88,7 @@ struct WebViewContainer: View {
                 surfaceCornerRadius: surfaceCornerRadius,
                 surfacePadding: surfacePadding,
                 trailingSurfacePadding: attachesToTrailingPanel ? 0 : surfacePadding,
-                drawsFullSurfaceBorder: store.activeSplitGroupTabs.count < 2
+                drawsFullSurfaceBorder: store.displayedSplitTabs.count < 2
             )
         )
     }
@@ -196,7 +195,7 @@ struct WebViewContainer: View {
                 DeveloperToolbar(
                     url: url,
                     urlText: url.localDevelopmentDisplayText,
-                    isSplitViewEnabled: store.isSplitViewEnabled,
+                    isSplitViewEnabled: store.isSplitViewDisplayed,
                     onCopyURL: { store.copyActiveTabURL() },
                     onCapturePage: { store.captureActiveTabPage() },
                     onToggleSplitView: { store.toggleSplitView() },
@@ -301,11 +300,126 @@ struct WebViewContainer: View {
         }
     }
 
-    private func webPane(for tab: BrowserTab) -> some View {
+    // MARK: - Split panes
+
+    private func splitPaneRow(for splitTabs: [BrowserTab]) -> some View {
+        GeometryReader { proxy in
+            let spacing = surfacePadding
+            let availableWidth = max(1, proxy.size.width - spacing * CGFloat(splitTabs.count - 1))
+            let ratios = store.splitPaneRatios(forPaneCount: splitTabs.count)
+            let widths = ratios.map { availableWidth * CGFloat($0) }
+
+            HStack(spacing: spacing) {
+                ForEach(Array(splitTabs.enumerated()), id: \.element.id) { index, splitTab in
+                    browserSurface {
+                        webPane(for: splitTab, at: index, in: splitTabs)
+                    }
+                    .overlay {
+                        // The focused pane carries a restrained accent ring on
+                        // top of the standard surface border, mirroring the
+                        // active treatment of sidebar rows and chips. Only the
+                        // ring's opacity animates — never the pane layout, so
+                        // focus changes cannot animate live WKWebView frames.
+                        let isFocused = splitTab.id == store.activeTabID
+                        RoundedRectangle(cornerRadius: surfaceCornerRadius, style: .continuous)
+                            .stroke(CandoaColor.accent.opacity(isFocused ? 0.55 : 0), lineWidth: 1)
+                            .allowsHitTesting(false)
+                            .animation(.easeOut(duration: 0.12), value: isFocused)
+                    }
+                    .frame(width: widths.indices.contains(index) ? widths[index] : nil)
+                    .frame(maxHeight: .infinity, alignment: .top)
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .overlay(alignment: .topLeading) {
+                splitDividers(widths: widths, spacing: spacing, rowHeight: proxy.size.height)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func splitDividers(widths: [CGFloat], spacing: CGFloat, rowHeight: CGFloat) -> some View {
+        let minimumPaneWidth = min(Self.splitPaneMinimumWidth, widths.reduce(0, +) / CGFloat(max(1, widths.count)))
+
+        ZStack(alignment: .topLeading) {
+            ForEach(0..<max(0, widths.count - 1), id: \.self) { index in
+                let dividerX = widths.prefix(index + 1).reduce(0, +)
+                    + spacing * CGFloat(index)
+                    + spacing / 2
+                let clampedTranslation = clampedDividerTranslation(
+                    splitDividerDrag?.dividerIndex == index ? splitDividerDrag?.translation ?? 0 : 0,
+                    at: index,
+                    widths: widths,
+                    minimumPaneWidth: minimumPaneWidth
+                )
+
+                SplitPaneDivider(
+                    isDragging: splitDividerDrag?.dividerIndex == index,
+                    onDragChanged: { translation in
+                        splitDividerDrag = SplitDividerDragState(dividerIndex: index, translation: translation)
+                    },
+                    onDragEnded: { translation in
+                        splitDividerDrag = nil
+                        commitDividerDrag(
+                            translation,
+                            at: index,
+                            widths: widths,
+                            minimumPaneWidth: minimumPaneWidth
+                        )
+                    },
+                    onReset: {
+                        splitDividerDrag = nil
+                        store.resetSplitPaneRatios()
+                    }
+                )
+                .frame(width: 14, height: rowHeight)
+                .offset(x: dividerX - 7 + clampedTranslation)
+                .accessibilityElement()
+                .accessibilityLabel("Resize Split Panes")
+                .accessibilityIdentifier("split-divider-\(index)")
+            }
+        }
+    }
+
+    private func clampedDividerTranslation(
+        _ translation: CGFloat,
+        at index: Int,
+        widths: [CGFloat],
+        minimumPaneWidth: CGFloat
+    ) -> CGFloat {
+        guard widths.indices.contains(index), widths.indices.contains(index + 1) else { return 0 }
+        let lowerBound = minimumPaneWidth - widths[index]
+        let upperBound = widths[index + 1] - minimumPaneWidth
+        guard lowerBound <= upperBound else { return 0 }
+        return min(max(translation, lowerBound), upperBound)
+    }
+
+    private func commitDividerDrag(
+        _ translation: CGFloat,
+        at index: Int,
+        widths: [CGFloat],
+        minimumPaneWidth: CGFloat
+    ) {
+        let clamped = clampedDividerTranslation(
+            translation,
+            at: index,
+            widths: widths,
+            minimumPaneWidth: minimumPaneWidth
+        )
+        guard clamped != 0 else { return }
+
+        var resizedWidths = widths
+        resizedWidths[index] += clamped
+        resizedWidths[index + 1] -= clamped
+        store.commitSplitPaneRatios(resizedWidths.map(Double.init))
+    }
+
+    private func webPane(for tab: BrowserTab, at paneIndex: Int, in splitTabs: [BrowserTab]) -> some View {
         return SplitWebViewHost(
             tab: tab,
+            paneIndex: paneIndex,
             store: store,
-            obscuredContentInsets: splitPaneInsets(for: tab, in: store.activeSplitGroupTabs)
+            obscuredContentInsets: splitPaneInsets(for: tab, in: splitTabs)
         )
             .id(tab.id)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -324,6 +438,56 @@ struct WebViewContainer: View {
                 .padding(.top, 2)
                 .id(tab.id)
             }
+    }
+}
+
+private struct SplitDividerDragState: Equatable {
+    var dividerIndex: Int
+    var translation: CGFloat
+}
+
+/// The draggable handle between two split panes. It rides in the panes' 8pt
+/// gutter, shows the horizontal-resize cursor on hover, and highlights while
+/// dragging (the panes themselves commit their new widths on release).
+/// Double-click resets the whole split to equal widths.
+private struct SplitPaneDivider: View {
+    let isDragging: Bool
+    let onDragChanged: (CGFloat) -> Void
+    let onDragEnded: (CGFloat) -> Void
+    let onReset: () -> Void
+
+    @State private var isHovering = false
+
+    var body: some View {
+        ZStack {
+            Color.clear
+                .contentShape(Rectangle())
+
+            RoundedRectangle(cornerRadius: 1.5, style: .continuous)
+                .fill(
+                    isDragging
+                        ? CandoaColor.accent.opacity(0.85)
+                        : Color.primary.opacity(isHovering ? 0.28 : 0)
+                )
+                .frame(width: isDragging ? 3 : 2)
+                .frame(maxHeight: .infinity)
+                .padding(.vertical, 10)
+        }
+        .onHover { isHovering = $0 }
+        .candoaAISidebarCursor(AISidebarResizeCursor.horizontal)
+        .gesture(
+            DragGesture(minimumDistance: 1, coordinateSpace: .global)
+                .onChanged { value in
+                    onDragChanged(value.translation.width)
+                }
+                .onEnded { value in
+                    onDragEnded(value.translation.width)
+                }
+        )
+        .onTapGesture(count: 2, perform: onReset)
+        .animation(.easeOut(duration: 0.10), value: isHovering)
+        .animation(.easeOut(duration: 0.10), value: isDragging)
+        .help("Drag to resize panes; double-click for equal widths")
     }
 }
 
@@ -507,8 +671,8 @@ private struct SplitDropPreviewOverlay: View {
             return []
         }
 
-        var tabs = store.isSplitViewEnabled && store.activeSplitGroupTabs.count >= 2
-            ? store.activeSplitGroupTabs
+        var tabs = store.isSplitViewDisplayed
+            ? store.displayedSplitTabs
             : [targetTab]
         tabs.removeAll { $0.id == draggedID }
 
@@ -546,7 +710,7 @@ private struct SplitDropPreviewPane: View {
             RoundedRectangle(cornerRadius: 7, style: .continuous)
                 .fill(Color.primary.opacity(isDragged ? 0.11 : 0.065))
                 .overlay {
-                    Image(systemName: isDragged ? "rectangle.split.1x2.fill" : "globe")
+                    Image(systemName: isDragged ? "rectangle.split.2x1.fill" : "globe")
                         .font(.system(size: 22, weight: .medium))
                         .foregroundStyle(Color.primary.opacity(isDragged ? 0.32 : 0.18))
                 }
@@ -958,7 +1122,7 @@ private enum DeveloperToolbarControlKind: String, CaseIterable, Identifiable {
         case .extensions:
             return "puzzlepiece.extension"
         case .splitView:
-            return isSplitViewEnabled ? "rectangle.split.1x2.fill" : "rectangle.split.1x2"
+            return isSplitViewEnabled ? "rectangle.split.2x1.fill" : "rectangle.split.2x1"
         }
     }
 
@@ -969,7 +1133,11 @@ private enum DeveloperToolbarControlKind: String, CaseIterable, Identifiable {
         case .capturePage:
             return "Set in Settings > Shortcuts"
         case .splitView:
-            return "⌃⇧+ / ⌃⇧-"
+            // Reflect the person's configured shortcuts, not the defaults.
+            let addCaps = ShortcutKeyCaps.current(for: .addSplitView).joined()
+            let closeCaps = ShortcutKeyCaps.current(for: .closeSplitView).joined()
+            let parts = [addCaps, closeCaps].filter { !$0.isEmpty }
+            return parts.isEmpty ? "Set in Settings > Shortcuts" : parts.joined(separator: " / ")
         case .easel, .developerTools, .siteInfo, .inspectElement, .extensions:
             return "Not implemented in Candoa yet"
         }

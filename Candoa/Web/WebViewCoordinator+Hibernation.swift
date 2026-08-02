@@ -17,7 +17,7 @@ extension WebViewCoordinator {
     func isHibernatable(_ tab: BrowserTab, idleBefore cutoff: Date) -> Bool {
         guard let store else { return false }
         return tab.id != store.activeTabID
-            && !store.activeSplitGroupTabIDs.contains(tab.id)
+            && !store.displayedSplitTabIDs.contains(tab.id)
             && tab.id != miniPlayerHostedTabID
             && tab.id != store.mediaControllerTabID
             && !tab.isPinned

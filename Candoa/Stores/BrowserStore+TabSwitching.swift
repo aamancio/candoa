@@ -38,21 +38,38 @@ extension BrowserStore {
         if updatesAccessTime {
             tabs[index].lastAccessedAt = Date()
         }
-        let existingSplitGroupIDs = splitGroupTabIDs()
-        activeSpaceID = tabs[index].spaceID
+        let previousSpaceID = activeSpaceID
+        let nextSpaceID = tabs[index].spaceID
+        if previousSpaceID != nextSpaceID {
+            suspendSplitState(for: previousSpaceID)
+        }
+        activeSpaceID = nextSpaceID
+        if previousSpaceID != nextSpaceID {
+            restoreSplitState(for: nextSpaceID)
+        }
         activeTabID = id
+        let existingSplitGroupIDs = splitGroupTabIDs()
         if existingSplitGroupIDs.contains(id) {
             applySplitGroup(existingSplitGroupIDs, activeID: id)
-        } else if isSplitViewEnabled {
-            closeSplitView()
         }
+        // Switching to a non-member tab leaves the split group intact but
+        // suspended: the sidebar pill stays, and focusing any member brings
+        // the panes back. Leaving a split for good is an explicit action
+        // (Close Split View / removing panes).
         updateNavigationState()
     }
 
     func switchSpace(to id: UUID) {
         guard spaces.contains(where: { $0.id == id }) else { return }
+        let previousSpaceID = activeSpaceID
+        if previousSpaceID != id {
+            suspendSplitState(for: previousSpaceID)
+        }
         activeSpaceID = id
         hoveredLinkHref = nil
+        if previousSpaceID != id {
+            restoreSplitState(for: id)
+        }
 
         if let existingTab = tabs
             .filter({ $0.spaceID == id })
@@ -62,8 +79,6 @@ extension BrowserStore {
         } else {
             activeTabID = nil
         }
-
-        closeSplitView()
 
         updateNavigationState()
     }

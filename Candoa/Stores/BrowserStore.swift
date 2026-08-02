@@ -192,7 +192,14 @@ final class BrowserStore: ObservableObject {
         }
     }
     @Published var splitTabIDs: [UUID] = []
+    /// Width fractions for the split panes, parallel to `splitTabIDs` and
+    /// normalized to sum to 1. Empty whenever no split group exists.
+    @Published var splitPaneRatios: [Double] = []
     @Published var isSplitViewEnabled = false
+    /// Split groups stashed per Space while another Space is frontmost, so
+    /// switching away and back revives the split. In-memory only: the
+    /// persisted window state carries the frontmost Space's split.
+    var suspendedSplitStatesBySpace: [UUID: SuspendedSplitState] = [:]
     @Published var isCommandPalettePresented = false
     @Published var commandPaletteInitialText = ""
     @Published var commandPaletteResumeQuery = ""
@@ -382,10 +389,21 @@ final class BrowserStore: ObservableObject {
                     activeTabID: activeTabID,
                     activeSpaceID: activeSpaceID,
                     tabs: restoredState.tabs,
-                    includesActiveTabID: true
+                    // Legacy sessions stored only the non-active members (one
+                    // ID for a two-pane split); newer sessions store the full
+                    // group, which may be suspended with the active tab
+                    // outside it — the active tab must not be absorbed then.
+                    includesActiveTabID: restoredState.splitTabIDs.count < 2
                 )
                 : []
             isSplitViewEnabled = restoredState.isSplitViewEnabled && splitTabIDs.count >= 2
+            splitPaneRatios = isSplitViewEnabled
+                ? Self.paneRatios(
+                    for: splitTabIDs,
+                    carriedFrom: restoredState.splitTabIDs,
+                    previousRatios: restoredState.splitPaneRatios
+                )
+                : []
         } else {
             // New workspaces start neutral while following the system's
             // light or dark appearance. Blue remains an optional Space theme.
@@ -400,6 +418,7 @@ final class BrowserStore: ObservableObject {
             activeSpaceID = defaultSpace.id
             activeTabID = nil
             splitTabIDs = []
+            splitPaneRatios = []
             isSplitViewEnabled = false
             shouldPresentInitialSpaceSetup = !isPrivate && (restoredState?.spaces.isEmpty ?? true)
         }

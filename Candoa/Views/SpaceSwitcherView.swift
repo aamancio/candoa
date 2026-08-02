@@ -429,7 +429,11 @@ private struct SpaceActionMenu: View {
                 .padding(.vertical, 5)
 
             menuButton("New Split", systemImage: "rectangle.split.2x1") {
-                store.toggleSplitView()
+                // "New Split" always opens one — it must never toggle an
+                // existing split closed from this menu.
+                if !store.isSplitViewDisplayed {
+                    store.toggleSplitView()
+                }
             }
 
             menuButton(BrowserCommandTitles.newTab, systemImage: "plus") {

@@ -667,7 +667,7 @@ enum CandoaShortcutDefinition: String, CaseIterable, Identifiable {
         case .closeCurrentTab: return "xmark"
         case .reopenClosedTab: return "arrow.uturn.backward"
         case .captureFullPage: return "camera"
-        case .addSplitView, .closeSplitView: return "rectangle.split.1x2"
+        case .addSplitView, .closeSplitView: return "rectangle.split.2x1"
         case .copyURL, .copyURLAsMarkdown: return "link"
         case .findInPage, .findNext, .findPrevious: return "magnifyingglass"
         case .reloadTab: return "arrow.clockwise"
@@ -692,5 +692,53 @@ enum CandoaShortcutDefinition: String, CaseIterable, Identifiable {
 
     var searchText: String {
         "\(title) \(category) \(defaultShortcut)"
+    }
+}
+
+extension CandoaShortcutDefinition {
+    /// The person's effective shortcut as a SwiftUI key equivalent, so menu
+    /// items can display the same binding the event monitor acts on. Nil when
+    /// the shortcut is removed or not representable as a menu equivalent.
+    var currentKeyboardShortcut: KeyboardShortcut? {
+        let storedShortcut = UserDefaults.standard.string(forKey: storageKey) ?? ""
+        guard storedShortcut != Self.removedValue else { return nil }
+        return Self.keyboardShortcut(from: storedShortcut.isEmpty ? defaultShortcut : storedShortcut)
+    }
+
+    static func keyboardShortcut(from shortcut: String) -> KeyboardShortcut? {
+        guard !shortcut.isEmpty, shortcut != "None" else { return nil }
+
+        var components = shortcut.components(separatedBy: "-")
+        // A literal "-" key ("Control-Shift--") splits into trailing empty
+        // components, same as in ShortcutKeyCaps.
+        if components.last == "" {
+            components.removeAll { $0.isEmpty }
+            components.append("-")
+        }
+        guard let keyComponent = components.popLast() else { return nil }
+
+        var modifiers: EventModifiers = []
+        for component in components {
+            switch component {
+            case "Control": modifiers.insert(.control)
+            case "Option": modifiers.insert(.option)
+            case "Shift": modifiers.insert(.shift)
+            case "Command": modifiers.insert(.command)
+            default: return nil
+            }
+        }
+
+        let key: KeyEquivalent
+        switch keyComponent {
+        case "Tab": key = .tab
+        case "Left": key = .leftArrow
+        case "Right": key = .rightArrow
+        case "Up": key = .upArrow
+        case "Down": key = .downArrow
+        default:
+            guard keyComponent.count == 1, let character = keyComponent.lowercased().first else { return nil }
+            key = KeyEquivalent(character)
+        }
+        return KeyboardShortcut(key, modifiers: modifiers)
     }
 }

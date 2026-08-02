@@ -21,8 +21,8 @@ extension BrowserStore {
         completion: @escaping @MainActor () -> Void
     ) {
         let edgeTab = edge == .trailing
-            ? activeSplitGroupTabs.last
-            : activeSplitGroupTabs.first
+            ? displayedSplitTabs.last
+            : displayedSplitTabs.first
         guard let tab = edgeTab ?? activeTab,
               tab.url != nil,
               let webView = webCoordinator.webViews[tab.id]

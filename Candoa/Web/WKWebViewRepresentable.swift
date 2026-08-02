@@ -16,20 +16,32 @@ struct WKWebViewRepresentable: NSViewRepresentable {
 
 struct SplitWebViewHost: NSViewRepresentable {
     let tab: BrowserTab
+    let paneIndex: Int
     @ObservedObject var store: BrowserStore
     let obscuredContentInsets: BrowserInterfaceInsets
 
     func makeNSView(context: Context) -> NSView {
-        SplitWebViewHostContainer()
+        let container = SplitWebViewHostContainer()
+        // A plain NSView is accessibility-ignored; expose the pane as a group
+        // so UI tests can address and click it.
+        container.setAccessibilityElement(true)
+        container.setAccessibilityRole(.group)
+        return container
     }
 
     func updateNSView(_ container: NSView, context: Context) {
         store.webCoordinator.ensureLoaded(tab)
         guard let container = container as? SplitWebViewHostContainer else { return }
+        container.setAccessibilityIdentifier("split-pane-\(paneIndex)")
+        let tabID = tab.id
         container.configure(
-            tabID: tab.id,
+            tabID: tabID,
             obscuredContentInsets: obscuredContentInsets,
-            coordinator: store.webCoordinator
+            coordinator: store.webCoordinator,
+            onPaneInteraction: { [weak store] in
+                guard let store, store.activeTabID != tabID else { return }
+                store.focusSplitTab(tabID)
+            }
         )
     }
 }
@@ -38,15 +50,19 @@ private final class SplitWebViewHostContainer: NSView {
     private var tabID: UUID?
     private var obscuredContentInsets = BrowserInterfaceInsets()
     private weak var coordinator: WebViewCoordinator?
+    private var onPaneInteraction: (() -> Void)?
+    private var mouseDownMonitor: Any?
 
     func configure(
         tabID: UUID,
         obscuredContentInsets: BrowserInterfaceInsets,
-        coordinator: WebViewCoordinator
+        coordinator: WebViewCoordinator,
+        onPaneInteraction: @escaping () -> Void
     ) {
         self.tabID = tabID
         self.obscuredContentInsets = obscuredContentInsets
         self.coordinator = coordinator
+        self.onPaneInteraction = onPaneInteraction
         needsLayout = true
     }
 
@@ -70,6 +86,55 @@ private final class SplitWebViewHostContainer: NSView {
             in: self,
             obscuredContentInsets: obscuredContentInsets
         )
+    }
+
+    // Clicking anywhere inside a pane's web content commits that tab as
+    // active, so every tab-scoped command (reload, copy URL, zoom, find,
+    // back/forward) targets the pane the user is actually working in. The
+    // WKWebView consumes mouse events itself, so the commit rides a local
+    // mouse-down monitor — event-driven, no polling — that exists only while
+    // this pane is mounted in a window.
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        if window == nil {
+            removeMouseDownMonitor()
+        } else {
+            installMouseDownMonitorIfNeeded()
+        }
+    }
+
+    private func installMouseDownMonitorIfNeeded() {
+        guard mouseDownMonitor == nil else { return }
+        mouseDownMonitor = NSEvent.addLocalMonitorForEvents(
+            matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown]
+        ) { [weak self] event in
+            // Local event monitors always run on the main thread.
+            MainActor.assumeIsolated {
+                self?.commitPaneFocusIfNeeded(for: event)
+            }
+            return event
+        }
+    }
+
+    private func commitPaneFocusIfNeeded(for event: NSEvent) {
+        guard let window, event.window === window else { return }
+        let location = convert(event.locationInWindow, from: nil)
+        guard bounds.contains(location) else { return }
+        // Overlaying chrome (command palette, find bar, toasts) floats above
+        // the panes; a click that lands on it must not steal pane focus, so
+        // only clicks whose hit view lives inside this pane commit.
+        guard
+            let contentView = window.contentView,
+            let hitView = contentView.hitTest(contentView.superview?.convert(event.locationInWindow, from: nil) ?? event.locationInWindow),
+            hitView.isDescendant(of: self)
+        else { return }
+        onPaneInteraction?()
+    }
+
+    private func removeMouseDownMonitor() {
+        guard let mouseDownMonitor else { return }
+        NSEvent.removeMonitor(mouseDownMonitor)
+        self.mouseDownMonitor = nil
     }
 }
 
@@ -97,7 +162,7 @@ struct ActiveWebViewHost: NSViewRepresentable {
         guard let container = container as? WebViewHostContainer else { return }
         container.configure(
             tabID: tab.id,
-            excludingTabIDs: store.activeSplitGroupTabIDs,
+            excludingTabIDs: store.displayedSplitTabIDs,
             obscuredContentInsets: obscuredContentInsets,
             coordinator: store.webCoordinator
         )

@@ -57,16 +57,28 @@ extension BrowserStore {
         }
 
         if isSplitViewEnabled {
+            let previousIDs = splitTabIDs
+            let previousRatios = splitPaneRatios
             splitTabIDs = Self.validSplitGroupIDs(
                 splitTabIDs,
                 activeTabID: activeTabID,
                 activeSpaceID: activeSpaceID,
                 tabs: tabs,
-                includesActiveTabID: true
+                // Only legacy single-member lists absorb the active tab; a
+                // full group may legitimately be suspended with the active
+                // tab outside it.
+                includesActiveTabID: splitTabIDs.count < 2
             )
             isSplitViewEnabled = splitTabIDs.count >= 2
+            if isSplitViewEnabled {
+                splitPaneRatios = Self.paneRatios(for: splitTabIDs, carriedFrom: previousIDs, previousRatios: previousRatios)
+            } else {
+                splitTabIDs = []
+                splitPaneRatios = []
+            }
         } else {
             splitTabIDs = []
+            splitPaneRatios = []
         }
     }
 

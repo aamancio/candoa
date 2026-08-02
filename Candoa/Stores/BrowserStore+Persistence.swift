@@ -57,6 +57,7 @@ extension BrowserStore {
             $activeSpaceID.map { _ in () }.eraseToAnyPublisher(),
             $activeTabID.map { _ in () }.eraseToAnyPublisher(),
             $splitTabIDs.map { _ in () }.eraseToAnyPublisher(),
+            $splitPaneRatios.map { _ in () }.eraseToAnyPublisher(),
             $isSplitViewEnabled.map { _ in () }.eraseToAnyPublisher()
         )
 
@@ -102,6 +103,7 @@ extension BrowserStore {
             activeSpaceID: activeSpaceID,
             activeTabID: activeTabID,
             splitTabIDs: splitTabIDs,
+            splitPaneRatios: splitPaneRatios,
             isSplitViewEnabled: isSplitViewEnabled
         )
     }
@@ -126,7 +128,11 @@ extension BrowserStore {
         activeSpaceID = remoteState.activeSpaceID
         activeTabID = remoteState.activeTabID
         splitTabIDs = remoteState.splitTabIDs
+        splitPaneRatios = remoteState.splitPaneRatios
         isSplitViewEnabled = remoteState.isSplitViewEnabled
+        // Remote state replaces this window's world; stale local stashes for
+        // other Spaces must not revive over it.
+        suspendedSplitStatesBySpace = [:]
         repairSessionState()
         if Self.isUITesting {
             setInitialOnboardingStep(nil, persists: false)
