@@ -15,6 +15,7 @@
 		010000000000000000000106 /* NavigationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000006 /* NavigationService.swift */; };
 		010000000000000000000107 /* PersistenceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000007 /* PersistenceService.swift */; };
 		010000000000000000000108 /* FaviconService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000008 /* FaviconService.swift */; };
+		TS00000000000000000000B1 /* TabSnapshotStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = TS00000000000000000000A1 /* TabSnapshotStore.swift */; };
 		010000000000000000000109 /* WKWebViewRepresentable.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000009 /* WKWebViewRepresentable.swift */; };
 		010000000000000000000110 /* WebViewCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000010 /* WebViewCoordinator.swift */; };
 		010000000000000000000111 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000011 /* ContentView.swift */; };
@@ -129,6 +130,7 @@
 		010000000000000000000006 /* NavigationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavigationService.swift; sourceTree = "<group>"; };
 		010000000000000000000007 /* PersistenceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceService.swift; sourceTree = "<group>"; };
 		010000000000000000000008 /* FaviconService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FaviconService.swift; sourceTree = "<group>"; };
+		TS00000000000000000000A1 /* TabSnapshotStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabSnapshotStore.swift; sourceTree = "<group>"; };
 		010000000000000000000009 /* WKWebViewRepresentable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WKWebViewRepresentable.swift; sourceTree = "<group>"; };
 		010000000000000000000010 /* WebViewCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebViewCoordinator.swift; sourceTree = "<group>"; };
 		010000000000000000000011 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -347,6 +349,7 @@
 				010000000000000000000006 /* NavigationService.swift */,
 				010000000000000000000007 /* PersistenceService.swift */,
 				010000000000000000000008 /* FaviconService.swift */,
+				TS00000000000000000000A1 /* TabSnapshotStore.swift */,
 				010000000000000000000040 /* ContentBlockerService.swift */,
 				AB1000000000000000000001 /* WebsiteAppearanceService.swift */,
 				01000000000000000000001D /* AppUpdateService.swift */,
@@ -589,6 +592,7 @@
 				010000000000000000000106 /* NavigationService.swift in Sources */,
 				010000000000000000000107 /* PersistenceService.swift in Sources */,
 				010000000000000000000108 /* FaviconService.swift in Sources */,
+				TS00000000000000000000B1 /* TabSnapshotStore.swift in Sources */,
 				010000000000000000000109 /* WKWebViewRepresentable.swift in Sources */,
 				010000000000000000000110 /* WebViewCoordinator.swift in Sources */,
 				BA0000000000000000000101 /* BrowserAgentDriver.swift in Sources */,

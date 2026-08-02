@@ -290,6 +290,9 @@ final class BrowserStore: ObservableObject {
     /// (Control release or auto-hide). The overlay can outlive the
     /// interaction by its fade-out; this is the state that must not.
     var isTabSwitcherCycling = false
+    /// One sweep of stale persisted thumbnails per run, deferred to the
+    /// first switcher interaction so launch does no snapshot disk work.
+    var hasPrunedPersistedTabSnapshots = false
     /// The mini player's return morph defers the actual switch; until it
     /// lands, recency cycling must treat the destination as current or a
     /// rapid Ctrl-Tab walks past it into the wrong tab.
