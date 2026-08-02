@@ -136,12 +136,6 @@ private final class SplitWebViewHostContainer: NSView {
         NSEvent.removeMonitor(mouseDownMonitor)
         self.mouseDownMonitor = nil
     }
-
-    deinit {
-        if let mouseDownMonitor {
-            NSEvent.removeMonitor(mouseDownMonitor)
-        }
-    }
 }
 
 /// Persistent host for the active tab's web view. Unlike swapping
