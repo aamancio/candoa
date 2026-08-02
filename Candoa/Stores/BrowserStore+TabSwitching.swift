@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 
 extension BrowserStore {
@@ -159,7 +160,8 @@ extension BrowserStore {
             presentTabSwitcher(
                 candidates: recentTabs,
                 selectedTabID: activeTabID,
-                autoHide: !keepsPreviewOpen
+                autoHide: !keepsPreviewOpen,
+                refreshesSnapshots: isFreshInteraction
             )
             return
         }
@@ -188,14 +190,16 @@ extension BrowserStore {
         presentTabSwitcher(
             candidates: recentTabs,
             selectedTabID: selectedTabID,
-            autoHide: !keepsPreviewOpen
+            autoHide: !keepsPreviewOpen,
+            refreshesSnapshots: isFreshInteraction
         )
     }
 
     func presentTabSwitcher(
         candidates: [BrowserTab]? = nil,
         selectedTabID: UUID? = nil,
-        autoHide: Bool = true
+        autoHide: Bool = true,
+        refreshesSnapshots: Bool = false
     ) {
         let selectedTabID = selectedTabID ?? activeTabID
         let previewTabs = tabSwitcherPreviewTabs(
@@ -210,6 +214,9 @@ extension BrowserStore {
         tabSwitcherHideWorkItem?.cancel()
         tabSwitcherTabs = previewTabs
         tabSwitcherSelectedTabID = selectedTabID ?? previewTabs.first?.id
+        // Capture starts here, on the press itself: the hold-reveal window is
+        // free time to have every thumbnail ready before the overlay shows.
+        prefetchTabSwitcherSnapshots(for: previewTabs, refreshExisting: refreshesSnapshots)
 
         if isTabSwitcherPresented || autoHide {
             tabSwitcherShowWorkItem?.cancel()
@@ -241,6 +248,24 @@ extension BrowserStore {
         }
         tabSwitcherHideWorkItem = workItem
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.25, execute: workItem)
+    }
+
+    /// Snapshots persist across interactions so a reopened switcher is warm
+    /// from its first frame; a fresh interaction re-captures every card
+    /// (stale image stays up until the replacement lands), while cycling
+    /// presses only fill gaps.
+    func prefetchTabSwitcherSnapshots(for tabs: [BrowserTab], refreshExisting: Bool) {
+        let visibleIDs = Set(tabs.map(\.id))
+        tabSwitcherSnapshots = tabSwitcherSnapshots.filter { visibleIDs.contains($0.key) }
+
+        for tab in tabs where refreshExisting || tabSwitcherSnapshots[tab.id] == nil {
+            webCoordinator.snapshotImage(for: tab.id, width: TabSwitcherConfiguration.snapshotWidth) { [weak self] image in
+                guard let self, let image else { return }
+                // Late arrivals still land: the cache outlives the overlay,
+                // so a capture finishing after hide warms the next open.
+                self.tabSwitcherSnapshots[tab.id] = image
+            }
+        }
     }
 
     func hideTabSwitcher() {

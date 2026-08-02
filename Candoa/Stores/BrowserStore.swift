@@ -216,6 +216,11 @@ final class BrowserStore: ObservableObject {
     @Published var isTabSwitcherPresented = false
     @Published var tabSwitcherTabs: [BrowserTab] = []
     @Published var tabSwitcherSelectedTabID: UUID?
+    /// Preview thumbnails captured from the first Control-Tab press, so the
+    /// hold-to-reveal delay doubles as capture time and the overlay appears
+    /// already populated. Kept across interactions: a stale-but-instant
+    /// thumbnail beats an empty card, and a fresh capture replaces it.
+    @Published var tabSwitcherSnapshots: [UUID: NSImage] = [:]
     @Published var canGoBack = false
     @Published var canGoForward = false
     @Published var draggedTabID: UUID?
