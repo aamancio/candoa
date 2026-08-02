@@ -1,5 +1,61 @@
 enum WebPageScripts {
     static let mediaStateMessageName = "candoaMediaState"
+    static let linkHoverMessageName = "candoaLinkHover"
+
+    /// Link-destination preview: posts the hovered link's resolved URL, or
+    /// null when the pointer leaves links entirely. Injected into every frame
+    /// so embeds report too. Purely event-driven — the `lastHref` guard
+    /// coalesces the mouseover storm of nested elements down to messages
+    /// only when the hovered link actually changes, and a page nobody is
+    /// pointing at posts nothing at all.
+    static let linkHoverObserverScript = """
+    (() => {
+      if (window.__candoaLinkHoverObserved) { return; }
+      window.__candoaLinkHoverObserved = true;
+
+      let lastHref = null;
+
+      const resolvedHref = (link) => {
+        if (!link) { return null; }
+        // SVG <a> exposes href as SVGAnimatedString; HTML anchors resolve
+        // relative paths through the frame's own base URI either way.
+        const raw = typeof link.href === "object" && link.href !== null
+          ? link.href.baseVal
+          : link.getAttribute("href");
+        if (raw == null || raw === "") { return null; }
+        try {
+          return new URL(raw, document.baseURI).href;
+        } catch {
+          return null;
+        }
+      };
+
+      const post = (href) => {
+        if (href === lastHref) { return; }
+        lastHref = href;
+        window.webkit?.messageHandlers?.\(linkHoverMessageName)?.postMessage({ href });
+      };
+
+      document.addEventListener("mouseover", (event) => {
+        const target = event.target instanceof Element ? event.target : null;
+        post(resolvedHref(target?.closest("a[href], area[href]")));
+      }, { capture: true, passive: true });
+
+      document.addEventListener("mouseout", (event) => {
+        const target = event.target instanceof Element ? event.target : null;
+        const from = target?.closest("a[href], area[href]");
+        if (!from) { return; }
+        const to = event.relatedTarget instanceof Element
+          ? event.relatedTarget.closest("a[href], area[href]")
+          : null;
+        // Moving onto another link raises its own mouseover; only leaving
+        // links for plain page (or leaving the view) clears.
+        if (!to) { post(null); }
+      }, { capture: true, passive: true });
+
+      window.addEventListener("pagehide", () => post(null));
+    })();
+    """
 
     /// Hibernation guard: anything the user may have typed keeps the page
     /// alive, because tearing down the web view would lose that input.

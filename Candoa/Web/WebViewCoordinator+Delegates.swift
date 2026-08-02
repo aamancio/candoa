@@ -4,6 +4,10 @@ import WebKit
 
 extension WebViewCoordinator {
     func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
+        // The page is going away; its hovered-link pill must not outlive it.
+        if let tabID = tabID(for: webView) {
+            store?.updateHoveredLink(tabID: tabID, href: nil)
+        }
         updateStore(from: webView, isLoading: true)
     }
 

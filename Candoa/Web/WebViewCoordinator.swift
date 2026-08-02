@@ -141,11 +141,20 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
             contentController.add(contentRuleList)
         }
         contentController.add(self, name: WebPageScripts.mediaStateMessageName)
+        contentController.add(self, name: WebPageScripts.linkHoverMessageName)
         contentController.addUserScript(
             WKUserScript(
                 source: WebPageScripts.mediaObserverScript,
                 injectionTime: .atDocumentStart,
                 forMainFrameOnly: true
+            )
+        )
+        contentController.addUserScript(
+            WKUserScript(
+                source: WebPageScripts.linkHoverObserverScript,
+                injectionTime: .atDocumentStart,
+                // Every frame: links inside embeds deserve a preview too.
+                forMainFrameOnly: false
             )
         )
         if BrowserStore.isUITesting {
@@ -333,6 +342,9 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         webView.uiDelegate = nil
         webView.configuration.userContentController.removeScriptMessageHandler(
             forName: WebPageScripts.mediaStateMessageName
+        )
+        webView.configuration.userContentController.removeScriptMessageHandler(
+            forName: WebPageScripts.linkHoverMessageName
         )
         webView.loadHTMLString("", baseURL: nil)
         webView.removeFromSuperview()
