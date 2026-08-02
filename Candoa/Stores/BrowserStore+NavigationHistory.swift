@@ -84,6 +84,21 @@ extension BrowserStore {
         webCoordinator.reloadFromOrigin(tabID: activeTabID)
     }
 
+    /// Printable means real page content in the active pane: a loaded web
+    /// view showing an actual URL. In split view the active tab is the
+    /// focused pane, so that pane is what prints.
+    var canPrintActiveTab: Bool {
+        guard let activeTab else { return false }
+        return activeTab.url != nil
+            && !activeTab.isWelcomePage
+            && webCoordinator.hasLoadedWebView(for: activeTab.id)
+    }
+
+    func printActiveTab() {
+        guard canPrintActiveTab, let activeTabID else { return }
+        webCoordinator.printPage(for: activeTabID)
+    }
+
     func stopLoadingActiveTab() {
         guard let activeTabID else { return }
         webCoordinator.stopLoading(tabID: activeTabID)

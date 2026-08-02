@@ -557,6 +557,33 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         return (webView.canGoBack, webView.canGoForward)
     }
 
+    /// Prints through WKWebView's own print operation and the system print
+    /// panel — pagination, orientation, scale, and presets all belong to
+    /// AppKit. The operation renders into its own print view; the live web
+    /// view is never resized or snapshotted, and nothing is retained after
+    /// the panel closes (cancelled or printed).
+    func printPage(for tabID: UUID) {
+        guard let webView = webViews[tabID], webView.url != nil else { return }
+
+        // NSPrintInfo.shared carries the user's presets; a copy keeps this
+        // job from mutating them.
+        let printInfo = NSPrintInfo.shared.copy() as? NSPrintInfo ?? NSPrintInfo()
+        printInfo.horizontalPagination = .fit
+        printInfo.verticalPagination = .automatic
+
+        let operation = webView.printOperation(with: printInfo)
+        // WKWebView's print view starts zero-sized; without a real frame the
+        // job renders blank pages.
+        operation.view?.frame = webView.bounds
+        operation.printPanel.options.formUnion([.showsPaperSize, .showsOrientation, .showsScaling])
+
+        if let window = webView.window {
+            operation.runModal(for: window, delegate: nil, didRun: nil, contextInfo: nil)
+        } else {
+            operation.run()
+        }
+    }
+
     func snapshotImage(for tabID: UUID, width: CGFloat, completion: @escaping (NSImage?) -> Void) {
         guard
             let webView = webViews[tabID],

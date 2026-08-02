@@ -35,6 +35,7 @@ enum BrowserCommandTitles {
     static let copyURLAsMarkdown = String(localized: "Copy URL as Markdown")
     static let turnOnDeveloperMode = String(localized: "Turn On Developer Mode")
     static let turnOffDeveloperMode = String(localized: "Turn Off Developer Mode")
+    static let printPage = String(localized: "Print…")
     static let findInPage = String(localized: "Find in Page…")
     static let findNext = String(localized: "Find Next")
     static let findPrevious = String(localized: "Find Previous")

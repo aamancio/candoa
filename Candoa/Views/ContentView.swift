@@ -543,6 +543,8 @@ struct ContentView: View {
             showQuickTour: showQuickTour,
             reloadTab: store.reloadActiveTab,
             reloadTabFromOrigin: store.reloadActiveTabFromOrigin,
+            printPage: store.printActiveTab,
+            canPrintActiveTab: store.canPrintActiveTab,
             stopLoading: store.stopLoadingActiveTab,
             isActiveTabLoading: store.activeTab?.isLoading == true,
             canReloadActiveTab: store.activeTab?.url != nil,
