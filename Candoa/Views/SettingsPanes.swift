@@ -11,6 +11,7 @@ internal struct GeneralSettingsPane: View {
     @AppStorage(CandoaSettingsOption.showSearchSuggestions) private var showSearchSuggestions = true
     @State private var syncsWorkspaceWithICloud = CandoaSyncPreferences.syncsWorkspaceWithICloud
     @State private var syncsHistoryWithICloud = CandoaSyncPreferences.syncsHistoryWithICloud
+    @StateObject private var defaultBrowserService = DefaultBrowserService()
 
     var body: some View {
         SettingsPane {
@@ -19,13 +20,21 @@ internal struct GeneralSettingsPane: View {
                     SettingsRow(
                         systemImage: "app.badge",
                         title: "Default browser",
-                        subtitle: "Set Candoa as the default browser in macOS."
+                        subtitle: defaultBrowserService.isDefaultBrowser
+                            ? "Candoa is the default browser in macOS."
+                            : "Set Candoa as the default browser in macOS."
                     ) {
-                        Button("Open Settings") {
-                            NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Desktop-Settings.extension")!)
+                        if defaultBrowserService.isDefaultBrowser {
+                            SettingsStatusPill(text: "Default")
+                        } else {
+                            Button("Set as Default…") {
+                                Task {
+                                    await defaultBrowserService.requestDefaultBrowserRole()
+                                }
+                            }
+                            .candoaButton(.secondary)
+                            .controlSize(.small)
                         }
-                        .candoaButton(.secondary)
-                        .controlSize(.small)
                     }
                 }
 
@@ -124,6 +133,13 @@ internal struct GeneralSettingsPane: View {
             }
         }
         .onAppear(perform: normalizeDefaultSearchProvider)
+        // Reactivation is the moment the status can have changed behind our
+        // back (the user flipped it in System Settings or another browser).
+        .onReceive(
+            NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)
+        ) { _ in
+            defaultBrowserService.refresh()
+        }
     }
 
     private func normalizeDefaultSearchProvider() {
