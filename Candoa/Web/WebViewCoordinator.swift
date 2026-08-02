@@ -56,6 +56,9 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
     var wakeSnapshots: [UUID: NSImage] = [:]
     var restoringTabIDs = Set<UUID>()
     var restoreOverlays: [UUID: NSImageView] = [:]
+    /// A visible tab's first WebContent crash reloads silently; a repeat
+    /// within this window surfaces recovery UI instead of crash-looping.
+    var webContentTerminationDates: [UUID: Date] = [:]
     var hibernationScanTask: Task<Void, Never>?
     var websiteAppearance = WebsiteAppearance.dark
     var systemUsesDarkAppearance = false

@@ -184,6 +184,7 @@ extension BrowserStore {
         rememberClosedTab(closingTab)
         tabs.remove(at: index)
         webCoordinator.removeWebView(for: id)
+        clearLoadFailure(tabID: id)
         mediaStates[id] = nil
         if mediaControllerTabID == id {
             mediaControllerTabID = nil

@@ -1,6 +1,89 @@
 import Foundation
+import Network
 
 extension BrowserStore {
+    // MARK: - Navigation & WebContent Recovery
+
+    func reportLoadFailure(tabID: UUID, error: NSError, failedURL: URL?) {
+        guard tabs.contains(where: { $0.id == tabID }) else { return }
+        guard let failure = TabLoadFailure.make(from: error, failedURL: failedURL) else { return }
+        tabLoadFailures[tabID] = failure
+        syncOfflineRecoveryMonitor()
+    }
+
+    func reportWebContentTermination(tabID: UUID) {
+        guard let tab = tabs.first(where: { $0.id == tabID }) else { return }
+        tabLoadFailures[tabID] = TabLoadFailure(
+            kind: .processTerminated,
+            failedURL: tab.url,
+            message: ""
+        )
+    }
+
+    func clearLoadFailure(tabID: UUID) {
+        guard tabLoadFailures[tabID] != nil else { return }
+        tabLoadFailures[tabID] = nil
+        syncOfflineRecoveryMonitor()
+    }
+
+    func retryLoadFailure(tabID: UUID) {
+        guard let failure = tabLoadFailures[tabID] else { return }
+        switch failure.kind {
+        case .processTerminated:
+            webCoordinator.reload(tabID: tabID)
+        default:
+            // A failed provisional navigation leaves the web view on its old
+            // URL (or none), so reload would revisit the wrong page — load
+            // the destination that actually failed.
+            if let url = failure.failedURL ?? tabs.first(where: { $0.id == tabID })?.url {
+                webCoordinator.load(url, in: tabID)
+            } else {
+                webCoordinator.reload(tabID: tabID)
+            }
+        }
+    }
+
+    /// The path monitor is strictly scoped to visible offline failures:
+    /// created when the first appears, cancelled when the last clears.
+    /// Reconnection retries the affected tabs so browsing restores without
+    /// the user touching anything.
+    private func syncOfflineRecoveryMonitor() {
+        let hasOfflineFailure = tabLoadFailures.values.contains { $0.kind == .offline }
+
+        if hasOfflineFailure, offlineRecoveryMonitor == nil {
+            offlineMonitorSawUnsatisfiedPath = false
+            let monitor = NWPathMonitor()
+            monitor.pathUpdateHandler = { [weak self] path in
+                let isSatisfied = path.status == .satisfied
+                Task { @MainActor [weak self] in
+                    self?.handleNetworkPathUpdate(isSatisfied: isSatisfied)
+                }
+            }
+            monitor.start(queue: DispatchQueue.global(qos: .utility))
+            offlineRecoveryMonitor = monitor
+        } else if !hasOfflineFailure, let monitor = offlineRecoveryMonitor {
+            monitor.cancel()
+            offlineRecoveryMonitor = nil
+        }
+    }
+
+    private func handleNetworkPathUpdate(isSatisfied: Bool) {
+        guard offlineRecoveryMonitor != nil else { return }
+        guard isSatisfied else {
+            offlineMonitorSawUnsatisfiedPath = true
+            return
+        }
+        // The monitor's very first callback reports the current path; only a
+        // genuine unsatisfied → satisfied transition should trigger retries,
+        // or a failure would re-fire the moment its monitor starts.
+        guard offlineMonitorSawUnsatisfiedPath else { return }
+        offlineMonitorSawUnsatisfiedPath = false
+
+        for (tabID, failure) in tabLoadFailures where failure.kind == .offline {
+            retryLoadFailure(tabID: tabID)
+        }
+    }
+
     func updateHoveredLink(tabID: UUID, href: String?) {
         // Only the panes the user can point at may drive the pill; a late
         // message from a background tab must not resurrect it.

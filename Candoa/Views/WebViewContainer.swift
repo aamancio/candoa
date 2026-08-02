@@ -221,6 +221,16 @@ struct WebViewContainer: View {
                 )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(CandoaInterfaceStyle.surfaceFill.opacity(0.72))
+                    .overlay {
+                        // Covers the pane, never replaces it: the web view
+                        // stays mounted so retrying repaints underneath and
+                        // didCommit drops this cover.
+                        if let failure = store.tabLoadFailures[tab.id] {
+                            TabRecoveryView(failure: failure) {
+                                store.retryLoadFailure(tabID: tab.id)
+                            }
+                        }
+                    }
                     .overlay(alignment: .top) {
                         PageLoadingPill(
                             isLoading: tab.isLoading
@@ -300,6 +310,13 @@ struct WebViewContainer: View {
             .id(tab.id)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(CandoaInterfaceStyle.surfaceFill.opacity(0.72))
+            .overlay {
+                if let failure = store.tabLoadFailures[tab.id] {
+                    TabRecoveryView(failure: failure) {
+                        store.retryLoadFailure(tabID: tab.id)
+                    }
+                }
+            }
             .overlay(alignment: .top) {
                 PageLoadingPill(
                     isLoading: tab.isLoading

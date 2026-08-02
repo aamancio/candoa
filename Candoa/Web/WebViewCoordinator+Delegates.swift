@@ -13,6 +13,11 @@ extension WebViewCoordinator {
 
     func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
         finishRestoreIfNeeded(for: webView)
+        // Real content is arriving; any recovery cover comes down now, not
+        // at load start, so the error stays readable through a failed retry.
+        if let tabID = tabID(for: webView) {
+            store?.clearLoadFailure(tabID: tabID)
+        }
         updateStore(from: webView, isLoading: webView.isLoading)
     }
 
@@ -41,16 +46,43 @@ extension WebViewCoordinator {
 
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
         finishRestoreIfNeeded(for: webView, failed: true)
+        reportNavigationFailure(for: webView, error: error)
         updateStore(from: webView, isLoading: false)
     }
 
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
         finishRestoreIfNeeded(for: webView, failed: true)
+        reportNavigationFailure(for: webView, error: error)
         updateStore(from: webView, isLoading: false)
+    }
+
+    private func reportNavigationFailure(for webView: WKWebView, error: Error) {
+        guard let tabID = tabID(for: webView) else { return }
+        let nsError = error as NSError
+        let failedURL = (nsError.userInfo[NSURLErrorFailingURLErrorKey] as? URL) ?? webView.url
+        store?.reportLoadFailure(tabID: tabID, error: nsError, failedURL: failedURL)
     }
 
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
         updateStore(from: webView, isLoading: false)
+        guard let store, let tabID = tabID(for: webView) else { return }
+
+        let now = Date()
+        let isRepeatCrash = webContentTerminationDates[tabID]
+            .map { now.timeIntervalSince($0) < 60 } ?? false
+        webContentTerminationDates[tabID] = now
+        let isVisible = store.activeTabID == tabID
+            || store.activeSplitGroupTabIDs.contains(tabID)
+
+        // The tab itself is never touched — only its web content recovers.
+        // A visible tab's first crash reloads in place; repeat crashes (or a
+        // background tab's) surface the recovery state instead, so a broken
+        // page can't reload-loop.
+        if isVisible, !isRepeatCrash {
+            webView.reload()
+        } else {
+            store.reportWebContentTermination(tabID: tabID)
+        }
     }
 
     func webView(
