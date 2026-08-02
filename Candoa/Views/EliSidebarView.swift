@@ -334,7 +334,8 @@ struct EliSidebarView: View {
             AISidebarTopBarIconButton(
                 symbolName: "xmark",
                 helpText: "Close Eli Sidebar",
-                iconSize: 18
+                iconSize: 18,
+                shortcut: .toggleAISidebar
             ) {
                 onClose()
             }

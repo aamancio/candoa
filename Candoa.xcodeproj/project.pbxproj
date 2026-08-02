@@ -107,6 +107,7 @@
 		EF000000000000000000010C /* WebViewCoordinator+Downloads.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF000000000000000000000C /* WebViewCoordinator+Downloads.swift */; };
 		EF000000000000000000010D /* WebViewCoordinator+PageIntegration.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF000000000000000000000D /* WebViewCoordinator+PageIntegration.swift */; };
 		F60000000000000000000101 /* CandoaButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = F60000000000000000000001 /* CandoaButton.swift */; };
+		F60000000000000000000102 /* ShortcutTooltip.swift in Sources */ = {isa = PBXBuildFile; fileRef = F60000000000000000000002 /* ShortcutTooltip.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -224,6 +225,7 @@
 		F2A2B3C4D5E60718293A4B5C /* EliSettingsPane.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EliSettingsPane.swift; sourceTree = "<group>"; };
 		F3A2B3C4D5E60718293A4B5C /* ShortcutSettingsComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutSettingsComponents.swift; sourceTree = "<group>"; };
 		F60000000000000000000001 /* CandoaButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CandoaButton.swift; sourceTree = "<group>"; };
+		F60000000000000000000002 /* ShortcutTooltip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutTooltip.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -447,6 +449,7 @@
 			isa = PBXGroup;
 			children = (
 				F60000000000000000000001 /* CandoaButton.swift */,
+				F60000000000000000000002 /* ShortcutTooltip.swift */,
 			);
 			path = UI;
 			sourceTree = "<group>";
@@ -613,6 +616,7 @@
 				E50000000000000000000107 /* SpaceThemeControls.swift in Sources */,
 				E50000000000000000000108 /* SpaceComposerModels.swift in Sources */,
 				F60000000000000000000101 /* CandoaButton.swift in Sources */,
+				F60000000000000000000102 /* ShortcutTooltip.swift in Sources */,
 				010000000000000000000113 /* BrowserInterfaceView.swift in Sources */,
 				010000000000000000000114 /* WebViewContainer.swift in Sources */,
 				010000000000000000000115 /* CommandPaletteView.swift in Sources */,

@@ -45,6 +45,7 @@ struct SidebarView: View {
     let automaticUpdatesEnabled: Binding<Bool>
     let onUpdateBannerTapped: () -> Void
     let onToggleSidebar: () -> Void
+    let isSidebarPinned: Bool
 
     @State private var isHoveringNewTab = false
     @State private var isHoveringAddressPill = false
@@ -541,7 +542,10 @@ struct SidebarView: View {
                     Image(systemName: "sidebar.left")
                 }
                 .toolbarIconButton()
-                .help("Hide Sidebar")
+                .shortcutTooltip(
+                    isSidebarPinned ? "Hide Sidebar" : "Show Sidebar",
+                    shortcut: .toggleSidebar
+                )
                 .accessibilityIdentifier("sidebar-toggle-button")
             }
             // Sit the icons on the measured centerline of the native window
@@ -566,27 +570,27 @@ struct SidebarView: View {
             }
             .disabled(!store.canGoBack)
             .toolbarIconButton()
-            .help("Back")
+            .shortcutTooltip("Back", shortcut: .goBack)
 
             Button(action: store.goForward) {
                 Image(systemName: "arrow.right")
             }
             .disabled(!store.canGoForward)
             .toolbarIconButton()
-            .help("Forward")
+            .shortcutTooltip("Forward", shortcut: .goForward)
 
             if store.activeTab?.isLoading == true {
                 Button(action: store.stopLoadingActiveTab) {
                     Image(systemName: "xmark")
                 }
                 .toolbarIconButton()
-                .help("Stop")
+                .shortcutTooltip("Stop", shortcut: .stopLoading)
             } else {
                 Button(action: store.reloadActiveTab) {
                     Image(systemName: "arrow.clockwise")
                 }
                 .toolbarIconButton()
-                .help("Reload")
+                .shortcutTooltip("Reload", shortcut: .reloadTab)
             }
         }
     }

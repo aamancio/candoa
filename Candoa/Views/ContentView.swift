@@ -582,7 +582,8 @@ struct ContentView: View {
                 onUpdateBannerTapped: {
                     updateService.openAvailableUpdate()
                 },
-                onToggleSidebar: toggleSidebar
+                onToggleSidebar: toggleSidebar,
+                isSidebarPinned: isSidebarVisible
             )
                 .frame(width: sidebarWidth)
         }

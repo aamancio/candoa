@@ -39,6 +39,7 @@ struct AISidebarTopBarIconButton: View {
     let symbolName: String
     let helpText: String
     var iconSize: CGFloat = 15
+    var shortcut: CandoaShortcutDefinition?
     let action: () -> Void
 
     @State private var isHovered = false
@@ -57,7 +58,7 @@ struct AISidebarTopBarIconButton: View {
                 .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         }
         .candoaButton(.content)
-        .help(helpText)
+        .shortcutTooltip(helpText, shortcut: shortcut)
         .onHover { hovering in
             withAnimation(.easeOut(duration: 0.10)) {
                 isHovered = hovering
