@@ -235,10 +235,12 @@ extension BrowserStore {
             activeTabID = visibleTabsForActiveSpace.first?.id
         }
 
-        if !activeSplitGroupTabIDs.isDisjoint(with: removedTabIDs) {
+        if !Set(splitTabIDs).isDisjoint(with: removedTabIDs) {
             splitTabIDs = []
+            splitPaneRatios = []
             isSplitViewEnabled = false
         }
+        suspendedSplitStatesBySpace[id] = nil
         if let editingFolderID, !folders.contains(where: { $0.id == editingFolderID }) {
             self.editingFolderID = nil
         }
@@ -287,11 +289,20 @@ extension BrowserStore {
             if let movedTab = tabs.first(where: { $0.id == tabID }) {
                 webCoordinator.ensureLoaded(movedTab)
             }
-        } else if activeSplitGroupTabIDs.contains(tabID) {
+        } else if splitTabIDs.contains(tabID) {
+            let previousIDs = splitTabIDs
+            let previousRatios = splitPaneRatios
             splitTabIDs.removeAll { $0 == tabID }
             isSplitViewEnabled = splitTabIDs.count >= 2
-            if !isSplitViewEnabled {
+            if isSplitViewEnabled {
+                splitPaneRatios = Self.paneRatios(
+                    for: splitTabIDs,
+                    carriedFrom: previousIDs,
+                    previousRatios: previousRatios
+                )
+            } else {
                 splitTabIDs = []
+                splitPaneRatios = []
             }
             updateNavigationState()
         }

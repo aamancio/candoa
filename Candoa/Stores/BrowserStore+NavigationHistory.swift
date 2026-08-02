@@ -87,7 +87,7 @@ extension BrowserStore {
     func updateHoveredLink(tabID: UUID, href: String?) {
         // Only the panes the user can point at may drive the pill; a late
         // message from a background tab must not resurrect it.
-        guard tabID == activeTabID || activeSplitGroupTabIDs.contains(tabID) else { return }
+        guard tabID == activeTabID || displayedSplitTabIDs.contains(tabID) else { return }
         guard hoveredLinkHref != href else { return }
         hoveredLinkHref = href
     }

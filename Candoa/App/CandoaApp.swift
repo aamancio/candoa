@@ -273,14 +273,20 @@ private struct BrowserCommands: Commands {
 
             Divider()
 
+            // The split shortcuts are handled by KeyboardShortcutMonitor (it
+            // consumes matching key events before menu dispatch); attaching
+            // the person's configured equivalents here surfaces them in the
+            // menu instead of leaving the items looking shortcut-less.
             Button(BrowserCommandTitles.addSplitView) {
                 actions?.addSplitView()
             }
+            .keyboardShortcut(CandoaShortcutDefinition.addSplitView.currentKeyboardShortcut)
             .disabled(actions == nil)
 
             Button(BrowserCommandTitles.closeSplitView) {
                 actions?.closeSplitView()
             }
+            .keyboardShortcut(CandoaShortcutDefinition.closeSplitView.currentKeyboardShortcut)
             .disabled(actions == nil)
 
             Divider()

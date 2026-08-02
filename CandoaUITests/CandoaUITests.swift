@@ -14,6 +14,142 @@ final class CandoaUITests: XCTestCase {
         XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 10))
     }
 
+    func testSplitViewFocusFollowsPaneAndChipClicks() throws {
+        let app = launchApp(fixture: "split-view")
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
+
+        openFixtureTab(path: "one", in: app)
+        openFixtureTab(path: "two", in: app)
+
+        app.typeKey("=", modifierFlags: [.control, .shift])
+        XCTAssertTrue(waitForState(in: app, containing: "splitDisplayed=true"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "splitTabs=two|one"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "splitActive=two"), currentState(in: app))
+
+        // The sidebar pill focuses one pane per chip, not the whole group.
+        let chipOne = element("split-chip-one", in: app)
+        XCTAssertTrue(chipOne.waitForExistence(timeout: 5), currentState(in: app))
+        chipOne.click()
+        XCTAssertTrue(waitForState(in: app, containing: "splitActive=one"), currentState(in: app))
+
+        // Clicking inside a pane's web content commits that tab as active.
+        let leadingPane = element("split-pane-0", in: app)
+        XCTAssertTrue(leadingPane.waitForExistence(timeout: 5), currentState(in: app))
+        leadingPane.click()
+        XCTAssertTrue(waitForState(in: app, containing: "splitActive=two"), currentState(in: app))
+
+        let trailingPane = element("split-pane-1", in: app)
+        XCTAssertTrue(trailingPane.waitForExistence(timeout: 5), currentState(in: app))
+        trailingPane.click()
+        XCTAssertTrue(waitForState(in: app, containing: "splitActive=one"), currentState(in: app))
+    }
+
+    func testSplitViewPaneResizePersistsAndResets() throws {
+        let app = launchApp(fixture: "split-view")
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
+
+        openFixtureTab(path: "one", in: app)
+        openFixtureTab(path: "two", in: app)
+
+        app.typeKey("=", modifierFlags: [.control, .shift])
+        XCTAssertTrue(waitForState(in: app, containing: "splitDisplayed=true"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "splitRatios=0.50|0.50"), currentState(in: app))
+
+        let divider = element("split-divider-0", in: app)
+        XCTAssertTrue(divider.waitForExistence(timeout: 5), currentState(in: app))
+        let dragStart = divider.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        dragStart.press(forDuration: 0.2, thenDragTo: dragStart.withOffset(CGVector(dx: 180, dy: 0)))
+
+        let deadline = Date().addingTimeInterval(5)
+        var draggedRatios = stateValue("splitRatios", in: app)
+        while Date() < deadline, draggedRatios == nil || draggedRatios == "0.50|0.50" {
+            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+            draggedRatios = stateValue("splitRatios", in: app)
+        }
+        let resizedRatios = try XCTUnwrap(draggedRatios, currentState(in: app))
+        XCTAssertNotEqual(resizedRatios, "0.50|0.50", currentState(in: app))
+
+        // Let the 300ms autosave debounce flush before relaunching.
+        RunLoop.current.run(until: Date().addingTimeInterval(1.0))
+        app.terminate()
+
+        let relaunchedApp = launchApp(fixture: "persisted-workspace", preservesStore: true)
+        XCTAssertTrue(relaunchedApp.wait(for: .runningForeground, timeout: 10))
+        XCTAssertTrue(
+            waitForState(in: relaunchedApp, containing: "splitDisplayed=true", timeout: 10),
+            currentState(in: relaunchedApp)
+        )
+        XCTAssertTrue(
+            waitForState(in: relaunchedApp, containing: "splitRatios=\(resizedRatios)", timeout: 10),
+            currentState(in: relaunchedApp)
+        )
+
+        // Double-clicking a divider resets the split to equal widths.
+        let relaunchedDivider = element("split-divider-0", in: relaunchedApp)
+        XCTAssertTrue(relaunchedDivider.waitForExistence(timeout: 5), currentState(in: relaunchedApp))
+        relaunchedDivider.doubleClick()
+        XCTAssertTrue(
+            waitForState(in: relaunchedApp, containing: "splitRatios=0.50|0.50"),
+            currentState(in: relaunchedApp)
+        )
+    }
+
+    func testSplitViewSurvivesNonMemberTabAndSpaceSwitches() throws {
+        let app = launchApp(fixture: "split-view")
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
+
+        openFixtureTab(path: "one", in: app)
+        openFixtureTab(path: "two", in: app)
+
+        app.typeKey("=", modifierFlags: [.control, .shift])
+        XCTAssertTrue(waitForState(in: app, containing: "splitDisplayed=true"), currentState(in: app))
+
+        // Switching to a non-member tab suspends the split instead of
+        // destroying it; the group stays in the sidebar.
+        openFixtureTab(path: "three", in: app)
+        XCTAssertTrue(waitForState(in: app, containing: "split=true"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "splitDisplayed=false"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "splitTabs=two|one"), currentState(in: app))
+
+        // Focusing a member from the sidebar pill brings the panes back.
+        let chipOne = element("split-chip-one", in: app)
+        XCTAssertTrue(chipOne.waitForExistence(timeout: 5), currentState(in: app))
+        chipOne.click()
+        XCTAssertTrue(waitForState(in: app, containing: "splitDisplayed=true"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "splitActive=one"), currentState(in: app))
+        app.terminate()
+
+        // Space switches suspend and revive the Space's split group.
+        let spacesApp = launchApp(fixture: "split-view-spaces")
+        XCTAssertTrue(spacesApp.wait(for: .runningForeground, timeout: 10))
+        XCTAssertTrue(waitForState(in: spacesApp, containing: "space=SplitOne"), currentState(in: spacesApp))
+
+        spacesApp.typeKey("=", modifierFlags: [.control, .shift])
+        XCTAssertTrue(
+            waitForState(in: spacesApp, containing: "splitTabs=a-one|a-two"),
+            currentState(in: spacesApp)
+        )
+        XCTAssertTrue(
+            waitForState(in: spacesApp, containing: "splitDisplayed=true"),
+            currentState(in: spacesApp)
+        )
+
+        spacesApp.typeKey(.rightArrow, modifierFlags: [.option, .command])
+        XCTAssertTrue(waitForState(in: spacesApp, containing: "space=SplitTwo"), currentState(in: spacesApp))
+        XCTAssertTrue(waitForState(in: spacesApp, containing: "split=false"), currentState(in: spacesApp))
+
+        spacesApp.typeKey(.leftArrow, modifierFlags: [.option, .command])
+        XCTAssertTrue(waitForState(in: spacesApp, containing: "space=SplitOne"), currentState(in: spacesApp))
+        XCTAssertTrue(
+            waitForState(in: spacesApp, containing: "splitDisplayed=true"),
+            currentState(in: spacesApp)
+        )
+        XCTAssertTrue(
+            waitForState(in: spacesApp, containing: "splitTabs=a-one|a-two"),
+            currentState(in: spacesApp)
+        )
+    }
+
     func testWebsiteAppearanceRendersYouTubeInDarkMode() throws {
         let app = launchApp(fixture: "website-appearance", websiteAppearance: "dark")
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
@@ -1486,7 +1622,45 @@ final class CandoaUITests: XCTestCase {
         return app
     }
 
+    /// Opens a new tab through the command palette and waits until the
+    /// fixture page has loaded and retitled itself to its path.
+    private func openFixtureTab(path: String, in app: XCUIApplication) {
+        app.typeKey("t", modifierFlags: .command)
+        XCTAssertTrue(waitForState(in: app, containing: "newTabPalette=true"), currentState(in: app))
+        submitCommandPaletteText("https://fixture.candoa.test/\(path)", in: app)
+        XCTAssertTrue(
+            waitForState(in: app, containing: "url=https://fixture.candoa.test/\(path)", timeout: 10),
+            currentState(in: app)
+        )
+        XCTAssertTrue(
+            waitForState(in: app, containing: "active=\(path)", timeout: 10),
+            currentState(in: app)
+        )
+    }
+
+    /// Reads one key's value out of the semicolon-separated testing state.
+    private func stateValue(_ key: String, in app: XCUIApplication) -> String? {
+        currentState(in: app)
+            .split(separator: ";")
+            .first { $0.hasPrefix("\(key)=") }
+            .map { String($0.dropFirst(key.count + 1)) }
+    }
+
+    private static let splitFixturePageHTML = """
+    <!doctype html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <title>Split Fixture</title>
+        <script>document.title = location.pathname.slice(1)</script>
+      </head>
+      <body><h1>Split pane fixture</h1></body>
+    </html>
+    """
+
     private static let pageHTMLFixtures: [String: String] = [
+        "split-view": splitFixturePageHTML,
+        "split-view-spaces": splitFixturePageHTML,
         "history": """
         <!doctype html>
         <html>

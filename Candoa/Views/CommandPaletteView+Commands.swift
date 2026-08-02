@@ -295,7 +295,7 @@ extension CommandPaletteView {
             PaletteCommand(title: BrowserCommandTitles.closeCurrentTab, symbolName: "xmark", action: .closeCurrentTab),
             PaletteCommand(title: BrowserCommandTitles.duplicateTab, symbolName: "square.on.square", action: .duplicateCurrentTab),
             PaletteCommand(title: BrowserCommandTitles.reloadTab, symbolName: "arrow.clockwise", action: .reloadTab),
-            PaletteCommand(title: BrowserCommandTitles.toggleSplitView, symbolName: "rectangle.split.1x2", action: .toggleSplitView),
+            PaletteCommand(title: BrowserCommandTitles.toggleSplitView, symbolName: "rectangle.split.2x1", action: .toggleSplitView),
             PaletteCommand(title: BrowserCommandTitles.createSpace, symbolName: "square.grid.2x2", action: .createSpace),
             PaletteCommand(title: BrowserCommandTitles.focusAddressBar, symbolName: "text.cursor", action: .focusAddressBar)
         ]

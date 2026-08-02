@@ -787,7 +787,7 @@ struct ContentView: View {
     }
 
     private func addSplitView() {
-        guard !store.isSplitViewEnabled else { return }
+        guard !store.isSplitViewDisplayed else { return }
         store.toggleSplitView()
     }
 

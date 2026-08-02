@@ -47,9 +47,9 @@ struct BrowserInterfaceView: View {
                     Button {
                         store.toggleSplitView()
                     } label: {
-                        Image(systemName: store.isSplitViewEnabled ? "rectangle.split.1x2.fill" : "rectangle.split.1x2")
+                        Image(systemName: store.isSplitViewDisplayed ? "rectangle.split.2x1.fill" : "rectangle.split.2x1")
                     }
-                    .help(store.isSplitViewEnabled ? "Close Split View" : "Open Split View")
+                    .help(store.isSplitViewDisplayed ? "Close Split View" : "Open Split View")
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 10)

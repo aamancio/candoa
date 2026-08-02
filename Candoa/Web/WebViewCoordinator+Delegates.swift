@@ -72,7 +72,7 @@ extension WebViewCoordinator {
             .map { now.timeIntervalSince($0) < 60 } ?? false
         webContentTerminationDates[tabID] = now
         let isVisible = store.activeTabID == tabID
-            || store.activeSplitGroupTabIDs.contains(tabID)
+            || store.displayedSplitTabIDs.contains(tabID)
 
         // The tab itself is never touched — only its web content recovers.
         // A visible tab's first crash reloads in place; repeat crashes (or a

@@ -89,13 +89,15 @@ internal struct SidebarSplitGroupView: View {
             ForEach(tabs) { tab in
                 SidebarSplitGroupChip(
                     tab: tab,
-                    isActive: store.activeSplitGroupTabIDs.contains(tab.id),
+                    // Only the focused pane's chip lights up; membership alone
+                    // must not make every chip in the pill read as active.
+                    isActive: tab.id == store.activeTabID && !store.isNewTabPaletteActive,
                     showsCloseButton: isHovering,
                     accentColor: accentColor,
                     onSelect: { select(tab) },
                     onClose: { store.closeTab(tab.id) },
                     onDuplicate: { store.duplicateTab(tab.id) },
-                    onOpenInSplit: { store.openSplitView(with: tab.id) },
+                    onRemoveFromSplit: { store.removeTabFromSplit(tab.id) },
                     onToggleFavorite: { store.toggleFavorite(tab.id) },
                     onTogglePin: { store.togglePin(tab.id) }
                 )
@@ -143,7 +145,7 @@ internal struct SidebarSplitGroupChip: View {
     let onSelect: () -> Void
     let onClose: () -> Void
     let onDuplicate: () -> Void
-    let onOpenInSplit: () -> Void
+    let onRemoveFromSplit: () -> Void
     let onToggleFavorite: () -> Void
     let onTogglePin: () -> Void
 
@@ -182,11 +184,15 @@ internal struct SidebarSplitGroupChip: View {
         .onTapGesture(perform: onSelect)
         .onHover { isHovering = $0 }
         .help(tab.title)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(tab.title)
+        .accessibilityAddTraits(.isButton)
+        .accessibilityIdentifier("split-chip-\(sidebarAccessibilitySlug(tab.title))")
         .contextMenu {
             Button(tab.isFavorite ? "Remove from Favorites" : "Add to Favorites", action: onToggleFavorite)
             Button(tab.isPinned ? "Unpin Tab" : "Pin Tab", action: onTogglePin)
             Button(BrowserCommandTitles.duplicateTab, action: onDuplicate)
-            Button("Open in Split View", action: onOpenInSplit)
+            Button("Remove from Split View", action: onRemoveFromSplit)
             Button("Close Tab", action: onClose)
         }
         .animation(.easeOut(duration: 0.10), value: showsCloseButton)

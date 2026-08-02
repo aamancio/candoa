@@ -443,6 +443,7 @@ struct PersistenceService: @unchecked Sendable {
         session.setValue(state.activeSpaceID, forKey: Key.activeSpaceID)
         session.setValue(state.activeTabID, forKey: Key.activeTabID)
         session.setValue(Self.encodeUUIDList(state.splitTabIDs), forKey: Key.splitTabIDs)
+        session.setValue(Self.encodeDoubleList(state.splitPaneRatios), forKey: Key.splitPaneRatios)
         session.setValue(state.isSplitViewEnabled, forKey: Key.isSplitViewEnabled)
 
         let existingSpaces = try fetchObjects(entityName: Entity.space, in: context)
@@ -593,6 +594,7 @@ struct PersistenceService: @unchecked Sendable {
                     activeSpaceID: activeSpaceID,
                     activeTabID: session.uuid(for: Key.activeTabID),
                     splitTabIDs: Self.decodeUUIDList(session.string(for: Key.splitTabIDs)),
+                    splitPaneRatios: Self.decodeDoubleList(session.string(for: Key.splitPaneRatios)),
                     isSplitViewEnabled: session.bool(for: Key.isSplitViewEnabled)
                 )
             } catch {
@@ -743,6 +745,7 @@ struct PersistenceService: @unchecked Sendable {
                 attribute(Key.activeSpaceID, .UUIDAttributeType, optional: false),
                 attribute(Key.activeTabID, .UUIDAttributeType),
                 attribute(Key.splitTabIDs, .stringAttributeType),
+                attribute(Key.splitPaneRatios, .stringAttributeType),
                 attribute(Key.isSplitViewEnabled, .booleanAttributeType, optional: false)
             ]
         )
@@ -756,6 +759,17 @@ struct PersistenceService: @unchecked Sendable {
         value?
             .split(separator: ",")
             .compactMap { UUID(uuidString: String($0)) }
+        ?? []
+    }
+
+    private static func encodeDoubleList(_ values: [Double]) -> String {
+        values.map { String($0) }.joined(separator: ",")
+    }
+
+    private static func decodeDoubleList(_ value: String?) -> [Double] {
+        value?
+            .split(separator: ",")
+            .compactMap { Double(String($0)) }
         ?? []
     }
 
@@ -890,6 +904,7 @@ private enum Key {
     static let activeSpaceID = "activeSpaceID"
     static let activeTabID = "activeTabID"
     static let splitTabIDs = "splitTabIDs"
+    static let splitPaneRatios = "splitPaneRatios"
     static let isSplitViewEnabled = "isSplitViewEnabled"
     static let name = "name"
     static let symbolName = "symbolName"

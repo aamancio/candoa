@@ -1,11 +1,28 @@
 import AppKit
 import Foundation
 
+/// A Space's split group, stashed while another Space is frontmost so the
+/// split survives switching away and back.
+struct SuspendedSplitState {
+    var tabIDs: [UUID]
+    var paneRatios: [Double]
+}
+
 extension BrowserStore {
+    /// A split group exists (isSplitViewEnabled) *and* the active tab is one
+    /// of its members, so the group is on screen as side-by-side panes.
+    /// While the active tab is outside the group, the split is suspended:
+    /// membership persists (and shows in the sidebar pill) but the content
+    /// area shows the active tab alone.
+    var isSplitViewDisplayed: Bool {
+        guard let activeTabID else { return false }
+        let groupIDs = splitGroupTabIDs()
+        return groupIDs.count >= 2 && groupIDs.contains(activeTabID)
+    }
+
     func toggleSplitView() {
-        if isSplitViewEnabled {
-            isSplitViewEnabled = false
-            splitTabIDs = []
+        if isSplitViewDisplayed {
+            closeSplitView()
             return
         }
 
@@ -15,7 +32,9 @@ extension BrowserStore {
     func openSplitView(with tabID: UUID?) {
         guard let activeTabID else { return }
         let candidateID = tabID == activeTabID ? replacementSplitTab(excluding: activeTabID)?.id : tabID
-        var groupIDs = isSplitViewEnabled ? splitGroupTabIDs() : [activeTabID]
+        // A suspended group does not absorb the active tab: starting a split
+        // from outside it replaces it (one split per Space).
+        var groupIDs = isSplitViewDisplayed ? splitGroupTabIDs() : [activeTabID]
 
         if let candidateID, tabs.contains(where: { $0.id == candidateID && $0.spaceID == activeSpaceID }) {
             if !groupIDs.contains(candidateID) {
@@ -46,7 +65,7 @@ extension BrowserStore {
 
         activeSpaceID = targetTab.spaceID
         var groupIDs: [UUID]
-        if isSplitViewEnabled, splitGroupTabIDs().contains(targetID) {
+        if isSplitViewDisplayed, splitGroupTabIDs().contains(targetID) {
             let existingGroupIDs = splitGroupTabIDs()
             guard existingGroupIDs.contains(draggedID) || existingGroupIDs.count < Self.splitViewMaxTabs else { return }
             groupIDs = Self.insertingSplitTab(draggedID, beside: targetID, side: side, in: existingGroupIDs)
@@ -72,6 +91,46 @@ extension BrowserStore {
     func closeSplitView() {
         isSplitViewEnabled = false
         splitTabIDs = []
+        splitPaneRatios = []
+    }
+
+    /// Takes one tab out of the split group without closing it: the tab
+    /// returns to its ordinary sidebar row, and the remaining panes keep the
+    /// split (or the split dissolves once fewer than two members remain).
+    func removeTabFromSplit(_ id: UUID) {
+        let groupIDs = splitGroupTabIDs()
+        guard groupIDs.contains(id) else { return }
+        let remainingIDs = groupIDs.filter { $0 != id }
+        let nextActiveID = activeTabID == id ? remainingIDs.first : activeTabID
+        applySplitGroup(remainingIDs, activeID: nextActiveID)
+        updateNavigationState()
+    }
+
+    /// Stashes the current Space's split group so it can be revived when the
+    /// Space becomes frontmost again. Split state is Space-local; the window
+    /// state only ever carries the frontmost Space's group.
+    func suspendSplitState(for spaceID: UUID) {
+        suspendedSplitStatesBySpace[spaceID] = splitTabIDs.count >= 2
+            ? SuspendedSplitState(tabIDs: splitTabIDs, paneRatios: splitPaneRatios)
+            : nil
+        splitTabIDs = []
+        splitPaneRatios = []
+        isSplitViewEnabled = false
+    }
+
+    func restoreSplitState(for spaceID: UUID) {
+        guard let suspendedState = suspendedSplitStatesBySpace.removeValue(forKey: spaceID) else { return }
+        let validIDs = suspendedState.tabIDs.filter { id in
+            tabs.contains { $0.id == id && $0.spaceID == spaceID }
+        }
+        guard validIDs.count >= 2 else { return }
+        splitTabIDs = validIDs
+        splitPaneRatios = Self.paneRatios(
+            for: validIDs,
+            carriedFrom: suspendedState.tabIDs,
+            previousRatios: suspendedState.paneRatios
+        )
+        isSplitViewEnabled = true
     }
 
     func reorderTabs(_ orderedIDs: [UUID], isFavorite: Bool, isPinned: Bool, folderID: UUID? = nil) {
@@ -210,7 +269,7 @@ extension BrowserStore {
         let groupIDs = splitGroupTabIDs()
         let candidateID: UUID?
 
-        if isSplitViewEnabled, groupIDs.count >= 2 {
+        if isSplitViewDisplayed {
             if !groupIDs.contains(draggedID), groupIDs.count >= Self.splitViewMaxTabs {
                 return nil
             }
@@ -342,17 +401,14 @@ extension BrowserStore {
     }
 
     func splitGroupTabIDs() -> [UUID] {
-        guard isSplitViewEnabled, let activeTabID else { return [] }
-
-        var ids = splitTabIDs
-        if !ids.contains(activeTabID) {
-            // Older persisted sessions stored only the non-active split tabs.
-            // Keep those sessions valid without letting focus reorder panes.
-            ids.insert(activeTabID, at: 0)
-        }
+        // Membership does not depend on the active tab: the group persists
+        // while the active tab is outside it (the suspended split state).
+        // Legacy sessions that stored only the non-active members are
+        // normalized once at restore time (validSplitGroupIDs).
+        guard isSplitViewEnabled else { return [] }
 
         var seen = Set<UUID>()
-        return ids
+        return splitTabIDs
             .filter { id in
                 guard !seen.contains(id), tab(id) != nil else { return false }
                 seen.insert(id)
@@ -372,22 +428,85 @@ extension BrowserStore {
             }
             .prefix(Self.splitViewMaxTabs)
             .map { $0 }
+        let previousIDs = splitTabIDs
+        let previousRatios = splitPaneRatios
 
         guard validIDs.count >= 2 else {
+            splitTabIDs = []
+            splitPaneRatios = []
+            isSplitViewEnabled = false
+            // Focus only moves when the caller asked for a member or the
+            // active tab is gone; dissolving a suspended group while browsing
+            // another tab must not steal focus.
             if let activeID, validIDs.contains(activeID) {
                 activeTabID = activeID
-            } else if let firstID = validIDs.first {
-                activeTabID = firstID
+            } else if activeTabID == nil || !tabs.contains(where: { $0.id == activeTabID }) {
+                activeTabID = validIDs.first
             }
-            splitTabIDs = []
-            isSplitViewEnabled = false
             return
         }
 
-        let resolvedActiveID = activeID.flatMap { validIDs.contains($0) ? $0 : nil } ?? validIDs[0]
-        activeTabID = resolvedActiveID
+        if let activeID, validIDs.contains(activeID) {
+            activeTabID = activeID
+        }
         splitTabIDs = validIDs
-        isSplitViewEnabled = validIDs.count >= 2
+        splitPaneRatios = Self.paneRatios(for: validIDs, carriedFrom: previousIDs, previousRatios: previousRatios)
+        isSplitViewEnabled = true
+    }
+
+    // MARK: - Pane ratios
+
+    /// Commits the divider drag's resulting pane widths. Values are
+    /// normalized so the persisted state always sums to 1.
+    func commitSplitPaneRatios(_ ratios: [Double]) {
+        guard ratios.count == splitTabIDs.count, splitTabIDs.count >= 2 else { return }
+        splitPaneRatios = Self.normalizedPaneRatios(ratios, forPaneCount: ratios.count)
+    }
+
+    func resetSplitPaneRatios() {
+        guard splitTabIDs.count >= 2 else { return }
+        splitPaneRatios = Self.equalPaneRatios(forPaneCount: splitTabIDs.count)
+    }
+
+    /// The displayed panes' width fractions, always normalized and matched to
+    /// `count` so layout never divides by a stale ratio list.
+    func splitPaneRatios(forPaneCount count: Int) -> [Double] {
+        Self.normalizedPaneRatios(splitPaneRatios, forPaneCount: count)
+    }
+
+    static func equalPaneRatios(forPaneCount count: Int) -> [Double] {
+        guard count >= 2 else { return [] }
+        return Array(repeating: 1 / Double(count), count: count)
+    }
+
+    static func normalizedPaneRatios(_ ratios: [Double], forPaneCount count: Int) -> [Double] {
+        guard count >= 2 else { return [] }
+        guard ratios.count == count, ratios.allSatisfy({ $0.isFinite && $0 > 0 }) else {
+            return equalPaneRatios(forPaneCount: count)
+        }
+        let total = ratios.reduce(0, +)
+        guard total > 0 else { return equalPaneRatios(forPaneCount: count) }
+        return ratios.map { $0 / total }
+    }
+
+    /// Ratios for a changed member list: retained panes keep their widths,
+    /// new panes join at the mean width, and the result is renormalized.
+    static func paneRatios(
+        for ids: [UUID],
+        carriedFrom previousIDs: [UUID],
+        previousRatios: [Double]
+    ) -> [Double] {
+        guard ids.count >= 2 else { return [] }
+        guard previousIDs.count == previousRatios.count, !previousIDs.isEmpty else {
+            return equalPaneRatios(forPaneCount: ids.count)
+        }
+
+        // The previous list can come straight from persisted data, so it may
+        // contain duplicates; the first occurrence wins.
+        let previousRatioByID = Dictionary(zip(previousIDs, previousRatios)) { first, _ in first }
+        let joiningRatio = 1 / Double(ids.count)
+        let carried = ids.map { previousRatioByID[$0] ?? joiningRatio }
+        return normalizedPaneRatios(carried, forPaneCount: ids.count)
     }
 
     func newInternalBlankTab(in spaceID: UUID) -> BrowserTab {

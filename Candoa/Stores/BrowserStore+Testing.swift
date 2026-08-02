@@ -266,6 +266,14 @@ extension BrowserStore {
             .joined(separator: "|")
         let activeSpaceName = activeSpace?.name ?? "none"
 
+        let splitTabTitles = activeSplitGroupTabs.map(\.title).joined(separator: "|")
+        let splitActiveTitle = activeTabID.flatMap { id in
+            activeSplitGroupTabs.first(where: { $0.id == id })?.title
+        } ?? "none"
+        let splitRatioText = splitPaneRatios
+            .map { String(format: "%.2f", $0) }
+            .joined(separator: "|")
+
         return [
             "private=\(isPrivate)",
             "setup=\(isInitialSpaceSetupPresented)",
@@ -284,6 +292,11 @@ extension BrowserStore {
             "loading=\(activeTab?.isLoading == true)",
             "tabs=\(tabTitles)",
             "folders=\(folderNames)",
+            "split=\(isSplitViewEnabled)",
+            "splitDisplayed=\(isSplitViewDisplayed)",
+            "splitTabs=\(splitTabTitles)",
+            "splitActive=\(splitActiveTitle)",
+            "splitRatios=\(splitRatioText)",
             "popover=\(uiTestingVisibleFolderPopoverDescription)",
             "query=\(uiTestingCommandPaletteQuery)",
             "command=\(uiTestingLastCommandDescription)",
@@ -410,6 +423,16 @@ extension BrowserStore {
             return crossSpaceDuplicateURLFixtureState()
         }
 
+        if fixture == "split-view" {
+            // An empty Space: split tests open exactly the fixture tabs they
+            // need, so the seed tabs can't shift replacement-pane selection.
+            return testingBotFixtureState(includesSeedTabs: false)
+        }
+
+        if fixture == "split-view-spaces" {
+            return splitViewSpacesFixtureState()
+        }
+
         if fixture == "inactive-favorites" {
             return inactiveFavoritesFixtureState()
         }
@@ -482,6 +505,65 @@ extension BrowserStore {
             tabs: tabs,
             activeSpaceID: activeSpaceID,
             activeTabID: activeStartTabID
+        )
+    }
+
+    static func splitViewSpacesFixtureState() -> BrowserWindowState {
+        let firstSpaceID = UUID(uuidString: "A1A1A1A1-A1A1-A1A1-A1A1-A1A1A1A1A1A1")!
+        let secondSpaceID = UUID(uuidString: "B2B2B2B2-B2B2-B2B2-B2B2-B2B2B2B2B2B2")!
+        let firstTabID = UUID(uuidString: "C3C3C3C3-C3C3-C3C3-C3C3-C3C3C3C3C3C3")!
+        let secondTabID = UUID(uuidString: "D4D4D4D4-D4D4-D4D4-D4D4-D4D4D4D4D4D4")!
+        let otherSpaceTabID = UUID(uuidString: "E5E5E5E5-E5E5-E5E5-E5E5-E5E5E5E5E5E5")!
+        let fixtureDate = Date(timeIntervalSince1970: 1_800_000_000)
+
+        let firstSpace = BrowserSpace(
+            id: firstSpaceID,
+            name: "SplitOne",
+            symbolName: "sparkles",
+            themeAppearance: BrowserSpace.defaultThemeAppearance
+        )
+        let secondSpace = BrowserSpace(
+            id: secondSpaceID,
+            name: "SplitTwo",
+            symbolName: "bolt",
+            themeAppearance: BrowserSpace.defaultThemeAppearance
+        )
+        let tabs = [
+            BrowserTab(
+                id: firstTabID,
+                title: "a-one",
+                url: URL(string: "https://fixture.candoa.test/a-one")!,
+                spaceID: firstSpaceID,
+                sortOrder: 0,
+                lastAccessedAt: fixtureDate,
+                hasBeenActivated: true
+            ),
+            BrowserTab(
+                id: secondTabID,
+                title: "a-two",
+                url: URL(string: "https://fixture.candoa.test/a-two")!,
+                spaceID: firstSpaceID,
+                sortOrder: 1,
+                lastAccessedAt: fixtureDate.addingTimeInterval(-60),
+                hasBeenActivated: true
+            ),
+            BrowserTab(
+                id: otherSpaceTabID,
+                title: "b-one",
+                url: URL(string: "https://fixture.candoa.test/b-one")!,
+                spaceID: secondSpaceID,
+                sortOrder: 0,
+                lastAccessedAt: fixtureDate.addingTimeInterval(-120),
+                hasBeenActivated: true
+            )
+        ]
+
+        return BrowserWindowState(
+            spaces: [firstSpace, secondSpace],
+            folders: [],
+            tabs: tabs,
+            activeSpaceID: firstSpaceID,
+            activeTabID: firstTabID
         )
     }
 
