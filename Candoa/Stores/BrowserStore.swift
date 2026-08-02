@@ -232,6 +232,9 @@ final class BrowserStore: ObservableObject {
     var dropSourceClearTask: Task<Void, Never>?
     @Published var isFindBarPresented = false
     @Published var findQuery = ""
+    /// Resolved destination of the link under the pointer in a visible pane,
+    /// shown as a transient pill over the page's bottom-leading corner.
+    @Published var hoveredLinkHref: String?
     @Published var mediaStates: [UUID: TabMediaState] = [:]
     @Published var mediaControllerTabID: UUID?
     @Published var dismissedMiniPlayerTabID: UUID?

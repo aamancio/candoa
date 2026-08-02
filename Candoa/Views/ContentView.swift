@@ -203,6 +203,19 @@ struct ContentView: View {
                     .zIndex(9)
             }
 
+            if let hoveredLinkHref = store.hoveredLinkHref,
+               !isFullWindowOnboardingPresented,
+               !isHistoryPresented {
+                LinkHoverPreviewPill(urlString: hoveredLinkHref)
+                    .padding(.leading, (isSidebarVisible ? sidebarTotalWidth : 0) + 10)
+                    .padding(.trailing, currentAISidebarInset + 10)
+                    .padding(.bottom, 10)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+                    .allowsHitTesting(false)
+                    .transition(.opacity)
+                    .zIndex(8)
+            }
+
             if let mediaTab = store.floatingMiniPlayerTab,
                let mediaState = store.floatingMiniPlayerState {
                 GeometryReader { proxy in
@@ -406,6 +419,9 @@ struct ContentView: View {
         // A fast, mostly-damped spring so the switcher snaps in like Arc/Dia
         // instead of drifting; the same curve keeps the release fade brisk.
         .animation(.spring(response: 0.18, dampingFraction: 0.85), value: store.isTabSwitcherPresented)
+        // Keyed on presence, not value: moving between links swaps the text
+        // instantly and only appear/disappear get the brief fade.
+        .animation(.easeOut(duration: 0.1), value: store.hoveredLinkHref != nil)
         .animation(.easeOut(duration: 0.16), value: store.mediaControllerTabID)
         .focusedSceneValue(\.browserCommandActions, browserCommandActions)
         .alert(

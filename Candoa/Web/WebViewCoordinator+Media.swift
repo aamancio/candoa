@@ -5,29 +5,40 @@ import WebKit
 extension WebViewCoordinator {
     // MARK: - Media Playback State & Controls
 
+    /// Single WKScriptMessageHandler entry point for every page script,
+    /// media state and link hover alike.
     func userContentController(
         _ userContentController: WKUserContentController,
         didReceive message: WKScriptMessage
     ) {
         guard
-            message.name == WebPageScripts.mediaStateMessageName,
             let webView = message.webView,
-            let tabID = tabID(for: webView),
-            let body = message.body as? [String: Any]
+            let tabID = tabID(for: webView)
         else {
             return
         }
 
-        let state = TabMediaState(
-            hasMedia: body["hasMedia"] as? Bool ?? false,
-            isPlaying: body["isPlaying"] as? Bool ?? false,
-            isMuted: body["isMuted"] as? Bool ?? false,
-            isMiniPlayerEligible: body["isMiniPlayerEligible"] as? Bool ?? false,
-            currentTime: body["currentTime"] as? Double ?? 0,
-            duration: body["duration"] as? Double ?? 0,
-            pageVideoFrame: Self.videoFrame(from: body["videoRect"])
-        )
-        store?.updateMediaState(tabID: tabID, state: state)
+        switch message.name {
+        case WebPageScripts.mediaStateMessageName:
+            guard let body = message.body as? [String: Any] else { return }
+            let state = TabMediaState(
+                hasMedia: body["hasMedia"] as? Bool ?? false,
+                isPlaying: body["isPlaying"] as? Bool ?? false,
+                isMuted: body["isMuted"] as? Bool ?? false,
+                isMiniPlayerEligible: body["isMiniPlayerEligible"] as? Bool ?? false,
+                currentTime: body["currentTime"] as? Double ?? 0,
+                duration: body["duration"] as? Double ?? 0,
+                pageVideoFrame: Self.videoFrame(from: body["videoRect"])
+            )
+            store?.updateMediaState(tabID: tabID, state: state)
+
+        case WebPageScripts.linkHoverMessageName:
+            let href = (message.body as? [String: Any])?["href"] as? String
+            store?.updateHoveredLink(tabID: tabID, href: href)
+
+        default:
+            break
+        }
     }
 
     static func videoFrame(from value: Any?) -> CGRect? {

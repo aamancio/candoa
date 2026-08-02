@@ -34,6 +34,7 @@ extension BrowserStore {
         // Any landed switch resolves the return morph's pending destination —
         // either the morph just finished or another switch interrupted it.
         pendingMiniPlayerReturnTabID = nil
+        hoveredLinkHref = nil
         if updatesAccessTime {
             tabs[index].lastAccessedAt = Date()
         }
@@ -51,6 +52,7 @@ extension BrowserStore {
     func switchSpace(to id: UUID) {
         guard spaces.contains(where: { $0.id == id }) else { return }
         activeSpaceID = id
+        hoveredLinkHref = nil
 
         if let existingTab = tabs
             .filter({ $0.spaceID == id })
