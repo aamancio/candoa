@@ -70,6 +70,7 @@ struct CandoaApp: App {
 private final class CandoaAppDelegate: NSObject, NSApplicationDelegate {
     private let appearanceChangedNotification = Notification.Name("AppleInterfaceThemeChangedNotification")
     private let browserPasskeyAuthorizationService = BrowserPasskeyAuthorizationService()
+    private let defaultBrowserService = DefaultBrowserService()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         updateDockIcon()
@@ -79,6 +80,25 @@ private final class CandoaAppDelegate: NSObject, NSApplicationDelegate {
             name: appearanceChangedNotification,
             object: nil
         )
+        requestDefaultBrowserRoleIfWanted()
+    }
+
+    /// The opt-in startup check goes straight to the system's own consent
+    /// dialog — it already is the "use Candoa as your default browser?"
+    /// prompt, so a custom alert in front of it would just double-ask.
+    private func requestDefaultBrowserRoleIfWanted() {
+        guard
+            ProcessInfo.processInfo.environment["CANDOA_UI_TESTING"] != "1",
+            UserDefaults.standard.bool(forKey: CandoaSettingsOption.checkDefaultBrowser),
+            !defaultBrowserService.isDefaultBrowser
+        else { return }
+
+        Task { [defaultBrowserService] in
+            // One beat so the dialog lands over the restored window rather
+            // than ahead of it.
+            try? await Task.sleep(nanoseconds: 800_000_000)
+            await defaultBrowserService.requestDefaultBrowserRole()
+        }
     }
 
     func applicationWillTerminate(_ notification: Notification) {
