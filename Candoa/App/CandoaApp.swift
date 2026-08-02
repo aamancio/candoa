@@ -164,16 +164,28 @@ private struct BrowserCommands: Commands {
             .disabled(actions == nil)
         }
 
-        CommandGroup(after: .pasteboard) {
-            Button(BrowserCommandTitles.copyURL) {
-                actions?.copyURL()
+        // Grouped with the pasteboard commands to stay inside the commands
+        // builder's ten-element limit.
+        Group {
+            CommandGroup(replacing: .printItem) {
+                Button(BrowserCommandTitles.printPage) {
+                    actions?.printPage()
+                }
+                .keyboardShortcut("p", modifiers: .command)
+                .disabled(actions?.canPrintActiveTab != true)
             }
-            .disabled(actions == nil)
 
-            Button(BrowserCommandTitles.copyURLAsMarkdown) {
-                actions?.copyURLAsMarkdown()
+            CommandGroup(after: .pasteboard) {
+                Button(BrowserCommandTitles.copyURL) {
+                    actions?.copyURL()
+                }
+                .disabled(actions == nil)
+
+                Button(BrowserCommandTitles.copyURLAsMarkdown) {
+                    actions?.copyURLAsMarkdown()
+                }
+                .disabled(actions == nil)
             }
-            .disabled(actions == nil)
         }
 
         CommandGroup(after: .textEditing) {
@@ -423,6 +435,8 @@ struct BrowserCommandActions {
     var showQuickTour: () -> Void
     var reloadTab: () -> Void
     var reloadTabFromOrigin: () -> Void
+    var printPage: () -> Void
+    var canPrintActiveTab: Bool
     var stopLoading: () -> Void
     var isActiveTabLoading: Bool
     var canReloadActiveTab: Bool
