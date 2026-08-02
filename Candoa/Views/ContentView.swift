@@ -403,7 +403,9 @@ struct ContentView: View {
         // here — the palette animates in via withAnimation at the present
         // call sites only, so its dismissal is never an animated removal
         // (see BrowserStore.presentCommandPalette).
-        .animation(.easeOut(duration: 0.14), value: store.isTabSwitcherPresented)
+        // A fast, mostly-damped spring so the switcher snaps in like Arc/Dia
+        // instead of drifting; the same curve keeps the release fade brisk.
+        .animation(.spring(response: 0.18, dampingFraction: 0.85), value: store.isTabSwitcherPresented)
         .animation(.easeOut(duration: 0.16), value: store.mediaControllerTabID)
         .focusedSceneValue(\.browserCommandActions, browserCommandActions)
         .alert(

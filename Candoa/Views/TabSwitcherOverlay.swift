@@ -3,7 +3,6 @@ import SwiftUI
 
 struct TabSwitcherOverlay: View {
     @ObservedObject var store: BrowserStore
-    @State private var snapshots: [UUID: NSImage] = [:]
 
     var body: some View {
         if !store.tabSwitcherTabs.isEmpty {
@@ -11,10 +10,6 @@ struct TabSwitcherOverlay: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                 .allowsHitTesting(false)
                 .transition(.scale(scale: 0.96).combined(with: .opacity))
-                .onAppear(perform: refreshSnapshots)
-                .onChange(of: store.tabSwitcherTabs.map(\.id)) { _, _ in
-                    refreshSnapshots()
-                }
         }
     }
 
@@ -52,7 +47,7 @@ struct TabSwitcherOverlay: View {
         ForEach(tabs) { tab in
             TabSwitcherPreviewCard(
                 tab: tab,
-                snapshot: snapshots[tab.id],
+                snapshot: store.tabSwitcherSnapshots[tab.id],
                 isSelected: tab.id == store.tabSwitcherSelectedTabID,
                 cardWidth: cardWidth
             )
@@ -92,17 +87,6 @@ struct TabSwitcherOverlay: View {
         return (availableWidth - horizontalPadding - interItemSpacing - windowMargin) / CGFloat(columns)
     }
 
-    private func refreshSnapshots() {
-        let visibleIDs = Set(store.tabSwitcherTabs.map(\.id))
-        snapshots = snapshots.filter { visibleIDs.contains($0.key) }
-
-        for tab in store.tabSwitcherTabs where snapshots[tab.id] == nil {
-            store.webCoordinator.snapshotImage(for: tab.id, width: TabSwitcherMetrics.snapshotWidth) { image in
-                guard let image else { return }
-                snapshots[tab.id] = image
-            }
-        }
-    }
 }
 
 private struct TabSwitcherGridLayout {
@@ -126,7 +110,6 @@ private enum TabSwitcherMetrics {
     static let rowSpacing: CGFloat = 12
     static let panelPadding: CGFloat = 16
     static let windowEdgeMargin: CGFloat = 20
-    static let snapshotWidth: CGFloat = 320
     static let previewAspectRatio: CGFloat = 0.62
 }
 

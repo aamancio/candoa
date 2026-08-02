@@ -93,7 +93,11 @@ enum TabSwitcherConfiguration {
 
     /// Arc-style hold-to-reveal: a quick Control-Tab switches silently; the
     /// preview overlay only appears if Control is still held after this delay.
-    static let holdRevealDelay: TimeInterval = 0.25
+    /// Snapshot capture starts on the first press, so this window is also the
+    /// time budget for having thumbnails ready before anything is visible.
+    static let holdRevealDelay: TimeInterval = 0.18
+
+    static let snapshotWidth: CGFloat = 320
 }
 
 /// Per-site Developer Mode mirrors Arc's behavior: local servers opt in by
