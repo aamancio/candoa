@@ -394,7 +394,6 @@ extension BrowserStore {
         splitDropPreview = nil
     }
 
-
     func finishTabDrag() {
         draggedTabID = nil
         clearSidebarDropIndicator()

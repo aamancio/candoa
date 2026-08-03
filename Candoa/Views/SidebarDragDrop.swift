@@ -502,42 +502,46 @@ internal final class TabDragSessionController {
         monitor = NSEvent.addLocalMonitorForEvents(
             matching: [.leftMouseDown, .leftMouseDragged, .leftMouseUp]
         ) { event in
-            // Local event monitors always run on the main thread.
-            MainActor.assumeIsolated {
+            // Local event monitors always run on the main thread. NSEvent is
+            // not Sendable, so the isolated closure returns only the swallow
+            // decision rather than the event itself.
+            let swallowed = MainActor.assumeIsolated {
                 TabDragSessionController.shared.handle(event)
             }
+            return swallowed ? nil : event
         }
     }
 
-    private func handle(_ event: NSEvent) -> NSEvent? {
+    /// Returns true when the event was consumed by starting a drag session.
+    private func handle(_ event: NSEvent) -> Bool {
         switch event.type {
         case .leftMouseDown:
             pendingAnchor = anchor(for: event)
             pendingMouseDown = pendingAnchor == nil ? nil : event
-            return event
+            return false
         case .leftMouseDragged:
             guard
                 let anchor = pendingAnchor,
                 let mouseDown = pendingMouseDown,
                 anchor.window === event.window
-            else { return event }
+            else { return false }
             let travel = hypot(
                 event.locationInWindow.x - mouseDown.locationInWindow.x,
                 event.locationInWindow.y - mouseDown.locationInWindow.y
             )
-            guard travel >= Self.dragThreshold else { return event }
+            guard travel >= Self.dragThreshold else { return false }
             pendingAnchor = nil
             pendingMouseDown = nil
             anchor.beginDragSession(with: mouseDown)
             // The dragging session owns the pointer now; SwiftUI must not
             // keep interpreting the press as a gesture.
-            return nil
+            return true
         case .leftMouseUp:
             pendingAnchor = nil
             pendingMouseDown = nil
-            return event
+            return false
         default:
-            return event
+            return false
         }
     }
 
