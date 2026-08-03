@@ -300,6 +300,7 @@ extension BrowserStore {
             "splitActive=\(splitActiveTitle)",
             "splitRatios=\(splitRatioText)",
             "splitLayout=\(splitLayout.rawValue)",
+            "splitExpanded=\(expandedDisplayedSplitTab?.title ?? "none")",
             "popover=\(uiTestingVisibleFolderPopoverDescription)",
             "query=\(uiTestingCommandPaletteQuery)",
             "command=\(uiTestingLastCommandDescription)",

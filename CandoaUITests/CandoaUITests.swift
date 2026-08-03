@@ -173,6 +173,20 @@ final class CandoaUITests: XCTestCase {
         )
         XCTAssertTrue(waitForState(in: app, containing: "splitTabs=one|two"), currentState(in: app))
 
+        // Zen-style expand: the pane pill's toggle gives one pane the whole
+        // surface while the group stays intact, and toggling restores it.
+        let expandButton = element("split-pane-expand-0", in: app)
+        XCTAssertTrue(expandButton.waitForExistence(timeout: 5), currentState(in: app))
+        expandButton.click()
+        XCTAssertTrue(waitForState(in: app, containing: "splitExpanded=one"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "split=true"), currentState(in: app))
+
+        let restoreButton = element("split-pane-expand-0", in: app)
+        XCTAssertTrue(restoreButton.waitForExistence(timeout: 5), currentState(in: app))
+        restoreButton.click()
+        XCTAssertTrue(waitForState(in: app, containing: "splitExpanded=none"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "splitDisplayed=true"), currentState(in: app))
+
         // Zen-style layout shortcuts switch between rows, grid, and columns.
         app.typeKey("v", modifierFlags: [.control, .option])
         XCTAssertTrue(waitForState(in: app, containing: "splitLayout=vertical"), currentState(in: app))

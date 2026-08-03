@@ -44,9 +44,18 @@ struct WebViewContainer: View {
             } else if let tab = store.activeTab {
                 let splitTabs = store.displayedSplitTabs
                 if splitTabs.count >= 2 {
-                    splitPaneRow(for: splitTabs)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                        .padding(containedSurfaceInsets)
+                    if let expandedTab = store.expandedDisplayedSplitTab,
+                       let expandedIndex = splitTabs.firstIndex(where: { $0.id == expandedTab.id }) {
+                        // Zen-style expansion: one member temporarily owns the
+                        // whole surface; the group stays intact underneath.
+                        expandedSplitPane(for: expandedTab, at: expandedIndex)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                            .padding(containedSurfaceInsets)
+                    } else {
+                        splitPaneRow(for: splitTabs)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                            .padding(containedSurfaceInsets)
+                    }
                 } else {
                     browserSurface(drawsBorder: false) {
                         singleTabContent(for: tab)
@@ -358,8 +367,11 @@ struct WebViewContainer: View {
                             .animation(.easeOut(duration: 0.12), value: isFocused)
                     }
                     .overlay(alignment: .top) {
-                        SplitPaneReorderHandle(
+                        SplitPaneControlPill(
+                            isExpanded: false,
                             isDraggingThisPane: splitPaneReorder?.sourceIndex == index,
+                            showsReorderGrip: true,
+                            paneIndex: index,
                             onDragChanged: { location in
                                 splitPaneReorder = SplitPaneReorderState(sourceIndex: index, location: location)
                             },
@@ -368,14 +380,12 @@ struct WebViewContainer: View {
                                 if let targetIndex = Self.splitPaneIndex(at: location, in: frames, spacing: spacing) {
                                     store.moveSplitPane(from: index, to: targetIndex)
                                 }
-                            }
+                            },
+                            onToggleExpand: { store.toggleExpandedSplitPane(splitTab.id) }
                         )
-                        // Below the row dividers' 7pt overhang so the grip
+                        // Below the row dividers' 7pt overhang so the pill
                         // and a divider strip never contend for the pointer.
                         .padding(.top, 8)
-                        .accessibilityElement()
-                        .accessibilityLabel("Move Pane")
-                        .accessibilityIdentifier("split-pane-grip-\(index)")
                     }
                     .frame(width: frame.width, height: frame.height)
                     .offset(x: frame.minX, y: frame.minY)
@@ -548,15 +558,27 @@ struct WebViewContainer: View {
     }
 
     private func webPane(for tab: BrowserTab, at paneIndex: Int, in splitTabs: [BrowserTab]) -> some View {
-        return SplitWebViewHost(
-            tab: tab,
-            paneIndex: paneIndex,
-            store: store,
+        webPane(
+            for: tab,
+            at: paneIndex,
             obscuredContentInsets: splitPaneInsets(
                 forPaneAt: paneIndex,
                 paneCount: splitTabs.count,
                 layout: store.splitLayout
             )
+        )
+    }
+
+    private func webPane(
+        for tab: BrowserTab,
+        at paneIndex: Int,
+        obscuredContentInsets: BrowserInterfaceInsets
+    ) -> some View {
+        SplitWebViewHost(
+            tab: tab,
+            paneIndex: paneIndex,
+            store: store,
+            obscuredContentInsets: obscuredContentInsets
         )
             .id(tab.id)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -575,6 +597,27 @@ struct WebViewContainer: View {
                 .padding(.top, 2)
                 .id(tab.id)
             }
+    }
+
+    /// The expanded member owns the full content area; its pill keeps only
+    /// the compress toggle (there is nothing to drag against), and the
+    /// expanded pane spans both window edges so it reserves both lanes.
+    private func expandedSplitPane(for tab: BrowserTab, at paneIndex: Int) -> some View {
+        browserSurface {
+            webPane(for: tab, at: paneIndex, obscuredContentInsets: webContentInsets)
+        }
+        .overlay(alignment: .top) {
+            SplitPaneControlPill(
+                isExpanded: true,
+                isDraggingThisPane: false,
+                showsReorderGrip: false,
+                paneIndex: paneIndex,
+                onDragChanged: { _ in },
+                onDragEnded: { _ in },
+                onToggleExpand: { store.toggleExpandedSplitPane(tab.id) }
+            )
+            .padding(.top, 8)
+        }
     }
 }
 
@@ -644,42 +687,95 @@ private struct SplitPaneDivider: View {
     }
 }
 
-/// Arc-style grab handle at a pane's top center. Dragging it moves the pane
-/// to another slot in the split: the target pane highlights while the drag
-/// is in flight, and the reorder commits on release — panes never relayout
-/// mid-drag. The hit area is a small capsule so the page's top edge stays
-/// clickable everywhere else.
-private struct SplitPaneReorderHandle: View {
+/// Zen-style control pill at a pane's top center, revealed on hover: a
+/// six-dot grab area that drags the pane to another slot (the target pane
+/// highlights, the reorder commits on release — panes never relayout
+/// mid-drag), and an expand toggle that gives the pane the whole surface
+/// and back. The pill's footprint is small so the rest of the page's top
+/// edge stays clickable.
+private struct SplitPaneControlPill: View {
+    let isExpanded: Bool
     let isDraggingThisPane: Bool
+    let showsReorderGrip: Bool
+    let paneIndex: Int
     let onDragChanged: (CGPoint) -> Void
     let onDragEnded: (CGPoint) -> Void
+    let onToggleExpand: () -> Void
 
     @State private var isHovering = false
 
+    private var isRevealed: Bool {
+        isHovering || isDraggingThisPane || isExpanded
+    }
+
     var body: some View {
-        Capsule(style: .continuous)
-            .fill(
-                isDraggingThisPane
-                    ? CandoaColor.accent.opacity(0.65)
-                    : Color.primary.opacity(isHovering ? 0.30 : 0)
-            )
-            .frame(width: 44, height: 6)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 4)
-            .contentShape(Capsule(style: .continuous))
-            .onHover { isHovering = $0 }
-            .gesture(
-                DragGesture(minimumDistance: 2, coordinateSpace: .named(WebViewContainer.splitRowCoordinateSpace))
-                    .onChanged { value in
-                        onDragChanged(value.location)
+        HStack(spacing: 0) {
+            if showsReorderGrip {
+                gripDots
+                    .frame(width: 34, height: 20)
+                    .contentShape(Rectangle())
+                    .gesture(
+                        DragGesture(
+                            minimumDistance: 2,
+                            coordinateSpace: .named(WebViewContainer.splitRowCoordinateSpace)
+                        )
+                        .onChanged { value in
+                            onDragChanged(value.location)
+                        }
+                        .onEnded { value in
+                            onDragEnded(value.location)
+                        }
+                    )
+                    .help("Drag to move this pane")
+                    .accessibilityElement()
+                    .accessibilityLabel("Move Pane")
+                    .accessibilityIdentifier("split-pane-grip-\(paneIndex)")
+            }
+
+            Button(action: onToggleExpand) {
+                Image(systemName: isExpanded
+                    ? "arrow.down.right.and.arrow.up.left"
+                    : "arrow.up.left.and.arrow.down.right")
+                    .font(.system(size: 10, weight: .semibold))
+                    .frame(width: 26, height: 20)
+                    .contentShape(Rectangle())
+            }
+            .candoaButton(.content)
+            .foregroundStyle(.secondary)
+            .help(isExpanded ? "Restore Split" : "Expand Pane")
+            .accessibilityLabel(isExpanded ? "Restore Split" : "Expand Pane")
+            .accessibilityIdentifier("split-pane-expand-\(paneIndex)")
+        }
+        .padding(.horizontal, 4)
+        .padding(.vertical, 2)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .strokeBorder(CandoaInterfaceStyle.popoverBorder, lineWidth: 1)
+        }
+        // Not 0: fully transparent views stop hit-testing, and the pill must
+        // keep its hover/click footprint while visually absent.
+        .opacity(isRevealed ? 1 : 0.02)
+        .onHover { isHovering = $0 }
+        .animation(.easeOut(duration: 0.12), value: isRevealed)
+    }
+
+    private var gripDots: some View {
+        VStack(spacing: 3) {
+            ForEach(0..<2, id: \.self) { _ in
+                HStack(spacing: 3) {
+                    ForEach(0..<3, id: \.self) { _ in
+                        Circle()
+                            .fill(
+                                isDraggingThisPane
+                                    ? CandoaColor.accent
+                                    : Color.secondary
+                            )
+                            .frame(width: 2.5, height: 2.5)
                     }
-                    .onEnded { value in
-                        onDragEnded(value.location)
-                    }
-            )
-            .animation(.easeOut(duration: 0.10), value: isHovering)
-            .animation(.easeOut(duration: 0.10), value: isDraggingThisPane)
-            .help("Drag to move this pane")
+                }
+            }
+        }
     }
 }
 

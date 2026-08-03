@@ -116,6 +116,31 @@ extension BrowserStore {
         splitTabIDs = []
         splitPaneRatios = []
         splitLayout = .horizontal
+        expandedSplitTabID = nil
+    }
+
+    /// The member pane temporarily expanded over the whole content area.
+    /// Expansion only holds while that pane is also the focused tab, so any
+    /// focus change elsewhere naturally restores the split.
+    var expandedDisplayedSplitTab: BrowserTab? {
+        guard
+            let expandedSplitTabID,
+            expandedSplitTabID == activeTabID,
+            displayedSplitTabIDs.contains(expandedSplitTabID)
+        else { return nil }
+        return tabs.first { $0.id == expandedSplitTabID }
+    }
+
+    /// Zen-style expand toggle on a pane's control pill: give the pane the
+    /// whole surface, or bring the split back.
+    func toggleExpandedSplitPane(_ id: UUID) {
+        guard displayedSplitTabIDs.contains(id) else { return }
+        if expandedSplitTabID == id {
+            expandedSplitTabID = nil
+        } else {
+            expandedSplitTabID = id
+            focusSplitTab(id)
+        }
     }
 
     /// Switches the displayed split between side-by-side, stacked, and grid
@@ -153,6 +178,9 @@ extension BrowserStore {
     func removeTabFromSplit(_ id: UUID) {
         let groupIDs = splitGroupTabIDs()
         guard groupIDs.contains(id) else { return }
+        if expandedSplitTabID == id {
+            expandedSplitTabID = nil
+        }
         let remainingIDs = groupIDs.filter { $0 != id }
         let nextActiveID = activeTabID == id ? remainingIDs.first : activeTabID
         applySplitGroup(remainingIDs, activeID: nextActiveID)
@@ -169,6 +197,7 @@ extension BrowserStore {
         splitTabIDs = []
         splitPaneRatios = []
         splitLayout = .horizontal
+        expandedSplitTabID = nil
         isSplitViewEnabled = false
     }
 
