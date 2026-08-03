@@ -390,9 +390,17 @@ struct WebViewContainer: View {
                             showsReorderGrip: true,
                             paneIndex: index,
                             onDragChanged: { location in
+                                // Grabbing feedback: the closed hand holds for
+                                // the whole drag, pushed once on the first move.
+                                if splitPaneReorder == nil {
+                                    NSCursor.closedHand.push()
+                                }
                                 splitPaneReorder = SplitPaneReorderState(sourceIndex: index, location: location)
                             },
                             onDragEnded: { location in
+                                if splitPaneReorder != nil {
+                                    NSCursor.pop()
+                                }
                                 splitPaneReorder = nil
                                 if let targetIndex = Self.splitPaneIndex(at: location, in: frames, spacing: spacing) {
                                     store.moveSplitPane(from: index, to: targetIndex)
@@ -418,9 +426,13 @@ struct WebViewContainer: View {
             // The reorder adornments must be an overlay, not ZStack siblings:
             // SwiftUI draws plain siblings beneath the AppKit-hosted web
             // views, while overlay content provably layers above them (the
-            // pane pill and focus ring rely on the same hosting).
+            // pane pill and focus ring rely on the same hosting). Mounted
+            // only during a drag so the idle row keeps its hover cursors
+            // (divider resize arrows, grip hand) unobstructed.
             .overlay {
-                splitReorderOverlay(splitTabs: splitTabs, frames: frames, layout: layout, spacing: spacing)
+                if splitPaneReorder != nil {
+                    splitReorderOverlay(splitTabs: splitTabs, frames: frames, layout: layout, spacing: spacing)
+                }
             }
             .coordinateSpace(name: Self.splitRowCoordinateSpace)
         }
@@ -798,6 +810,7 @@ private struct SplitPaneControlPill: View {
                 gripDots
                     .frame(width: 34, height: 20)
                     .contentShape(Rectangle())
+                    .candoaAISidebarCursor(.openHand)
                     .gesture(
                         DragGesture(
                             minimumDistance: 2,
