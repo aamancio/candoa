@@ -265,8 +265,7 @@ final class CandoaUITests: XCTestCase {
         let app = launchApp(fixture: "website-appearance", websiteAppearance: "dark")
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
 
-        app.typeKey("t", modifierFlags: .command)
-        XCTAssertTrue(waitForState(in: app, containing: "newTabPalette=true"), currentState(in: app))
+        openNewTabPalette(in: app)
         submitCommandPaletteText("youtube.com", in: app)
         XCTAssertTrue(
             waitForState(in: app, containing: "url=https://www.youtube.com/", timeout: 15),
@@ -1733,11 +1732,23 @@ final class CandoaUITests: XCTestCase {
         return app
     }
 
+    /// Opens the new-tab palette, retrying because a synthesized ⌘T right
+    /// after launch can race the window's key status (the same hazard the
+    /// window-scoped openNewTabPalette documents) — on CI runners the first
+    /// press regularly lands before the window is key.
+    private func openNewTabPalette(in app: XCUIApplication) {
+        for _ in 0..<3 {
+            app.typeKey("t", modifierFlags: .command)
+            if waitForState(in: app, containing: "newTabPalette=true", timeout: 2) { return }
+            app.typeKey(.escape, modifierFlags: [])
+        }
+        XCTFail("New-tab palette did not open: \(currentState(in: app))")
+    }
+
     /// Opens a new tab through the command palette and waits until the
     /// fixture page has loaded and retitled itself to its path.
     private func openFixtureTab(path: String, in app: XCUIApplication) {
-        app.typeKey("t", modifierFlags: .command)
-        XCTAssertTrue(waitForState(in: app, containing: "newTabPalette=true"), currentState(in: app))
+        openNewTabPalette(in: app)
         submitCommandPaletteText("https://fixture.candoa.test/\(path)", in: app)
         XCTAssertTrue(
             waitForState(in: app, containing: "url=https://fixture.candoa.test/\(path)", timeout: 10),
