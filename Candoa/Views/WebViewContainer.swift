@@ -797,7 +797,7 @@ private struct BrowserSurfaceSplitDropDelegate: DropDelegate {
 
     func validateDrop(info: DropInfo) -> Bool {
         guard let draggedID = store.draggedTabID else { return false }
-        return targetTabID(for: info, draggedID: draggedID) != nil
+        return dropTarget(for: info, draggedID: draggedID) != nil
     }
 
     func dropEntered(info: DropInfo) {
@@ -816,14 +816,14 @@ private struct BrowserSurfaceSplitDropDelegate: DropDelegate {
     func performDrop(info: DropInfo) -> Bool {
         guard
             let draggedID = store.draggedTabID,
-            let targetID = targetTabID(for: info, draggedID: draggedID)
+            let target = dropTarget(for: info, draggedID: draggedID)
         else {
             store.clearSplitDropPreview()
             return false
         }
 
         let sourcePlacement = store.sidebarPlacement(for: draggedID)
-        store.splitTab(draggedID, onto: targetID, side: dropSide(for: info))
+        store.splitTab(draggedID, onto: target.tabID, side: target.side)
         store.finishTabDrop(draggedID, from: sourcePlacement, to: sourcePlacement ?? .regular)
         return true
     }
@@ -831,21 +831,41 @@ private struct BrowserSurfaceSplitDropDelegate: DropDelegate {
     private func updatePreview(info: DropInfo) {
         guard
             let draggedID = store.draggedTabID,
-            let targetID = targetTabID(for: info, draggedID: draggedID)
+            let target = dropTarget(for: info, draggedID: draggedID)
         else {
             store.clearSplitDropPreview()
             return
         }
 
-        store.updateSplitDropPreview(targetTabID: targetID, side: dropSide(for: info))
+        store.updateSplitDropPreview(targetTabID: target.tabID, side: target.side)
     }
 
-    private func targetTabID(for info: DropInfo, draggedID: UUID) -> UUID? {
-        store.splitDropTargetTabID(for: dropSide(for: info), draggedID: draggedID)
+    private func dropTarget(
+        for info: DropInfo,
+        draggedID: UUID
+    ) -> (tabID: UUID, side: SplitTabDropSide)? {
+        guard let side = dropSide(for: info) else { return nil }
+        guard let tabID = store.splitDropTargetTabID(for: side, draggedID: draggedID) else { return nil }
+        return (tabID, side)
     }
 
-    private func dropSide(for info: DropInfo) -> SplitTabDropSide {
-        info.location.x < size.width / 2 ? .leading : .trailing
+    /// Zen-style edge targeting: only the page's outer quarters accept a
+    /// split drop — the nearest edge wins, and the middle of the page is not
+    /// a target, so an abandoned drag over content does nothing.
+    private func dropSide(for info: DropInfo) -> SplitTabDropSide? {
+        let fractionX = info.location.x / max(size.width, 1)
+        let fractionY = info.location.y / max(size.height, 1)
+        let insideMiddleX = fractionX > 0.25 && fractionX < 0.75
+        let insideMiddleY = fractionY > 0.25 && fractionY < 0.75
+        guard !(insideMiddleX && insideMiddleY) else { return nil }
+
+        let edgeDistances: [(side: SplitTabDropSide, distance: CGFloat)] = [
+            (.leading, fractionX),
+            (.trailing, 1 - fractionX),
+            (.top, fractionY),
+            (.bottom, 1 - fractionY)
+        ]
+        return edgeDistances.min { $0.distance < $1.distance }?.side
     }
 }
 
@@ -869,17 +889,39 @@ private struct SplitDropPreviewOverlay: View {
         tabs.removeAll { $0.id == draggedID }
 
         let targetIndex = tabs.firstIndex { $0.id == preview.targetTabID } ?? tabs.startIndex
-        let insertionIndex = preview.side == .leading
+        let insertionIndex = preview.side.insertsBeforeTarget
             ? targetIndex
             : tabs.index(after: targetIndex)
         tabs.insert(draggedTab, at: insertionIndex)
         return Array(tabs.prefix(BrowserStore.splitViewMaxTabs))
     }
 
+    /// The arrangement the drop would produce: a displayed split keeps its
+    /// layout, a fresh split takes its axis from the drop edge (Zen-style).
+    private var previewLayout: SplitViewLayout {
+        store.isSplitViewDisplayed
+            ? store.splitLayout
+            : (preview.side.isVerticalAxis ? .vertical : .horizontal)
+    }
+
     var body: some View {
-        HStack(spacing: 8) {
-            ForEach(previewTabs) { tab in
-                SplitDropPreviewPane(tab: tab, isDragged: tab.id == store.draggedTabID)
+        GeometryReader { proxy in
+            let tabs = previewTabs
+            let frames = WebViewContainer.splitPaneFrames(
+                layout: previewLayout,
+                ratios: BrowserStore.equalPaneRatios(forPaneCount: tabs.count),
+                in: proxy.size,
+                spacing: 8
+            )
+
+            ZStack(alignment: .topLeading) {
+                ForEach(Array(tabs.enumerated()), id: \.element.id) { index, tab in
+                    if frames.indices.contains(index) {
+                        SplitDropPreviewPane(tab: tab, isDragged: tab.id == store.draggedTabID)
+                            .frame(width: frames[index].width, height: frames[index].height)
+                            .offset(x: frames[index].minX, y: frames[index].minY)
+                    }
+                }
             }
         }
         .padding(8)

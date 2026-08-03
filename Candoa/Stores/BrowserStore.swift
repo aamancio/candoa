@@ -50,6 +50,19 @@ enum SidebarTabDropEdge: Equatable {
 enum SplitTabDropSide: Equatable {
     case leading
     case trailing
+    case top
+    case bottom
+
+    /// Leading/top edges insert the dragged tab before the target pane;
+    /// trailing/bottom edges insert after it.
+    var insertsBeforeTarget: Bool {
+        self == .leading || self == .top
+    }
+
+    /// Top/bottom drops ask for stacked rows; leading/trailing for columns.
+    var isVerticalAxis: Bool {
+        self == .top || self == .bottom
+    }
 }
 
 struct SplitTabDropPreview: Equatable {

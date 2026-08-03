@@ -84,11 +84,16 @@ extension BrowserStore {
         activeSpaceID = targetTab.spaceID
         var groupIDs: [UUID]
         if isSplitViewDisplayed, splitGroupTabIDs().contains(targetID) {
+            // Joining a displayed split keeps its current layout; the edge
+            // only picks which end the tab enters at.
             let existingGroupIDs = splitGroupTabIDs()
             guard existingGroupIDs.contains(draggedID) || existingGroupIDs.count < Self.splitViewMaxTabs else { return }
             groupIDs = Self.insertingSplitTab(draggedID, beside: targetID, side: side, in: existingGroupIDs)
         } else {
-            groupIDs = side == .leading ? [draggedID, targetID] : [targetID, draggedID]
+            // A fresh split takes its axis from the drop edge, Zen-style:
+            // top/bottom stacks rows, leading/trailing makes columns.
+            groupIDs = side.insertsBeforeTarget ? [draggedID, targetID] : [targetID, draggedID]
+            splitLayout = side.isVerticalAxis ? .vertical : .horizontal
         }
 
         applySplitGroup(groupIDs, activeID: draggedID)
@@ -328,7 +333,7 @@ extension BrowserStore {
                 return nil
             }
 
-            let orderedIDs = side == .leading ? groupIDs : groupIDs.reversed()
+            let orderedIDs = side.insertsBeforeTarget ? groupIDs : groupIDs.reversed()
             candidateID = orderedIDs.first { $0 != draggedID }
         } else {
             candidateID = activeTabID == draggedID ? nil : activeTabID
@@ -586,7 +591,7 @@ extension BrowserStore {
             return groupIDs
         }
 
-        let insertionIndex = side == .leading
+        let insertionIndex = side.insertsBeforeTarget
             ? targetIndex
             : orderedIDs.index(after: targetIndex)
         orderedIDs.insert(draggedID, at: insertionIndex)
