@@ -29,6 +29,18 @@ if [[ "${CANDOA_E2E_ADHOC_SIGNING:-0}" == "1" ]]; then
   )
 fi
 
+# Optional comma-separated -only-testing specs (e.g.
+# "CandoaUITests/CandoaUITests/testSomething") so CI dispatches can rerun a
+# single flaky test without paying for the whole suite.
+if [[ -n "${CANDOA_E2E_ONLY_TESTING:-}" ]]; then
+  IFS=',' read -ra ONLY_TESTING_SPECS <<< "$CANDOA_E2E_ONLY_TESTING"
+  for only_testing_spec in "${ONLY_TESTING_SPECS[@]}"; do
+    if [[ -n "$only_testing_spec" ]]; then
+      XCODEBUILD_ARGS+=("-only-testing:${only_testing_spec}")
+    fi
+  done
+fi
+
 if [[ -n "$DERIVED_DATA_PATH" ]]; then
   DERIVED_DATA_DIR="$DERIVED_DATA_PATH"
 else

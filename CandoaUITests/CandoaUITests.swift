@@ -918,18 +918,32 @@ final class CandoaUITests: XCTestCase {
         XCTAssertEqual(accountOnboarding.value as? String, "idle")
         XCTAssertTrue(app.buttons["Continue with Apple"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["Not Now"].exists)
-        print("CANDOA-DEBUG-HIERARCHY-START")
-        for text in app.staticTexts.allElementsBoundByIndex.prefix(30) {
-            print("CANDOA-DEBUG staticText id='\(text.identifier)' label='\(text.label)'")
-        }
-        print("CANDOA-DEBUG-HIERARCHY-END")
         let description = element("account-onboarding-description", in: app)
-        XCTAssertTrue(description.exists)
-        XCTAssertTrue(
-            description.label.contains(
-                "Sign in with Apple to restore your subscription"
+        XCTAssertTrue(description.waitForExistence(timeout: 5), currentState(in: app))
+
+        // The AX label of wrapped text can carry the wrap's line breaks, and
+        // the wrap position depends on the runner's window metrics — compare
+        // against a whitespace-normalized label so the assertion checks the
+        // words, not the layout.
+        let expectedDescription = "Sign in with Apple to restore your subscription"
+        let normalizedLabel = description.label
+            .components(separatedBy: .whitespacesAndNewlines)
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+        if !normalizedLabel.contains(expectedDescription) {
+            let staticTexts = app.staticTexts.allElementsBoundByIndex.prefix(40)
+                .map { "id='\($0.identifier)' label='\($0.label)'" }
+                .joined(separator: " | ")
+            XCTFail(
+                """
+                account-onboarding-description label mismatch.
+                label: '\(description.label)'
+                normalized: '\(normalizedLabel)'
+                value: '\(String(describing: description.value))'
+                staticTexts: \(staticTexts)
+                """
             )
-        )
+        }
         XCTAssertEqual(
             app.descendants(matching: .any)
                 .matching(NSPredicate(format: "label CONTAINS[c] %@", "passkey"))
