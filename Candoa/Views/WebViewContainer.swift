@@ -432,6 +432,35 @@ struct WebViewContainer: View {
                         .offset(x: frames[targetIndex].minX, y: frames[targetIndex].minY)
                         .allowsHitTesting(false)
                 }
+
+                // Cursor-following ghost of the grabbed pane — a miniature of
+                // the page card, in the source pane's aspect ratio, so the
+                // drag reads as carrying the page. The ghost tracks the
+                // pointer directly (no animation) and the real panes never
+                // move until the drop commits.
+                if let reorder = splitPaneReorder,
+                   splitTabs.indices.contains(reorder.sourceIndex),
+                   frames.indices.contains(reorder.sourceIndex) {
+                    let sourceFrame = frames[reorder.sourceIndex]
+                    let scale = min(
+                        1,
+                        200 / max(sourceFrame.width, 1),
+                        150 / max(sourceFrame.height, 1)
+                    )
+                    let ghostWidth = max(120, sourceFrame.width * scale)
+                    let ghostHeight = max(84, sourceFrame.height * scale)
+                    TabDragGhost(
+                        tab: splitTabs[reorder.sourceIndex],
+                        width: ghostWidth,
+                        height: ghostHeight
+                    )
+                    .opacity(0.9)
+                    .offset(
+                        x: reorder.location.x - ghostWidth / 2,
+                        y: reorder.location.y + 14
+                    )
+                    .allowsHitTesting(false)
+                }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .coordinateSpace(name: Self.splitRowCoordinateSpace)
