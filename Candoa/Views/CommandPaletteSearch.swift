@@ -7,8 +7,16 @@ extension CommandPaletteView {
                 HStack(spacing: 0) {
                     Text(query)
                         .foregroundStyle(.clear)
+                    // Zen/Arc-style inline completion: the completed range
+                    // keeps the typed text's brightness and reads as
+                    // provisional through the standard selected-text
+                    // background, so the whole string reads as one URL.
                     Text(autocompleteSuggestion.suffix)
-                        .foregroundStyle(autocompleteGhostColor)
+                        .foregroundStyle(.primary)
+                        .background(
+                            RoundedRectangle(cornerRadius: 3, style: .continuous)
+                                .fill(Color(nsColor: .selectedTextBackgroundColor))
+                        )
                 }
                 .font(.system(size: 17, weight: .medium))
                 .lineLimit(1)
@@ -85,10 +93,6 @@ extension CommandPaletteView {
 
     internal var placeholderText: String {
         selectedSearchProvider == nil ? "Search or Enter URL..." : "Search..."
-    }
-
-    internal var autocompleteGhostColor: Color {
-        Color.primary.opacity(colorScheme == .dark ? 0.32 : 0.22)
     }
 
     internal var isResumingSearchURL: Bool {
