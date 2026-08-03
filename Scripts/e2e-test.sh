@@ -13,11 +13,19 @@ XCODEBUILD_ARGS=(
 )
 
 if [[ "${CANDOA_E2E_ADHOC_SIGNING:-0}" == "1" ]]; then
+  # Ad-hoc-signed apps carrying restricted entitlements (iCloud, associated
+  # domains) are killed by the system at launch, so CI signs the app against
+  # the stripped testing entitlements. The indirection through
+  # CANDOA_APP_ENTITLEMENTS keeps this scoped to the app target — overriding
+  # CODE_SIGN_ENTITLEMENTS directly would also sandbox the UI test runner,
+  # which breaks XCUITest automation.
   XCODEBUILD_ARGS+=(
     CODE_SIGN_STYLE=Manual
     CODE_SIGN_IDENTITY=-
     DEVELOPMENT_TEAM=
     CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO
+    CANDOA_APP_ENTITLEMENTS=Candoa/Resources/CandoaCITesting.entitlements
+    ENABLE_HARDENED_RUNTIME=NO
   )
 fi
 
