@@ -778,6 +778,8 @@ struct SidebarView: View {
         )
         .onDrag {
             store.beginTabDrag(tab.id)
+        } preview: {
+            TabDragGhost(tab: tab)
         }
         .onDrop(
             of: [UTType.text],
@@ -918,6 +920,8 @@ struct SidebarView: View {
         )
         .onDrag {
             store.beginTabDrag(tab.id)
+        } preview: {
+            TabDragGhost(tab: tab)
         }
         .onDrop(
             of: [UTType.text],
@@ -1082,6 +1086,8 @@ struct SidebarView: View {
                         )
                         .onDrag {
                             store.beginTabDrag(tab.id)
+                        } preview: {
+                            TabDragGhost(tab: tab)
                         }
                         .onDrop(
                             of: [UTType.text],

@@ -109,6 +109,8 @@ internal struct SidebarSplitGroupView: View {
                 .opacity(store.shouldHideSidebarTab(tab.id, placement: .regular) ? 0 : 1)
                 .onDrag {
                     store.beginTabDrag(tab.id)
+                } preview: {
+                    TabDragGhost(tab: tab)
                 }
             }
         }
@@ -370,6 +372,8 @@ internal struct FolderSectionView: View {
                     )
                     .onDrag {
                         store.beginTabDrag(tab.id)
+                    } preview: {
+                        TabDragGhost(tab: tab)
                     }
                     .onDrop(
                         of: [UTType.text],
