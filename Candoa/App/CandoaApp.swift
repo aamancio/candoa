@@ -101,6 +101,28 @@ private final class CandoaAppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    /// Guards only keyboard-initiated quits: a menu click or a programmatic
+    /// terminate (Sparkle installing an update) is deliberate enough already.
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard
+            ProcessInfo.processInfo.environment["CANDOA_UI_TESTING"] != "1",
+            CandoaSettingsOption.bool(CandoaSettingsOption.askBeforeQuitting, default: true),
+            let event = sender.currentEvent,
+            event.type == .keyDown,
+            event.modifierFlags.contains(.command),
+            event.charactersIgnoringModifiers?.lowercased() == "q"
+        else { return .terminateNow }
+
+        let alert = NSAlert()
+        alert.messageText = String(localized: "Quit Candoa?")
+        alert.informativeText = String(
+            localized: "Your Spaces and tabs are saved and will be restored on the next launch."
+        )
+        alert.addButton(withTitle: String(localized: "Quit"))
+        alert.addButton(withTitle: String(localized: "Cancel"))
+        return alert.runModal() == .alertFirstButtonReturn ? .terminateNow : .terminateCancel
+    }
+
     func applicationWillTerminate(_ notification: Notification) {
         DistributedNotificationCenter.default().removeObserver(self)
     }
