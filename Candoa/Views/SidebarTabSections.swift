@@ -107,11 +107,7 @@ internal struct SidebarSplitGroupView: View {
                     onTogglePin: { store.togglePin(tab.id) }
                 )
                 .opacity(store.shouldHideSidebarTab(tab.id, placement: .regular) ? 0 : 1)
-                .onDrag {
-                    store.beginTabDrag(tab.id)
-                } preview: {
-                    TabDragGhost(tab: tab)
-                }
+                .background(TabDragSourceBackground(store: store, tabID: tab.id))
             }
         }
         .padding(4)
@@ -370,11 +366,7 @@ internal struct FolderSectionView: View {
                         ),
                         tint: accentColor
                     )
-                    .onDrag {
-                        store.beginTabDrag(tab.id)
-                    } preview: {
-                        TabDragGhost(tab: tab)
-                    }
+                    .background(TabDragSourceBackground(store: store, tabID: tab.id))
                     .onDrop(
                         of: [UTType.text],
                         delegate: FolderTabDropDelegate(

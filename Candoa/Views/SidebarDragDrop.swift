@@ -455,3 +455,189 @@ internal func insertionBeforeID(
     let nextIndex = orderedIDs.index(after: targetIndex)
     return nextIndex < orderedIDs.endIndex ? orderedIDs[nextIndex] : nil
 }
+
+// MARK: - AppKit drag source
+
+/// Starts sidebar tab drags as native AppKit dragging sessions so the ghost
+/// page card is the session's real drag image — visible from the first drag
+/// movement, everywhere on screen, with snap-back on cancel. SwiftUI's
+/// onDrag(preview:) is not honored on macOS, which left drags showing the
+/// default row snapshot until the pointer reached the browser surface.
+///
+/// One shared controller watches mouse events through a single local
+/// monitor that lives only while draggable rows exist. The per-row anchor
+/// views are click-through, so clicks and context menus reach the row
+/// exactly as before; only a press that travels past the drag threshold
+/// becomes a dragging session.
+@MainActor
+internal final class TabDragSessionController {
+    static let shared = TabDragSessionController()
+
+    private let anchors = NSHashTable<TabDragSourceAnchorView>.weakObjects()
+    private var monitor: Any?
+    private var pendingAnchor: TabDragSourceAnchorView?
+    private var pendingMouseDown: NSEvent?
+
+    private static let dragThreshold: CGFloat = 4
+
+    func register(_ anchor: TabDragSourceAnchorView) {
+        anchors.add(anchor)
+        installMonitorIfNeeded()
+    }
+
+    func unregister(_ anchor: TabDragSourceAnchorView) {
+        anchors.remove(anchor)
+        if pendingAnchor === anchor {
+            pendingAnchor = nil
+            pendingMouseDown = nil
+        }
+        if anchors.count == 0, let monitor {
+            NSEvent.removeMonitor(monitor)
+            self.monitor = nil
+        }
+    }
+
+    private func installMonitorIfNeeded() {
+        guard monitor == nil else { return }
+        monitor = NSEvent.addLocalMonitorForEvents(
+            matching: [.leftMouseDown, .leftMouseDragged, .leftMouseUp]
+        ) { event in
+            // Local event monitors always run on the main thread. NSEvent is
+            // not Sendable, so the isolated closure returns only the swallow
+            // decision rather than the event itself.
+            let swallowed = MainActor.assumeIsolated {
+                TabDragSessionController.shared.handle(event)
+            }
+            return swallowed ? nil : event
+        }
+    }
+
+    /// Returns true when the event was consumed by starting a drag session.
+    private func handle(_ event: NSEvent) -> Bool {
+        switch event.type {
+        case .leftMouseDown:
+            pendingAnchor = anchor(for: event)
+            pendingMouseDown = pendingAnchor == nil ? nil : event
+            return false
+        case .leftMouseDragged:
+            guard
+                let anchor = pendingAnchor,
+                let mouseDown = pendingMouseDown,
+                anchor.window === event.window
+            else { return false }
+            let travel = hypot(
+                event.locationInWindow.x - mouseDown.locationInWindow.x,
+                event.locationInWindow.y - mouseDown.locationInWindow.y
+            )
+            guard travel >= Self.dragThreshold else { return false }
+            pendingAnchor = nil
+            pendingMouseDown = nil
+            anchor.beginDragSession(with: mouseDown)
+            // The dragging session owns the pointer now; SwiftUI must not
+            // keep interpreting the press as a gesture.
+            return true
+        case .leftMouseUp:
+            pendingAnchor = nil
+            pendingMouseDown = nil
+            return false
+        default:
+            return false
+        }
+    }
+
+    private func anchor(for event: NSEvent) -> TabDragSourceAnchorView? {
+        for anchor in anchors.allObjects {
+            guard let window = anchor.window, window === event.window else { continue }
+            let location = anchor.convert(event.locationInWindow, from: nil)
+            guard anchor.bounds.contains(location) else { continue }
+            // visibleRect excludes rows scrolled out of the sidebar's clip.
+            guard anchor.visibleRect.contains(location) else { continue }
+            return anchor
+        }
+        return nil
+    }
+}
+
+/// Click-through anchor marking a sidebar row as a tab drag source.
+internal final class TabDragSourceAnchorView: NSView, NSDraggingSource {
+    weak var store: BrowserStore?
+    var tabID: UUID?
+
+    override var isFlipped: Bool { true }
+
+    // Click-through: the row's own controls keep every click; the anchor
+    // only marks the draggable region for the shared session controller.
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        if window == nil {
+            TabDragSessionController.shared.unregister(self)
+        } else {
+            TabDragSessionController.shared.register(self)
+        }
+    }
+
+    func beginDragSession(with mouseDownEvent: NSEvent) {
+        guard
+            let store,
+            let tabID,
+            store.draggedTabID == nil,
+            !store.isNewTabPaletteActive,
+            let tab = store.tabs.first(where: { $0.id == tabID })
+        else { return }
+
+        let renderer = ImageRenderer(content: TabDragGhost(tab: tab))
+        renderer.scale = window?.backingScaleFactor ?? 2
+        guard let ghostImage = renderer.nsImage else { return }
+
+        _ = store.beginTabDrag(tabID)
+
+        let pasteboardItem = NSPasteboardItem()
+        pasteboardItem.setString(tabID.uuidString, forType: .string)
+        let draggingItem = NSDraggingItem(pasteboardWriter: pasteboardItem)
+        let location = convert(mouseDownEvent.locationInWindow, from: nil)
+        draggingItem.setDraggingFrame(
+            CGRect(
+                x: location.x - ghostImage.size.width / 2,
+                y: location.y + 14,
+                width: ghostImage.size.width,
+                height: ghostImage.size.height
+            ),
+            contents: ghostImage
+        )
+
+        let session = beginDraggingSession(
+            with: [draggingItem],
+            event: mouseDownEvent,
+            source: self
+        )
+        session.animatesToStartingPositionsOnCancelOrFail = true
+    }
+
+    nonisolated func draggingSession(
+        _ session: NSDraggingSession,
+        sourceOperationMaskFor context: NSDraggingContext
+    ) -> NSDragOperation {
+        // Tabs never leave the app as text drags.
+        context == .withinApplication ? .generic : []
+    }
+}
+
+/// Row background that makes the row an AppKit tab drag source.
+internal struct TabDragSourceBackground: NSViewRepresentable {
+    let store: BrowserStore
+    let tabID: UUID
+
+    func makeNSView(context: Context) -> TabDragSourceAnchorView {
+        let view = TabDragSourceAnchorView()
+        view.store = store
+        view.tabID = tabID
+        return view
+    }
+
+    func updateNSView(_ view: TabDragSourceAnchorView, context: Context) {
+        view.store = store
+        view.tabID = tabID
+    }
+}
