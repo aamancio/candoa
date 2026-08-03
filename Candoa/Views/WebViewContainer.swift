@@ -815,8 +815,12 @@ private struct SplitPaneControlPill: View {
                     // re-asserts its own cursor on every mouse move.
                     .candoaCursor(.openHand)
                     .gesture(
+                        // Zero distance so the grab engages on mouse-down —
+                        // the closed hand must appear on press, not on first
+                        // movement. A press-and-release without travel commits
+                        // nothing (moveSplitPane guards same-index moves).
                         DragGesture(
-                            minimumDistance: 2,
+                            minimumDistance: 0,
                             coordinateSpace: .named(WebViewContainer.splitRowCoordinateSpace)
                         )
                         .onChanged { value in
