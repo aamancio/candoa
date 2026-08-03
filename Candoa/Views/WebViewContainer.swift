@@ -381,7 +381,8 @@ struct WebViewContainer: View {
                                     store.moveSplitPane(from: index, to: targetIndex)
                                 }
                             },
-                            onToggleExpand: { store.toggleExpandedSplitPane(splitTab.id) }
+                            onToggleExpand: { store.toggleExpandedSplitPane(splitTab.id) },
+                            onClose: { store.closeTab(splitTab.id) }
                         )
                         // Below the row dividers' 7pt overhang so the pill
                         // and a divider strip never contend for the pointer.
@@ -614,7 +615,8 @@ struct WebViewContainer: View {
                 paneIndex: paneIndex,
                 onDragChanged: { _ in },
                 onDragEnded: { _ in },
-                onToggleExpand: { store.toggleExpandedSplitPane(tab.id) }
+                onToggleExpand: { store.toggleExpandedSplitPane(tab.id) },
+                onClose: { store.closeTab(tab.id) }
             )
             .padding(.top, 8)
         }
@@ -701,6 +703,7 @@ private struct SplitPaneControlPill: View {
     let onDragChanged: (CGPoint) -> Void
     let onDragEnded: (CGPoint) -> Void
     let onToggleExpand: () -> Void
+    let onClose: () -> Void
 
     @State private var isHovering = false
 
@@ -745,6 +748,18 @@ private struct SplitPaneControlPill: View {
             .help(isExpanded ? "Restore Split" : "Expand Pane")
             .accessibilityLabel(isExpanded ? "Restore Split" : "Expand Pane")
             .accessibilityIdentifier("split-pane-expand-\(paneIndex)")
+
+            Button(action: onClose) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 10, weight: .semibold))
+                    .frame(width: 26, height: 20)
+                    .contentShape(Rectangle())
+            }
+            .candoaButton(.content)
+            .foregroundStyle(.secondary)
+            .help("Close Tab")
+            .accessibilityLabel("Close Tab")
+            .accessibilityIdentifier("split-pane-close-\(paneIndex)")
         }
         .padding(.horizontal, 4)
         .padding(.vertical, 2)

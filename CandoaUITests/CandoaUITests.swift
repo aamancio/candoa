@@ -203,6 +203,27 @@ final class CandoaUITests: XCTestCase {
         XCTAssertTrue(waitForState(in: app, containing: "splitLayout=horizontal"), currentState(in: app))
     }
 
+    func testSplitPaneCloseButtonClosesTabAndDissolvesSplit() throws {
+        let app = launchApp(fixture: "split-view")
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
+
+        openFixtureTab(path: "one", in: app)
+        openFixtureTab(path: "two", in: app)
+
+        app.typeKey("=", modifierFlags: [.control, .shift])
+        XCTAssertTrue(waitForState(in: app, containing: "splitDisplayed=true"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "splitTabs=two|one"), currentState(in: app))
+
+        // The pane pill's close button closes that pane's tab; with one
+        // member left the split dissolves.
+        let closeButton = element("split-pane-close-1", in: app)
+        XCTAssertTrue(closeButton.waitForExistence(timeout: 5), currentState(in: app))
+        closeButton.click()
+        XCTAssertTrue(waitForState(in: app, containing: "split=false"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "active=two"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "tabs=two"), currentState(in: app))
+    }
+
     func testFavoritesStayGlobalAcrossSpaces() throws {
         let app = launchApp(fixture: "split-view-spaces")
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))

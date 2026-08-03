@@ -244,6 +244,12 @@ extension BrowserStore {
         appendToEnd: Bool = false
     ) {
         guard let index = tabs.firstIndex(where: { $0.id == tabID }) else { return }
+        // Dragging a split member into any sidebar placement takes it out of
+        // the group first — otherwise the drop only rewrites placement flags
+        // and the tab silently stays a hidden split member.
+        if splitTabIDs.contains(tabID) {
+            removeTabFromSplit(tabID)
+        }
         if !isFavorite, tabs[index].isFavorite {
             // Dragging a favorite out of the global grid drops it into the
             // Space on screen, never back into its recorded home Space.
@@ -523,6 +529,7 @@ extension BrowserStore {
             splitTabIDs = []
             splitPaneRatios = []
             splitLayout = .horizontal
+            expandedSplitTabID = nil
             isSplitViewEnabled = false
             // Focus only moves when the caller asked for a member or the
             // active tab is gone; dissolving a suspended group while browsing
@@ -537,6 +544,9 @@ extension BrowserStore {
 
         if let activeID, validIDs.contains(activeID) {
             activeTabID = activeID
+        }
+        if let expandedSplitTabID, !validIDs.contains(expandedSplitTabID) {
+            self.expandedSplitTabID = nil
         }
         splitTabIDs = validIDs
         splitPaneRatios = Self.paneRatios(for: validIDs, carriedFrom: previousIDs, previousRatios: previousRatios)
