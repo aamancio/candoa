@@ -52,6 +52,9 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
     var hostedActiveTabID: UUID?
     var miniPlayerHostedTabID: UUID?
     var contentRuleList: WKContentRuleList?
+    /// Whether the compiled rule list is currently attached to web views —
+    /// diverges from the preference only until the observer reconciles.
+    var appliedTrackingProtection = false
     var hibernatedInteractionStates: [UUID: Data] = [:]
     var wakeSnapshots: [UUID: NSImage] = [:]
     var restoringTabIDs = Set<UUID>()
@@ -73,6 +76,15 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         Task { [weak self] in
             await self?.applyContentRuleList()
         }
+
+        // The strict-tracking-protection toggle takes effect on live web
+        // views (their next load), not just newly created ones.
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(userDefaultsDidChange),
+            name: UserDefaults.didChangeNotification,
+            object: nil
+        )
 
         hibernationScanTask?.cancel()
         hibernationScanTask = Task { @MainActor [weak self] in
@@ -140,7 +152,7 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         applyWebsiteAppearance(to: webView)
 
         let contentController = webView.configuration.userContentController
-        if let contentRuleList {
+        if let contentRuleList, strictTrackingProtectionEnabled {
             contentController.add(contentRuleList)
         }
         contentController.add(self, name: WebPageScripts.mediaStateMessageName)
@@ -541,14 +553,35 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
 
     // MARK: - Content Blocking
 
+    var strictTrackingProtectionEnabled: Bool {
+        CandoaSettingsOption.bool(CandoaSettingsOption.strictTrackingProtection, default: true)
+    }
+
     func applyContentRuleList() async {
         guard contentRuleList == nil, let ruleList = await ContentBlockerService.shared.ruleList() else { return }
         contentRuleList = ruleList
 
         // Web views created before compilation finished pick the rules up
         // for their subsequent loads.
+        if strictTrackingProtectionEnabled {
+            appliedTrackingProtection = true
+            for webView in webViews.values {
+                webView.configuration.userContentController.add(ruleList)
+            }
+        }
+    }
+
+    @objc private func userDefaultsDidChange(_ notification: Notification) {
+        guard let contentRuleList, strictTrackingProtectionEnabled != appliedTrackingProtection else { return }
+        appliedTrackingProtection.toggle()
+
         for webView in webViews.values {
-            webView.configuration.userContentController.add(ruleList)
+            let contentController = webView.configuration.userContentController
+            // The tracker list is the only rule list Candoa ever attaches.
+            contentController.removeAllContentRuleLists()
+            if appliedTrackingProtection {
+                contentController.add(contentRuleList)
+            }
         }
     }
 
