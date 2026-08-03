@@ -52,6 +52,9 @@ struct BrowserWindowState: Codable, Equatable {
     var activeTabID: UUID?
     var splitTabIDs: [UUID]
     var splitPaneRatios: [Double]
+    /// Raw `SplitViewLayout` value; stored as a string so older snapshots
+    /// (and unknown future layouts) degrade to the horizontal default.
+    var splitLayout: String
     var isSplitViewEnabled: Bool
 
     init(
@@ -62,6 +65,7 @@ struct BrowserWindowState: Codable, Equatable {
         activeTabID: UUID?,
         splitTabIDs: [UUID] = [],
         splitPaneRatios: [Double] = [],
+        splitLayout: String = "horizontal",
         isSplitViewEnabled: Bool = false
     ) {
         self.spaces = spaces
@@ -71,6 +75,7 @@ struct BrowserWindowState: Codable, Equatable {
         self.activeTabID = activeTabID
         self.splitTabIDs = splitTabIDs
         self.splitPaneRatios = splitPaneRatios
+        self.splitLayout = splitLayout
         self.isSplitViewEnabled = isSplitViewEnabled
     }
 
@@ -82,6 +87,7 @@ struct BrowserWindowState: Codable, Equatable {
         case activeTabID
         case splitTabIDs
         case splitPaneRatios
+        case splitLayout
         case isSplitViewEnabled
     }
 
@@ -94,6 +100,7 @@ struct BrowserWindowState: Codable, Equatable {
         activeTabID = try container.decodeIfPresent(UUID.self, forKey: .activeTabID)
         splitTabIDs = try container.decodeIfPresent([UUID].self, forKey: .splitTabIDs) ?? []
         splitPaneRatios = try container.decodeIfPresent([Double].self, forKey: .splitPaneRatios) ?? []
+        splitLayout = try container.decodeIfPresent(String.self, forKey: .splitLayout) ?? "horizontal"
         isSplitViewEnabled = try container.decodeIfPresent(Bool.self, forKey: .isSplitViewEnabled) ?? false
     }
 }

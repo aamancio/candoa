@@ -410,6 +410,8 @@ struct ContentView: View {
                 addSplitView()
             } onCloseSplit: {
                 store.closeSplitView()
+            } onSplitLayout: { layout in
+                store.setSplitLayout(layout)
             }
         )
         // isCommandPalettePresented deliberately has no .animation(value:)
@@ -570,6 +572,7 @@ struct ContentView: View {
             resetZoom: store.resetZoomForActiveTab,
             addSplitView: addSplitView,
             closeSplitView: store.closeSplitView,
+            setSplitLayout: store.setSplitLayout,
             isWorkspaceICloudSyncEnabled: store.iCloudWorkspaceSyncEnabled,
             isHistoryICloudSyncEnabled: store.iCloudHistorySyncEnabled,
             setWorkspaceICloudSyncEnabled: store.setWorkspaceICloudSyncEnabled,

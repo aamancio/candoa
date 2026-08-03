@@ -1,11 +1,22 @@
 import AppKit
 import Foundation
 
+/// How a split group arranges its panes (Zen-style layouts).
+enum SplitViewLayout: String, Codable {
+    /// Side-by-side columns — the default.
+    case horizontal
+    /// Stacked rows.
+    case vertical
+    /// Two columns, row-major; an odd last pane spans the full width.
+    case grid
+}
+
 /// A Space's split group, stashed while another Space is frontmost so the
 /// split survives switching away and back.
 struct SuspendedSplitState {
     var tabIDs: [UUID]
     var paneRatios: [Double]
+    var layout: SplitViewLayout
 }
 
 extension BrowserStore {
@@ -99,6 +110,36 @@ extension BrowserStore {
         isSplitViewEnabled = false
         splitTabIDs = []
         splitPaneRatios = []
+        splitLayout = .horizontal
+    }
+
+    /// Switches the displayed split between side-by-side, stacked, and grid
+    /// arrangements. Pane order and membership are untouched; the linear
+    /// ratios carry over between horizontal and vertical (grid cells are
+    /// always equal).
+    func setSplitLayout(_ layout: SplitViewLayout) {
+        guard splitTabIDs.count >= 2, splitLayout != layout else { return }
+        splitLayout = layout
+    }
+
+    /// Reorders the displayed panes (a pane-handle drag): the pane at
+    /// `sourceIndex` moves to `targetIndex`, its width/height ratio riding
+    /// along with it.
+    func moveSplitPane(from sourceIndex: Int, to targetIndex: Int) {
+        var orderedIDs = splitGroupTabIDs()
+        var ratios = splitPaneRatios(forPaneCount: orderedIDs.count)
+        guard
+            sourceIndex != targetIndex,
+            orderedIDs.indices.contains(sourceIndex),
+            orderedIDs.indices.contains(targetIndex)
+        else { return }
+
+        let movedID = orderedIDs.remove(at: sourceIndex)
+        orderedIDs.insert(movedID, at: targetIndex)
+        let movedRatio = ratios.remove(at: sourceIndex)
+        ratios.insert(movedRatio, at: targetIndex)
+        splitTabIDs = orderedIDs
+        splitPaneRatios = ratios
     }
 
     /// Takes one tab out of the split group without closing it: the tab
@@ -118,10 +159,11 @@ extension BrowserStore {
     /// state only ever carries the frontmost Space's group.
     func suspendSplitState(for spaceID: UUID) {
         suspendedSplitStatesBySpace[spaceID] = splitTabIDs.count >= 2
-            ? SuspendedSplitState(tabIDs: splitTabIDs, paneRatios: splitPaneRatios)
+            ? SuspendedSplitState(tabIDs: splitTabIDs, paneRatios: splitPaneRatios, layout: splitLayout)
             : nil
         splitTabIDs = []
         splitPaneRatios = []
+        splitLayout = .horizontal
         isSplitViewEnabled = false
     }
 
@@ -137,6 +179,7 @@ extension BrowserStore {
             carriedFrom: suspendedState.tabIDs,
             previousRatios: suspendedState.paneRatios
         )
+        splitLayout = suspendedState.layout
         isSplitViewEnabled = true
     }
 
@@ -445,6 +488,7 @@ extension BrowserStore {
         guard validIDs.count >= 2 else {
             splitTabIDs = []
             splitPaneRatios = []
+            splitLayout = .horizontal
             isSplitViewEnabled = false
             // Focus only moves when the caller asked for a member or the
             // active tab is gone; dissolving a suspended group while browsing

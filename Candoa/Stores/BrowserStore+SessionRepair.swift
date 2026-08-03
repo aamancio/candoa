@@ -96,10 +96,12 @@ extension BrowserStore {
             } else {
                 splitTabIDs = []
                 splitPaneRatios = []
+                splitLayout = .horizontal
             }
         } else {
             splitTabIDs = []
             splitPaneRatios = []
+            splitLayout = .horizontal
         }
     }
 

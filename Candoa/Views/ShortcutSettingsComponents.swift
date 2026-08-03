@@ -547,6 +547,9 @@ enum CandoaShortcutDefinition: String, CaseIterable, Identifiable {
     case previousSpace
     case addSplitView
     case closeSplitView
+    case splitLayoutHorizontal
+    case splitLayoutVertical
+    case splitLayoutGrid
     case findInPage
     case findNext
     case findPrevious
@@ -583,6 +586,9 @@ enum CandoaShortcutDefinition: String, CaseIterable, Identifiable {
         case .previousSpace: return BrowserCommandTitles.previousSpace
         case .addSplitView: return BrowserCommandTitles.addSplitView
         case .closeSplitView: return BrowserCommandTitles.closeSplitView
+        case .splitLayoutHorizontal: return BrowserCommandTitles.splitLayoutHorizontal
+        case .splitLayoutVertical: return BrowserCommandTitles.splitLayoutVertical
+        case .splitLayoutGrid: return BrowserCommandTitles.splitLayoutGrid
         case .findInPage: return BrowserCommandTitles.findInPage
         case .findNext: return BrowserCommandTitles.findNext
         case .findPrevious: return BrowserCommandTitles.findPrevious
@@ -601,7 +607,7 @@ enum CandoaShortcutDefinition: String, CaseIterable, Identifiable {
             return "Capture"
         case .toggleAISidebar:
             return "AI"
-        case .addSplitView, .closeSplitView:
+        case .addSplitView, .closeSplitView, .splitLayoutHorizontal, .splitLayoutVertical, .splitLayoutGrid:
             return "Split View"
         case .goBack, .goForward, .nextRecentTab, .previousRecentTab, .nextTab, .previousTab, .nextSpace, .previousSpace:
             return "Navigation"
@@ -637,6 +643,9 @@ enum CandoaShortcutDefinition: String, CaseIterable, Identifiable {
         case .previousSpace: return "Option-Command-Left"
         case .addSplitView: return "Control-Shift-="
         case .closeSplitView: return "Control-Shift--"
+        case .splitLayoutHorizontal: return "Control-Option-H"
+        case .splitLayoutVertical: return "Control-Option-V"
+        case .splitLayoutGrid: return "Control-Option-G"
         case .findInPage: return "Command-F"
         case .findNext: return "Command-G"
         case .findPrevious: return "Shift-Command-G"
@@ -667,7 +676,9 @@ enum CandoaShortcutDefinition: String, CaseIterable, Identifiable {
         case .closeCurrentTab: return "xmark"
         case .reopenClosedTab: return "arrow.uturn.backward"
         case .captureFullPage: return "camera"
-        case .addSplitView, .closeSplitView: return "rectangle.split.2x1"
+        case .addSplitView, .closeSplitView, .splitLayoutHorizontal: return "rectangle.split.2x1"
+        case .splitLayoutVertical: return "rectangle.split.1x2"
+        case .splitLayoutGrid: return "rectangle.split.2x2"
         case .copyURL, .copyURLAsMarkdown: return "link"
         case .findInPage, .findNext, .findPrevious: return "magnifyingglass"
         case .reloadTab: return "arrow.clockwise"

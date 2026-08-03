@@ -150,6 +150,45 @@ final class CandoaUITests: XCTestCase {
         )
     }
 
+    func testSplitViewLayoutsAndPaneReorder() throws {
+        let app = launchApp(fixture: "split-view")
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
+
+        openFixtureTab(path: "one", in: app)
+        openFixtureTab(path: "two", in: app)
+
+        app.typeKey("=", modifierFlags: [.control, .shift])
+        XCTAssertTrue(waitForState(in: app, containing: "splitDisplayed=true"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "splitTabs=two|one"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "splitLayout=horizontal"), currentState(in: app))
+
+        // Dragging a pane's grab handle onto the other pane reorders them.
+        let grip = element("split-pane-grip-0", in: app)
+        XCTAssertTrue(grip.waitForExistence(timeout: 5), currentState(in: app))
+        let trailingPane = element("split-pane-1", in: app)
+        XCTAssertTrue(trailingPane.waitForExistence(timeout: 5), currentState(in: app))
+        grip.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).press(
+            forDuration: 0.2,
+            thenDragTo: trailingPane.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        )
+        XCTAssertTrue(waitForState(in: app, containing: "splitTabs=one|two"), currentState(in: app))
+
+        // Zen-style layout shortcuts switch between rows, grid, and columns.
+        app.typeKey("v", modifierFlags: [.control, .option])
+        XCTAssertTrue(waitForState(in: app, containing: "splitLayout=vertical"), currentState(in: app))
+
+        app.typeKey("g", modifierFlags: [.control, .option])
+        XCTAssertTrue(waitForState(in: app, containing: "splitLayout=grid"), currentState(in: app))
+
+        app.typeKey("h", modifierFlags: [.control, .option])
+        XCTAssertTrue(waitForState(in: app, containing: "splitLayout=horizontal"), currentState(in: app))
+
+        // The layout is split state: closing the split resets it.
+        app.typeKey("-", modifierFlags: [.control, .shift])
+        XCTAssertTrue(waitForState(in: app, containing: "split=false"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "splitLayout=horizontal"), currentState(in: app))
+    }
+
     func testFavoritesStayGlobalAcrossSpaces() throws {
         let app = launchApp(fixture: "split-view-spaces")
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))

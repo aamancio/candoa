@@ -22,6 +22,9 @@ struct WebViewContainer: View {
     /// WKWebViews never relayout mid-drag; the single web layout happens at
     /// release, when the new ratios commit.
     @State private var splitDividerDrag: SplitDividerDragState?
+    /// In-flight pane-handle drag (reordering). Same rule: only the target
+    /// highlight tracks the pointer, the panes exchange places on release.
+    @State private var splitPaneReorder: SplitPaneReorderState?
     private let surfaceCornerRadius: CGFloat = 12
     private let surfacePadding: CGFloat = 8
     private static let splitPaneMinimumWidth: CGFloat = 160
@@ -172,11 +175,30 @@ struct WebViewContainer: View {
         )
     }
 
-    private func splitPaneInsets(for tab: BrowserTab, in tabs: [BrowserTab]) -> BrowserInterfaceInsets {
-        BrowserInterfaceInsets(
-            leading: tab.id == tabs.first?.id ? webContentInsets.leading : 0,
-            trailing: tab.id == tabs.last?.id ? webContentInsets.trailing : 0
-        )
+    /// Which window-edge insets a pane needs depends on where the layout
+    /// puts it: only panes touching the leading/trailing window edge reserve
+    /// the corresponding interface lane.
+    private func splitPaneInsets(
+        forPaneAt index: Int,
+        paneCount: Int,
+        layout: SplitViewLayout
+    ) -> BrowserInterfaceInsets {
+        switch layout {
+        case .horizontal:
+            return BrowserInterfaceInsets(
+                leading: index == 0 ? webContentInsets.leading : 0,
+                trailing: index == paneCount - 1 ? webContentInsets.trailing : 0
+            )
+        case .vertical:
+            // Stacked rows all span the full width, touching both edges.
+            return webContentInsets
+        case .grid:
+            let spansFullWidth = index == paneCount - 1 && paneCount % 2 == 1
+            return BrowserInterfaceInsets(
+                leading: index % 2 == 0 ? webContentInsets.leading : 0,
+                trailing: index % 2 == 1 || spansFullWidth ? webContentInsets.trailing : 0
+            )
+        }
     }
 
     @ViewBuilder
@@ -302,15 +324,24 @@ struct WebViewContainer: View {
 
     // MARK: - Split panes
 
+    static let splitRowCoordinateSpace = "candoa-split-row"
+
     private func splitPaneRow(for splitTabs: [BrowserTab]) -> some View {
         GeometryReader { proxy in
             let spacing = surfacePadding
-            let availableWidth = max(1, proxy.size.width - spacing * CGFloat(splitTabs.count - 1))
+            let layout = store.splitLayout
             let ratios = store.splitPaneRatios(forPaneCount: splitTabs.count)
-            let widths = ratios.map { availableWidth * CGFloat($0) }
+            let frames = Self.splitPaneFrames(
+                layout: layout,
+                ratios: ratios,
+                in: proxy.size,
+                spacing: spacing
+            )
 
-            HStack(spacing: spacing) {
+            ZStack(alignment: .topLeading) {
                 ForEach(Array(splitTabs.enumerated()), id: \.element.id) { index, splitTab in
+                    let frame = frames.indices.contains(index) ? frames[index] : .zero
+
                     browserSurface {
                         webPane(for: splitTab, at: index, in: splitTabs)
                     }
@@ -326,34 +357,130 @@ struct WebViewContainer: View {
                             .allowsHitTesting(false)
                             .animation(.easeOut(duration: 0.12), value: isFocused)
                     }
-                    .frame(width: widths.indices.contains(index) ? widths[index] : nil)
-                    .frame(maxHeight: .infinity, alignment: .top)
+                    .overlay(alignment: .top) {
+                        SplitPaneReorderHandle(
+                            isDraggingThisPane: splitPaneReorder?.sourceIndex == index,
+                            onDragChanged: { location in
+                                splitPaneReorder = SplitPaneReorderState(sourceIndex: index, location: location)
+                            },
+                            onDragEnded: { location in
+                                splitPaneReorder = nil
+                                if let targetIndex = Self.splitPaneIndex(at: location, in: frames, spacing: spacing) {
+                                    store.moveSplitPane(from: index, to: targetIndex)
+                                }
+                            }
+                        )
+                        // Below the row dividers' 7pt overhang so the grip
+                        // and a divider strip never contend for the pointer.
+                        .padding(.top, 8)
+                        .accessibilityElement()
+                        .accessibilityLabel("Move Pane")
+                        .accessibilityIdentifier("split-pane-grip-\(index)")
+                    }
+                    .frame(width: frame.width, height: frame.height)
+                    .offset(x: frame.minX, y: frame.minY)
+                }
+
+                splitDividers(layout: layout, frames: frames, spacing: spacing, in: proxy.size)
+
+                // Reorder target highlight: the pane the grabbed pane would
+                // move to. Panes themselves never move until the drop commits.
+                if let reorder = splitPaneReorder,
+                   let targetIndex = Self.splitPaneIndex(at: reorder.location, in: frames, spacing: spacing),
+                   targetIndex != reorder.sourceIndex,
+                   frames.indices.contains(targetIndex) {
+                    RoundedRectangle(cornerRadius: surfaceCornerRadius, style: .continuous)
+                        .stroke(CandoaColor.accent.opacity(0.85), lineWidth: 2)
+                        .frame(width: frames[targetIndex].width, height: frames[targetIndex].height)
+                        .offset(x: frames[targetIndex].minX, y: frames[targetIndex].minY)
+                        .allowsHitTesting(false)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .overlay(alignment: .topLeading) {
-                splitDividers(widths: widths, spacing: spacing, rowHeight: proxy.size.height)
+            .coordinateSpace(name: Self.splitRowCoordinateSpace)
+        }
+    }
+
+    /// Pane rectangles for the current layout. Horizontal and vertical
+    /// distribute the panes' shared ratios along their axis; the grid packs
+    /// two equal columns row-major, the odd last pane spanning full width.
+    static func splitPaneFrames(
+        layout: SplitViewLayout,
+        ratios: [Double],
+        in size: CGSize,
+        spacing: CGFloat
+    ) -> [CGRect] {
+        let paneCount = ratios.count
+        guard paneCount > 0 else { return [] }
+
+        switch layout {
+        case .horizontal:
+            let available = max(1, size.width - spacing * CGFloat(paneCount - 1))
+            var x: CGFloat = 0
+            return ratios.map { ratio in
+                let width = available * CGFloat(ratio)
+                defer { x += width + spacing }
+                return CGRect(x: x, y: 0, width: width, height: size.height)
+            }
+        case .vertical:
+            let available = max(1, size.height - spacing * CGFloat(paneCount - 1))
+            var y: CGFloat = 0
+            return ratios.map { ratio in
+                let height = available * CGFloat(ratio)
+                defer { y += height + spacing }
+                return CGRect(x: 0, y: y, width: size.width, height: height)
+            }
+        case .grid:
+            let rowCount = (paneCount + 1) / 2
+            let rowHeight = max(1, (size.height - spacing * CGFloat(rowCount - 1)) / CGFloat(rowCount))
+            let columnWidth = max(1, (size.width - spacing) / 2)
+            return (0..<paneCount).map { index in
+                let row = index / 2
+                let column = index % 2
+                let spansFullWidth = index == paneCount - 1 && paneCount % 2 == 1
+                return CGRect(
+                    x: column == 0 ? 0 : columnWidth + spacing,
+                    y: CGFloat(row) * (rowHeight + spacing),
+                    width: spansFullWidth ? size.width : columnWidth,
+                    height: rowHeight
+                )
             }
         }
     }
 
-    @ViewBuilder
-    private func splitDividers(widths: [CGFloat], spacing: CGFloat, rowHeight: CGFloat) -> some View {
-        let minimumPaneWidth = min(Self.splitPaneMinimumWidth, widths.reduce(0, +) / CGFloat(max(1, widths.count)))
+    static func splitPaneIndex(at location: CGPoint, in frames: [CGRect], spacing: CGFloat) -> Int? {
+        frames.firstIndex { frame in
+            frame.insetBy(dx: -spacing / 2, dy: -spacing / 2).contains(location)
+        }
+    }
 
-        ZStack(alignment: .topLeading) {
-            ForEach(0..<max(0, widths.count - 1), id: \.self) { index in
-                let dividerX = widths.prefix(index + 1).reduce(0, +)
-                    + spacing * CGFloat(index)
-                    + spacing / 2
+    /// Divider handles between adjacent panes. Only the linear layouts
+    /// resize — grid cells stay equal, so the grid draws no dividers.
+    @ViewBuilder
+    private func splitDividers(
+        layout: SplitViewLayout,
+        frames: [CGRect],
+        spacing: CGFloat,
+        in size: CGSize
+    ) -> some View {
+        if layout != .grid {
+            let lengths = frames.map { layout == .vertical ? $0.height : $0.width }
+            let minimumPaneLength = min(
+                Self.splitPaneMinimumWidth,
+                lengths.reduce(0, +) / CGFloat(max(1, lengths.count))
+            )
+
+            ForEach(0..<max(0, frames.count - 1), id: \.self) { index in
+                let dividerCenter = (layout == .vertical ? frames[index].maxY : frames[index].maxX) + spacing / 2
                 let clampedTranslation = clampedDividerTranslation(
                     splitDividerDrag?.dividerIndex == index ? splitDividerDrag?.translation ?? 0 : 0,
                     at: index,
-                    widths: widths,
-                    minimumPaneWidth: minimumPaneWidth
+                    lengths: lengths,
+                    minimumPaneLength: minimumPaneLength
                 )
 
                 SplitPaneDivider(
+                    axis: layout == .vertical ? .vertical : .horizontal,
                     isDragging: splitDividerDrag?.dividerIndex == index,
                     onDragChanged: { translation in
                         splitDividerDrag = SplitDividerDragState(dividerIndex: index, translation: translation)
@@ -363,8 +490,8 @@ struct WebViewContainer: View {
                         commitDividerDrag(
                             translation,
                             at: index,
-                            widths: widths,
-                            minimumPaneWidth: minimumPaneWidth
+                            lengths: lengths,
+                            minimumPaneLength: minimumPaneLength
                         )
                     },
                     onReset: {
@@ -372,8 +499,14 @@ struct WebViewContainer: View {
                         store.resetSplitPaneRatios()
                     }
                 )
-                .frame(width: 14, height: rowHeight)
-                .offset(x: dividerX - 7 + clampedTranslation)
+                .frame(
+                    width: layout == .vertical ? size.width : 14,
+                    height: layout == .vertical ? 14 : size.height
+                )
+                .offset(
+                    x: layout == .vertical ? 0 : dividerCenter - 7 + clampedTranslation,
+                    y: layout == .vertical ? dividerCenter - 7 + clampedTranslation : 0
+                )
                 .accessibilityElement()
                 .accessibilityLabel("Resize Split Panes")
                 .accessibilityIdentifier("split-divider-\(index)")
@@ -384,12 +517,12 @@ struct WebViewContainer: View {
     private func clampedDividerTranslation(
         _ translation: CGFloat,
         at index: Int,
-        widths: [CGFloat],
-        minimumPaneWidth: CGFloat
+        lengths: [CGFloat],
+        minimumPaneLength: CGFloat
     ) -> CGFloat {
-        guard widths.indices.contains(index), widths.indices.contains(index + 1) else { return 0 }
-        let lowerBound = minimumPaneWidth - widths[index]
-        let upperBound = widths[index + 1] - minimumPaneWidth
+        guard lengths.indices.contains(index), lengths.indices.contains(index + 1) else { return 0 }
+        let lowerBound = minimumPaneLength - lengths[index]
+        let upperBound = lengths[index + 1] - minimumPaneLength
         guard lowerBound <= upperBound else { return 0 }
         return min(max(translation, lowerBound), upperBound)
     }
@@ -397,21 +530,21 @@ struct WebViewContainer: View {
     private func commitDividerDrag(
         _ translation: CGFloat,
         at index: Int,
-        widths: [CGFloat],
-        minimumPaneWidth: CGFloat
+        lengths: [CGFloat],
+        minimumPaneLength: CGFloat
     ) {
         let clamped = clampedDividerTranslation(
             translation,
             at: index,
-            widths: widths,
-            minimumPaneWidth: minimumPaneWidth
+            lengths: lengths,
+            minimumPaneLength: minimumPaneLength
         )
         guard clamped != 0 else { return }
 
-        var resizedWidths = widths
-        resizedWidths[index] += clamped
-        resizedWidths[index + 1] -= clamped
-        store.commitSplitPaneRatios(resizedWidths.map(Double.init))
+        var resizedLengths = lengths
+        resizedLengths[index] += clamped
+        resizedLengths[index + 1] -= clamped
+        store.commitSplitPaneRatios(resizedLengths.map(Double.init))
     }
 
     private func webPane(for tab: BrowserTab, at paneIndex: Int, in splitTabs: [BrowserTab]) -> some View {
@@ -419,7 +552,11 @@ struct WebViewContainer: View {
             tab: tab,
             paneIndex: paneIndex,
             store: store,
-            obscuredContentInsets: splitPaneInsets(for: tab, in: splitTabs)
+            obscuredContentInsets: splitPaneInsets(
+                forPaneAt: paneIndex,
+                paneCount: splitTabs.count,
+                layout: store.splitLayout
+            )
         )
             .id(tab.id)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -446,11 +583,19 @@ private struct SplitDividerDragState: Equatable {
     var translation: CGFloat
 }
 
-/// The draggable handle between two split panes. It rides in the panes' 8pt
-/// gutter, shows the horizontal-resize cursor on hover, and highlights while
-/// dragging (the panes themselves commit their new widths on release).
-/// Double-click resets the whole split to equal widths.
+private struct SplitPaneReorderState: Equatable {
+    var sourceIndex: Int
+    var location: CGPoint
+}
+
+/// The draggable handle between two adjacent split panes. It rides in the
+/// panes' 8pt gutter, shows the axis-appropriate resize cursor on hover, and
+/// highlights while dragging (the panes themselves commit their new lengths
+/// on release). Double-click resets the whole split to equal panes.
 private struct SplitPaneDivider: View {
+    /// The axis panes are laid out along: .horizontal dividers sit between
+    /// columns (a vertical line), .vertical dividers between rows.
+    let axis: Axis
     let isDragging: Bool
     let onDragChanged: (CGFloat) -> Void
     let onDragEnded: (CGFloat) -> Void
@@ -469,25 +614,72 @@ private struct SplitPaneDivider: View {
                         ? CandoaColor.accent.opacity(0.85)
                         : Color.primary.opacity(isHovering ? 0.28 : 0)
                 )
-                .frame(width: isDragging ? 3 : 2)
-                .frame(maxHeight: .infinity)
-                .padding(.vertical, 10)
+                .frame(
+                    width: axis == .horizontal ? (isDragging ? 3 : 2) : nil,
+                    height: axis == .vertical ? (isDragging ? 3 : 2) : nil
+                )
+                .frame(
+                    maxWidth: axis == .vertical ? .infinity : nil,
+                    maxHeight: axis == .horizontal ? .infinity : nil
+                )
+                .padding(axis == .horizontal ? .vertical : .horizontal, 10)
         }
         .onHover { isHovering = $0 }
-        .candoaAISidebarCursor(AISidebarResizeCursor.horizontal)
+        .candoaAISidebarCursor(
+            axis == .horizontal ? AISidebarResizeCursor.horizontal : AISidebarResizeCursor.vertical
+        )
         .gesture(
             DragGesture(minimumDistance: 1, coordinateSpace: .global)
                 .onChanged { value in
-                    onDragChanged(value.translation.width)
+                    onDragChanged(axis == .horizontal ? value.translation.width : value.translation.height)
                 }
                 .onEnded { value in
-                    onDragEnded(value.translation.width)
+                    onDragEnded(axis == .horizontal ? value.translation.width : value.translation.height)
                 }
         )
         .onTapGesture(count: 2, perform: onReset)
         .animation(.easeOut(duration: 0.10), value: isHovering)
         .animation(.easeOut(duration: 0.10), value: isDragging)
-        .help("Drag to resize panes; double-click for equal widths")
+        .help("Drag to resize panes; double-click for equal panes")
+    }
+}
+
+/// Arc-style grab handle at a pane's top center. Dragging it moves the pane
+/// to another slot in the split: the target pane highlights while the drag
+/// is in flight, and the reorder commits on release — panes never relayout
+/// mid-drag. The hit area is a small capsule so the page's top edge stays
+/// clickable everywhere else.
+private struct SplitPaneReorderHandle: View {
+    let isDraggingThisPane: Bool
+    let onDragChanged: (CGPoint) -> Void
+    let onDragEnded: (CGPoint) -> Void
+
+    @State private var isHovering = false
+
+    var body: some View {
+        Capsule(style: .continuous)
+            .fill(
+                isDraggingThisPane
+                    ? CandoaColor.accent.opacity(0.65)
+                    : Color.primary.opacity(isHovering ? 0.30 : 0)
+            )
+            .frame(width: 44, height: 6)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4)
+            .contentShape(Capsule(style: .continuous))
+            .onHover { isHovering = $0 }
+            .gesture(
+                DragGesture(minimumDistance: 2, coordinateSpace: .named(WebViewContainer.splitRowCoordinateSpace))
+                    .onChanged { value in
+                        onDragChanged(value.location)
+                    }
+                    .onEnded { value in
+                        onDragEnded(value.location)
+                    }
+            )
+            .animation(.easeOut(duration: 0.10), value: isHovering)
+            .animation(.easeOut(duration: 0.10), value: isDraggingThisPane)
+            .help("Drag to move this pane")
     }
 }
 

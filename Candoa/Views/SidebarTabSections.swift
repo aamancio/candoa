@@ -128,6 +128,11 @@ internal struct SidebarSplitGroupView: View {
         }
         .onHover { isHovering = $0 }
         .contextMenu {
+            Menu("Split Layout") {
+                Button(BrowserCommandTitles.splitLayoutHorizontal) { store.setSplitLayout(.horizontal) }
+                Button(BrowserCommandTitles.splitLayoutVertical) { store.setSplitLayout(.vertical) }
+                Button(BrowserCommandTitles.splitLayoutGrid) { store.setSplitLayout(.grid) }
+            }
             Button(BrowserCommandTitles.closeSplitView, action: store.closeSplitView)
         }
         .animation(.easeOut(duration: 0.10), value: isHovering)

@@ -35,6 +35,7 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
     let onPreviousSpace: () -> Void
     let onAddSplit: () -> Void
     let onCloseSplit: () -> Void
+    let onSplitLayout: (SplitViewLayout) -> Void
 
     func makeCoordinator() -> Coordinator {
         let coordinator = Coordinator()
@@ -88,6 +89,7 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
         coordinator.onPreviousSpace = onPreviousSpace
         coordinator.onAddSplit = onAddSplit
         coordinator.onCloseSplit = onCloseSplit
+        coordinator.onSplitLayout = onSplitLayout
     }
 
     final class Coordinator: NSObject {
@@ -124,6 +126,7 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
         var onPreviousSpace: () -> Void = {}
         var onAddSplit: () -> Void = {}
         var onCloseSplit: () -> Void = {}
+        var onSplitLayout: (SplitViewLayout) -> Void = { _ in }
         private var monitor: Any?
         /// The monitor is app-wide (NSEvent local monitors always are), but
         /// every window mounts its own instance against its own store. Each
@@ -281,6 +284,21 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
 
                 if Self.matchesConfiguredShortcut(.closeSplitView, event) {
                     onCloseSplit()
+                    return nil
+                }
+
+                if Self.matchesConfiguredShortcut(.splitLayoutHorizontal, event) {
+                    onSplitLayout(.horizontal)
+                    return nil
+                }
+
+                if Self.matchesConfiguredShortcut(.splitLayoutVertical, event) {
+                    onSplitLayout(.vertical)
+                    return nil
+                }
+
+                if Self.matchesConfiguredShortcut(.splitLayoutGrid, event) {
+                    onSplitLayout(.grid)
                     return nil
                 }
 

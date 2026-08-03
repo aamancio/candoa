@@ -299,6 +299,7 @@ extension BrowserStore {
             "splitTabs=\(splitTabTitles)",
             "splitActive=\(splitActiveTitle)",
             "splitRatios=\(splitRatioText)",
+            "splitLayout=\(splitLayout.rawValue)",
             "popover=\(uiTestingVisibleFolderPopoverDescription)",
             "query=\(uiTestingCommandPaletteQuery)",
             "command=\(uiTestingLastCommandDescription)",
