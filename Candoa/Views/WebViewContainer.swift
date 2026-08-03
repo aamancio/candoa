@@ -744,7 +744,7 @@ private struct SplitPaneControlPill: View {
 
     @State private var isHovering = false
 
-    private var isRevealed: Bool {
+    private var isProminent: Bool {
         isPaneTopHovered || isHovering || isDraggingThisPane || isExpanded
     }
 
@@ -805,11 +805,13 @@ private struct SplitPaneControlPill: View {
             RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .strokeBorder(CandoaInterfaceStyle.popoverBorder, lineWidth: 1)
         }
-        // Not 0: fully transparent views stop hit-testing, and the pill must
-        // keep its hover/click footprint while visually absent.
-        .opacity(isRevealed ? 1 : 0.02)
+        // Always visible, Zen-style: hiding the pill behind hover made it
+        // undiscoverable, and hover delivery over web content is not a
+        // dependable reveal signal. The resting state stays quiet; pointer
+        // proximity or an active drag brings it to full prominence.
+        .opacity(isProminent ? 1 : 0.55)
         .onHover { isHovering = $0 }
-        .animation(.easeOut(duration: 0.12), value: isRevealed)
+        .animation(.easeOut(duration: 0.12), value: isProminent)
     }
 
     private var gripDots: some View {
