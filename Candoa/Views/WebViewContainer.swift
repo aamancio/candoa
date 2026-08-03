@@ -413,59 +413,73 @@ struct WebViewContainer: View {
                 }
 
                 splitDividers(layout: layout, frames: frames, spacing: spacing, in: proxy.size)
-
-                // Reorder target highlight: the pane the grabbed pane would
-                // move to. Panes themselves never move until the drop commits.
-                if let reorder = splitPaneReorder,
-                   let targetIndex = Self.splitPaneIndex(at: reorder.location, in: frames, spacing: spacing),
-                   targetIndex != reorder.sourceIndex,
-                   frames.indices.contains(targetIndex) {
-                    let targetInsets = splitPaneInsets(
-                        forPaneAt: targetIndex,
-                        paneCount: splitTabs.count,
-                        layout: layout
-                    )
-                    RoundedRectangle(cornerRadius: surfaceCornerRadius, style: .continuous)
-                        .stroke(CandoaColor.accent.opacity(0.85), lineWidth: 2)
-                        .padding(.leading, targetInsets.leading)
-                        .padding(.trailing, targetInsets.trailing)
-                        .frame(width: frames[targetIndex].width, height: frames[targetIndex].height)
-                        .offset(x: frames[targetIndex].minX, y: frames[targetIndex].minY)
-                        .allowsHitTesting(false)
-                }
-
-                // Cursor-following ghost of the grabbed pane — a miniature of
-                // the page card, in the source pane's aspect ratio, so the
-                // drag reads as carrying the page. The ghost tracks the
-                // pointer directly (no animation) and the real panes never
-                // move until the drop commits.
-                if let reorder = splitPaneReorder,
-                   splitTabs.indices.contains(reorder.sourceIndex),
-                   frames.indices.contains(reorder.sourceIndex) {
-                    let sourceFrame = frames[reorder.sourceIndex]
-                    let scale = min(
-                        1,
-                        200 / max(sourceFrame.width, 1),
-                        150 / max(sourceFrame.height, 1)
-                    )
-                    let ghostWidth = max(120, sourceFrame.width * scale)
-                    let ghostHeight = max(84, sourceFrame.height * scale)
-                    TabDragGhost(
-                        tab: splitTabs[reorder.sourceIndex],
-                        width: ghostWidth,
-                        height: ghostHeight
-                    )
-                    .opacity(0.9)
-                    .offset(
-                        x: reorder.location.x - ghostWidth / 2,
-                        y: reorder.location.y + 14
-                    )
-                    .allowsHitTesting(false)
-                }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            // The reorder adornments must be an overlay, not ZStack siblings:
+            // SwiftUI draws plain siblings beneath the AppKit-hosted web
+            // views, while overlay content provably layers above them (the
+            // pane pill and focus ring rely on the same hosting).
+            .overlay {
+                splitReorderOverlay(splitTabs: splitTabs, frames: frames, layout: layout, spacing: spacing)
+            }
             .coordinateSpace(name: Self.splitRowCoordinateSpace)
         }
+    }
+
+    /// Drag feedback for the pane grip: an accent ring on the pane the grab
+    /// would move to, and a cursor-following ghost of the grabbed page in
+    /// the source pane's aspect ratio. The ghost tracks the pointer directly
+    /// (no animation) and the real panes never move until the drop commits.
+    @ViewBuilder
+    private func splitReorderOverlay(
+        splitTabs: [BrowserTab],
+        frames: [CGRect],
+        layout: SplitViewLayout,
+        spacing: CGFloat
+    ) -> some View {
+        ZStack(alignment: .topLeading) {
+            if let reorder = splitPaneReorder,
+               let targetIndex = Self.splitPaneIndex(at: reorder.location, in: frames, spacing: spacing),
+               targetIndex != reorder.sourceIndex,
+               frames.indices.contains(targetIndex) {
+                let targetInsets = splitPaneInsets(
+                    forPaneAt: targetIndex,
+                    paneCount: splitTabs.count,
+                    layout: layout
+                )
+                RoundedRectangle(cornerRadius: surfaceCornerRadius, style: .continuous)
+                    .stroke(CandoaColor.accent.opacity(0.85), lineWidth: 2)
+                    .padding(.leading, targetInsets.leading)
+                    .padding(.trailing, targetInsets.trailing)
+                    .frame(width: frames[targetIndex].width, height: frames[targetIndex].height)
+                    .offset(x: frames[targetIndex].minX, y: frames[targetIndex].minY)
+            }
+
+            if let reorder = splitPaneReorder,
+               splitTabs.indices.contains(reorder.sourceIndex),
+               frames.indices.contains(reorder.sourceIndex) {
+                let sourceFrame = frames[reorder.sourceIndex]
+                let scale = min(
+                    1,
+                    200 / max(sourceFrame.width, 1),
+                    150 / max(sourceFrame.height, 1)
+                )
+                let ghostWidth = max(120, sourceFrame.width * scale)
+                let ghostHeight = max(84, sourceFrame.height * scale)
+                TabDragGhost(
+                    tab: splitTabs[reorder.sourceIndex],
+                    width: ghostWidth,
+                    height: ghostHeight
+                )
+                .opacity(0.9)
+                .offset(
+                    x: reorder.location.x - ghostWidth / 2,
+                    y: reorder.location.y + 14
+                )
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .allowsHitTesting(false)
     }
 
     /// Pane rectangles for the current layout. Horizontal and vertical
