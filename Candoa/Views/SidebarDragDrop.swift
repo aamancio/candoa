@@ -588,6 +588,15 @@ internal final class TabDragSourceAnchorView: NSView, NSDraggingSource {
         let ghostImage = TabDragGhostImage.make(for: tab)
 
         _ = store.beginTabDrag(tabID)
+        // beginTabDrag starts the mouse-button polling watcher that exists
+        // for SwiftUI-initiated drags with no end-of-session signal. This
+        // native session reports its end through
+        // draggingSession(_:endedAt:operation:), so the watcher is not
+        // needed — and synthetic test drags don't register in
+        // NSEvent.pressedMouseButtons, which made the watcher cancel
+        // in-flight drags mid-session.
+        store.tabDragSessionWatcher?.invalidate()
+        store.tabDragSessionWatcher = nil
 
         let pasteboardItem = NSPasteboardItem()
         pasteboardItem.setString(tabID.uuidString, forType: .string)
@@ -620,6 +629,25 @@ internal final class TabDragSourceAnchorView: NSView, NSDraggingSource {
     ) -> NSDragOperation {
         // Tabs never leave the app as text drags.
         context == .withinApplication ? .generic : []
+    }
+
+    nonisolated func draggingSession(
+        _ session: NSDraggingSession,
+        endedAt screenPoint: NSPoint,
+        operation: NSDragOperation
+    ) {
+        // NSDraggingSource callbacks arrive on the main thread.
+        MainActor.assumeIsolated {
+            guard let store, let tabID else { return }
+            // Drops land through SwiftUI drop delegates, which can finish
+            // after this callback — clear truly abandoned drags only after
+            // the same settle delay the polling watcher used.
+            Task { @MainActor [weak store] in
+                try? await Task.sleep(nanoseconds: 450_000_000)
+                guard let store, store.draggedTabID == tabID else { return }
+                store.finishTabDrag()
+            }
+        }
     }
 }
 
