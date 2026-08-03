@@ -25,9 +25,9 @@ struct WebViewContainer: View {
     /// In-flight pane-handle drag (reordering). Same rule: only the target
     /// highlight tracks the pointer, the panes exchange places on release.
     @State private var splitPaneReorder: SplitPaneReorderState?
-    /// The pane whose top band the pointer is in, reported by the pane
-    /// host's tracking area (web views swallow SwiftUI hover). Reveals that
-    /// pane's control pill.
+    /// The pane the pointer is inside, reported by the pane host's tracking
+    /// area (web views swallow SwiftUI hover). Reveals that pane's control
+    /// pill.
     @State private var hoveredSplitPaneIndex: Int?
     private let surfaceCornerRadius: CGFloat = 12
     private let surfacePadding: CGFloat = 8
@@ -48,18 +48,9 @@ struct WebViewContainer: View {
             } else if let tab = store.activeTab {
                 let splitTabs = store.displayedSplitTabs
                 if splitTabs.count >= 2 {
-                    if let expandedTab = store.expandedDisplayedSplitTab,
-                       let expandedIndex = splitTabs.firstIndex(where: { $0.id == expandedTab.id }) {
-                        // Zen-style expansion: one member temporarily owns the
-                        // whole surface; the group stays intact underneath.
-                        expandedSplitPane(for: expandedTab, at: expandedIndex)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                            .padding(containedSurfaceInsets)
-                    } else {
-                        splitPaneRow(for: splitTabs)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                            .padding(containedSurfaceInsets)
-                    }
+                    splitPaneRow(for: splitTabs)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                        .padding(containedSurfaceInsets)
                 } else {
                     browserSurface(drawsBorder: false) {
                         singleTabContent(for: tab)
@@ -188,30 +179,57 @@ struct WebViewContainer: View {
         )
     }
 
-    /// Which window-edge insets a pane needs depends on where the layout
-    /// puts it: only panes touching the leading/trailing window edge reserve
-    /// the corresponding interface lane.
+    /// Which window edges a pane touches depends on where the layout puts
+    /// it: only panes on the leading/trailing window edge reserve the
+    /// corresponding interface lane.
+    private func splitPaneEdgeContact(
+        forPaneAt index: Int,
+        paneCount: Int,
+        layout: SplitViewLayout
+    ) -> (leading: Bool, trailing: Bool) {
+        switch layout {
+        case .horizontal:
+            return (index == 0, index == paneCount - 1)
+        case .vertical:
+            // Stacked rows all span the full width, touching both edges.
+            return (true, true)
+        case .grid:
+            let spansFullWidth = index == paneCount - 1 && paneCount % 2 == 1
+            return (index % 2 == 0, index % 2 == 1 || spansFullWidth)
+        }
+    }
+
     private func splitPaneInsets(
         forPaneAt index: Int,
         paneCount: Int,
         layout: SplitViewLayout
     ) -> BrowserInterfaceInsets {
-        switch layout {
-        case .horizontal:
-            return BrowserInterfaceInsets(
-                leading: index == 0 ? webContentInsets.leading : 0,
-                trailing: index == paneCount - 1 ? webContentInsets.trailing : 0
-            )
-        case .vertical:
-            // Stacked rows all span the full width, touching both edges.
-            return webContentInsets
-        case .grid:
-            let spansFullWidth = index == paneCount - 1 && paneCount % 2 == 1
-            return BrowserInterfaceInsets(
-                leading: index % 2 == 0 ? webContentInsets.leading : 0,
-                trailing: index % 2 == 1 || spansFullWidth ? webContentInsets.trailing : 0
-            )
-        }
+        let contact = splitPaneEdgeContact(forPaneAt: index, paneCount: paneCount, layout: layout)
+        return BrowserInterfaceInsets(
+            leading: contact.leading ? webContentInsets.leading : 0,
+            trailing: contact.trailing ? webContentInsets.trailing : 0
+        )
+    }
+
+    /// Aligns pane adornments (focus ring, control pill, reorder highlight)
+    /// with the visible card. The mask reveals the card `surfacePadding`
+    /// inside each reserved lane while the pane's raw frame already starts
+    /// `surfacePadding` from the window edge, so the adornment offset is the
+    /// full lane width — `webContentInsets` (sized for the web view's
+    /// obscured-content layout) lands `surfacePadding` short and hides an
+    /// edge pane's adornment under the lane. The trailing side also tracks
+    /// Eli's transient slide-over clip, which narrows the visible card
+    /// without touching the reserved layout.
+    private func splitPaneAdornmentInsets(
+        forPaneAt index: Int,
+        paneCount: Int,
+        layout: SplitViewLayout
+    ) -> BrowserInterfaceInsets {
+        let contact = splitPaneEdgeContact(forPaneAt: index, paneCount: paneCount, layout: layout)
+        return BrowserInterfaceInsets(
+            leading: contact.leading ? visibleInterfaceInsets.leading : 0,
+            trailing: contact.trailing ? visibleInterfaceInsets.trailing + slideOverTrailingInset : 0
+        )
     }
 
     @ViewBuilder
@@ -358,7 +376,7 @@ struct WebViewContainer: View {
                     // (sidebar/Eli); only the mask reveals the visible card.
                     // Every pane adornment must wrap the visible card, not
                     // the raw frame, or its edge hides under the lane.
-                    let paneInsets = splitPaneInsets(
+                    let paneInsets = splitPaneAdornmentInsets(
                         forPaneAt: index,
                         paneCount: splitTabs.count,
                         layout: layout
@@ -373,9 +391,12 @@ struct WebViewContainer: View {
                         // active treatment of sidebar rows and chips. Only the
                         // ring's opacity animates — never the pane layout, so
                         // focus changes cannot animate live WKWebView frames.
+                        // strokeBorder keeps the ring entirely inside the
+                        // visible card: a centered stroke straddles the mask's
+                        // reveal edge and gets shaved to half a point there.
                         let isFocused = splitTab.id == store.activeTabID
                         RoundedRectangle(cornerRadius: surfaceCornerRadius, style: .continuous)
-                            .stroke(CandoaColor.accent.opacity(isFocused ? 0.55 : 0), lineWidth: 1)
+                            .strokeBorder(CandoaColor.accent.opacity(isFocused ? 0.55 : 0), lineWidth: 1)
                             .padding(.leading, paneInsets.leading)
                             .padding(.trailing, paneInsets.trailing)
                             .allowsHitTesting(false)
@@ -383,8 +404,7 @@ struct WebViewContainer: View {
                     }
                     .overlay(alignment: .top) {
                         SplitPaneControlPill(
-                            isExpanded: false,
-                            isPaneTopHovered: hoveredSplitPaneIndex == index,
+                            isPaneHovered: hoveredSplitPaneIndex == index,
                             isDraggingThisPane: splitPaneReorder?.sourceIndex == index,
                             showsReorderGrip: true,
                             paneIndex: index,
@@ -393,11 +413,12 @@ struct WebViewContainer: View {
                             },
                             onDragEnded: { location in
                                 splitPaneReorder = nil
-                                if let targetIndex = Self.splitPaneIndex(at: location, in: frames, spacing: spacing) {
-                                    store.moveSplitPane(from: index, to: targetIndex)
+                                if let target = Self.splitPaneDropTarget(at: location, in: frames, spacing: spacing),
+                                   target.index != index {
+                                    store.moveSplitPane(from: index, toSide: target.side, of: target.index)
                                 }
                             },
-                            onToggleExpand: { store.toggleExpandedSplitPane(splitTab.id) },
+                            onUnsplit: { store.unsplitPane(splitTab.id) },
                             onClose: { store.closeTab(splitTab.id) }
                         )
                         // Below the row dividers' 7pt overhang so the pill
@@ -413,24 +434,55 @@ struct WebViewContainer: View {
 
                 splitDividers(layout: layout, frames: frames, spacing: spacing, in: proxy.size)
 
-                // Reorder target highlight: the pane the grabbed pane would
-                // move to. Panes themselves never move until the drop commits.
+                // Drop preview: the dragged pane's frame after the move —
+                // computed from the same order/layout the commit will apply,
+                // so a two-pane drop that re-axes the split highlights the
+                // resulting full-surface half, not merely the half of the
+                // target pane under the pointer. Panes themselves never move
+                // until the drop commits.
                 if let reorder = splitPaneReorder,
-                   let targetIndex = Self.splitPaneIndex(at: reorder.location, in: frames, spacing: spacing),
-                   targetIndex != reorder.sourceIndex,
-                   frames.indices.contains(targetIndex) {
-                    let targetInsets = splitPaneInsets(
-                        forPaneAt: targetIndex,
-                        paneCount: splitTabs.count,
-                        layout: layout
+                   let target = Self.splitPaneDropTarget(at: reorder.location, in: frames, spacing: spacing),
+                   let order = BrowserStore.movedPaneOrder(
+                       count: frames.count,
+                       from: reorder.sourceIndex,
+                       toSide: target.side,
+                       of: target.index
+                   ),
+                   let movedPosition = order.firstIndex(of: reorder.sourceIndex) {
+                    let previewLayout = BrowserStore.movedPaneLayout(
+                        current: layout,
+                        paneCount: frames.count,
+                        side: target.side
                     )
-                    RoundedRectangle(cornerRadius: surfaceCornerRadius, style: .continuous)
-                        .stroke(CandoaColor.accent.opacity(0.85), lineWidth: 2)
-                        .padding(.leading, targetInsets.leading)
-                        .padding(.trailing, targetInsets.trailing)
-                        .frame(width: frames[targetIndex].width, height: frames[targetIndex].height)
-                        .offset(x: frames[targetIndex].minX, y: frames[targetIndex].minY)
-                        .allowsHitTesting(false)
+                    let previewFrames = Self.splitPaneFrames(
+                        layout: previewLayout,
+                        ratios: order.map { ratios[$0] },
+                        in: proxy.size,
+                        spacing: spacing
+                    )
+                    if previewFrames.indices.contains(movedPosition) {
+                        let previewInsets = splitPaneAdornmentInsets(
+                            forPaneAt: movedPosition,
+                            paneCount: splitTabs.count,
+                            layout: previewLayout
+                        )
+                        let frame = previewFrames[movedPosition]
+                        let highlight = CGRect(
+                            x: frame.minX + previewInsets.leading,
+                            y: frame.minY,
+                            width: max(0, frame.width - previewInsets.leading - previewInsets.trailing),
+                            height: frame.height
+                        )
+                        RoundedRectangle(cornerRadius: surfaceCornerRadius, style: .continuous)
+                            .fill(CandoaColor.accent.opacity(0.12))
+                            .overlay {
+                                RoundedRectangle(cornerRadius: surfaceCornerRadius, style: .continuous)
+                                    .strokeBorder(CandoaColor.accent.opacity(0.85), lineWidth: 2)
+                            }
+                            .frame(width: highlight.width, height: highlight.height)
+                            .offset(x: highlight.minX, y: highlight.minY)
+                            .allowsHitTesting(false)
+                    }
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -490,6 +542,26 @@ struct WebViewContainer: View {
             frame.insetBy(dx: -spacing / 2, dy: -spacing / 2).contains(location)
         }
     }
+
+    /// The pane — and the side of it — a grip drag at `location` would drop
+    /// onto. The side comes from the pointer's quadrant within the target
+    /// pane, split along its diagonals: the nearest edge wins.
+    static func splitPaneDropTarget(
+        at location: CGPoint,
+        in frames: [CGRect],
+        spacing: CGFloat
+    ) -> (index: Int, side: SplitTabDropSide)? {
+        guard let index = splitPaneIndex(at: location, in: frames, spacing: spacing) else { return nil }
+        let frame = frames[index]
+        guard frame.width > 0, frame.height > 0 else { return (index, .trailing) }
+        let dx = (location.x - frame.midX) / frame.width
+        let dy = (location.y - frame.midY) / frame.height
+        let side: SplitTabDropSide = abs(dx) >= abs(dy)
+            ? (dx < 0 ? .leading : .trailing)
+            : (dy < 0 ? .top : .bottom)
+        return (index, side)
+    }
+
 
     /// Divider handles between adjacent panes. Only the linear layouts
     /// resize — grid cells stay equal, so the grid draws no dividers.
@@ -606,7 +678,7 @@ struct WebViewContainer: View {
             paneIndex: paneIndex,
             store: store,
             obscuredContentInsets: obscuredContentInsets,
-            onTopEdgeHoverChange: { isInside in
+            onPaneHoverChange: { isInside in
                 if isInside {
                     hoveredSplitPaneIndex = paneIndex
                 } else if hoveredSplitPaneIndex == paneIndex {
@@ -633,28 +705,6 @@ struct WebViewContainer: View {
             }
     }
 
-    /// The expanded member owns the full content area; its pill keeps only
-    /// the compress toggle (there is nothing to drag against), and the
-    /// expanded pane spans both window edges so it reserves both lanes.
-    private func expandedSplitPane(for tab: BrowserTab, at paneIndex: Int) -> some View {
-        browserSurface {
-            webPane(for: tab, at: paneIndex, obscuredContentInsets: webContentInsets)
-        }
-        .overlay(alignment: .top) {
-            SplitPaneControlPill(
-                isExpanded: true,
-                isPaneTopHovered: hoveredSplitPaneIndex == paneIndex,
-                isDraggingThisPane: false,
-                showsReorderGrip: false,
-                paneIndex: paneIndex,
-                onDragChanged: { _ in },
-                onDragEnded: { _ in },
-                onToggleExpand: { store.toggleExpandedSplitPane(tab.id) },
-                onClose: { store.closeTab(tab.id) }
-            )
-            .padding(.top, 8)
-        }
-    }
 }
 
 private struct SplitDividerDragState: Equatable {
@@ -665,6 +715,93 @@ private struct SplitDividerDragState: Equatable {
 private struct SplitPaneReorderState: Equatable {
     var sourceIndex: Int
     var location: CGPoint
+}
+
+private struct SplitPaneGripCursorSurface: NSViewRepresentable {
+    let isDragging: Bool
+
+    func makeNSView(context: Context) -> SplitPaneGripCursorView {
+        SplitPaneGripCursorView()
+    }
+
+    func updateNSView(_ view: SplitPaneGripCursorView, context: Context) {
+        view.isDragging = isDragging
+    }
+}
+
+/// Owns the grab cursor for the grip region. SwiftUI hover, pointer
+/// styles, and plain `NSCursor` pushes all fail here (verified 2026-08-03):
+/// hover attribution dies at the WKWebView platform island the pill floats
+/// over, and WebKit re-asserts the page cursor from its own tracking areas
+/// on every pointer move. So this view watches moves with a local monitor
+/// and re-asserts the grab cursor one runloop turn later — after the
+/// event's normal dispatch, where WebKit set its cursor — which reliably
+/// wins without touching WebKit. Hit testing passes through: the cursor is
+/// this view's only job, clicks and drags belong to the SwiftUI grip.
+private final class SplitPaneGripCursorView: NSView {
+    var isDragging = false {
+        didSet {
+            guard isDragging != oldValue else { return }
+            if isDragging {
+                assertCursor(.closedHand)
+            } else if isPointerInside {
+                assertCursor(.openHand)
+            }
+        }
+    }
+
+    private var monitor: Any?
+    private var isPointerInside = false
+
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        if window == nil {
+            removeMonitor()
+        } else {
+            installMonitorIfNeeded()
+        }
+    }
+
+    private func installMonitorIfNeeded() {
+        guard monitor == nil else { return }
+        monitor = NSEvent.addLocalMonitorForEvents(
+            matching: [.mouseMoved, .leftMouseDragged]
+        ) { [weak self] event in
+            // Local event monitors always run on the main thread.
+            MainActor.assumeIsolated {
+                self?.handlePointerEvent(event)
+            }
+            return event
+        }
+    }
+
+    private func removeMonitor() {
+        guard let monitor else { return }
+        NSEvent.removeMonitor(monitor)
+        self.monitor = nil
+    }
+
+    private func handlePointerEvent(_ event: NSEvent) {
+        guard let window, event.window === window else { return }
+        if isDragging {
+            assertCursor(.closedHand)
+            return
+        }
+        let location = convert(event.locationInWindow, from: nil)
+        isPointerInside = bounds.contains(location)
+        // Leaving needs no reset: WebKit already set the page cursor while
+        // dispatching this same event, and nothing re-asserts ours.
+        guard isPointerInside else { return }
+        assertCursor(.openHand)
+    }
+
+    private func assertCursor(_ cursor: NSCursor) {
+        DispatchQueue.main.async {
+            cursor.set()
+        }
+    }
 }
 
 /// The draggable handle between two adjacent split panes. It rides in the
@@ -730,22 +867,21 @@ private struct SplitPaneDivider: View {
 /// and back. The pill's footprint is small so the rest of the page's top
 /// edge stays clickable.
 private struct SplitPaneControlPill: View {
-    let isExpanded: Bool
-    /// The pointer is in the pane's top band (reported by the pane host's
-    /// tracking area) — the discoverable way the pill reveals itself.
-    let isPaneTopHovered: Bool
+    /// The pointer is inside the pane (reported by the pane host's tracking
+    /// area) — the discoverable way the pill reveals itself.
+    let isPaneHovered: Bool
     let isDraggingThisPane: Bool
     let showsReorderGrip: Bool
     let paneIndex: Int
     let onDragChanged: (CGPoint) -> Void
     let onDragEnded: (CGPoint) -> Void
-    let onToggleExpand: () -> Void
+    let onUnsplit: () -> Void
     let onClose: () -> Void
 
     @State private var isHovering = false
 
     private var isProminent: Bool {
-        isPaneTopHovered || isHovering || isDraggingThisPane || isExpanded
+        isPaneHovered || isHovering || isDraggingThisPane
     }
 
     var body: some View {
@@ -754,6 +890,9 @@ private struct SplitPaneControlPill: View {
                 gripDots
                     .frame(width: 34, height: 20)
                     .contentShape(Rectangle())
+                    // Grabbable, so it gets the native grab cursors; the
+                    // pill's buttons keep the arrow like any macOS button.
+                    .background(SplitPaneGripCursorSurface(isDragging: isDraggingThisPane))
                     .gesture(
                         DragGesture(
                             minimumDistance: 2,
@@ -772,19 +911,17 @@ private struct SplitPaneControlPill: View {
                     .accessibilityIdentifier("split-pane-grip-\(paneIndex)")
             }
 
-            Button(action: onToggleExpand) {
-                Image(systemName: isExpanded
-                    ? "arrow.down.right.and.arrow.up.left"
-                    : "arrow.up.left.and.arrow.down.right")
+            Button(action: onUnsplit) {
+                Image(systemName: "arrow.up.left.and.arrow.down.right")
                     .font(.system(size: 10, weight: .semibold))
                     .frame(width: 26, height: 20)
                     .contentShape(Rectangle())
             }
             .candoaButton(.content)
             .foregroundStyle(.secondary)
-            .help(isExpanded ? "Restore Split" : "Expand Pane")
-            .accessibilityLabel(isExpanded ? "Restore Split" : "Expand Pane")
-            .accessibilityIdentifier("split-pane-expand-\(paneIndex)")
+            .help("Unsplit — Open as Full Tab")
+            .accessibilityLabel("Unsplit")
+            .accessibilityIdentifier("split-pane-unsplit-\(paneIndex)")
 
             Button(action: onClose) {
                 Image(systemName: "xmark")
@@ -805,11 +942,17 @@ private struct SplitPaneControlPill: View {
             RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .strokeBorder(CandoaInterfaceStyle.popoverBorder, lineWidth: 1)
         }
-        // Always visible, Zen-style: hiding the pill behind hover made it
-        // undiscoverable, and hover delivery over web content is not a
-        // dependable reveal signal. The resting state stays quiet; pointer
-        // proximity or an active drag brings it to full prominence.
-        .opacity(isProminent ? 1 : 0.55)
+        // Revealed by pointer presence only: the pane host's tracking area
+        // reports hover dependably even over web content (which swallows
+        // SwiftUI hover), so the pill stays hidden until the pointer is
+        // inside its pane or a drag is in flight. Hit testing stays on
+        // while hidden: the pointer reaching the pill has already entered
+        // the pane and revealed it, so an invisible click target never
+        // happens live. Full transparency also prunes the buttons from the
+        // accessibility tree, so UI-test runs keep a trace opacity —
+        // synthetic hovers lose races against real pointer motion, and the
+        // tests must still be able to address the pill.
+        .opacity(isProminent ? 1 : (BrowserStore.isUITesting ? 0.02 : 0))
         .onHover { isHovering = $0 }
         .animation(.easeOut(duration: 0.12), value: isProminent)
     }

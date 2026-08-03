@@ -163,36 +163,74 @@ final class CandoaUITests: XCTestCase {
         XCTAssertTrue(waitForState(in: app, containing: "splitLayout=horizontal"), currentState(in: app))
 
         // Dragging a pane's grab handle onto the other pane reorders them.
+        // The pill is hover-revealed (and AX-pruned while hidden), so enter
+        // the pane before waiting for its controls.
+        let leadingPane = element("split-pane-0", in: app)
+        XCTAssertTrue(leadingPane.waitForExistence(timeout: 5), currentState(in: app))
+        leadingPane.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0)).withOffset(CGVector(dx: 0, dy: 24)).hover()
         let grip = element("split-pane-grip-0", in: app)
         XCTAssertTrue(grip.waitForExistence(timeout: 5), currentState(in: app))
         let trailingPane = element("split-pane-1", in: app)
         XCTAssertTrue(trailingPane.waitForExistence(timeout: 5), currentState(in: app))
+        // Aim well inside the trailing half: the drop side comes from the
+        // release point's quadrant, and the pane's exact center sits on the
+        // leading/trailing boundary where release jitter flips the side.
         grip.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).press(
             forDuration: 0.2,
-            thenDragTo: trailingPane.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            thenDragTo: trailingPane.coordinate(withNormalizedOffset: CGVector(dx: 0.75, dy: 0.5))
         )
         XCTAssertTrue(waitForState(in: app, containing: "splitTabs=one|two"), currentState(in: app))
 
-        // Zen-style expand: the pane pill's toggle gives one pane the whole
-        // surface while the group stays intact, and toggling restores it.
-        let expandButton = element("split-pane-expand-0", in: app)
-        XCTAssertTrue(expandButton.waitForExistence(timeout: 5), currentState(in: app))
-        expandButton.click()
-        XCTAssertTrue(waitForState(in: app, containing: "splitExpanded=one"), currentState(in: app))
-        XCTAssertTrue(waitForState(in: app, containing: "split=true"), currentState(in: app))
+        // Unsplit: the pane pill's toggle takes the pane out of the group
+        // and gives it the whole surface as an ordinary tab; with one
+        // member left the split dissolves.
+        leadingPane.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0)).withOffset(CGVector(dx: 0, dy: 24)).hover()
+        let unsplitButton = element("split-pane-unsplit-0", in: app)
+        XCTAssertTrue(unsplitButton.waitForExistence(timeout: 5), currentState(in: app))
+        unsplitButton.click()
+        XCTAssertTrue(waitForState(in: app, containing: "split=false"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "active=one"), currentState(in: app))
 
-        let restoreButton = element("split-pane-expand-0", in: app)
-        XCTAssertTrue(restoreButton.waitForExistence(timeout: 5), currentState(in: app))
-        restoreButton.click()
-        XCTAssertTrue(waitForState(in: app, containing: "splitExpanded=none"), currentState(in: app))
+        // Re-split for the edge-drop and layout checks.
+        app.typeKey("=", modifierFlags: [.control, .shift])
         XCTAssertTrue(waitForState(in: app, containing: "splitDisplayed=true"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "splitTabs=one|two"), currentState(in: app))
+
+        // Dropping the grip on a pane's bottom half stacks the panes with
+        // the dragged pane below its target (Zen-style edge drop).
+        leadingPane.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0)).withOffset(CGVector(dx: 0, dy: 24)).hover()
+        XCTAssertTrue(grip.waitForExistence(timeout: 5), currentState(in: app))
+        grip.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).press(
+            forDuration: 0.2,
+            thenDragTo: trailingPane.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.8))
+        )
+        XCTAssertTrue(waitForState(in: app, containing: "splitLayout=vertical"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "splitTabs=two|one"), currentState(in: app))
 
         // Zen-style layout shortcuts switch between rows, grid, and columns.
         app.typeKey("v", modifierFlags: [.control, .option])
         XCTAssertTrue(waitForState(in: app, containing: "splitLayout=vertical"), currentState(in: app))
 
         app.typeKey("g", modifierFlags: [.control, .option])
-        XCTAssertTrue(waitForState(in: app, containing: "splitLayout=grid"), currentState(in: app))
+        if !waitForState(in: app, containing: "splitLayout=grid") {
+            // Window managers can claim Control-Option-G as a system-wide
+            // hotkey (Rectangle's recommended scheme binds it to "Last
+            // Third"), consuming the event before the app's local monitor
+            // sees it. Only tolerate the miss when such an app is running,
+            // and still exercise the grid layout via the menu command.
+            let hotkeyOwners = runningGlobalHotkeyApps()
+            XCTAssertFalse(
+                hotkeyOwners.isEmpty,
+                "Control-Option-G did not switch to the grid layout and no known global-hotkey app is running: \(currentState(in: app))"
+            )
+            let viewMenu = app.menuBarItems["View"]
+            XCTAssertTrue(viewMenu.waitForExistence(timeout: 5), currentState(in: app))
+            viewMenu.click()
+            let gridItem = app.menuItems["Grid Split Layout"]
+            XCTAssertTrue(gridItem.waitForExistence(timeout: 3), currentState(in: app))
+            gridItem.click()
+            XCTAssertTrue(waitForState(in: app, containing: "splitLayout=grid"), currentState(in: app))
+        }
 
         app.typeKey("h", modifierFlags: [.control, .option])
         XCTAssertTrue(waitForState(in: app, containing: "splitLayout=horizontal"), currentState(in: app))
@@ -215,7 +253,11 @@ final class CandoaUITests: XCTestCase {
         XCTAssertTrue(waitForState(in: app, containing: "splitTabs=two|one"), currentState(in: app))
 
         // The pane pill's close button closes that pane's tab; with one
-        // member left the split dissolves.
+        // member left the split dissolves. The pill is hover-revealed (and
+        // AX-pruned while hidden), so enter the pane first.
+        let trailingPane = element("split-pane-1", in: app)
+        XCTAssertTrue(trailingPane.waitForExistence(timeout: 5), currentState(in: app))
+        trailingPane.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0)).withOffset(CGVector(dx: 0, dy: 24)).hover()
         let closeButton = element("split-pane-close-1", in: app)
         XCTAssertTrue(closeButton.waitForExistence(timeout: 5), currentState(in: app))
         closeButton.click()
@@ -2056,6 +2098,26 @@ final class CandoaUITests: XCTestCase {
             return stateElement.label
         }
         return stateElement.debugDescription
+    }
+
+    /// Window managers and launchers that register Control-Option letter
+    /// combos as system-wide hotkeys. A global hotkey consumes the key
+    /// event before the app's local NSEvent monitor can see it, so
+    /// keystroke-driven assertions are only trustworthy when none of
+    /// these are running.
+    private func runningGlobalHotkeyApps() -> [String] {
+        let knownHotkeyApps: Set<String> = [
+            "com.knollsoft.Rectangle",
+            "com.knollsoft.Hookshot", // Rectangle Pro
+            "com.raycast.macos",
+            "com.crowdcafe.windowmagnet", // Magnet
+            "com.divisiblebyzero.Spectacle",
+            "com.hegenberg.BetterTouchTool",
+            "com.lwouis.alt-tab-macos",
+        ]
+        return NSWorkspace.shared.runningApplications
+            .compactMap(\.bundleIdentifier)
+            .filter(knownHotkeyApps.contains)
     }
 
     private func waitForAskState(in app: XCUIApplication, containing expectedText: String, timeout: TimeInterval = 5) -> Bool {

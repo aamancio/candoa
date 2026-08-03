@@ -210,11 +210,6 @@ final class BrowserStore: ObservableObject {
     @Published var splitPaneRatios: [Double] = []
     /// How the split group's panes are arranged (columns, rows, or a grid).
     @Published var splitLayout: SplitViewLayout = .horizontal
-    /// Transient Zen-style pane expansion: while set (and focused), this
-    /// split member temporarily takes the whole content area. The group and
-    /// its layout are untouched, and one toggle restores the panes. Never
-    /// persisted — a relaunch comes back to the full split.
-    @Published var expandedSplitTabID: UUID?
     @Published var isSplitViewEnabled = false
     /// Split groups stashed per Space while another Space is frontmost, so
     /// switching away and back revives the split. In-memory only: the

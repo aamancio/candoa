@@ -19,7 +19,7 @@ struct SplitWebViewHost: NSViewRepresentable {
     let paneIndex: Int
     @ObservedObject var store: BrowserStore
     let obscuredContentInsets: BrowserInterfaceInsets
-    var onTopEdgeHoverChange: ((Bool) -> Void)? = nil
+    var onPaneHoverChange: ((Bool) -> Void)? = nil
 
     func makeNSView(context: Context) -> NSView {
         let container = SplitWebViewHostContainer()
@@ -43,55 +43,54 @@ struct SplitWebViewHost: NSViewRepresentable {
                 guard let store, store.activeTabID != tabID else { return }
                 store.focusSplitTab(tabID)
             },
-            onTopEdgeHoverChange: onTopEdgeHoverChange
+            onPaneHoverChange: onPaneHoverChange
         )
     }
 }
 
 private final class SplitWebViewHostContainer: NSView {
-    /// The pointer band along the pane's top edge that reveals the control
-    /// pill. Tracked here with an AppKit tracking area because the hosted
-    /// WKWebView consumes pointer events before SwiftUI hover ever fires.
-    private static let topEdgeHoverBandHeight: CGFloat = 44
-
     private var tabID: UUID?
     private var obscuredContentInsets = BrowserInterfaceInsets()
     private weak var coordinator: WebViewCoordinator?
     private var onPaneInteraction: (() -> Void)?
-    private var onTopEdgeHoverChange: ((Bool) -> Void)?
+    private var onPaneHoverChange: ((Bool) -> Void)?
     private var mouseDownMonitor: Any?
     private var hoverTrackingArea: NSTrackingArea?
-    private var isPointerInTopEdgeBand = false
+    private var isPointerInsidePane = false
 
     func configure(
         tabID: UUID,
         obscuredContentInsets: BrowserInterfaceInsets,
         coordinator: WebViewCoordinator,
         onPaneInteraction: @escaping () -> Void,
-        onTopEdgeHoverChange: ((Bool) -> Void)?
+        onPaneHoverChange: ((Bool) -> Void)?
     ) {
         self.tabID = tabID
         self.obscuredContentInsets = obscuredContentInsets
         self.coordinator = coordinator
         self.onPaneInteraction = onPaneInteraction
-        self.onTopEdgeHoverChange = onTopEdgeHoverChange
+        self.onPaneHoverChange = onPaneHoverChange
         needsLayout = true
     }
 
-    // MARK: - Top-edge hover band
+    // MARK: - Pane hover
 
     override func updateTrackingAreas() {
         if let hoverTrackingArea {
             removeTrackingArea(hoverTrackingArea)
         }
 
-        // .mouseMoved is required: entering the pane low and sliding up never
-        // crosses this view's boundary, so moves are the only signal the
-        // pointer reached the top band. Tracking areas fire on geometry even
-        // while the WKWebView subview consumes the events themselves.
+        // The whole pane reveals its control pill on hover. An AppKit
+        // tracking area is required because the hosted WKWebView consumes
+        // pointer events before SwiftUI hover ever fires; .mouseMoved keeps
+        // detection alive when the area is (re)installed with the pointer
+        // already inside, where no boundary crossing will ever fire.
+        // .activeAlways: the hover-revealed pill is the only path to a
+        // pane's controls, so the reveal must not depend on key status —
+        // the first pass over a background window should surface it too.
         let trackingArea = NSTrackingArea(
             rect: bounds,
-            options: [.mouseEnteredAndExited, .mouseMoved, .activeInKeyWindow, .inVisibleRect],
+            options: [.mouseEnteredAndExited, .mouseMoved, .activeAlways, .inVisibleRect],
             owner: self
         )
         addTrackingArea(trackingArea)
@@ -101,29 +100,26 @@ private final class SplitWebViewHostContainer: NSView {
     }
 
     override func mouseEntered(with event: NSEvent) {
-        reportTopEdgeHover(for: event)
+        reportPaneHover(for: event)
     }
 
     override func mouseMoved(with event: NSEvent) {
-        reportTopEdgeHover(for: event)
+        reportPaneHover(for: event)
     }
 
     override func mouseExited(with event: NSEvent) {
-        setPointerInTopEdgeBand(false)
+        setPointerInsidePane(false)
     }
 
-    private func reportTopEdgeHover(for event: NSEvent) {
+    private func reportPaneHover(for event: NSEvent) {
         let location = convert(event.locationInWindow, from: nil)
-        // AppKit views are unflipped by default: the top edge is at maxY.
-        let isInBand = bounds.contains(location)
-            && location.y >= bounds.maxY - Self.topEdgeHoverBandHeight
-        setPointerInTopEdgeBand(isInBand)
+        setPointerInsidePane(bounds.contains(location))
     }
 
-    private func setPointerInTopEdgeBand(_ isInside: Bool) {
-        guard isPointerInTopEdgeBand != isInside else { return }
-        isPointerInTopEdgeBand = isInside
-        onTopEdgeHoverChange?(isInside)
+    private func setPointerInsidePane(_ isInside: Bool) {
+        guard isPointerInsidePane != isInside else { return }
+        isPointerInsidePane = isInside
+        onPaneHoverChange?(isInside)
     }
 
     override func layout() {

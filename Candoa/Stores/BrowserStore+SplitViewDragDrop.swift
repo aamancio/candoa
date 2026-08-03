@@ -116,31 +116,16 @@ extension BrowserStore {
         splitTabIDs = []
         splitPaneRatios = []
         splitLayout = .horizontal
-        expandedSplitTabID = nil
     }
 
-    /// The member pane temporarily expanded over the whole content area.
-    /// Expansion only holds while that pane is also the focused tab, so any
-    /// focus change elsewhere naturally restores the split.
-    var expandedDisplayedSplitTab: BrowserTab? {
-        guard
-            let expandedSplitTabID,
-            expandedSplitTabID == activeTabID,
-            displayedSplitTabIDs.contains(expandedSplitTabID)
-        else { return nil }
-        return tabs.first { $0.id == expandedSplitTabID }
-    }
-
-    /// Zen-style expand toggle on a pane's control pill: give the pane the
-    /// whole surface, or bring the split back.
-    func toggleExpandedSplitPane(_ id: UUID) {
+    /// Un-splits one pane from its control pill: the tab leaves the group
+    /// and takes over the surface as an ordinary tab. The remaining members
+    /// keep the split (suspended behind the now-active tab), or it dissolves
+    /// once fewer than two remain.
+    func unsplitPane(_ id: UUID) {
         guard displayedSplitTabIDs.contains(id) else { return }
-        if expandedSplitTabID == id {
-            expandedSplitTabID = nil
-        } else {
-            expandedSplitTabID = id
-            focusSplitTab(id)
-        }
+        removeTabFromSplit(id)
+        switchTab(to: id)
     }
 
     /// Switches the displayed split between side-by-side, stacked, and grid
@@ -152,24 +137,58 @@ extension BrowserStore {
         splitLayout = layout
     }
 
-    /// Reorders the displayed panes (a pane-handle drag): the pane at
-    /// `sourceIndex` moves to `targetIndex`, its width/height ratio riding
-    /// along with it.
-    func moveSplitPane(from sourceIndex: Int, to targetIndex: Int) {
-        var orderedIDs = splitGroupTabIDs()
-        var ratios = splitPaneRatios(forPaneCount: orderedIDs.count)
+    /// Repositions a displayed pane onto a side of another pane (the grip
+    /// drag), its width/height ratio riding along with it. A two-pane group
+    /// takes its axis from the drop edge, Zen-style: top/bottom stacks rows,
+    /// leading/trailing makes columns. Larger groups keep their layout; the
+    /// edge only picks which side of the target the pane lands on.
+    func moveSplitPane(from sourceIndex: Int, toSide side: SplitTabDropSide, of targetIndex: Int) {
+        let orderedIDs = splitGroupTabIDs()
+        let ratios = splitPaneRatios(forPaneCount: orderedIDs.count)
+        guard let order = Self.movedPaneOrder(
+            count: orderedIDs.count,
+            from: sourceIndex,
+            toSide: side,
+            of: targetIndex
+        ) else { return }
+
+        splitLayout = Self.movedPaneLayout(current: splitLayout, paneCount: orderedIDs.count, side: side)
+        splitTabIDs = order.map { orderedIDs[$0] }
+        splitPaneRatios = order.map { ratios[$0] }
+    }
+
+    /// The pane order a side-drop produces, as previous-position indices —
+    /// shared by the commit above and the drag's drop preview so the
+    /// highlight always shows the exact resulting frame.
+    static func movedPaneOrder(
+        count: Int,
+        from sourceIndex: Int,
+        toSide side: SplitTabDropSide,
+        of targetIndex: Int
+    ) -> [Int]? {
         guard
             sourceIndex != targetIndex,
-            orderedIDs.indices.contains(sourceIndex),
-            orderedIDs.indices.contains(targetIndex)
-        else { return }
+            (0..<count).contains(sourceIndex),
+            (0..<count).contains(targetIndex)
+        else { return nil }
 
-        let movedID = orderedIDs.remove(at: sourceIndex)
-        orderedIDs.insert(movedID, at: targetIndex)
-        let movedRatio = ratios.remove(at: sourceIndex)
-        ratios.insert(movedRatio, at: targetIndex)
-        splitTabIDs = orderedIDs
-        splitPaneRatios = ratios
+        var order = Array(0..<count)
+        order.remove(at: sourceIndex)
+        let adjustedTargetIndex = sourceIndex < targetIndex ? targetIndex - 1 : targetIndex
+        let insertionIndex = side.insertsBeforeTarget ? adjustedTargetIndex : adjustedTargetIndex + 1
+        order.insert(sourceIndex, at: insertionIndex)
+        return order
+    }
+
+    /// The layout a side-drop produces: a two-pane group takes its axis
+    /// from the edge, larger groups keep their arrangement.
+    static func movedPaneLayout(
+        current: SplitViewLayout,
+        paneCount: Int,
+        side: SplitTabDropSide
+    ) -> SplitViewLayout {
+        guard paneCount == 2 else { return current }
+        return side.isVerticalAxis ? .vertical : .horizontal
     }
 
     /// Takes one tab out of the split group without closing it: the tab
@@ -178,9 +197,6 @@ extension BrowserStore {
     func removeTabFromSplit(_ id: UUID) {
         let groupIDs = splitGroupTabIDs()
         guard groupIDs.contains(id) else { return }
-        if expandedSplitTabID == id {
-            expandedSplitTabID = nil
-        }
         let remainingIDs = groupIDs.filter { $0 != id }
         let nextActiveID = activeTabID == id ? remainingIDs.first : activeTabID
         applySplitGroup(remainingIDs, activeID: nextActiveID)
@@ -197,7 +213,6 @@ extension BrowserStore {
         splitTabIDs = []
         splitPaneRatios = []
         splitLayout = .horizontal
-        expandedSplitTabID = nil
         isSplitViewEnabled = false
     }
 
@@ -529,7 +544,6 @@ extension BrowserStore {
             splitTabIDs = []
             splitPaneRatios = []
             splitLayout = .horizontal
-            expandedSplitTabID = nil
             isSplitViewEnabled = false
             // Focus only moves when the caller asked for a member or the
             // active tab is gone; dissolving a suspended group while browsing
@@ -544,9 +558,6 @@ extension BrowserStore {
 
         if let activeID, validIDs.contains(activeID) {
             activeTabID = activeID
-        }
-        if let expandedSplitTabID, !validIDs.contains(expandedSplitTabID) {
-            self.expandedSplitTabID = nil
         }
         splitTabIDs = validIDs
         splitPaneRatios = Self.paneRatios(for: validIDs, carriedFrom: previousIDs, previousRatios: previousRatios)
