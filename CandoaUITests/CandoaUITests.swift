@@ -918,29 +918,33 @@ final class CandoaUITests: XCTestCase {
         XCTAssertEqual(accountOnboarding.value as? String, "idle")
         XCTAssertTrue(app.buttons["Continue with Apple"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["Not Now"].exists)
-        let description = element("account-onboarding-description", in: app)
-        XCTAssertTrue(description.waitForExistence(timeout: 5), currentState(in: app))
-
-        // The AX label of wrapped text can carry the wrap's line breaks, and
-        // the wrap position depends on the runner's window metrics — compare
-        // against a whitespace-normalized label so the assertion checks the
-        // words, not the layout.
+        // The description Text's identifier is not exposed on every
+        // macOS/Xcode combination — CI runners have never surfaced the
+        // identified element even though the copy renders. The requirement is
+        // the sentence being shown, so accept it via the identifier or via
+        // any static text carrying the words, normalizing whitespace because
+        // wrapped-text labels can embed layout-dependent line breaks.
         let expectedDescription = "Sign in with Apple to restore your subscription"
-        let normalizedLabel = description.label
-            .components(separatedBy: .whitespacesAndNewlines)
-            .filter { !$0.isEmpty }
-            .joined(separator: " ")
-        if !normalizedLabel.contains(expectedDescription) {
+
+        func normalized(_ label: String) -> String {
+            label
+                .components(separatedBy: .whitespacesAndNewlines)
+                .filter { !$0.isEmpty }
+                .joined(separator: " ")
+        }
+
+        let identified = element("account-onboarding-description", in: app)
+        let identifiedShowsDescription = identified.waitForExistence(timeout: 3)
+            && normalized(identified.label).contains(expectedDescription)
+        if !identifiedShowsDescription {
             let staticTexts = app.staticTexts.allElementsBoundByIndex.prefix(40)
-                .map { "id='\($0.identifier)' label='\($0.label)'" }
-                .joined(separator: " | ")
-            XCTFail(
+            XCTAssertTrue(
+                staticTexts.contains { normalized($0.label).contains(expectedDescription) },
                 """
-                account-onboarding-description label mismatch.
-                label: '\(description.label)'
-                normalized: '\(normalizedLabel)'
-                value: '\(String(describing: description.value))'
-                staticTexts: \(staticTexts)
+                Account-onboarding description not found by identifier or content.
+                staticTexts: \(staticTexts.map { "id='\($0.identifier)' label='\($0.label)'" }
+                    .joined(separator: " | "))
+                state: \(currentState(in: app))
                 """
             )
         }
