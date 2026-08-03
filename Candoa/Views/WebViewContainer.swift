@@ -25,6 +25,10 @@ struct WebViewContainer: View {
     /// In-flight pane-handle drag (reordering). Same rule: only the target
     /// highlight tracks the pointer, the panes exchange places on release.
     @State private var splitPaneReorder: SplitPaneReorderState?
+    /// The pane whose top band the pointer is in, reported by the pane
+    /// host's tracking area (web views swallow SwiftUI hover). Reveals that
+    /// pane's control pill.
+    @State private var hoveredSplitPaneIndex: Int?
     private let surfaceCornerRadius: CGFloat = 12
     private let surfacePadding: CGFloat = 8
     private static let splitPaneMinimumWidth: CGFloat = 160
@@ -350,6 +354,15 @@ struct WebViewContainer: View {
             ZStack(alignment: .topLeading) {
                 ForEach(Array(splitTabs.enumerated()), id: \.element.id) { index, splitTab in
                     let frame = frames.indices.contains(index) ? frames[index] : .zero
+                    // A pane's frame runs under the reserved interface lanes
+                    // (sidebar/Eli); only the mask reveals the visible card.
+                    // Every pane adornment must wrap the visible card, not
+                    // the raw frame, or its edge hides under the lane.
+                    let paneInsets = splitPaneInsets(
+                        forPaneAt: index,
+                        paneCount: splitTabs.count,
+                        layout: layout
+                    )
 
                     browserSurface {
                         webPane(for: splitTab, at: index, in: splitTabs)
@@ -363,12 +376,15 @@ struct WebViewContainer: View {
                         let isFocused = splitTab.id == store.activeTabID
                         RoundedRectangle(cornerRadius: surfaceCornerRadius, style: .continuous)
                             .stroke(CandoaColor.accent.opacity(isFocused ? 0.55 : 0), lineWidth: 1)
+                            .padding(.leading, paneInsets.leading)
+                            .padding(.trailing, paneInsets.trailing)
                             .allowsHitTesting(false)
                             .animation(.easeOut(duration: 0.12), value: isFocused)
                     }
                     .overlay(alignment: .top) {
                         SplitPaneControlPill(
                             isExpanded: false,
+                            isPaneTopHovered: hoveredSplitPaneIndex == index,
                             isDraggingThisPane: splitPaneReorder?.sourceIndex == index,
                             showsReorderGrip: true,
                             paneIndex: index,
@@ -387,6 +403,9 @@ struct WebViewContainer: View {
                         // Below the row dividers' 7pt overhang so the pill
                         // and a divider strip never contend for the pointer.
                         .padding(.top, 8)
+                        // Centered on the visible card, not the raw frame.
+                        .padding(.leading, paneInsets.leading)
+                        .padding(.trailing, paneInsets.trailing)
                     }
                     .frame(width: frame.width, height: frame.height)
                     .offset(x: frame.minX, y: frame.minY)
@@ -400,8 +419,15 @@ struct WebViewContainer: View {
                    let targetIndex = Self.splitPaneIndex(at: reorder.location, in: frames, spacing: spacing),
                    targetIndex != reorder.sourceIndex,
                    frames.indices.contains(targetIndex) {
+                    let targetInsets = splitPaneInsets(
+                        forPaneAt: targetIndex,
+                        paneCount: splitTabs.count,
+                        layout: layout
+                    )
                     RoundedRectangle(cornerRadius: surfaceCornerRadius, style: .continuous)
                         .stroke(CandoaColor.accent.opacity(0.85), lineWidth: 2)
+                        .padding(.leading, targetInsets.leading)
+                        .padding(.trailing, targetInsets.trailing)
                         .frame(width: frames[targetIndex].width, height: frames[targetIndex].height)
                         .offset(x: frames[targetIndex].minX, y: frames[targetIndex].minY)
                         .allowsHitTesting(false)
@@ -579,7 +605,14 @@ struct WebViewContainer: View {
             tab: tab,
             paneIndex: paneIndex,
             store: store,
-            obscuredContentInsets: obscuredContentInsets
+            obscuredContentInsets: obscuredContentInsets,
+            onTopEdgeHoverChange: { isInside in
+                if isInside {
+                    hoveredSplitPaneIndex = paneIndex
+                } else if hoveredSplitPaneIndex == paneIndex {
+                    hoveredSplitPaneIndex = nil
+                }
+            }
         )
             .id(tab.id)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -610,6 +643,7 @@ struct WebViewContainer: View {
         .overlay(alignment: .top) {
             SplitPaneControlPill(
                 isExpanded: true,
+                isPaneTopHovered: hoveredSplitPaneIndex == paneIndex,
                 isDraggingThisPane: false,
                 showsReorderGrip: false,
                 paneIndex: paneIndex,
@@ -697,6 +731,9 @@ private struct SplitPaneDivider: View {
 /// edge stays clickable.
 private struct SplitPaneControlPill: View {
     let isExpanded: Bool
+    /// The pointer is in the pane's top band (reported by the pane host's
+    /// tracking area) — the discoverable way the pill reveals itself.
+    let isPaneTopHovered: Bool
     let isDraggingThisPane: Bool
     let showsReorderGrip: Bool
     let paneIndex: Int
@@ -708,7 +745,7 @@ private struct SplitPaneControlPill: View {
     @State private var isHovering = false
 
     private var isRevealed: Bool {
-        isHovering || isDraggingThisPane || isExpanded
+        isPaneTopHovered || isHovering || isDraggingThisPane || isExpanded
     }
 
     var body: some View {
