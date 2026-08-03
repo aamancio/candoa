@@ -390,17 +390,9 @@ struct WebViewContainer: View {
                             showsReorderGrip: true,
                             paneIndex: index,
                             onDragChanged: { location in
-                                // Grabbing feedback: the closed hand holds for
-                                // the whole drag, pushed once on the first move.
-                                if splitPaneReorder == nil {
-                                    NSCursor.closedHand.push()
-                                }
                                 splitPaneReorder = SplitPaneReorderState(sourceIndex: index, location: location)
                             },
                             onDragEnded: { location in
-                                if splitPaneReorder != nil {
-                                    NSCursor.pop()
-                                }
                                 splitPaneReorder = nil
                                 if let targetIndex = Self.splitPaneIndex(at: location, in: frames, spacing: spacing) {
                                     store.moveSplitPane(from: index, to: targetIndex)
@@ -810,17 +802,16 @@ private struct SplitPaneControlPill: View {
                 gripDots
                     .frame(width: 34, height: 20)
                     .contentShape(Rectangle())
-                    // candoaCursor, not the one-shot sidebar hover cursor:
-                    // the grip floats over web content, where WebKit
-                    // re-asserts its own cursor on every mouse move.
-                    .candoaCursor(.openHand)
+                    // Grab cursors live in the AppKit layer: the open hand
+                    // as a re-asserted hover cursor (WebKit fights one-shot
+                    // pushes over web content), the closed hand from the
+                    // NSView's mouseDown — SwiftUI's zero-distance
+                    // DragGesture does not track dependably on macOS, so the
+                    // press itself must be caught natively.
+                    .modifier(SplitPaneGripCursorModifier())
                     .gesture(
-                        // Zero distance so the grab engages on mouse-down —
-                        // the closed hand must appear on press, not on first
-                        // movement. A press-and-release without travel commits
-                        // nothing (moveSplitPane guards same-index moves).
                         DragGesture(
-                            minimumDistance: 0,
+                            minimumDistance: 2,
                             coordinateSpace: .named(WebViewContainer.splitRowCoordinateSpace)
                         )
                         .onChanged { value in
@@ -1838,5 +1829,66 @@ private struct PrivateBrowsingExplainer: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+/// Grab-cursor feedback for the pane grip, handled in AppKit because both
+/// halves fail in SwiftUI: hover cursors over web content are re-asserted
+/// away by WebKit unless continuously restored, and a zero-distance
+/// DragGesture does not track dependably on macOS, so mouse-down must be
+/// caught natively. The NSView pushes the closed hand on press and forwards
+/// every event up the responder chain, leaving the SwiftUI drag gesture's
+/// tracking untouched.
+private struct SplitPaneGripCursorModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .background(SplitPaneGripCursorView())
+            .onContinuousHover { phase in
+                if case .active = phase {
+                    NSCursor.openHand.set()
+                }
+            }
+    }
+}
+
+private struct SplitPaneGripCursorView: NSViewRepresentable {
+    func makeNSView(context: Context) -> SplitPaneGripCursorNSView {
+        SplitPaneGripCursorNSView()
+    }
+
+    func updateNSView(_ nsView: SplitPaneGripCursorNSView, context: Context) {}
+}
+
+private final class SplitPaneGripCursorNSView: NSView {
+    private var hasPushedClosedHand = false
+
+    override func resetCursorRects() {
+        super.resetCursorRects()
+        addCursorRect(bounds, cursor: .openHand)
+    }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        window?.invalidateCursorRects(for: self)
+        if window == nil, hasPushedClosedHand {
+            hasPushedClosedHand = false
+            NSCursor.pop()
+        }
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        if !hasPushedClosedHand {
+            hasPushedClosedHand = true
+            NSCursor.closedHand.push()
+        }
+        super.mouseDown(with: event)
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        if hasPushedClosedHand {
+            hasPushedClosedHand = false
+            NSCursor.pop()
+        }
+        super.mouseUp(with: event)
     }
 }
