@@ -394,10 +394,20 @@ extension BrowserStore {
         splitDropPreview = nil
     }
 
+    func updateSplitDropPointer(_ location: CGPoint) {
+        splitDropPointerLocation = location
+    }
+
+    func clearSplitDropPointer() {
+        guard splitDropPointerLocation != nil else { return }
+        splitDropPointerLocation = nil
+    }
+
     func finishTabDrag() {
         draggedTabID = nil
         clearSidebarDropIndicator()
         clearSplitDropPreview()
+        clearSplitDropPointer()
         tabDragSessionWatcher?.invalidate()
         tabDragSessionWatcher = nil
         dropSourceClearTask?.cancel()
@@ -414,6 +424,7 @@ extension BrowserStore {
         draggedTabID = nil
         clearSidebarDropIndicator()
         clearSplitDropPreview()
+        clearSplitDropPointer()
         tabDragSessionWatcher?.invalidate()
         tabDragSessionWatcher = nil
 
