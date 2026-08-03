@@ -50,6 +50,19 @@ enum SidebarTabDropEdge: Equatable {
 enum SplitTabDropSide: Equatable {
     case leading
     case trailing
+    case top
+    case bottom
+
+    /// Leading/top edges insert the dragged tab before the target pane;
+    /// trailing/bottom edges insert after it.
+    var insertsBeforeTarget: Bool {
+        self == .leading || self == .top
+    }
+
+    /// Top/bottom drops ask for stacked rows; leading/trailing for columns.
+    var isVerticalAxis: Bool {
+        self == .top || self == .bottom
+    }
 }
 
 struct SplitTabDropPreview: Equatable {
@@ -195,6 +208,13 @@ final class BrowserStore: ObservableObject {
     /// Width fractions for the split panes, parallel to `splitTabIDs` and
     /// normalized to sum to 1. Empty whenever no split group exists.
     @Published var splitPaneRatios: [Double] = []
+    /// How the split group's panes are arranged (columns, rows, or a grid).
+    @Published var splitLayout: SplitViewLayout = .horizontal
+    /// Transient Zen-style pane expansion: while set (and focused), this
+    /// split member temporarily takes the whole content area. The group and
+    /// its layout are untouched, and one toggle restores the panes. Never
+    /// persisted — a relaunch comes back to the full split.
+    @Published var expandedSplitTabID: UUID?
     @Published var isSplitViewEnabled = false
     /// Split groups stashed per Space while another Space is frontmost, so
     /// switching away and back revives the split. In-memory only: the
@@ -404,6 +424,9 @@ final class BrowserStore: ObservableObject {
                     previousRatios: restoredState.splitPaneRatios
                 )
                 : []
+            splitLayout = isSplitViewEnabled
+                ? SplitViewLayout(rawValue: restoredState.splitLayout) ?? .horizontal
+                : .horizontal
         } else {
             // New workspaces start neutral while following the system's
             // light or dark appearance. Blue remains an optional Space theme.
@@ -419,6 +442,7 @@ final class BrowserStore: ObservableObject {
             activeTabID = nil
             splitTabIDs = []
             splitPaneRatios = []
+            splitLayout = .horizontal
             isSplitViewEnabled = false
             shouldPresentInitialSpaceSetup = !isPrivate && (restoredState?.spaces.isEmpty ?? true)
         }

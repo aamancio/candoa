@@ -266,6 +266,7 @@ extension BrowserStore {
             .joined(separator: "|")
         let activeSpaceName = activeSpace?.name ?? "none"
 
+        let favoriteTitles = favoriteTabs.map(\.favoriteDisplayTitle).joined(separator: "|")
         let splitTabTitles = activeSplitGroupTabs.map(\.title).joined(separator: "|")
         let splitActiveTitle = activeTabID.flatMap { id in
             activeSplitGroupTabs.first(where: { $0.id == id })?.title
@@ -292,11 +293,14 @@ extension BrowserStore {
             "loading=\(activeTab?.isLoading == true)",
             "tabs=\(tabTitles)",
             "folders=\(folderNames)",
+            "favorites=\(favoriteTitles)",
             "split=\(isSplitViewEnabled)",
             "splitDisplayed=\(isSplitViewDisplayed)",
             "splitTabs=\(splitTabTitles)",
             "splitActive=\(splitActiveTitle)",
             "splitRatios=\(splitRatioText)",
+            "splitLayout=\(splitLayout.rawValue)",
+            "splitExpanded=\(expandedDisplayedSplitTab?.title ?? "none")",
             "popover=\(uiTestingVisibleFolderPopoverDescription)",
             "query=\(uiTestingCommandPaletteQuery)",
             "command=\(uiTestingLastCommandDescription)",

@@ -150,6 +150,117 @@ final class CandoaUITests: XCTestCase {
         )
     }
 
+    func testSplitViewLayoutsAndPaneReorder() throws {
+        let app = launchApp(fixture: "split-view")
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
+
+        openFixtureTab(path: "one", in: app)
+        openFixtureTab(path: "two", in: app)
+
+        app.typeKey("=", modifierFlags: [.control, .shift])
+        XCTAssertTrue(waitForState(in: app, containing: "splitDisplayed=true"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "splitTabs=two|one"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "splitLayout=horizontal"), currentState(in: app))
+
+        // Dragging a pane's grab handle onto the other pane reorders them.
+        let grip = element("split-pane-grip-0", in: app)
+        XCTAssertTrue(grip.waitForExistence(timeout: 5), currentState(in: app))
+        let trailingPane = element("split-pane-1", in: app)
+        XCTAssertTrue(trailingPane.waitForExistence(timeout: 5), currentState(in: app))
+        grip.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).press(
+            forDuration: 0.2,
+            thenDragTo: trailingPane.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        )
+        XCTAssertTrue(waitForState(in: app, containing: "splitTabs=one|two"), currentState(in: app))
+
+        // Zen-style expand: the pane pill's toggle gives one pane the whole
+        // surface while the group stays intact, and toggling restores it.
+        let expandButton = element("split-pane-expand-0", in: app)
+        XCTAssertTrue(expandButton.waitForExistence(timeout: 5), currentState(in: app))
+        expandButton.click()
+        XCTAssertTrue(waitForState(in: app, containing: "splitExpanded=one"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "split=true"), currentState(in: app))
+
+        let restoreButton = element("split-pane-expand-0", in: app)
+        XCTAssertTrue(restoreButton.waitForExistence(timeout: 5), currentState(in: app))
+        restoreButton.click()
+        XCTAssertTrue(waitForState(in: app, containing: "splitExpanded=none"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "splitDisplayed=true"), currentState(in: app))
+
+        // Zen-style layout shortcuts switch between rows, grid, and columns.
+        app.typeKey("v", modifierFlags: [.control, .option])
+        XCTAssertTrue(waitForState(in: app, containing: "splitLayout=vertical"), currentState(in: app))
+
+        app.typeKey("g", modifierFlags: [.control, .option])
+        XCTAssertTrue(waitForState(in: app, containing: "splitLayout=grid"), currentState(in: app))
+
+        app.typeKey("h", modifierFlags: [.control, .option])
+        XCTAssertTrue(waitForState(in: app, containing: "splitLayout=horizontal"), currentState(in: app))
+
+        // The layout is split state: closing the split resets it.
+        app.typeKey("-", modifierFlags: [.control, .shift])
+        XCTAssertTrue(waitForState(in: app, containing: "split=false"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "splitLayout=horizontal"), currentState(in: app))
+    }
+
+    func testSplitPaneCloseButtonClosesTabAndDissolvesSplit() throws {
+        let app = launchApp(fixture: "split-view")
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
+
+        openFixtureTab(path: "one", in: app)
+        openFixtureTab(path: "two", in: app)
+
+        app.typeKey("=", modifierFlags: [.control, .shift])
+        XCTAssertTrue(waitForState(in: app, containing: "splitDisplayed=true"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "splitTabs=two|one"), currentState(in: app))
+
+        // The pane pill's close button closes that pane's tab; with one
+        // member left the split dissolves.
+        let closeButton = element("split-pane-close-1", in: app)
+        XCTAssertTrue(closeButton.waitForExistence(timeout: 5), currentState(in: app))
+        closeButton.click()
+        XCTAssertTrue(waitForState(in: app, containing: "split=false"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "active=two"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "tabs=two"), currentState(in: app))
+    }
+
+    func testFavoritesStayGlobalAcrossSpaces() throws {
+        let app = launchApp(fixture: "split-view-spaces")
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
+        XCTAssertTrue(waitForState(in: app, containing: "space=SplitOne"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "active=a-one", timeout: 10), currentState(in: app))
+
+        // Favorite the active tab from its sidebar row.
+        let row = element("tab-row-a-one", in: app)
+        XCTAssertTrue(row.waitForExistence(timeout: 5), currentState(in: app))
+        row.rightClick()
+        let favoriteItem = app.menuItems["Add to Favorites"]
+        XCTAssertTrue(favoriteItem.waitForExistence(timeout: 5), currentState(in: app))
+        favoriteItem.click()
+        XCTAssertTrue(waitForState(in: app, containing: "favorites=a-one"), currentState(in: app))
+
+        // The shared grid stays put when switching Spaces.
+        app.typeKey(.rightArrow, modifierFlags: [.option, .command])
+        XCTAssertTrue(waitForState(in: app, containing: "space=SplitTwo"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "favorites=a-one"), currentState(in: app))
+
+        // Activating the favorite opens it here — no Space switch.
+        let tile = element("favorite-tile-a-one", in: app)
+        XCTAssertTrue(tile.waitForExistence(timeout: 5), currentState(in: app))
+        tile.click()
+        XCTAssertTrue(waitForState(in: app, containing: "active=a-one", timeout: 10), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "space=SplitTwo"), currentState(in: app))
+
+        // Un-favoriting from here returns the tab to the Space on screen.
+        tile.rightClick()
+        let unfavoriteItem = app.menuItems["Remove from Favorites"]
+        XCTAssertTrue(unfavoriteItem.waitForExistence(timeout: 5), currentState(in: app))
+        unfavoriteItem.click()
+        XCTAssertTrue(waitForState(in: app, containing: "favorites=;"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "space=SplitTwo"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "active=a-one"), currentState(in: app))
+    }
+
     func testWebsiteAppearanceRendersYouTubeInDarkMode() throws {
         let app = launchApp(fixture: "website-appearance", websiteAppearance: "dark")
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))

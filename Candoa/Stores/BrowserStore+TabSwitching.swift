@@ -38,6 +38,11 @@ extension BrowserStore {
         if updatesAccessTime {
             tabs[index].lastAccessedAt = Date()
         }
+        // Favorites are global: activating one recorded under another Space
+        // pulls the tab into the current Space instead of switching Spaces.
+        if tabs[index].isFavorite, tabs[index].spaceID != activeSpaceID {
+            reparentTabToActiveSpaceIfNeeded(at: index)
+        }
         let previousSpaceID = activeSpaceID
         let nextSpaceID = tabs[index].spaceID
         if previousSpaceID != nextSpaceID {

@@ -46,6 +46,27 @@ extension BrowserStore {
             }
         }
 
+        // Favorites are global; sessions that favorited the same page from
+        // different Spaces (or twice in one) merge to a single tile. The
+        // first by sort order keeps the favorite slot, the rest return to
+        // their Space as pinned tabs so no page state is lost.
+        var seenFavoriteURLs = Set<String>()
+        let orderedFavoriteIDs = tabs
+            .filter(\.isFavorite)
+            .sorted { $0.sortOrder < $1.sortOrder }
+            .map(\.id)
+        for id in orderedFavoriteIDs {
+            guard
+                let index = tabs.firstIndex(where: { $0.id == id }),
+                let urlKey = (tabs[index].favoriteURL ?? tabs[index].url)?.absoluteString
+            else { continue }
+            if !seenFavoriteURLs.insert(urlKey).inserted {
+                tabs[index].isFavorite = false
+                tabs[index].isPinned = true
+                clearFavoriteSnapshot(at: index)
+            }
+        }
+
         if !spaceIDs.contains(activeSpaceID) {
             activeSpaceID = spaces[0].id
         }
@@ -75,10 +96,12 @@ extension BrowserStore {
             } else {
                 splitTabIDs = []
                 splitPaneRatios = []
+                splitLayout = .horizontal
             }
         } else {
             splitTabIDs = []
             splitPaneRatios = []
+            splitLayout = .horizontal
         }
     }
 

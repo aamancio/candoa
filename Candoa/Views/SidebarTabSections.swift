@@ -48,6 +48,11 @@ internal struct EssentialTileView: View {
         .candoaButton(.content)
         .animation(.easeOut(duration: 0.12), value: isActive)
         .help(placement == .favorite ? tab.favoriteDisplayTitle : tab.title)
+        .accessibilityLabel(placement == .favorite ? tab.favoriteDisplayTitle : tab.title)
+        .accessibilityIdentifier(
+            "\(placement == .favorite ? "favorite" : "pinned")-tile-"
+                + sidebarAccessibilitySlug(placement == .favorite ? tab.favoriteDisplayTitle : tab.title)
+        )
         .contextMenu {
             switch placement {
             case .favorite:
@@ -123,6 +128,11 @@ internal struct SidebarSplitGroupView: View {
         }
         .onHover { isHovering = $0 }
         .contextMenu {
+            Menu("Split Layout") {
+                Button(BrowserCommandTitles.splitLayoutHorizontal) { store.setSplitLayout(.horizontal) }
+                Button(BrowserCommandTitles.splitLayoutVertical) { store.setSplitLayout(.vertical) }
+                Button(BrowserCommandTitles.splitLayoutGrid) { store.setSplitLayout(.grid) }
+            }
             Button(BrowserCommandTitles.closeSplitView, action: store.closeSplitView)
         }
         .animation(.easeOut(duration: 0.10), value: isHovering)

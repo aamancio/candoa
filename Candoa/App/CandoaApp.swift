@@ -289,6 +289,24 @@ private struct BrowserCommands: Commands {
             .keyboardShortcut(CandoaShortcutDefinition.closeSplitView.currentKeyboardShortcut)
             .disabled(actions == nil)
 
+            Button(BrowserCommandTitles.splitLayoutHorizontal) {
+                actions?.setSplitLayout(.horizontal)
+            }
+            .keyboardShortcut(CandoaShortcutDefinition.splitLayoutHorizontal.currentKeyboardShortcut)
+            .disabled(actions == nil)
+
+            Button(BrowserCommandTitles.splitLayoutVertical) {
+                actions?.setSplitLayout(.vertical)
+            }
+            .keyboardShortcut(CandoaShortcutDefinition.splitLayoutVertical.currentKeyboardShortcut)
+            .disabled(actions == nil)
+
+            Button(BrowserCommandTitles.splitLayoutGrid) {
+                actions?.setSplitLayout(.grid)
+            }
+            .keyboardShortcut(CandoaShortcutDefinition.splitLayoutGrid.currentKeyboardShortcut)
+            .disabled(actions == nil)
+
             Divider()
 
             Button(BrowserCommandTitles.nextTab) {
@@ -468,6 +486,7 @@ struct BrowserCommandActions {
     var resetZoom: () -> Void
     var addSplitView: () -> Void
     var closeSplitView: () -> Void
+    var setSplitLayout: (SplitViewLayout) -> Void
     var isWorkspaceICloudSyncEnabled: Bool
     var isHistoryICloudSyncEnabled: Bool
     var setWorkspaceICloudSyncEnabled: (Bool) -> Void

@@ -444,6 +444,7 @@ struct PersistenceService: @unchecked Sendable {
         session.setValue(state.activeTabID, forKey: Key.activeTabID)
         session.setValue(Self.encodeUUIDList(state.splitTabIDs), forKey: Key.splitTabIDs)
         session.setValue(Self.encodeDoubleList(state.splitPaneRatios), forKey: Key.splitPaneRatios)
+        session.setValue(state.splitLayout, forKey: Key.splitLayout)
         session.setValue(state.isSplitViewEnabled, forKey: Key.isSplitViewEnabled)
 
         let existingSpaces = try fetchObjects(entityName: Entity.space, in: context)
@@ -595,6 +596,7 @@ struct PersistenceService: @unchecked Sendable {
                     activeTabID: session.uuid(for: Key.activeTabID),
                     splitTabIDs: Self.decodeUUIDList(session.string(for: Key.splitTabIDs)),
                     splitPaneRatios: Self.decodeDoubleList(session.string(for: Key.splitPaneRatios)),
+                    splitLayout: session.string(for: Key.splitLayout) ?? "horizontal",
                     isSplitViewEnabled: session.bool(for: Key.isSplitViewEnabled)
                 )
             } catch {
@@ -746,6 +748,7 @@ struct PersistenceService: @unchecked Sendable {
                 attribute(Key.activeTabID, .UUIDAttributeType),
                 attribute(Key.splitTabIDs, .stringAttributeType),
                 attribute(Key.splitPaneRatios, .stringAttributeType),
+                attribute(Key.splitLayout, .stringAttributeType),
                 attribute(Key.isSplitViewEnabled, .booleanAttributeType, optional: false)
             ]
         )
@@ -905,6 +908,7 @@ private enum Key {
     static let activeTabID = "activeTabID"
     static let splitTabIDs = "splitTabIDs"
     static let splitPaneRatios = "splitPaneRatios"
+    static let splitLayout = "splitLayout"
     static let isSplitViewEnabled = "isSplitViewEnabled"
     static let name = "name"
     static let symbolName = "symbolName"

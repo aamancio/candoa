@@ -24,6 +24,13 @@ enum AISidebarResizeCursor {
         }
         return .resizeLeftRight
     }
+
+    static var vertical: NSCursor {
+        if #available(macOS 15.0, *) {
+            return NSCursor.rowResize(directions: .all)
+        }
+        return .resizeUpDown
+    }
 }
 
 struct AISidebarCursorHoverModifier: ViewModifier {

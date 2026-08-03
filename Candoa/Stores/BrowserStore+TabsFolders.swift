@@ -50,8 +50,14 @@ extension BrowserStore {
         visibleTabs(in: activeSpaceID)
     }
 
-    var favoriteTabsForActiveSpace: [BrowserTab] {
-        favoriteTabs(in: activeSpaceID)
+    /// Favorites are global (Arc/Zen-style): one shared grid that stays the
+    /// same in every Space. Pinned and regular tabs remain per-Space. Each
+    /// favorite still records a home `spaceID`, but it is ignored for
+    /// display and reassigned to the active Space on activation.
+    var favoriteTabs: [BrowserTab] {
+        tabs
+            .filter { $0.isFavorite }
+            .sorted { $0.sortOrder < $1.sortOrder }
     }
 
     var pinnedTabsForActiveSpace: [BrowserTab] {
@@ -75,12 +81,6 @@ extension BrowserStore {
         regularTabs(in: activeSpaceID)
     }
 
-    func favoriteTabs(in spaceID: UUID) -> [BrowserTab] {
-        tabs
-            .filter { $0.spaceID == spaceID && $0.isFavorite }
-            .sorted { $0.sortOrder < $1.sortOrder }
-    }
-
     func pinnedTabs(in spaceID: UUID) -> [BrowserTab] {
         tabs
             .filter { $0.spaceID == spaceID && $0.folderID == nil && $0.isPinned && !$0.isFavorite }
@@ -100,7 +100,9 @@ extension BrowserStore {
     }
 
     func visibleTabs(in spaceID: UUID) -> [BrowserTab] {
-        let favorites = favoriteTabs(in: spaceID)
+        // The shared favorites lead every Space's visible list, so ⌘1–⌘9 and
+        // tab cycling can reach them from anywhere.
+        let favorites = favoriteTabs
         let pinned = pinnedTabs(in: spaceID)
         let foldered = folders
             .filter { $0.spaceID == spaceID }
@@ -383,6 +385,11 @@ extension BrowserStore {
 
     func togglePin(_ id: UUID) {
         guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
+        if tabs[index].isFavorite {
+            // Leaving the global favorites grid lands the tab in the Space
+            // the user is looking at, not its recorded home Space.
+            reparentTabToActiveSpaceIfNeeded(at: index)
+        }
         let pinned = !tabs[index].isPinned
         tabs[index].isFavorite = false
         tabs[index].folderID = nil
@@ -399,6 +406,10 @@ extension BrowserStore {
     func toggleFavorite(_ id: UUID) {
         guard let index = tabs.firstIndex(where: { $0.id == id }) else { return }
         let favorite = !tabs[index].isFavorite
+        if !favorite {
+            // Un-favoriting returns the tab to the Space on screen.
+            reparentTabToActiveSpaceIfNeeded(at: index)
+        }
         tabs[index].isFavorite = favorite
         tabs[index].folderID = nil
         if favorite {
@@ -422,6 +433,21 @@ extension BrowserStore {
 
     func activateFavorite(_ id: UUID) {
         switchTab(to: id)
+    }
+
+    /// Favorites are global, but every tab still lives in exactly one Space.
+    /// When a favorite recorded under another Space is activated or converted
+    /// back to a Space-scoped placement, it moves into the active Space. A
+    /// data-store change requires a fresh web view, matching moveTab(toSpace:).
+    func reparentTabToActiveSpaceIfNeeded(at index: Int) {
+        guard tabs[index].spaceID != activeSpaceID else { return }
+        let sourceDataStoreID = dataStoreID(for: tabs[index].spaceID)
+        let targetDataStoreID = dataStoreID(for: activeSpaceID)
+        tabs[index].spaceID = activeSpaceID
+        tabs[index].folderID = nil
+        if sourceDataStoreID != targetDataStoreID {
+            webCoordinator.removeWebView(for: tabs[index].id)
+        }
     }
 
     @discardableResult
@@ -542,21 +568,37 @@ extension BrowserStore {
         switchSpace(to: spaces[position - 1].id)
     }
 
+    /// Placement buckets are per-Space, except favorites: the global grid is
+    /// one shared ordering, so its bucket ignores `spaceID`.
+    private func tabsInPlacementBucket(
+        spaceID: UUID,
+        isFavorite: Bool,
+        isPinned: Bool,
+        folderID: UUID?
+    ) -> [BrowserTab] {
+        let resolvedPinned = isPinned && !isFavorite
+        return tabs.filter {
+            guard $0.isFavorite == isFavorite else { return false }
+            if isFavorite { return true }
+            return $0.spaceID == spaceID &&
+                $0.isPinned == resolvedPinned &&
+                $0.folderID == folderID
+        }
+    }
+
     func nextSortOrder(
         spaceID: UUID,
         isFavorite: Bool,
         isPinned: Bool,
         folderID: UUID? = nil
     ) -> Double {
-        let resolvedPinned = isPinned && !isFavorite
-        let orders = tabs
-            .filter {
-                $0.spaceID == spaceID &&
-                $0.isFavorite == isFavorite &&
-                $0.isPinned == resolvedPinned &&
-                $0.folderID == (isFavorite ? nil : folderID)
-            }
-            .map(\.sortOrder)
+        let orders = tabsInPlacementBucket(
+            spaceID: spaceID,
+            isFavorite: isFavorite,
+            isPinned: isPinned,
+            folderID: isFavorite ? nil : folderID
+        )
+        .map(\.sortOrder)
         return (orders.min() ?? 0) - 1
     }
 
@@ -566,15 +608,13 @@ extension BrowserStore {
         isPinned: Bool,
         folderID: UUID? = nil
     ) -> Double {
-        let resolvedPinned = isPinned && !isFavorite
-        let orders = tabs
-            .filter {
-                $0.spaceID == spaceID &&
-                $0.isFavorite == isFavorite &&
-                $0.isPinned == resolvedPinned &&
-                $0.folderID == (isFavorite ? nil : folderID)
-            }
-            .map(\.sortOrder)
+        let orders = tabsInPlacementBucket(
+            spaceID: spaceID,
+            isFavorite: isFavorite,
+            isPinned: isPinned,
+            folderID: isFavorite ? nil : folderID
+        )
+        .map(\.sortOrder)
         return (orders.max() ?? -1) + 1
     }
 
@@ -622,9 +662,10 @@ extension BrowserStore {
     }
 
     func normalizeSortOrder() {
+        // Favorites are one global bucket, normalized once, not per Space.
+        normalizeSortOrder(orderedIDs: sortedBucketTabIDs(tabs.filter(\.isFavorite)))
         for spaceID in spaces.map(\.id) {
             normalizeFolderSortOrder(spaceID: spaceID)
-            normalizeSortOrder(spaceID: spaceID, isFavorite: true, isPinned: false, folderID: nil)
             normalizeSortOrder(spaceID: spaceID, isFavorite: false, isPinned: true, folderID: nil)
             for folder in folders where folder.spaceID == spaceID {
                 normalizeSortOrder(spaceID: spaceID, isFavorite: false, isPinned: true, folderID: folder.id)
@@ -650,14 +691,17 @@ extension BrowserStore {
     }
 
     func normalizeSortOrder(spaceID: UUID, isFavorite: Bool, isPinned: Bool, folderID: UUID?) {
-        let resolvedPinned = isPinned && !isFavorite
-        let orderedIDs = tabs
-            .filter {
-                $0.spaceID == spaceID &&
-                $0.isFavorite == isFavorite &&
-                $0.isPinned == resolvedPinned &&
-                $0.folderID == (isFavorite ? nil : folderID)
-            }
+        let bucket = tabsInPlacementBucket(
+            spaceID: spaceID,
+            isFavorite: isFavorite,
+            isPinned: isPinned,
+            folderID: isFavorite ? nil : folderID
+        )
+        normalizeSortOrder(orderedIDs: sortedBucketTabIDs(bucket))
+    }
+
+    private func sortedBucketTabIDs(_ bucket: [BrowserTab]) -> [UUID] {
+        bucket
             .sorted {
                 if $0.sortOrder == $1.sortOrder {
                     return $0.lastAccessedAt > $1.lastAccessedAt
@@ -665,7 +709,9 @@ extension BrowserStore {
                 return $0.sortOrder < $1.sortOrder
             }
             .map(\.id)
+    }
 
+    private func normalizeSortOrder(orderedIDs: [UUID]) {
         for (offset, id) in orderedIDs.enumerated() {
             guard let index = tabs.firstIndex(where: { $0.id == id }) else { continue }
             tabs[index].sortOrder = Double(offset)
