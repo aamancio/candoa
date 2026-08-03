@@ -254,6 +254,11 @@ final class BrowserStore: ObservableObject {
     @Published var draggedTabID: UUID?
     @Published var sidebarDropIndicator: SidebarTabDropIndicator?
     @Published var splitDropPreview: SplitTabDropPreview?
+    /// Pointer location of an in-flight tab drag over the browser surface,
+    /// in the drop overlay's coordinate space. Drives the in-window ghost
+    /// page card: macOS does not reliably honor SwiftUI's onDrag preview,
+    /// so the surface draws the ghost itself from drop-session updates.
+    @Published var splitDropPointerLocation: CGPoint?
     @Published var settlingDroppedTabID: UUID?
     @Published var settlingDroppedTabSource: SidebarDroppedTabSource?
     var tabDragSessionWatcher: Timer?
