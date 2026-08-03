@@ -44,6 +44,53 @@ final class CandoaUITests: XCTestCase {
         XCTAssertTrue(waitForState(in: app, containing: "splitActive=one"), currentState(in: app))
     }
 
+    func testSplitPaneGripEdgeDropStacksVertically() throws {
+        let app = launchApp(fixture: "split-view")
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
+
+        openFixtureTab(path: "one", in: app)
+        openFixtureTab(path: "two", in: app)
+
+        app.typeKey("=", modifierFlags: [.control, .shift])
+        XCTAssertTrue(waitForState(in: app, containing: "splitDisplayed=true"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "splitTabs=two|one"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "splitLayout=horizontal"), currentState(in: app))
+
+        // Dropping a grip-dragged pane on another pane's bottom band stacks
+        // the row into a column, with the dragged pane below the target.
+        let grip = element("split-pane-grip-0", in: app)
+        XCTAssertTrue(grip.waitForExistence(timeout: 5), currentState(in: app))
+        let trailingPane = element("split-pane-1", in: app)
+        XCTAssertTrue(trailingPane.waitForExistence(timeout: 5), currentState(in: app))
+        grip.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).press(
+            forDuration: 0.2,
+            thenDragTo: trailingPane.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.9))
+        )
+        XCTAssertTrue(waitForState(in: app, containing: "splitLayout=vertical"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "splitTabs=one|two"), currentState(in: app))
+    }
+
+    func testDraggingSidebarTabOntoBottomEdgeStacksVertically() throws {
+        let app = launchApp(fixture: "split-view")
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
+
+        openFixtureTab(path: "one", in: app)
+        openFixtureTab(path: "two", in: app)
+
+        // Releasing over the page's bottom-edge quarter creates a fresh
+        // split stacked as a column, the dragged page below the current one.
+        let row = element("tab-row-one", in: app)
+        XCTAssertTrue(row.waitForExistence(timeout: 5), currentState(in: app))
+        let target = app.windows.firstMatch
+            .coordinate(withNormalizedOffset: CGVector(dx: 0.55, dy: 0.93))
+        row.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            .press(forDuration: 0.3, thenDragTo: target)
+
+        XCTAssertTrue(waitForState(in: app, containing: "splitDisplayed=true"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "splitLayout=vertical"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "splitTabs=two|one"), currentState(in: app))
+    }
+
     func testDraggingSidebarTabOntoPageEdgeCreatesSplit() throws {
         let app = launchApp(fixture: "split-view")
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))

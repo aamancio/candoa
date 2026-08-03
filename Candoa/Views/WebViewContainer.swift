@@ -394,7 +394,14 @@ struct WebViewContainer: View {
                             },
                             onDragEnded: { location in
                                 splitPaneReorder = nil
-                                if let targetIndex = Self.splitPaneIndex(at: location, in: frames, spacing: spacing) {
+                                guard let targetIndex = Self.splitPaneIndex(at: location, in: frames, spacing: spacing) else {
+                                    return
+                                }
+                                // A pane's edge bands re-stack the layout,
+                                // Zen-style; the middle keeps the slot swap.
+                                if let side = Self.splitPaneDropEdge(at: location, inPaneFrame: frames[targetIndex]) {
+                                    store.moveSplitPane(from: index, toEdge: side, of: targetIndex)
+                                } else {
                                     store.moveSplitPane(from: index, to: targetIndex)
                                 }
                             },
@@ -444,19 +451,28 @@ struct WebViewContainer: View {
         ZStack(alignment: .topLeading) {
             if let reorder = splitPaneReorder,
                let targetIndex = Self.splitPaneIndex(at: reorder.location, in: frames, spacing: spacing),
-               targetIndex != reorder.sourceIndex,
                frames.indices.contains(targetIndex) {
-                let targetInsets = splitPaneInsets(
-                    forPaneAt: targetIndex,
-                    paneCount: splitTabs.count,
-                    layout: layout
-                )
-                RoundedRectangle(cornerRadius: surfaceCornerRadius, style: .continuous)
-                    .stroke(CandoaColor.accent.opacity(0.85), lineWidth: 2)
-                    .padding(.leading, targetInsets.leading)
-                    .padding(.trailing, targetInsets.trailing)
-                    .frame(width: frames[targetIndex].width, height: frames[targetIndex].height)
-                    .offset(x: frames[targetIndex].minX, y: frames[targetIndex].minY)
+                let edge = Self.splitPaneDropEdge(at: reorder.location, inPaneFrame: frames[targetIndex])
+                // Middle-of-own-pane means no drop; an edge band always has
+                // meaning (even on the source pane it re-stacks the layout).
+                if targetIndex != reorder.sourceIndex || edge != nil {
+                    let targetInsets = splitPaneInsets(
+                        forPaneAt: targetIndex,
+                        paneCount: splitTabs.count,
+                        layout: layout
+                    )
+                    let visibleFrame = CGRect(
+                        x: frames[targetIndex].minX + targetInsets.leading,
+                        y: frames[targetIndex].minY,
+                        width: frames[targetIndex].width - targetInsets.leading - targetInsets.trailing,
+                        height: frames[targetIndex].height
+                    )
+                    let highlightFrame = Self.splitPaneEdgeHighlightFrame(for: edge, in: visibleFrame)
+                    RoundedRectangle(cornerRadius: surfaceCornerRadius, style: .continuous)
+                        .stroke(CandoaColor.accent.opacity(0.85), lineWidth: 2)
+                        .frame(width: highlightFrame.width, height: highlightFrame.height)
+                        .offset(x: highlightFrame.minX, y: highlightFrame.minY)
+                }
             }
 
             if let reorder = splitPaneReorder,
@@ -536,6 +552,44 @@ struct WebViewContainer: View {
     static func splitPaneIndex(at location: CGPoint, in frames: [CGRect], spacing: CGFloat) -> Int? {
         frames.firstIndex { frame in
             frame.insetBy(dx: -spacing / 2, dy: -spacing / 2).contains(location)
+        }
+    }
+
+    /// Zen-style edge targeting within a pane for a grip drag: the outer
+    /// quarters map to the nearest edge (top/bottom stack the panes into a
+    /// column, leading/trailing lay them into a row) and the middle is the
+    /// plain slot swap.
+    static func splitPaneDropEdge(at location: CGPoint, inPaneFrame frame: CGRect) -> SplitTabDropSide? {
+        guard frame.width > 0, frame.height > 0 else { return nil }
+        let fractionX = (location.x - frame.minX) / frame.width
+        let fractionY = (location.y - frame.minY) / frame.height
+        let insideMiddleX = fractionX > 0.25 && fractionX < 0.75
+        let insideMiddleY = fractionY > 0.25 && fractionY < 0.75
+        guard !(insideMiddleX && insideMiddleY) else { return nil }
+
+        let edgeDistances: [(side: SplitTabDropSide, distance: CGFloat)] = [
+            (.leading, fractionX),
+            (.trailing, 1 - fractionX),
+            (.top, fractionY),
+            (.bottom, 1 - fractionY)
+        ]
+        return edgeDistances.min { $0.distance < $1.distance }?.side
+    }
+
+    /// The half of the target pane an edge drop would claim; the whole pane
+    /// for a middle (slot swap) drop.
+    static func splitPaneEdgeHighlightFrame(for side: SplitTabDropSide?, in frame: CGRect) -> CGRect {
+        switch side {
+        case .leading:
+            CGRect(x: frame.minX, y: frame.minY, width: frame.width / 2, height: frame.height)
+        case .trailing:
+            CGRect(x: frame.midX, y: frame.minY, width: frame.width / 2, height: frame.height)
+        case .top:
+            CGRect(x: frame.minX, y: frame.minY, width: frame.width, height: frame.height / 2)
+        case .bottom:
+            CGRect(x: frame.minX, y: frame.midY, width: frame.width, height: frame.height / 2)
+        case nil:
+            frame
         }
     }
 
@@ -1860,6 +1914,7 @@ private struct SplitPaneGripCursorView: NSViewRepresentable {
 }
 
 private final class SplitPaneGripCursorNSView: NSView {
+    private var monitor: Any?
     private var hasPushedClosedHand = false
 
     override func resetCursorRects() {
@@ -1870,25 +1925,58 @@ private final class SplitPaneGripCursorNSView: NSView {
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         window?.invalidateCursorRects(for: self)
-        if window == nil, hasPushedClosedHand {
-            hasPushedClosedHand = false
-            NSCursor.pop()
+        if window == nil {
+            removeMonitor()
+            popClosedHandIfNeeded()
+        } else {
+            installMonitorIfNeeded()
         }
     }
 
-    override func mouseDown(with event: NSEvent) {
-        if !hasPushedClosedHand {
-            hasPushedClosedHand = true
-            NSCursor.closedHand.push()
+    // SwiftUI's hosting view hit-tests its gesture regions to itself, so
+    // this view never receives mouseDown directly — the monitor sees the
+    // press before dispatch, the same way the pane focus and tab drag
+    // monitors do. Events pass through untouched.
+    private func installMonitorIfNeeded() {
+        guard monitor == nil else { return }
+        monitor = NSEvent.addLocalMonitorForEvents(
+            matching: [.leftMouseDown, .leftMouseUp]
+        ) { [weak self] event in
+            // Local event monitors always run on the main thread.
+            MainActor.assumeIsolated {
+                self?.handle(event)
+            }
+            return event
         }
-        super.mouseDown(with: event)
     }
 
-    override func mouseUp(with event: NSEvent) {
-        if hasPushedClosedHand {
-            hasPushedClosedHand = false
-            NSCursor.pop()
+    private func removeMonitor() {
+        if let monitor {
+            NSEvent.removeMonitor(monitor)
+            self.monitor = nil
         }
-        super.mouseUp(with: event)
+    }
+
+    private func handle(_ event: NSEvent) {
+        switch event.type {
+        case .leftMouseDown:
+            guard let window, event.window === window else { return }
+            let location = convert(event.locationInWindow, from: nil)
+            guard bounds.contains(location), visibleRect.contains(location) else { return }
+            if !hasPushedClosedHand {
+                hasPushedClosedHand = true
+                NSCursor.closedHand.push()
+            }
+        case .leftMouseUp:
+            popClosedHandIfNeeded()
+        default:
+            break
+        }
+    }
+
+    private func popClosedHandIfNeeded() {
+        guard hasPushedClosedHand else { return }
+        hasPushedClosedHand = false
+        NSCursor.pop()
     }
 }

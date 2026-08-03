@@ -172,6 +172,35 @@ extension BrowserStore {
         splitPaneRatios = ratios
     }
 
+    /// Zen-style edge drop for a pane-handle drag: releasing on a pane's
+    /// top/bottom band stacks the row into a column (and the
+    /// leading/trailing bands lay it back into a row), with the dragged
+    /// pane landing on that side of the target. Dropping on the source
+    /// pane's own edge only changes the arrangement.
+    func moveSplitPane(from sourceIndex: Int, toEdge side: SplitTabDropSide, of targetIndex: Int) {
+        var orderedIDs = splitGroupTabIDs()
+        var ratios = splitPaneRatios(forPaneCount: orderedIDs.count)
+        guard
+            orderedIDs.indices.contains(sourceIndex),
+            orderedIDs.indices.contains(targetIndex)
+        else { return }
+
+        setSplitLayout(side.isVerticalAxis ? .vertical : .horizontal)
+        guard sourceIndex != targetIndex else { return }
+
+        let movedID = orderedIDs[sourceIndex]
+        let targetID = orderedIDs[targetIndex]
+        let movedRatio = ratios[sourceIndex]
+        orderedIDs.remove(at: sourceIndex)
+        ratios.remove(at: sourceIndex)
+        guard let anchorIndex = orderedIDs.firstIndex(of: targetID) else { return }
+        let insertionIndex = side.insertsBeforeTarget ? anchorIndex : anchorIndex + 1
+        orderedIDs.insert(movedID, at: insertionIndex)
+        ratios.insert(movedRatio, at: insertionIndex)
+        splitTabIDs = orderedIDs
+        splitPaneRatios = ratios
+    }
+
     /// Takes one tab out of the split group without closing it: the tab
     /// returns to its ordinary sidebar row, and the remaining panes keep the
     /// split (or the split dissolves once fewer than two members remain).
