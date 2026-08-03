@@ -134,18 +134,6 @@ struct WebViewContainer: View {
                         .transition(.opacity.combined(with: .scale(scale: 0.985)))
                     }
 
-                    // In-window ghost of the dragged page riding the pointer.
-                    // macOS does not reliably honor SwiftUI's onDrag preview,
-                    // so the surface draws the ghost itself from the drop
-                    // session's location updates.
-                    if let pointer = store.splitDropPointerLocation,
-                       let draggedID = store.draggedTabID,
-                       let draggedTab = store.tabs.first(where: { $0.id == draggedID }) {
-                        TabDragGhost(tab: draggedTab)
-                            .opacity(0.92)
-                            .position(x: pointer.x, y: pointer.y + 72)
-                            .allowsHitTesting(false)
-                    }
                 }
                 .animation(.easeOut(duration: 0.12), value: store.splitDropPreview)
             }
@@ -993,18 +981,15 @@ private struct BrowserSurfaceSplitDropDelegate: DropDelegate {
     }
 
     func dropEntered(info: DropInfo) {
-        store.updateSplitDropPointer(info.location)
         updatePreview(info: info)
     }
 
     func dropUpdated(info: DropInfo) -> DropProposal? {
-        store.updateSplitDropPointer(info.location)
         updatePreview(info: info)
         return store.splitDropPreview == nil ? nil : DropProposal(operation: .move)
     }
 
     func dropExited(info: DropInfo) {
-        store.clearSplitDropPointer()
         store.clearSplitDropPreview()
     }
 
