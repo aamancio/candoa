@@ -48,6 +48,11 @@ internal struct EssentialTileView: View {
         .candoaButton(.content)
         .animation(.easeOut(duration: 0.12), value: isActive)
         .help(placement == .favorite ? tab.favoriteDisplayTitle : tab.title)
+        .accessibilityLabel(placement == .favorite ? tab.favoriteDisplayTitle : tab.title)
+        .accessibilityIdentifier(
+            "\(placement == .favorite ? "favorite" : "pinned")-tile-"
+                + sidebarAccessibilitySlug(placement == .favorite ? tab.favoriteDisplayTitle : tab.title)
+        )
         .contextMenu {
             switch placement {
             case .favorite:

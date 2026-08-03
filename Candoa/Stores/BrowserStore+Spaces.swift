@@ -220,6 +220,18 @@ extension BrowserStore {
             editingSpaceID = nil
         }
 
+        // Favorites are global — deleting the Space a favorite was recorded
+        // under must not remove it from the shared grid. Re-home those
+        // favorites to a surviving Space (their web views belong to the
+        // deleted Space's data store, so they reload on next activation).
+        if let survivorSpaceID = spaces.first(where: { $0.id != id })?.id {
+            for index in tabs.indices where tabs[index].spaceID == id && tabs[index].isFavorite {
+                tabs[index].spaceID = survivorSpaceID
+                tabs[index].folderID = nil
+                webCoordinator.removeWebView(for: tabs[index].id)
+            }
+        }
+
         let removedTabIDs = tabs.filter { $0.spaceID == id }.map(\.id)
         tabs.removeAll { $0.spaceID == id }
         folders.removeAll { $0.spaceID == id }

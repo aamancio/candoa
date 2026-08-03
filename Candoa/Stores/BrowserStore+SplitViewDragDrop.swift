@@ -32,6 +32,13 @@ extension BrowserStore {
     func openSplitView(with tabID: UUID?) {
         guard let activeTabID else { return }
         let candidateID = tabID == activeTabID ? replacementSplitTab(excluding: activeTabID)?.id : tabID
+        // Splitting with a global favorite recorded under another Space first
+        // brings it into this Space, the same as activating it would.
+        if let candidateID,
+           let candidateIndex = tabs.firstIndex(where: { $0.id == candidateID }),
+           tabs[candidateIndex].isFavorite {
+            reparentTabToActiveSpaceIfNeeded(at: candidateIndex)
+        }
         // A suspended group does not absorb the active tab: starting a split
         // from outside it replaces it (one split per Space).
         var groupIDs = isSplitViewDisplayed ? splitGroupTabIDs() : [activeTabID]
@@ -160,6 +167,11 @@ extension BrowserStore {
         appendToEnd: Bool = false
     ) {
         guard let index = tabs.firstIndex(where: { $0.id == tabID }) else { return }
+        if !isFavorite, tabs[index].isFavorite {
+            // Dragging a favorite out of the global grid drops it into the
+            // Space on screen, never back into its recorded home Space.
+            reparentTabToActiveSpaceIfNeeded(at: index)
+        }
         let spaceID = tabs[index].spaceID
         let resolvedFolderID = isFavorite ? nil : folderID.flatMap { folderID in
             folders.contains(where: { $0.id == folderID && $0.spaceID == spaceID }) ? folderID : nil
@@ -177,14 +189,18 @@ extension BrowserStore {
             clearFavoriteSnapshot(at: index)
         }
 
+        // Favorites form one global bucket; every other placement is scoped
+        // to the tab's Space.
+        let matchesBucket: (BrowserTab) -> Bool = { tab in
+            guard tab.isFavorite == isFavorite else { return false }
+            if isFavorite { return true }
+            return tab.spaceID == spaceID &&
+                tab.isPinned == resolvedPinned &&
+                tab.folderID == resolvedFolderID
+        }
+
         guard let targetID,
-              tabs.contains(where: {
-                  $0.id == targetID &&
-                  $0.spaceID == spaceID &&
-                  $0.isFavorite == isFavorite &&
-                  $0.isPinned == resolvedPinned &&
-                  $0.folderID == resolvedFolderID
-              })
+              tabs.contains(where: { $0.id == targetID && matchesBucket($0) })
         else {
             tabs[index].sortOrder = appendToEnd
                 ? lastSortOrder(
@@ -204,12 +220,7 @@ extension BrowserStore {
         }
 
         var orderedIDs = tabs
-            .filter {
-                $0.spaceID == spaceID &&
-                $0.isFavorite == isFavorite &&
-                $0.isPinned == resolvedPinned &&
-                $0.folderID == resolvedFolderID
-            }
+            .filter(matchesBucket)
             .sorted { $0.sortOrder < $1.sortOrder }
             .map(\.id)
 

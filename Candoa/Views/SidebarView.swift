@@ -56,6 +56,7 @@ struct SidebarView: View {
     @State private var spaceSwipeSettleRequest: SpaceSwipeSettleRequest?
     @State private var selectedSpaceTransitionID: UUID?
     @State private var selectedSpaceTransitionDirection: Int?
+    @State private var favoritesSectionHeight: CGFloat = 0
     @StateObject private var windowControlsGeometry = WindowControlsGeometry()
     @AppStorage("Candoa.FavoritesDropZoneDismissed") private var isFavoritesDropZoneDismissed = false
     @AppStorage(DeveloperModeConfiguration.storageKey) private var developerModeOverrides = ""
@@ -132,7 +133,14 @@ struct SidebarView: View {
         // The strip is a sibling of the swipe carousel — never a child of the
         // translated hosting view — so gestures slide only the space content
         // and the strip stays put as persistent navigation chrome.
+        // Favorites are global the same way: the shared grid is hoisted out
+        // of the swiping pages so it stays put while Spaces slide beneath it.
         spaceSwipeContent
+            .overlay(alignment: .top) {
+                hoistedFavoritesSection
+                    .padding(.horizontal, leadingInset)
+                    .padding(.top, spaceSwipeTopInset + 1)
+            }
             .overlay(alignment: .bottom) {
                 if showsSpaceSwitcher {
                     HoistedSpaceSwitcherStrip(
@@ -142,6 +150,17 @@ struct SidebarView: View {
                     .padding(.horizontal, leadingInset)
                     .padding(.bottom, sidebarBottomPadding)
                 }
+            }
+    }
+
+    private var hoistedFavoritesSection: some View {
+        // The grid's measured height tells the swiping per-Space pages where
+        // their content starts (tile rows come and go with the shared set).
+        favoritesSection
+            .onGeometryChange(for: CGFloat.self) { proxy in
+                proxy.size.height
+            } action: { height in
+                favoritesSectionHeight = height
             }
     }
 
@@ -277,6 +296,12 @@ struct SidebarView: View {
             sidebarVerticalSpacing
     }
 
+    /// Per-Space page content starts below the hoisted favorites grid, whose
+    /// height is measured live (tile rows come and go with the shared set).
+    private var spaceContentTopInset: CGFloat {
+        spaceSwipeTopInset + (favoritesSectionHeight > 0 ? favoritesSectionHeight + 10 : 0)
+    }
+
     private var spaceSwipeBottomInset: CGFloat {
         var inset = sidebarBottomPadding
 
@@ -295,7 +320,7 @@ struct SidebarView: View {
     private func spaceSwipePage(slot: Int, minimumHeight: CGFloat) -> some View {
         if let spaceID = spaceID(forSwipeSlot: slot) {
             let contentHeight = max(
-                minimumHeight - spaceSwipeTopInset - spaceSwipeBottomInset,
+                minimumHeight - spaceContentTopInset - spaceSwipeBottomInset,
                 1
             )
 
@@ -312,7 +337,7 @@ struct SidebarView: View {
                     minHeight: contentHeight,
                     alignment: .top
                 )
-                .padding(.top, spaceSwipeTopInset)
+                .padding(.top, spaceContentTopInset)
                 .padding(.bottom, spaceSwipeBottomInset)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -488,8 +513,9 @@ struct SidebarView: View {
     }
 
     private func spaceScrollContent(for spaceID: UUID) -> some View {
+        // The favorites grid is not part of this page: it is global and
+        // hoisted above the swipe carousel in browsingSidebar.
         VStack(alignment: .leading, spacing: 10) {
-            favoritesSection(for: spaceID)
             spaceAndPinnedSection(for: spaceID)
 
             VStack(alignment: .leading, spacing: 2) {
@@ -692,8 +718,8 @@ struct SidebarView: View {
     // MARK: - Favorites
 
     @ViewBuilder
-    private func favoritesSection(for spaceID: UUID) -> some View {
-        let favorites = store.favoriteTabs(in: spaceID)
+    private var favoritesSection: some View {
+        let favorites = store.favoriteTabs
 
         VStack(alignment: .leading, spacing: 6) {
             if favorites.isEmpty && !isFavoritesDropZoneDismissed {
@@ -711,23 +737,21 @@ struct SidebarView: View {
             } else {
                 LazyVGrid(columns: essentialColumns(for: favorites.count), spacing: 6) {
                     ForEach(favorites) { tab in
-                        favoriteTile(for: tab, favorites: favorites, spaceID: spaceID)
+                        favoriteTile(for: tab, favorites: favorites)
                     }
                 }
             }
         }
         .animation(.easeOut(duration: 0.18), value: favorites.map(\.id))
-        .id(spaceID)
     }
 
     private func favoriteTile(
         for tab: BrowserTab,
-        favorites: [BrowserTab],
-        spaceID: UUID
+        favorites: [BrowserTab]
     ) -> some View {
         EssentialTileView(
             tab: tab,
-            isActive: tab.id == displayedActiveTabID(for: spaceID) &&
+            isActive: tab.id == store.activeTabID &&
                 !store.isNewTabPaletteActive,
             accentColor: CandoaColor.accent,
             placement: .favorite,

@@ -150,6 +150,43 @@ final class CandoaUITests: XCTestCase {
         )
     }
 
+    func testFavoritesStayGlobalAcrossSpaces() throws {
+        let app = launchApp(fixture: "split-view-spaces")
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
+        XCTAssertTrue(waitForState(in: app, containing: "space=SplitOne"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "active=a-one", timeout: 10), currentState(in: app))
+
+        // Favorite the active tab from its sidebar row.
+        let row = element("tab-row-a-one", in: app)
+        XCTAssertTrue(row.waitForExistence(timeout: 5), currentState(in: app))
+        row.rightClick()
+        let favoriteItem = app.menuItems["Add to Favorites"]
+        XCTAssertTrue(favoriteItem.waitForExistence(timeout: 5), currentState(in: app))
+        favoriteItem.click()
+        XCTAssertTrue(waitForState(in: app, containing: "favorites=a-one"), currentState(in: app))
+
+        // The shared grid stays put when switching Spaces.
+        app.typeKey(.rightArrow, modifierFlags: [.option, .command])
+        XCTAssertTrue(waitForState(in: app, containing: "space=SplitTwo"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "favorites=a-one"), currentState(in: app))
+
+        // Activating the favorite opens it here — no Space switch.
+        let tile = element("favorite-tile-a-one", in: app)
+        XCTAssertTrue(tile.waitForExistence(timeout: 5), currentState(in: app))
+        tile.click()
+        XCTAssertTrue(waitForState(in: app, containing: "active=a-one", timeout: 10), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "space=SplitTwo"), currentState(in: app))
+
+        // Un-favoriting from here returns the tab to the Space on screen.
+        tile.rightClick()
+        let unfavoriteItem = app.menuItems["Remove from Favorites"]
+        XCTAssertTrue(unfavoriteItem.waitForExistence(timeout: 5), currentState(in: app))
+        unfavoriteItem.click()
+        XCTAssertTrue(waitForState(in: app, containing: "favorites=;"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "space=SplitTwo"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "active=a-one"), currentState(in: app))
+    }
+
     func testWebsiteAppearanceRendersYouTubeInDarkMode() throws {
         let app = launchApp(fixture: "website-appearance", websiteAppearance: "dark")
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
