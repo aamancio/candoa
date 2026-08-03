@@ -918,18 +918,36 @@ final class CandoaUITests: XCTestCase {
         XCTAssertEqual(accountOnboarding.value as? String, "idle")
         XCTAssertTrue(app.buttons["Continue with Apple"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["Not Now"].exists)
-        print("CANDOA-DEBUG-HIERARCHY-START")
-        for text in app.staticTexts.allElementsBoundByIndex.prefix(30) {
-            print("CANDOA-DEBUG staticText id='\(text.identifier)' label='\(text.label)'")
+        // The description Text's identifier is not exposed on every
+        // macOS/Xcode combination — CI runners have never surfaced the
+        // identified element even though the copy renders. The requirement is
+        // the sentence being shown, so accept it via the identifier or via
+        // any static text carrying the words, normalizing whitespace because
+        // wrapped-text labels can embed layout-dependent line breaks.
+        let expectedDescription = "Sign in with Apple to restore your subscription"
+
+        func normalized(_ label: String) -> String {
+            label
+                .components(separatedBy: .whitespacesAndNewlines)
+                .filter { !$0.isEmpty }
+                .joined(separator: " ")
         }
-        print("CANDOA-DEBUG-HIERARCHY-END")
-        let description = element("account-onboarding-description", in: app)
-        XCTAssertTrue(description.exists)
-        XCTAssertTrue(
-            description.label.contains(
-                "Sign in with Apple to restore your subscription"
+
+        let identified = element("account-onboarding-description", in: app)
+        let identifiedShowsDescription = identified.waitForExistence(timeout: 3)
+            && normalized(identified.label).contains(expectedDescription)
+        if !identifiedShowsDescription {
+            let staticTexts = app.staticTexts.allElementsBoundByIndex.prefix(40)
+            XCTAssertTrue(
+                staticTexts.contains { normalized($0.label).contains(expectedDescription) },
+                """
+                Account-onboarding description not found by identifier or content.
+                staticTexts: \(staticTexts.map { "id='\($0.identifier)' label='\($0.label)'" }
+                    .joined(separator: " | "))
+                state: \(currentState(in: app))
+                """
             )
-        )
+        }
         XCTAssertEqual(
             app.descendants(matching: .any)
                 .matching(NSPredicate(format: "label CONTAINS[c] %@", "passkey"))

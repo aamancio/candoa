@@ -4,6 +4,13 @@ on:
   push:
   pull_request:
   workflow_dispatch:
+    inputs:
+      only_testing:
+        description: >-
+          Comma-separated -only-testing specs
+          (e.g. CandoaUITests/CandoaUITests/testName) to restrict the E2E run
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -81,6 +88,7 @@ jobs:
         env:
           CANDOA_E2E_ADHOC_SIGNING: "1"
           CANDOA_DERIVED_DATA_PATH: build/DerivedData
+          CANDOA_E2E_ONLY_TESTING: ${{ inputs.only_testing }}
         run: Scripts/e2e-test.sh
 
       - name: Upload XCTest result bundle
