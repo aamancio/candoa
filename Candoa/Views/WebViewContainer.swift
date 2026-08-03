@@ -1945,8 +1945,8 @@ private final class SplitPaneGripCursorNSView: NSView {
             // Local event monitors always run on the main thread.
             MainActor.assumeIsolated {
                 self?.handle(event)
-                return event
             }
+            return event
         }
     }
 
