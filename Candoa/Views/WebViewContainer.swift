@@ -810,7 +810,10 @@ private struct SplitPaneControlPill: View {
                 gripDots
                     .frame(width: 34, height: 20)
                     .contentShape(Rectangle())
-                    .candoaAISidebarCursor(.openHand)
+                    // candoaCursor, not the one-shot sidebar hover cursor:
+                    // the grip floats over web content, where WebKit
+                    // re-asserts its own cursor on every mouse move.
+                    .candoaCursor(.openHand)
                     .gesture(
                         DragGesture(
                             minimumDistance: 2,
