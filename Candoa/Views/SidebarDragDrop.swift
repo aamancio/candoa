@@ -563,8 +563,6 @@ internal final class TabDragSourceAnchorView: NSView, NSDraggingSource {
     weak var store: BrowserStore?
     var tabID: UUID?
 
-    override var isFlipped: Bool { true }
-
     // Click-through: the row's own controls keep every click; the anchor
     // only marks the draggable region for the shared session controller.
     override func hitTest(_ point: NSPoint) -> NSView? { nil }
@@ -587,9 +585,7 @@ internal final class TabDragSourceAnchorView: NSView, NSDraggingSource {
             let tab = store.tabs.first(where: { $0.id == tabID })
         else { return }
 
-        let renderer = ImageRenderer(content: TabDragGhost(tab: tab))
-        renderer.scale = window?.backingScaleFactor ?? 2
-        guard let ghostImage = renderer.nsImage else { return }
+        let ghostImage = TabDragGhostImage.make(for: tab)
 
         _ = store.beginTabDrag(tabID)
 
@@ -597,10 +593,13 @@ internal final class TabDragSourceAnchorView: NSView, NSDraggingSource {
         pasteboardItem.setString(tabID.uuidString, forType: .string)
         let draggingItem = NSDraggingItem(pasteboardWriter: pasteboardItem)
         let location = convert(mouseDownEvent.locationInWindow, from: nil)
+        // Unflipped view coordinates: the ghost's top edge sits 14pt below
+        // the cursor, so the frame's origin (its bottom-left) is one ghost
+        // height further down.
         draggingItem.setDraggingFrame(
             CGRect(
                 x: location.x - ghostImage.size.width / 2,
-                y: location.y + 14,
+                y: location.y - 14 - ghostImage.size.height,
                 width: ghostImage.size.width,
                 height: ghostImage.size.height
             ),
@@ -639,5 +638,80 @@ internal struct TabDragSourceBackground: NSViewRepresentable {
     func updateNSView(_ view: TabDragSourceAnchorView, context: Context) {
         view.store = store
         view.tabID = tabID
+    }
+}
+
+/// AppKit-drawn ghost page card used as the dragging session's drag image.
+/// Drawn with plain NSBezierPath/NSString drawing rather than offscreen
+/// SwiftUI rendering, which is not dependable across macOS versions — a drag
+/// image that fails to render would make the whole session invisible.
+internal enum TabDragGhostImage {
+    @MainActor
+    static func make(for tab: BrowserTab) -> NSImage {
+        let title = tab.title.isEmpty ? (tab.url?.host() ?? "New Tab") : tab.title
+        let faviconData = tab.faviconData
+        let faviconSymbol = tab.faviconSymbol
+        let size = NSSize(width: 168, height: 112)
+
+        return NSImage(size: size, flipped: true) { rect in
+            let card = NSBezierPath(
+                roundedRect: rect.insetBy(dx: 0.5, dy: 0.5),
+                xRadius: 9,
+                yRadius: 9
+            )
+            NSGraphicsContext.current?.saveGraphicsState()
+            card.addClip()
+
+            NSColor.controlBackgroundColor.setFill()
+            rect.fill()
+
+            let headerRect = NSRect(x: 0, y: 0, width: rect.width, height: 27)
+            NSColor.secondaryLabelColor.withAlphaComponent(0.08).setFill()
+            headerRect.fill()
+            NSColor.separatorColor.setFill()
+            NSRect(x: 0, y: 27, width: rect.width, height: 1).fill()
+
+            let iconRect = NSRect(x: 9, y: 7, width: 13, height: 13)
+            if let faviconData, let favicon = NSImage(data: faviconData) {
+                favicon.draw(in: iconRect)
+            } else if let symbol = NSImage(
+                systemSymbolName: faviconSymbol,
+                accessibilityDescription: nil
+            ) {
+                let configured = symbol.withSymbolConfiguration(
+                    NSImage.SymbolConfiguration(paletteColors: [.secondaryLabelColor])
+                ) ?? symbol
+                configured.draw(in: iconRect)
+            }
+
+            (title as NSString).draw(
+                in: NSRect(x: 28, y: 6, width: rect.width - 37, height: 16),
+                withAttributes: [
+                    .font: NSFont.systemFont(ofSize: 11, weight: .medium),
+                    .foregroundColor: NSColor.labelColor
+                ]
+            )
+
+            NSColor.secondaryLabelColor.withAlphaComponent(0.18).setFill()
+            for (index, fraction) in [0.82, 0.56, 0.7].enumerated() {
+                NSBezierPath(
+                    roundedRect: NSRect(
+                        x: 10,
+                        y: 38 + CGFloat(index) * 11,
+                        width: (rect.width - 20) * fraction,
+                        height: 5
+                    ),
+                    xRadius: 2.5,
+                    yRadius: 2.5
+                ).fill()
+            }
+
+            NSGraphicsContext.current?.restoreGraphicsState()
+
+            NSColor.separatorColor.setStroke()
+            card.lineWidth = 1
+            card.stroke()
+            return true
+        }
     }
 }
