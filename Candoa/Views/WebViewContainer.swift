@@ -25,9 +25,9 @@ struct WebViewContainer: View {
     /// In-flight pane-handle drag (reordering). Same rule: only the target
     /// highlight tracks the pointer, the panes exchange places on release.
     @State private var splitPaneReorder: SplitPaneReorderState?
-    /// The pane whose top band the pointer is in, reported by the pane
-    /// host's tracking area (web views swallow SwiftUI hover). Reveals that
-    /// pane's control pill.
+    /// The pane the pointer is over, reported by the pane host's tracking
+    /// area (web views swallow SwiftUI hover). Reveals that pane's control
+    /// pill.
     @State private var hoveredSplitPaneIndex: Int?
     private let surfaceCornerRadius: CGFloat = 12
     private let surfacePadding: CGFloat = 8
@@ -414,7 +414,7 @@ struct WebViewContainer: View {
                     .overlay(alignment: .top) {
                         SplitPaneControlPill(
                             isExpanded: false,
-                            isPaneTopHovered: hoveredSplitPaneIndex == index,
+                            isPaneHovered: hoveredSplitPaneIndex == index,
                             isDraggingThisPane: splitPaneReorder?.sourceIndex == index,
                             showsReorderGrip: true,
                             paneIndex: index,
@@ -776,7 +776,7 @@ struct WebViewContainer: View {
             paneIndex: paneIndex,
             store: store,
             obscuredContentInsets: obscuredContentInsets,
-            onTopEdgeHoverChange: { isInside in
+            onPaneHoverChange: { isInside in
                 if isInside {
                     hoveredSplitPaneIndex = paneIndex
                 } else if hoveredSplitPaneIndex == paneIndex {
@@ -813,7 +813,7 @@ struct WebViewContainer: View {
         .overlay(alignment: .top) {
             SplitPaneControlPill(
                 isExpanded: true,
-                isPaneTopHovered: hoveredSplitPaneIndex == paneIndex,
+                isPaneHovered: hoveredSplitPaneIndex == paneIndex,
                 isDraggingThisPane: false,
                 showsReorderGrip: false,
                 paneIndex: paneIndex,
@@ -901,9 +901,9 @@ private struct SplitPaneDivider: View {
 /// edge stays clickable.
 private struct SplitPaneControlPill: View {
     let isExpanded: Bool
-    /// The pointer is in the pane's top band (reported by the pane host's
-    /// tracking area) — the discoverable way the pill reveals itself.
-    let isPaneTopHovered: Bool
+    /// The pointer is over the pane (reported by the pane host's tracking
+    /// area) — the discoverable way the pill reveals itself.
+    let isPaneHovered: Bool
     let isDraggingThisPane: Bool
     let showsReorderGrip: Bool
     let paneIndex: Int
@@ -914,8 +914,8 @@ private struct SplitPaneControlPill: View {
 
     @State private var isHovering = false
 
-    private var isProminent: Bool {
-        isPaneTopHovered || isHovering || isDraggingThisPane || isExpanded
+    private var isRevealed: Bool {
+        isPaneHovered || isHovering || isDraggingThisPane || isExpanded
     }
 
     var body: some View {
@@ -982,13 +982,11 @@ private struct SplitPaneControlPill: View {
             RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .strokeBorder(CandoaInterfaceStyle.popoverBorder, lineWidth: 1)
         }
-        // Always visible, Zen-style: hiding the pill behind hover made it
-        // undiscoverable, and hover delivery over web content is not a
-        // dependable reveal signal. The resting state stays quiet; pointer
-        // proximity or an active drag brings it to full prominence.
-        .opacity(isProminent ? 1 : 0.55)
+        // Not 0: fully transparent views stop hit-testing, and the pill must
+        // keep its hover/click footprint while visually absent.
+        .opacity(isRevealed ? 1 : 0.02)
         .onHover { isHovering = $0 }
-        .animation(.easeOut(duration: 0.12), value: isProminent)
+        .animation(.easeOut(duration: 0.12), value: isRevealed)
     }
 
     private var gripDots: some View {
