@@ -56,7 +56,7 @@
 	<key>SUPublicEDKey</key>
 	<string>7hlen0OBf/rnp6rzc7HciDscLkSbL84t0oppJCAUVf4=</string>
 	<key>SUScheduledCheckInterval</key>
-	<integer>21600</integer>
+	<integer>43200</integer>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.productivity</string>
 	<key>NSAppTransportSecurity</key>
