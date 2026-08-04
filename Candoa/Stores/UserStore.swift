@@ -416,9 +416,16 @@ final class UserStore: ObservableObject {
         } catch {
             try? accountService.removeAccessToken()
             hasCloudSession = false
-            isLocalOnly = false
             isSignedIn = false
-            errorMessage = error.localizedDescription
+            // "Not Now" is a decision, not a request: an offline first run
+            // must not stay stuck on the blocking account step because the
+            // anonymous sign-in couldn't reach the server. Record the
+            // local-only choice and advance; the next launch quietly retries
+            // the anonymous session (start() recreates it whenever a choice
+            // exists without a stored token).
+            isLocalOnly = true
+            errorMessage = nil
+            markAccountChoiceCompleted()
         }
     }
 
