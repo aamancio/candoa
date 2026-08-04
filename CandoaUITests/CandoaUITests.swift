@@ -242,20 +242,6 @@ final class CandoaUITests: XCTestCase {
         )
         XCTAssertTrue(waitForState(in: app, containing: "splitTabs=one|two"), currentState(in: app))
 
-        // Zen-style expand: the pane pill's toggle gives one pane the whole
-        // surface while the group stays intact, and toggling restores it.
-        let expandButton = element("split-pane-expand-0", in: app)
-        XCTAssertTrue(expandButton.waitForExistence(timeout: 5), currentState(in: app))
-        expandButton.click()
-        XCTAssertTrue(waitForState(in: app, containing: "splitExpanded=one"), currentState(in: app))
-        XCTAssertTrue(waitForState(in: app, containing: "split=true"), currentState(in: app))
-
-        let restoreButton = element("split-pane-expand-0", in: app)
-        XCTAssertTrue(restoreButton.waitForExistence(timeout: 5), currentState(in: app))
-        restoreButton.click()
-        XCTAssertTrue(waitForState(in: app, containing: "splitExpanded=none"), currentState(in: app))
-        XCTAssertTrue(waitForState(in: app, containing: "splitDisplayed=true"), currentState(in: app))
-
         // Zen-style layout shortcuts switch between rows, grid, and columns.
         app.typeKey("v", modifierFlags: [.control, .option])
         XCTAssertTrue(waitForState(in: app, containing: "splitLayout=vertical"), currentState(in: app))
@@ -291,6 +277,32 @@ final class CandoaUITests: XCTestCase {
         XCTAssertTrue(waitForState(in: app, containing: "split=false"), currentState(in: app))
         XCTAssertTrue(waitForState(in: app, containing: "active=two"), currentState(in: app))
         XCTAssertTrue(waitForState(in: app, containing: "tabs=two"), currentState(in: app))
+    }
+
+    func testSplitPaneUnsplitButtonReturnsTabToSidebar() throws {
+        let app = launchApp(fixture: "split-view")
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
+
+        openFixtureTab(path: "one", in: app)
+        openFixtureTab(path: "two", in: app)
+
+        app.typeKey("=", modifierFlags: [.control, .shift])
+        XCTAssertTrue(waitForState(in: app, containing: "splitDisplayed=true"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "splitTabs=two|one"), currentState(in: app))
+
+        // The pane pill's unsplit button takes that pane out of the group
+        // without closing its tab: the tab returns to its ordinary sidebar
+        // row, and with one member left the split dissolves. The clicked
+        // pane's page keeps the surface — unsplitting pane "one" while
+        // "two" is focused must show "one", not the surviving partner.
+        let unsplitButton = element("split-pane-unsplit-1", in: app)
+        XCTAssertTrue(unsplitButton.waitForExistence(timeout: 5), currentState(in: app))
+        unsplitButton.click()
+        XCTAssertTrue(waitForState(in: app, containing: "split=false"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "active=one"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "tabs=two|one"), currentState(in: app))
+        XCTAssertTrue(element("tab-row-one", in: app).waitForExistence(timeout: 5), currentState(in: app))
+        XCTAssertTrue(element("tab-row-two", in: app).waitForExistence(timeout: 5), currentState(in: app))
     }
 
     func testFavoritesStayGlobalAcrossSpaces() throws {

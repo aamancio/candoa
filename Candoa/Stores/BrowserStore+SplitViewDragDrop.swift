@@ -116,31 +116,6 @@ extension BrowserStore {
         splitTabIDs = []
         splitPaneRatios = []
         splitLayout = .horizontal
-        expandedSplitTabID = nil
-    }
-
-    /// The member pane temporarily expanded over the whole content area.
-    /// Expansion only holds while that pane is also the focused tab, so any
-    /// focus change elsewhere naturally restores the split.
-    var expandedDisplayedSplitTab: BrowserTab? {
-        guard
-            let expandedSplitTabID,
-            expandedSplitTabID == activeTabID,
-            displayedSplitTabIDs.contains(expandedSplitTabID)
-        else { return nil }
-        return tabs.first { $0.id == expandedSplitTabID }
-    }
-
-    /// Zen-style expand toggle on a pane's control pill: give the pane the
-    /// whole surface, or bring the split back.
-    func toggleExpandedSplitPane(_ id: UUID) {
-        guard displayedSplitTabIDs.contains(id) else { return }
-        if expandedSplitTabID == id {
-            expandedSplitTabID = nil
-        } else {
-            expandedSplitTabID = id
-            focusSplitTab(id)
-        }
     }
 
     /// Switches the displayed split between side-by-side, stacked, and grid
@@ -204,15 +179,20 @@ extension BrowserStore {
     /// Takes one tab out of the split group without closing it: the tab
     /// returns to its ordinary sidebar row, and the remaining panes keep the
     /// split (or the split dissolves once fewer than two members remain).
-    func removeTabFromSplit(_ id: UUID) {
+    func removeTabFromSplit(_ id: UUID, focusRemovedTab: Bool = false) {
         let groupIDs = splitGroupTabIDs()
         guard groupIDs.contains(id) else { return }
-        if expandedSplitTabID == id {
-            expandedSplitTabID = nil
-        }
         let remainingIDs = groupIDs.filter { $0 != id }
-        let nextActiveID = activeTabID == id ? remainingIDs.first : activeTabID
-        applySplitGroup(remainingIDs, activeID: nextActiveID)
+        if focusRemovedTab {
+            // The pane pill's unsplit reads as "expand this pane": the
+            // clicked pane's page must keep the surface, so the removed tab
+            // takes focus and any surviving group suspends behind it.
+            applySplitGroup(remainingIDs, activeID: nil)
+            activeTabID = id
+        } else {
+            let nextActiveID = activeTabID == id ? remainingIDs.first : activeTabID
+            applySplitGroup(remainingIDs, activeID: nextActiveID)
+        }
         updateNavigationState()
     }
 
@@ -226,7 +206,6 @@ extension BrowserStore {
         splitTabIDs = []
         splitPaneRatios = []
         splitLayout = .horizontal
-        expandedSplitTabID = nil
         isSplitViewEnabled = false
     }
 
@@ -558,7 +537,6 @@ extension BrowserStore {
             splitTabIDs = []
             splitPaneRatios = []
             splitLayout = .horizontal
-            expandedSplitTabID = nil
             isSplitViewEnabled = false
             // Focus only moves when the caller asked for a member or the
             // active tab is gone; dissolving a suspended group while browsing
@@ -573,9 +551,6 @@ extension BrowserStore {
 
         if let activeID, validIDs.contains(activeID) {
             activeTabID = activeID
-        }
-        if let expandedSplitTabID, !validIDs.contains(expandedSplitTabID) {
-            self.expandedSplitTabID = nil
         }
         splitTabIDs = validIDs
         splitPaneRatios = Self.paneRatios(for: validIDs, carriedFrom: previousIDs, previousRatios: previousRatios)

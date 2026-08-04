@@ -48,18 +48,9 @@ struct WebViewContainer: View {
             } else if let tab = store.activeTab {
                 let splitTabs = store.displayedSplitTabs
                 if splitTabs.count >= 2 {
-                    if let expandedTab = store.expandedDisplayedSplitTab,
-                       let expandedIndex = splitTabs.firstIndex(where: { $0.id == expandedTab.id }) {
-                        // Zen-style expansion: one member temporarily owns the
-                        // whole surface; the group stays intact underneath.
-                        expandedSplitPane(for: expandedTab, at: expandedIndex)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                            .padding(containedSurfaceInsets)
-                    } else {
-                        splitPaneRow(for: splitTabs)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                            .padding(containedSurfaceInsets)
-                    }
+                    splitPaneRow(for: splitTabs)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                        .padding(containedSurfaceInsets)
                 } else {
                     browserSurface(drawsBorder: false) {
                         singleTabContent(for: tab)
@@ -222,6 +213,18 @@ struct WebViewContainer: View {
         }
     }
 
+    /// The masked interface lanes at the split row's own edges, in row
+    /// coordinates — the same "one surfacePadding beyond the web-content
+    /// insets" math as splitPaneAdornmentInsets, hoisted to the whole row.
+    /// splitPaneFrames divides the visible page between these so the cards
+    /// the mask reveals follow the pane ratios.
+    private var splitRowLaneInsets: BrowserInterfaceInsets {
+        BrowserInterfaceInsets(
+            leading: webContentInsets.leading > 0 ? webContentInsets.leading + surfacePadding : 0,
+            trailing: webContentInsets.trailing > 0 ? webContentInsets.trailing + surfacePadding : 0
+        )
+    }
+
     /// Insets that wrap a pane's *visible card* for adornments (focus ring,
     /// control pill, reorder highlight). The interface mask reveals the card
     /// from the full lane width, measured from the window edge — one
@@ -374,7 +377,8 @@ struct WebViewContainer: View {
                 layout: layout,
                 ratios: ratios,
                 in: proxy.size,
-                spacing: spacing
+                spacing: spacing,
+                laneInsets: splitRowLaneInsets
             )
 
             ZStack(alignment: .topLeading) {
@@ -413,10 +417,8 @@ struct WebViewContainer: View {
                     }
                     .overlay(alignment: .top) {
                         SplitPaneControlPill(
-                            isExpanded: false,
                             isPaneHovered: hoveredSplitPaneIndex == index,
                             isDraggingThisPane: splitPaneReorder?.sourceIndex == index,
-                            showsReorderGrip: true,
                             paneIndex: index,
                             onDragChanged: { location in
                                 splitPaneReorder = SplitPaneReorderState(sourceIndex: index, location: location)
@@ -434,7 +436,7 @@ struct WebViewContainer: View {
                                     store.moveSplitPane(from: index, to: targetIndex)
                                 }
                             },
-                            onToggleExpand: { store.toggleExpandedSplitPane(splitTab.id) },
+                            onUnsplit: { store.removeTabFromSplit(splitTab.id, focusRemovedTab: true) },
                             onClose: { store.closeTab(splitTab.id) }
                         )
                         // Below the row dividers' 7pt overhang so the pill
@@ -537,25 +539,40 @@ struct WebViewContainer: View {
     /// Pane rectangles for the current layout. Horizontal and vertical
     /// distribute the panes' shared ratios along their axis; the grid packs
     /// two equal columns row-major, the odd last pane spanning full width.
+    ///
+    /// laneInsets are the masked interface lanes (sidebar/Eli) at the row's
+    /// leading/trailing edges, in row coordinates. Ratios divide the
+    /// *visible* page between the lanes — edge panes then extend under their
+    /// lane so the cards the mask reveals match the ratios. Without this,
+    /// an open sidebar eats into the first pane's visible card and a 50/50
+    /// split looks lopsided (and never matches the drop claim highlight).
     static func splitPaneFrames(
         layout: SplitViewLayout,
         ratios: [Double],
         in size: CGSize,
-        spacing: CGFloat
+        spacing: CGFloat,
+        laneInsets: BrowserInterfaceInsets = BrowserInterfaceInsets()
     ) -> [CGRect] {
         let paneCount = ratios.count
         guard paneCount > 0 else { return [] }
 
         switch layout {
         case .horizontal:
-            let available = max(1, size.width - spacing * CGFloat(paneCount - 1))
+            let available = max(
+                1,
+                size.width - laneInsets.leading - laneInsets.trailing - spacing * CGFloat(paneCount - 1)
+            )
             var x: CGFloat = 0
-            return ratios.map { ratio in
-                let width = available * CGFloat(ratio)
+            return ratios.enumerated().map { index, ratio in
+                var width = available * CGFloat(ratio)
+                if index == 0 { width += laneInsets.leading }
+                if index == paneCount - 1 { width += laneInsets.trailing }
                 defer { x += width + spacing }
                 return CGRect(x: x, y: 0, width: width, height: size.height)
             }
         case .vertical:
+            // Stacked rows all span the full width under both lanes, so the
+            // lanes trim every row equally and the height ratios are unaffected.
             let available = max(1, size.height - spacing * CGFloat(paneCount - 1))
             var y: CGFloat = 0
             return ratios.map { ratio in
@@ -566,15 +583,20 @@ struct WebViewContainer: View {
         case .grid:
             let rowCount = (paneCount + 1) / 2
             let rowHeight = max(1, (size.height - spacing * CGFloat(rowCount - 1)) / CGFloat(rowCount))
-            let columnWidth = max(1, (size.width - spacing) / 2)
+            let visibleColumnWidth = max(
+                1,
+                (size.width - laneInsets.leading - laneInsets.trailing - spacing) / 2
+            )
             return (0..<paneCount).map { index in
                 let row = index / 2
                 let column = index % 2
                 let spansFullWidth = index == paneCount - 1 && paneCount % 2 == 1
                 return CGRect(
-                    x: column == 0 ? 0 : columnWidth + spacing,
+                    x: column == 0 ? 0 : laneInsets.leading + visibleColumnWidth + spacing,
                     y: CGFloat(row) * (rowHeight + spacing),
-                    width: spansFullWidth ? size.width : columnWidth,
+                    width: spansFullWidth
+                        ? size.width
+                        : (column == 0 ? laneInsets.leading : laneInsets.trailing) + visibleColumnWidth,
                     height: rowHeight
                 )
             }
@@ -671,7 +693,19 @@ struct WebViewContainer: View {
         in size: CGSize
     ) -> some View {
         if layout != .grid {
-            let lengths = frames.map { layout == .vertical ? $0.height : $0.width }
+            // Visible lengths, not frame lengths: the edge frames extend
+            // under the interface lanes, and the ratios the drag commits
+            // divide the visible page (see splitPaneFrames), so clamping and
+            // normalizing must strip the lanes back off or an open sidebar
+            // skews every committed ratio toward the edge panes.
+            let rowLaneInsets = splitRowLaneInsets
+            let lengths = frames.enumerated().map { index, frame in
+                layout == .vertical
+                    ? frame.height
+                    : frame.width
+                        - (index == 0 ? rowLaneInsets.leading : 0)
+                        - (index == frames.count - 1 ? rowLaneInsets.trailing : 0)
+            }
             let minimumPaneLength = min(
                 Self.splitPaneMinimumWidth,
                 lengths.reduce(0, +) / CGFloat(max(1, lengths.count))
@@ -803,28 +837,6 @@ struct WebViewContainer: View {
             }
     }
 
-    /// The expanded member owns the full content area; its pill keeps only
-    /// the compress toggle (there is nothing to drag against), and the
-    /// expanded pane spans both window edges so it reserves both lanes.
-    private func expandedSplitPane(for tab: BrowserTab, at paneIndex: Int) -> some View {
-        browserSurface {
-            webPane(for: tab, at: paneIndex, obscuredContentInsets: webContentInsets)
-        }
-        .overlay(alignment: .top) {
-            SplitPaneControlPill(
-                isExpanded: true,
-                isPaneHovered: hoveredSplitPaneIndex == paneIndex,
-                isDraggingThisPane: false,
-                showsReorderGrip: false,
-                paneIndex: paneIndex,
-                onDragChanged: { _ in },
-                onDragEnded: { _ in },
-                onToggleExpand: { store.toggleExpandedSplitPane(tab.id) },
-                onClose: { store.closeTab(tab.id) }
-            )
-            .padding(.top, 8)
-        }
-    }
 }
 
 private struct SplitDividerDragState: Equatable {
@@ -900,68 +912,62 @@ private struct SplitPaneDivider: View {
 /// and back. The pill's footprint is small so the rest of the page's top
 /// edge stays clickable.
 private struct SplitPaneControlPill: View {
-    let isExpanded: Bool
     /// The pointer is over the pane (reported by the pane host's tracking
     /// area) — the discoverable way the pill reveals itself.
     let isPaneHovered: Bool
     let isDraggingThisPane: Bool
-    let showsReorderGrip: Bool
     let paneIndex: Int
     let onDragChanged: (CGPoint) -> Void
     let onDragEnded: (CGPoint) -> Void
-    let onToggleExpand: () -> Void
+    let onUnsplit: () -> Void
     let onClose: () -> Void
 
     @State private var isHovering = false
 
     private var isRevealed: Bool {
-        isPaneHovered || isHovering || isDraggingThisPane || isExpanded
+        isPaneHovered || isHovering || isDraggingThisPane
     }
 
     var body: some View {
         HStack(spacing: 0) {
-            if showsReorderGrip {
-                gripDots
-                    .frame(width: 34, height: 20)
-                    .contentShape(Rectangle())
-                    // Grab cursors live in the AppKit layer: the open hand
-                    // as a re-asserted hover cursor (WebKit fights one-shot
-                    // pushes over web content), the closed hand from the
-                    // NSView's mouseDown — SwiftUI's zero-distance
-                    // DragGesture does not track dependably on macOS, so the
-                    // press itself must be caught natively.
-                    .modifier(SplitPaneGripCursorModifier())
-                    .gesture(
-                        DragGesture(
-                            minimumDistance: 2,
-                            coordinateSpace: .named(WebViewContainer.splitRowCoordinateSpace)
-                        )
-                        .onChanged { value in
-                            onDragChanged(value.location)
-                        }
-                        .onEnded { value in
-                            onDragEnded(value.location)
-                        }
+            gripDots
+                .frame(width: 34, height: 20)
+                .contentShape(Rectangle())
+                // Grab cursors live in the AppKit layer: the open hand
+                // as a re-asserted hover cursor (WebKit fights one-shot
+                // pushes over web content), the closed hand from the
+                // NSView's mouseDown — SwiftUI's zero-distance
+                // DragGesture does not track dependably on macOS, so the
+                // press itself must be caught natively.
+                .modifier(SplitPaneGripCursorModifier())
+                .gesture(
+                    DragGesture(
+                        minimumDistance: 2,
+                        coordinateSpace: .named(WebViewContainer.splitRowCoordinateSpace)
                     )
-                    .help("Drag to move this pane")
-                    .accessibilityElement()
-                    .accessibilityLabel("Move Pane")
-                    .accessibilityIdentifier("split-pane-grip-\(paneIndex)")
-            }
+                    .onChanged { value in
+                        onDragChanged(value.location)
+                    }
+                    .onEnded { value in
+                        onDragEnded(value.location)
+                    }
+                )
+                .help("Drag to move this pane")
+                .accessibilityElement()
+                .accessibilityLabel("Move Pane")
+                .accessibilityIdentifier("split-pane-grip-\(paneIndex)")
 
-            Button(action: onToggleExpand) {
-                Image(systemName: isExpanded
-                    ? "arrow.down.right.and.arrow.up.left"
-                    : "arrow.up.left.and.arrow.down.right")
+            Button(action: onUnsplit) {
+                Image(systemName: "arrow.down.left.and.arrow.up.right")
                     .font(.system(size: 10, weight: .semibold))
                     .frame(width: 26, height: 20)
                     .contentShape(Rectangle())
             }
             .candoaButton(.content)
             .foregroundStyle(.secondary)
-            .help(isExpanded ? "Restore Split" : "Expand Pane")
-            .accessibilityLabel(isExpanded ? "Restore Split" : "Expand Pane")
-            .accessibilityIdentifier("split-pane-expand-\(paneIndex)")
+            .help("Unsplit — Move Back to Tab List")
+            .accessibilityLabel("Unsplit")
+            .accessibilityIdentifier("split-pane-unsplit-\(paneIndex)")
 
             Button(action: onClose) {
                 Image(systemName: "xmark")
