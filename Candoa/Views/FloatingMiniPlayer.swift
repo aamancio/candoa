@@ -740,7 +740,7 @@ private struct MiniPlayerResizeHandle: View {
     }
 }
 
-private struct CursorHoverModifier: ViewModifier {
+internal struct CursorHoverModifier: ViewModifier {
     let cursor: NSCursor
 
     func body(content: Content) -> some View {
@@ -759,7 +759,7 @@ private struct CursorHoverModifier: ViewModifier {
     }
 }
 
-private struct CursorRectView: NSViewRepresentable {
+internal struct CursorRectView: NSViewRepresentable {
     let cursor: NSCursor
 
     func makeNSView(context: Context) -> CursorRectNSView {
@@ -773,7 +773,7 @@ private struct CursorRectView: NSViewRepresentable {
     }
 }
 
-private final class CursorRectNSView: NSView {
+internal final class CursorRectNSView: NSView {
     var cursor: NSCursor = .arrow {
         didSet {
             window?.invalidateCursorRects(for: self)
@@ -791,7 +791,10 @@ private final class CursorRectNSView: NSView {
     }
 }
 
-private extension View {
+extension View {
+    // Cursor for chrome floating over web content: WebKit re-asserts its
+    // own cursor on every mouse move, so a one-shot push is not enough —
+    // this pairs an AppKit cursor rect with continuous re-assertion.
     func candoaCursor(_ cursor: NSCursor) -> some View {
         modifier(CursorHoverModifier(cursor: cursor))
     }

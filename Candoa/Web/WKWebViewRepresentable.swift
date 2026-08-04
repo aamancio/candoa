@@ -56,7 +56,7 @@ private final class SplitWebViewHostContainer: NSView {
     private var onPaneHoverChange: ((Bool) -> Void)?
     private var mouseDownMonitor: Any?
     private var hoverTrackingArea: NSTrackingArea?
-    private var isPointerInsidePane = false
+    private var isPointerInPane = false
 
     func configure(
         tabID: UUID,
@@ -74,17 +74,19 @@ private final class SplitWebViewHostContainer: NSView {
     }
 
     // MARK: - Pane hover
+    // Tracked here with an AppKit tracking area because the hosted WKWebView
+    // consumes pointer events before SwiftUI hover ever fires. Reveals the
+    // pane's control pill while the pointer is anywhere over the pane.
 
     override func updateTrackingAreas() {
         if let hoverTrackingArea {
             removeTrackingArea(hoverTrackingArea)
         }
 
-        // The whole pane reveals its control pill on hover. An AppKit
-        // tracking area is required because the hosted WKWebView consumes
-        // pointer events before SwiftUI hover ever fires; .mouseMoved keeps
-        // detection alive when the area is (re)installed with the pointer
-        // already inside, where no boundary crossing will ever fire.
+        // .mouseMoved as well as enter/exit: enter events can be missed when
+        // panes relayout under a stationary pointer, so moves re-assert the
+        // hover. Tracking areas fire on geometry even while the WKWebView
+        // subview consumes the events themselves.
         // .activeAlways: the hover-revealed pill is the only path to a
         // pane's controls, so the reveal must not depend on key status —
         // the first pass over a background window should surface it too.
@@ -108,17 +110,17 @@ private final class SplitWebViewHostContainer: NSView {
     }
 
     override func mouseExited(with event: NSEvent) {
-        setPointerInsidePane(false)
+        setPointerInPane(false)
     }
 
     private func reportPaneHover(for event: NSEvent) {
         let location = convert(event.locationInWindow, from: nil)
-        setPointerInsidePane(bounds.contains(location))
+        setPointerInPane(bounds.contains(location))
     }
 
-    private func setPointerInsidePane(_ isInside: Bool) {
-        guard isPointerInsidePane != isInside else { return }
-        isPointerInsidePane = isInside
+    private func setPointerInPane(_ isInside: Bool) {
+        guard isPointerInPane != isInside else { return }
+        isPointerInPane = isInside
         onPaneHoverChange?(isInside)
     }
 

@@ -241,6 +241,10 @@ extension CommandPaletteView {
         for provider: SearchProvider,
         matching rawQuery: String
     ) -> [PaletteCommand] {
+        guard CandoaSettingsOption.bool(CandoaSettingsOption.showSearchSuggestions, default: true) else {
+            return []
+        }
+
         let query = rawQuery.trimmingCharacters(in: .whitespacesAndNewlines)
         let lowercasedQuery = query.lowercased()
 

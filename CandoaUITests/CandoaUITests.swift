@@ -44,6 +44,75 @@ final class CandoaUITests: XCTestCase {
         XCTAssertTrue(waitForState(in: app, containing: "splitActive=one"), currentState(in: app))
     }
 
+    func testSplitPaneGripEdgeDropStacksVertically() throws {
+        let app = launchApp(fixture: "split-view")
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
+
+        openFixtureTab(path: "one", in: app)
+        openFixtureTab(path: "two", in: app)
+
+        app.typeKey("=", modifierFlags: [.control, .shift])
+        XCTAssertTrue(waitForState(in: app, containing: "splitDisplayed=true"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "splitTabs=two|one"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "splitLayout=horizontal"), currentState(in: app))
+
+        // Dropping a grip-dragged pane on another pane's bottom band stacks
+        // the row into a column, with the dragged pane below the target.
+        let grip = element("split-pane-grip-0", in: app)
+        XCTAssertTrue(grip.waitForExistence(timeout: 5), currentState(in: app))
+        let trailingPane = element("split-pane-1", in: app)
+        XCTAssertTrue(trailingPane.waitForExistence(timeout: 5), currentState(in: app))
+        grip.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).press(
+            forDuration: 0.2,
+            thenDragTo: trailingPane.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.9))
+        )
+        XCTAssertTrue(waitForState(in: app, containing: "splitLayout=vertical"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "splitTabs=one|two"), currentState(in: app))
+    }
+
+    func testDraggingSidebarTabOntoBottomEdgeStacksVertically() throws {
+        let app = launchApp(fixture: "split-view")
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
+
+        openFixtureTab(path: "one", in: app)
+        openFixtureTab(path: "two", in: app)
+
+        // Releasing over the page's bottom-edge quarter creates a fresh
+        // split stacked as a column, the dragged page below the current one.
+        let row = element("tab-row-one", in: app)
+        XCTAssertTrue(row.waitForExistence(timeout: 5), currentState(in: app))
+        let target = app.windows.firstMatch
+            .coordinate(withNormalizedOffset: CGVector(dx: 0.55, dy: 0.93))
+        row.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            .press(forDuration: 0.3, thenDragTo: target)
+
+        XCTAssertTrue(waitForState(in: app, containing: "splitDisplayed=true"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "splitLayout=vertical"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "splitTabs=two|one"), currentState(in: app))
+    }
+
+    func testDraggingSidebarTabOntoPageEdgeCreatesSplit() throws {
+        let app = launchApp(fixture: "split-view")
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
+
+        openFixtureTab(path: "one", in: app)
+        openFixtureTab(path: "two", in: app)
+
+        // Dragging a sidebar row starts the native dragging session (whose
+        // drag image is the ghost page card); releasing over the page's
+        // right-edge quarter drops into the trailing split zone.
+        let row = element("tab-row-one", in: app)
+        XCTAssertTrue(row.waitForExistence(timeout: 5), currentState(in: app))
+        let target = app.windows.firstMatch
+            .coordinate(withNormalizedOffset: CGVector(dx: 0.96, dy: 0.5))
+        row.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            .press(forDuration: 0.3, thenDragTo: target)
+
+        XCTAssertTrue(waitForState(in: app, containing: "splitDisplayed=true"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "splitTabs=two|one"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "splitLayout=horizontal"), currentState(in: app))
+    }
+
     func testSplitViewPaneResizePersistsAndResets() throws {
         let app = launchApp(fixture: "split-view")
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
@@ -163,46 +232,22 @@ final class CandoaUITests: XCTestCase {
         XCTAssertTrue(waitForState(in: app, containing: "splitLayout=horizontal"), currentState(in: app))
 
         // Dragging a pane's grab handle onto the other pane reorders them.
-        // The pill is hover-revealed (and AX-pruned while hidden), so enter
-        // the pane before waiting for its controls.
-        let leadingPane = element("split-pane-0", in: app)
-        XCTAssertTrue(leadingPane.waitForExistence(timeout: 5), currentState(in: app))
-        leadingPane.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0)).withOffset(CGVector(dx: 0, dy: 24)).hover()
         let grip = element("split-pane-grip-0", in: app)
         XCTAssertTrue(grip.waitForExistence(timeout: 5), currentState(in: app))
         let trailingPane = element("split-pane-1", in: app)
         XCTAssertTrue(trailingPane.waitForExistence(timeout: 5), currentState(in: app))
-        // Aim well inside the trailing half: the drop side comes from the
-        // release point's quadrant, and the pane's exact center sits on the
-        // leading/trailing boundary where release jitter flips the side.
         grip.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).press(
             forDuration: 0.2,
-            thenDragTo: trailingPane.coordinate(withNormalizedOffset: CGVector(dx: 0.75, dy: 0.5))
+            thenDragTo: trailingPane.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
         )
         XCTAssertTrue(waitForState(in: app, containing: "splitTabs=one|two"), currentState(in: app))
 
-        // Unsplit: the pane pill's toggle takes the pane out of the group
-        // and gives it the whole surface as an ordinary tab; with one
-        // member left the split dissolves.
-        leadingPane.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0)).withOffset(CGVector(dx: 0, dy: 24)).hover()
-        let unsplitButton = element("split-pane-unsplit-0", in: app)
-        XCTAssertTrue(unsplitButton.waitForExistence(timeout: 5), currentState(in: app))
-        unsplitButton.click()
-        XCTAssertTrue(waitForState(in: app, containing: "split=false"), currentState(in: app))
-        XCTAssertTrue(waitForState(in: app, containing: "active=one"), currentState(in: app))
-
-        // Re-split for the edge-drop and layout checks.
-        app.typeKey("=", modifierFlags: [.control, .shift])
-        XCTAssertTrue(waitForState(in: app, containing: "splitDisplayed=true"), currentState(in: app))
-        XCTAssertTrue(waitForState(in: app, containing: "splitTabs=one|two"), currentState(in: app))
-
-        // Dropping the grip on a pane's bottom half stacks the panes with
-        // the dragged pane below its target (Zen-style edge drop).
-        leadingPane.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0)).withOffset(CGVector(dx: 0, dy: 24)).hover()
-        XCTAssertTrue(grip.waitForExistence(timeout: 5), currentState(in: app))
+        // Dropping the grip on a pane's bottom quarter re-stacks the group
+        // into a column with the dragged pane below its target (Zen-style
+        // edge drop) instead of swapping the two slots.
         grip.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).press(
             forDuration: 0.2,
-            thenDragTo: trailingPane.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.8))
+            thenDragTo: trailingPane.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.85))
         )
         XCTAssertTrue(waitForState(in: app, containing: "splitLayout=vertical"), currentState(in: app))
         XCTAssertTrue(waitForState(in: app, containing: "splitTabs=two|one"), currentState(in: app))
@@ -218,9 +263,8 @@ final class CandoaUITests: XCTestCase {
             // Third"), consuming the event before the app's local monitor
             // sees it. Only tolerate the miss when such an app is running,
             // and still exercise the grid layout via the menu command.
-            let hotkeyOwners = runningGlobalHotkeyApps()
             XCTAssertFalse(
-                hotkeyOwners.isEmpty,
+                runningGlobalHotkeyApps().isEmpty,
                 "Control-Option-G did not switch to the grid layout and no known global-hotkey app is running: \(currentState(in: app))"
             )
             let viewMenu = app.menuBarItems["View"]
@@ -253,17 +297,39 @@ final class CandoaUITests: XCTestCase {
         XCTAssertTrue(waitForState(in: app, containing: "splitTabs=two|one"), currentState(in: app))
 
         // The pane pill's close button closes that pane's tab; with one
-        // member left the split dissolves. The pill is hover-revealed (and
-        // AX-pruned while hidden), so enter the pane first.
-        let trailingPane = element("split-pane-1", in: app)
-        XCTAssertTrue(trailingPane.waitForExistence(timeout: 5), currentState(in: app))
-        trailingPane.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0)).withOffset(CGVector(dx: 0, dy: 24)).hover()
+        // member left the split dissolves.
         let closeButton = element("split-pane-close-1", in: app)
         XCTAssertTrue(closeButton.waitForExistence(timeout: 5), currentState(in: app))
         closeButton.click()
         XCTAssertTrue(waitForState(in: app, containing: "split=false"), currentState(in: app))
         XCTAssertTrue(waitForState(in: app, containing: "active=two"), currentState(in: app))
         XCTAssertTrue(waitForState(in: app, containing: "tabs=two"), currentState(in: app))
+    }
+
+    func testSplitPaneUnsplitButtonReturnsTabToSidebar() throws {
+        let app = launchApp(fixture: "split-view")
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
+
+        openFixtureTab(path: "one", in: app)
+        openFixtureTab(path: "two", in: app)
+
+        app.typeKey("=", modifierFlags: [.control, .shift])
+        XCTAssertTrue(waitForState(in: app, containing: "splitDisplayed=true"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "splitTabs=two|one"), currentState(in: app))
+
+        // The pane pill's unsplit button takes that pane out of the group
+        // without closing its tab: the tab returns to its ordinary sidebar
+        // row, and with one member left the split dissolves. The clicked
+        // pane's page keeps the surface — unsplitting pane "one" while
+        // "two" is focused must show "one", not the surviving partner.
+        let unsplitButton = element("split-pane-unsplit-1", in: app)
+        XCTAssertTrue(unsplitButton.waitForExistence(timeout: 5), currentState(in: app))
+        unsplitButton.click()
+        XCTAssertTrue(waitForState(in: app, containing: "split=false"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "active=one"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "tabs=two|one"), currentState(in: app))
+        XCTAssertTrue(element("tab-row-one", in: app).waitForExistence(timeout: 5), currentState(in: app))
+        XCTAssertTrue(element("tab-row-two", in: app).waitForExistence(timeout: 5), currentState(in: app))
     }
 
     func testFavoritesStayGlobalAcrossSpaces() throws {

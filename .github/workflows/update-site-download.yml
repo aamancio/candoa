@@ -7,7 +7,8 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  # Write so the workflow can push the release tag that anchors version bumps.
+  contents: write
 
 concurrency:
   group: update-candoa-cloud-download
@@ -29,6 +30,35 @@ jobs:
     steps:
       - name: Check out Candoa
         uses: actions/checkout@v5
+        with:
+          # Full history so the build number can be derived from the commit count.
+          fetch-depth: 0
+
+      - name: Derive build number and marketing version
+        run: |
+          echo "APP_BUILD_NUMBER=$(git rev-list --count HEAD)" >> "$GITHUB_ENV"
+
+          # Marketing version: bump from conventional commits since the last
+          # release tag. feat → minor, anything else → patch. The major digit
+          # is never bumped automatically — 1.0 is a human decision, so
+          # breaking-change markers (feat!, BREAKING CHANGE) are ignored.
+          LAST_TAG="$(git describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null || true)"
+          if [ -z "$LAST_TAG" ]; then
+            # First tagged release: ship the version currently in the project.
+            VERSION="$(sed -n 's/.*MARKETING_VERSION = \([0-9.]*\);.*/\1/p' Candoa.xcodeproj/project.pbxproj | head -1)"
+          else
+            BASE="${LAST_TAG#v}"
+            MAJOR="${BASE%%.*}"; REST="${BASE#*.}"
+            MINOR="${REST%%.*}"; PATCH="${REST#*.}"
+            if git log --format=%s "$LAST_TAG..HEAD" | grep -qE '^feat(\(|!|:)'; then
+              MINOR=$((MINOR + 1)); PATCH=0
+            else
+              PATCH=$((PATCH + 1))
+            fi
+            VERSION="$MAJOR.$MINOR.$PATCH"
+          fi
+          echo "APP_MARKETING_VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "Version $VERSION (build $(git rev-list --count HEAD)), previous tag: ${LAST_TAG:-none}"
 
       - name: Prepare signing keychain path
         run: echo "SIGNING_KEYCHAIN_PATH=$RUNNER_TEMP/candoa-signing.keychain-db" >> "$GITHUB_ENV"
@@ -159,6 +189,8 @@ jobs:
             CODE_SIGN_IDENTITY="$CODE_SIGN_IDENTITY" \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
             PROVISIONING_PROFILE_SPECIFIER="$PROVISIONING_PROFILE_SPECIFIER" \
+            MARKETING_VERSION="$APP_MARKETING_VERSION" \
+            CURRENT_PROJECT_VERSION="$APP_BUILD_NUMBER" \
             CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO \
             OTHER_CODE_SIGN_FLAGS="--timestamp" \
             build
@@ -322,3 +354,14 @@ jobs:
           git add public/downloads
           git commit -m "Update Candoa $APP_VERSION download from ${GITHUB_SHA::7}"
           git push origin "HEAD:$CLOUD_BRANCH"
+
+      - name: Tag release
+        run: |
+          # Anchor for the next run's version bump; only reached when the
+          # release actually published.
+          if git rev-parse "v$APP_MARKETING_VERSION" >/dev/null 2>&1; then
+            echo "Tag v$APP_MARKETING_VERSION already exists (re-run); leaving it."
+            exit 0
+          fi
+          git tag "v$APP_MARKETING_VERSION" "$GITHUB_SHA"
+          git push origin "v$APP_MARKETING_VERSION"

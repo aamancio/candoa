@@ -253,3 +253,83 @@ private struct TabHoverTracker: NSViewRepresentable {
         }
     }
 }
+
+/// Miniature page card shown while a tab travels: the drag preview for
+/// sidebar tab drags and the cursor-following ghost during pane reorders.
+/// A page-shaped ghost tells the user "you are moving this page" the way
+/// AppKit drag images do. Content is suggested with placeholder lines —
+/// never a live web snapshot.
+struct TabDragGhost: View {
+    let tab: BrowserTab
+    var width: CGFloat = 168
+    var height: CGFloat = 112
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 6) {
+                faviconImage
+                    .frame(width: 13, height: 13)
+
+                Text(displayTitle)
+                    .font(.system(size: 11, weight: .medium))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .foregroundStyle(CandoaInterfaceStyle.sidebarText)
+
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 9)
+            .frame(height: 27)
+            .background(CandoaInterfaceStyle.sidebarControlFill)
+
+            Rectangle()
+                .fill(CandoaInterfaceStyle.surfaceBorder)
+                .frame(height: 1)
+
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(Array(bodyLineWidths.enumerated()), id: \.offset) { _, fraction in
+                    Capsule()
+                        .fill(Color.secondary.opacity(0.18))
+                        .frame(width: max(24, (width - 20) * fraction), height: 5)
+                }
+
+                Spacer(minLength: 0)
+            }
+            .padding(10)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .background(CandoaInterfaceStyle.surfaceFill)
+        }
+        .frame(width: width, height: height)
+        .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 9, style: .continuous)
+                .strokeBorder(CandoaInterfaceStyle.surfaceBorder, lineWidth: 1)
+        }
+        .shadow(color: .black.opacity(0.22), radius: 9, y: 4)
+    }
+
+    private var displayTitle: String {
+        if !tab.title.isEmpty {
+            return tab.title
+        }
+        return tab.url?.host() ?? "New Tab"
+    }
+
+    private var bodyLineWidths: [CGFloat] {
+        [0.82, 0.56, 0.7]
+    }
+
+    @ViewBuilder
+    private var faviconImage: some View {
+        if let data = tab.faviconData,
+           let nsImage = NSImage(data: data) {
+            Image(nsImage: nsImage)
+                .resizable()
+                .scaledToFit()
+        } else {
+            Image(systemName: tab.faviconSymbol)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(CandoaInterfaceStyle.sidebarIcon)
+        }
+    }
+}

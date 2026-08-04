@@ -9,7 +9,10 @@ struct TabSwitcherOverlay: View {
             panel
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                 .allowsHitTesting(false)
-                .transition(.scale(scale: 0.96).combined(with: .opacity))
+                // Opacity only — a scale-in reads as motion the user has to
+                // wait out, which made Control-Tab feel slower than the
+                // instant switch underneath it.
+                .transition(.opacity)
         }
     }
 

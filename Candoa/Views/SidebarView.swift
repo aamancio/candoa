@@ -776,9 +776,7 @@ struct SidebarView: View {
             ),
             tint: CandoaColor.accent
         )
-        .onDrag {
-            store.beginTabDrag(tab.id)
-        }
+        .background(TabDragSourceBackground(store: store, tabID: tab.id))
         .onDrop(
             of: [UTType.text],
             delegate: FavoriteTabDropDelegate(
@@ -916,9 +914,7 @@ struct SidebarView: View {
             ),
             tint: CandoaColor.accent
         )
-        .onDrag {
-            store.beginTabDrag(tab.id)
-        }
+        .background(TabDragSourceBackground(store: store, tabID: tab.id))
         .onDrop(
             of: [UTType.text],
             delegate: TabReorderDropDelegate(
@@ -1080,9 +1076,7 @@ struct SidebarView: View {
                             ),
                             tint: CandoaColor.accent
                         )
-                        .onDrag {
-                            store.beginTabDrag(tab.id)
-                        }
+                        .background(TabDragSourceBackground(store: store, tabID: tab.id))
                         .onDrop(
                             of: [UTType.text],
                             delegate: TabReorderDropDelegate(

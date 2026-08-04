@@ -118,16 +118,6 @@ extension BrowserStore {
         splitLayout = .horizontal
     }
 
-    /// Un-splits one pane from its control pill: the tab leaves the group
-    /// and takes over the surface as an ordinary tab. The remaining members
-    /// keep the split (suspended behind the now-active tab), or it dissolves
-    /// once fewer than two remain.
-    func unsplitPane(_ id: UUID) {
-        guard displayedSplitTabIDs.contains(id) else { return }
-        removeTabFromSplit(id)
-        switchTab(to: id)
-    }
-
     /// Switches the displayed split between side-by-side, stacked, and grid
     /// arrangements. Pane order and membership are untouched; the linear
     /// ratios carry over between horizontal and vertical (grid cells are
@@ -137,69 +127,72 @@ extension BrowserStore {
         splitLayout = layout
     }
 
-    /// Repositions a displayed pane onto a side of another pane (the grip
-    /// drag), its width/height ratio riding along with it. A two-pane group
-    /// takes its axis from the drop edge, Zen-style: top/bottom stacks rows,
-    /// leading/trailing makes columns. Larger groups keep their layout; the
-    /// edge only picks which side of the target the pane lands on.
-    func moveSplitPane(from sourceIndex: Int, toSide side: SplitTabDropSide, of targetIndex: Int) {
-        let orderedIDs = splitGroupTabIDs()
-        let ratios = splitPaneRatios(forPaneCount: orderedIDs.count)
-        guard let order = Self.movedPaneOrder(
-            count: orderedIDs.count,
-            from: sourceIndex,
-            toSide: side,
-            of: targetIndex
-        ) else { return }
-
-        splitLayout = Self.movedPaneLayout(current: splitLayout, paneCount: orderedIDs.count, side: side)
-        splitTabIDs = order.map { orderedIDs[$0] }
-        splitPaneRatios = order.map { ratios[$0] }
-    }
-
-    /// The pane order a side-drop produces, as previous-position indices —
-    /// shared by the commit above and the drag's drop preview so the
-    /// highlight always shows the exact resulting frame.
-    static func movedPaneOrder(
-        count: Int,
-        from sourceIndex: Int,
-        toSide side: SplitTabDropSide,
-        of targetIndex: Int
-    ) -> [Int]? {
+    /// Reorders the displayed panes (a pane-handle drag): the pane at
+    /// `sourceIndex` moves to `targetIndex`, its width/height ratio riding
+    /// along with it.
+    func moveSplitPane(from sourceIndex: Int, to targetIndex: Int) {
+        var orderedIDs = splitGroupTabIDs()
+        var ratios = splitPaneRatios(forPaneCount: orderedIDs.count)
         guard
             sourceIndex != targetIndex,
-            (0..<count).contains(sourceIndex),
-            (0..<count).contains(targetIndex)
-        else { return nil }
+            orderedIDs.indices.contains(sourceIndex),
+            orderedIDs.indices.contains(targetIndex)
+        else { return }
 
-        var order = Array(0..<count)
-        order.remove(at: sourceIndex)
-        let adjustedTargetIndex = sourceIndex < targetIndex ? targetIndex - 1 : targetIndex
-        let insertionIndex = side.insertsBeforeTarget ? adjustedTargetIndex : adjustedTargetIndex + 1
-        order.insert(sourceIndex, at: insertionIndex)
-        return order
+        let movedID = orderedIDs.remove(at: sourceIndex)
+        orderedIDs.insert(movedID, at: targetIndex)
+        let movedRatio = ratios.remove(at: sourceIndex)
+        ratios.insert(movedRatio, at: targetIndex)
+        splitTabIDs = orderedIDs
+        splitPaneRatios = ratios
     }
 
-    /// The layout a side-drop produces: a two-pane group takes its axis
-    /// from the edge, larger groups keep their arrangement.
-    static func movedPaneLayout(
-        current: SplitViewLayout,
-        paneCount: Int,
-        side: SplitTabDropSide
-    ) -> SplitViewLayout {
-        guard paneCount == 2 else { return current }
-        return side.isVerticalAxis ? .vertical : .horizontal
+    /// Zen-style edge drop for a pane-handle drag: releasing on a pane's
+    /// top/bottom band stacks the row into a column (and the
+    /// leading/trailing bands lay it back into a row), with the dragged
+    /// pane landing on that side of the target. Dropping on the source
+    /// pane's own edge only changes the arrangement.
+    func moveSplitPane(from sourceIndex: Int, toEdge side: SplitTabDropSide, of targetIndex: Int) {
+        var orderedIDs = splitGroupTabIDs()
+        var ratios = splitPaneRatios(forPaneCount: orderedIDs.count)
+        guard
+            orderedIDs.indices.contains(sourceIndex),
+            orderedIDs.indices.contains(targetIndex)
+        else { return }
+
+        setSplitLayout(side.isVerticalAxis ? .vertical : .horizontal)
+        guard sourceIndex != targetIndex else { return }
+
+        let movedID = orderedIDs[sourceIndex]
+        let targetID = orderedIDs[targetIndex]
+        let movedRatio = ratios[sourceIndex]
+        orderedIDs.remove(at: sourceIndex)
+        ratios.remove(at: sourceIndex)
+        guard let anchorIndex = orderedIDs.firstIndex(of: targetID) else { return }
+        let insertionIndex = side.insertsBeforeTarget ? anchorIndex : anchorIndex + 1
+        orderedIDs.insert(movedID, at: insertionIndex)
+        ratios.insert(movedRatio, at: insertionIndex)
+        splitTabIDs = orderedIDs
+        splitPaneRatios = ratios
     }
 
     /// Takes one tab out of the split group without closing it: the tab
     /// returns to its ordinary sidebar row, and the remaining panes keep the
     /// split (or the split dissolves once fewer than two members remain).
-    func removeTabFromSplit(_ id: UUID) {
+    func removeTabFromSplit(_ id: UUID, focusRemovedTab: Bool = false) {
         let groupIDs = splitGroupTabIDs()
         guard groupIDs.contains(id) else { return }
         let remainingIDs = groupIDs.filter { $0 != id }
-        let nextActiveID = activeTabID == id ? remainingIDs.first : activeTabID
-        applySplitGroup(remainingIDs, activeID: nextActiveID)
+        if focusRemovedTab {
+            // The pane pill's unsplit reads as "expand this pane": the
+            // clicked pane's page must keep the surface, so the removed tab
+            // takes focus and any surviving group suspends behind it.
+            applySplitGroup(remainingIDs, activeID: nil)
+            activeTabID = id
+        } else {
+            let nextActiveID = activeTabID == id ? remainingIDs.first : activeTabID
+            applySplitGroup(remainingIDs, activeID: nextActiveID)
+        }
         updateNavigationState()
     }
 

@@ -418,9 +418,9 @@ struct ContentView: View {
         // here — the palette animates in via withAnimation at the present
         // call sites only, so its dismissal is never an animated removal
         // (see BrowserStore.presentCommandPalette).
-        // A fast, mostly-damped spring so the switcher snaps in like Arc/Dia
-        // instead of drifting; the same curve keeps the release fade brisk.
-        .animation(.spring(response: 0.18, dampingFraction: 0.85), value: store.isTabSwitcherPresented)
+        // Near-instant fade: the page underneath already switched on the
+        // press, so any visible settle here would read as switching lag.
+        .animation(.easeOut(duration: 0.08), value: store.isTabSwitcherPresented)
         // Keyed on presence, not value: moving between links swaps the text
         // instantly and only appear/disappear get the brief fade.
         .animation(.easeOut(duration: 0.1), value: store.hoveredLinkHref != nil)
