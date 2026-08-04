@@ -29,6 +29,12 @@ jobs:
     steps:
       - name: Check out Candoa
         uses: actions/checkout@v5
+        with:
+          # Full history so the build number can be derived from the commit count.
+          fetch-depth: 0
+
+      - name: Derive build number from commit count
+        run: echo "APP_BUILD_NUMBER=$(git rev-list --count HEAD)" >> "$GITHUB_ENV"
 
       - name: Prepare signing keychain path
         run: echo "SIGNING_KEYCHAIN_PATH=$RUNNER_TEMP/candoa-signing.keychain-db" >> "$GITHUB_ENV"
@@ -159,6 +165,7 @@ jobs:
             CODE_SIGN_IDENTITY="$CODE_SIGN_IDENTITY" \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
             PROVISIONING_PROFILE_SPECIFIER="$PROVISIONING_PROFILE_SPECIFIER" \
+            CURRENT_PROJECT_VERSION="$APP_BUILD_NUMBER" \
             CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO \
             OTHER_CODE_SIGN_FLAGS="--timestamp" \
             build
