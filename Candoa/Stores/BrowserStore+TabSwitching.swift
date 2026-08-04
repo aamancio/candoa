@@ -105,9 +105,10 @@ extension BrowserStore {
     }
 
     func finishTabSwitcherInteraction() {
-        // Releasing Control commits whatever the cycling selected. Until now
-        // only the preview selection moved, so a held interaction never
-        // switched tabs behind the overlay.
+        // Cycling already switched the page live on each press; releasing
+        // Control normally just ends the interaction. The switch here is a
+        // fallback for the one case where the live switch was deferred
+        // behind the mini player's return morph.
         let landedTabID = tabSwitcherSelectedTabID ?? activeTabID
         if let selectedTabID = tabSwitcherSelectedTabID, selectedTabID != activeTabID {
             switchTab(to: selectedTabID, updatesAccessTime: false)
@@ -137,14 +138,10 @@ extension BrowserStore {
 
         guard isTabSwitcherPresented else { return }
 
-        tabSwitcherHideWorkItem?.cancel()
-        let workItem = DispatchWorkItem { [weak self] in
-            Task { @MainActor in
-                self?.hideTabSwitcher()
-            }
-        }
-        tabSwitcherHideWorkItem = workItem
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.08, execute: workItem)
+        // The page already switched during cycling, so there is nothing to
+        // wait for on release — dropping the overlay immediately keeps the
+        // whole interaction feeling instant.
+        hideTabSwitcher()
     }
 
     func switchToNextSpace() {
@@ -202,13 +199,11 @@ extension BrowserStore {
             nextIndex = offset > 0 ? 0 : recentTabs.count - 1
         }
         let selectedTabID = recentTabs[nextIndex].id
-        // While Control is held only the selection moves; the real switch
-        // commits on release (finishTabSwitcherInteraction), so holding to
-        // look at the preview never flips the page underneath. Callers
-        // without a release event still switch immediately.
-        if !keepsPreviewOpen {
-            switchTab(to: selectedTabID, updatesAccessTime: false)
-        }
+        // Arc-style live cycling: the page swaps on the press itself, so a
+        // quick Control-Tab lands instantly instead of waiting for the key
+        // release. Access-time stamping still waits for the end of the
+        // interaction so the frozen recency order holds while cycling.
+        switchTab(to: selectedTabID, updatesAccessTime: false)
         presentTabSwitcher(
             candidates: recentTabs,
             selectedTabID: selectedTabID,
