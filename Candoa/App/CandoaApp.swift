@@ -71,9 +71,11 @@ private final class CandoaAppDelegate: NSObject, NSApplicationDelegate {
     private let appearanceChangedNotification = Notification.Name("AppleInterfaceThemeChangedNotification")
     private let browserPasskeyAuthorizationService = BrowserPasskeyAuthorizationService()
     private let defaultBrowserService = DefaultBrowserService()
+    private let webAuthenticationHostService = WebAuthenticationSessionHostService()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         updateDockIcon()
+        webAuthenticationHostService.activate()
         DistributedNotificationCenter.default().addObserver(
             self,
             selector: #selector(systemAppearanceDidChange),

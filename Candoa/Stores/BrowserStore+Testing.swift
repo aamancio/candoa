@@ -82,6 +82,23 @@ extension BrowserStore {
         )
     }
 
+    /// Mirrors hosted web-authentication outcomes into the state string:
+    /// the host service lives on the app delegate, far from any store, so it
+    /// broadcasts events in-process and every window's store republishes
+    /// them through its own `ui-testing-state` element.
+    func configureUITestingWebAuthObservation() {
+        guard Self.isUITesting else { return }
+
+        uiTestingWebAuthEventCancellable = NotificationCenter.default
+            .publisher(for: WebAuthenticationSessionHostService.uiTestingWebAuthEventNotification)
+            .sink { [weak self] notification in
+                guard let event = notification.object as? String else { return }
+                Task { @MainActor [weak self] in
+                    self?.uiTestingWebAuthEvents.append(event)
+                }
+            }
+    }
+
     static var uiTestingOnboardingStep: InitialOnboardingStep? {
         guard isUITesting else { return nil }
         return ProcessInfo.processInfo.environment["CANDOA_UI_TESTING_ONBOARDING_STEP"]
@@ -376,7 +393,8 @@ extension BrowserStore {
             "query=\(uiTestingCommandPaletteQuery)",
             "command=\(uiTestingLastCommandDescription)",
             "pageScheme=\(uiTestingWebsiteAppearanceDescription)",
-            "popupDiag=\(uiTestingPopupDiagnostics.joined(separator: "|"))"
+            "popupDiag=\(uiTestingPopupDiagnostics.joined(separator: "|"))",
+            "webAuth=\(uiTestingWebAuthEvents.joined(separator: "|"))"
         ].joined(separator: ";")
     }
 

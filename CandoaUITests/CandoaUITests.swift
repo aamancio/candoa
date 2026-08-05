@@ -2046,6 +2046,136 @@ final class CandoaUITests: XCTestCase {
         XCTAssertEqual(app.state, .runningForeground)
     }
 
+    // MARK: - Hosted web-authentication sessions (issue #47)
+
+    /// A hosted session completes only on the request's own callback match,
+    /// and completion tears the dedicated window down without touching tabs.
+    /// Ephemeral mode is exercised here so the non-persistent store path
+    /// runs end to end.
+    func testHostedWebAuthenticationCompletesOnMatchingCallback() throws {
+        let app = launchApp(fixture: "web-auth")
+        XCTAssertTrue(waitForState(in: app, containing: "active=Apple"), currentState(in: app))
+        let tabsBefore = stateValue("tabs", in: app)
+
+        beginWebAuthRequest(id: "t1", path: "auth-success", mode: "ephemeral")
+
+        XCTAssertTrue(
+            waitForState(in: app, containing: "t1:began:ephemeral", timeout: 10),
+            currentState(in: app)
+        )
+        XCTAssertTrue(
+            waitForState(
+                in: app,
+                containing: "t1:resolved-completed:candoa-e2e://auth?code=ok",
+                timeout: 10
+            ),
+            currentState(in: app)
+        )
+
+        // Completion closes the authentication window and leaves the
+        // browser's tabs untouched — the session never joins the tab world.
+        let authWindow = app.windows["Sign In — fixture.candoa.test"]
+        XCTAssertFalse(authWindow.exists, currentState(in: app))
+        XCTAssertEqual(stateValue("tabs", in: app), tabsBefore, currentState(in: app))
+    }
+
+    /// Closing the authentication window returns the standard canceled-login
+    /// error (ASWebAuthenticationSessionError code 1) to the requesting app.
+    func testHostedWebAuthenticationWindowCloseCancels() throws {
+        let app = launchApp(fixture: "web-auth")
+        XCTAssertTrue(waitForState(in: app, containing: "active=Apple"), currentState(in: app))
+
+        beginWebAuthRequest(id: "t2", path: "auth-wait", mode: "shared")
+        XCTAssertTrue(
+            waitForState(in: app, containing: "t2:began:shared", timeout: 10),
+            currentState(in: app)
+        )
+
+        let authWindow = app.windows["Sign In — fixture.candoa.test"]
+        XCTAssertTrue(authWindow.waitForExistence(timeout: 10), currentState(in: app))
+        authWindow.buttons[XCUIIdentifierCloseWindow].click()
+
+        XCTAssertTrue(
+            waitForState(in: app, containing: "t2:resolved-canceled:", timeout: 10),
+            currentState(in: app)
+        )
+        XCTAssertTrue(
+            (stateValue("webAuth", in: app) ?? "").contains("t2:resolved-canceled:")
+                && (stateValue("webAuth", in: app) ?? "").hasSuffix(":1"),
+            currentState(in: app)
+        )
+    }
+
+    /// A navigation to a lookalike scheme the request did not register must
+    /// not complete the session — only the exact callback match may.
+    func testHostedWebAuthenticationIgnoresNonMatchingCallback() throws {
+        let app = launchApp(fixture: "web-auth")
+        XCTAssertTrue(waitForState(in: app, containing: "active=Apple"), currentState(in: app))
+
+        beginWebAuthRequest(id: "t3", path: "auth-wrong", mode: "shared")
+        XCTAssertTrue(
+            waitForState(in: app, containing: "t3:began:shared", timeout: 10),
+            currentState(in: app)
+        )
+
+        // The wrong-scheme redirect is swallowed; the session stays pending
+        // with its window up and no resolution event.
+        let authWindow = app.windows["Sign In — fixture.candoa.test"]
+        XCTAssertTrue(authWindow.waitForExistence(timeout: 10), currentState(in: app))
+        Thread.sleep(forTimeInterval: 1.0)
+        XCTAssertFalse(
+            (stateValue("webAuth", in: app) ?? "").contains("t3:resolved"),
+            currentState(in: app)
+        )
+
+        authWindow.buttons[XCUIIdentifierCloseWindow].click()
+        XCTAssertTrue(
+            waitForState(in: app, containing: "t3:resolved-canceled:", timeout: 10),
+            currentState(in: app)
+        )
+    }
+
+    /// When the requesting app cancels its session, AuthenticationServices
+    /// only expects the browser UI to disappear — no completion, no error.
+    func testHostedWebAuthenticationSystemCancelDismissesSilently() throws {
+        let app = launchApp(fixture: "web-auth")
+        XCTAssertTrue(waitForState(in: app, containing: "active=Apple"), currentState(in: app))
+
+        beginWebAuthRequest(id: "t4", path: "auth-wait", mode: "shared")
+        let authWindow = app.windows["Sign In — fixture.candoa.test"]
+        XCTAssertTrue(authWindow.waitForExistence(timeout: 10), currentState(in: app))
+
+        DistributedNotificationCenter.default().postNotificationName(
+            Notification.Name("app.candoa.uitesting.web-auth-cancel"),
+            object: "t4",
+            userInfo: nil,
+            deliverImmediately: true
+        )
+
+        XCTAssertTrue(
+            waitForState(in: app, containing: "t4:dismissed", timeout: 10),
+            currentState(in: app)
+        )
+        XCTAssertFalse(authWindow.exists, currentState(in: app))
+        XCTAssertFalse(
+            (stateValue("webAuth", in: app) ?? "").contains("t4:resolved"),
+            currentState(in: app)
+        )
+    }
+
+    /// Stands in for AuthenticationServices routing a session request to the
+    /// default browser: real requests need default-browser consent no CI
+    /// runner can grant, so the app's UI-testing seam mints an equivalent
+    /// request behind the same hosting path.
+    private func beginWebAuthRequest(id: String, path: String, mode: String) {
+        DistributedNotificationCenter.default().postNotificationName(
+            Notification.Name("app.candoa.uitesting.web-auth-begin"),
+            object: "\(id)|https://fixture.candoa.test/\(path)|candoa-e2e|\(mode)",
+            userInfo: nil,
+            deliverImmediately: true
+        )
+    }
+
     private func launchApp(
         fixture: String? = nil,
         onboardingStep: String? = nil,
@@ -2240,10 +2370,33 @@ final class CandoaUITests: XCTestCase {
     </html>
     """
 
+    /// Hosted web-authentication fixture: the path picks the provider
+    /// behavior — an immediate matching-scheme callback, a non-matching
+    /// scheme, or an idle page that waits to be dismissed.
+    private static let webAuthFixturePageHTML = """
+    <!doctype html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <script>
+          addEventListener("load", () => {
+            if (location.pathname === "/auth-success") {
+              location.href = "candoa-e2e://auth?code=ok";
+            } else if (location.pathname === "/auth-wrong") {
+              location.href = "wrong-scheme://auth?code=bad";
+            }
+          });
+        </script>
+      </head>
+      <body><h1>Web auth fixture</h1></body>
+    </html>
+    """
+
     private static let pageHTMLFixtures: [String: String] = [
         "split-view": splitFixturePageHTML,
         "split-view-spaces": splitFixturePageHTML,
         "split-view-pixels": pixelProbeFixturePageHTML,
+        "web-auth": webAuthFixturePageHTML,
         "popup-open": """
         <!doctype html>
         <html>

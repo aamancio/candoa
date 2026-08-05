@@ -71,6 +71,7 @@ extension BrowserStore {
 
     func configureRemoteSyncObservation() {
         configureUITestingRemoteRestoreTrigger()
+        configureUITestingWebAuthObservation()
         guard persistenceService.syncsWorkspaceWithICloud else { return }
 
         remoteChangeCancellable = NotificationCenter.default
