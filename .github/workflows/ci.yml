@@ -3,6 +3,10 @@ name: Candoa CI
 on:
   push:
   pull_request:
+  schedule:
+    # Nightly full E2E suite on main so regressions surface without anyone
+    # remembering to dispatch the lane (09:00 UTC ≈ 2am PT).
+    - cron: "0 9 * * *"
   workflow_dispatch:
     inputs:
       only_testing:
@@ -15,14 +19,19 @@ on:
 permissions:
   contents: read
 
+# The event name keeps long-running scheduled/dispatched E2E runs on main from
+# being cancelled by unrelated pushes (and vice versa).
 concurrency:
-  group: candoa-ci-${{ github.ref }}
+  group: candoa-ci-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   quality:
     name: Static Quality Gate
     runs-on: macos-latest
+    # Targeted only_testing dispatches rerun a known-flaky test; skip the
+    # quality/build gate there so the iteration loop stays tight.
+    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.only_testing != '') }}
 
     steps:
       - name: Check out Candoa
@@ -48,6 +57,7 @@ jobs:
   build:
     name: Debug Build
     runs-on: macos-latest
+    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.only_testing != '') }}
 
     steps:
       - name: Check out Candoa
@@ -72,7 +82,14 @@ jobs:
   e2e:
     name: Manual Native macOS E2E
     runs-on: macos-latest
-    if: github.event_name == 'workflow_dispatch'
+    # Runs on manual dispatch and the nightly schedule. The needs results are
+    # checked explicitly (instead of the implicit success() gate) so the job
+    # still runs when quality/build were skipped for a targeted dispatch.
+    if: >-
+      !cancelled() &&
+      (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule') &&
+      (needs.quality.result == 'success' || needs.quality.result == 'skipped') &&
+      (needs.build.result == 'success' || needs.build.result == 'skipped')
     needs:
       - quality
       - build
@@ -90,6 +107,10 @@ jobs:
           CANDOA_DERIVED_DATA_PATH: build/DerivedData
           CANDOA_E2E_ONLY_TESTING: ${{ inputs.only_testing }}
         run: Scripts/e2e-test.sh
+
+      - name: Summarize test results
+        if: always()
+        run: Scripts/e2e-failure-summary.sh build/DerivedData/Logs/Test
 
       - name: Upload XCTest result bundle
         if: always()
