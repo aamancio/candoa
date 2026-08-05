@@ -285,6 +285,7 @@ final class BrowserStore: ObservableObject {
     @Published var uiTestingLastCommandDescription = "none"
     @Published var uiTestingWebsiteAppearanceDescription = "pending"
     @Published var uiTestingPopupDiagnostics: [String] = []
+    @Published var uiTestingWebAuthEvents: [String] = []
 
     /// Tabs created locally since the last snapshot save. A remote-state
     /// apply must not drop these: they exist only in memory, so a snapshot
@@ -327,6 +328,7 @@ final class BrowserStore: ObservableObject {
     var saveCancellable: AnyCancellable?
     var remoteChangeCancellable: AnyCancellable?
     var uiTestingRemoteRestoreCancellable: AnyCancellable?
+    var uiTestingWebAuthEventCancellable: AnyCancellable?
     var tabSwitcherHideWorkItem: DispatchWorkItem?
     var tabSwitcherShowWorkItem: DispatchWorkItem?
     var copiedURLToastHideWorkItem: DispatchWorkItem?
