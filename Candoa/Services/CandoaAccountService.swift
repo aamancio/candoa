@@ -275,27 +275,28 @@ enum CandoaCloudAPI {
     }
 
     private static var cloudBaseURL: URL {
-        let configuredURL = environmentURL(key: "CANDOA_CLOUD_API_URL")
 #if DEBUG
-        return configuredURL ?? developmentBaseURL
+        return environmentURL(key: "CANDOA_CLOUD_API_URL") ?? developmentBaseURL
 #else
-        return configuredURL ?? productionBaseURL
+        // Release builds pin production: an inherited environment variable
+        // must never be able to redirect account, billing, or AI traffic.
+        return productionBaseURL
 #endif
     }
 
+#if DEBUG
     private static func environmentURL(key: String) -> URL? {
         let configuredURL = ProcessInfo.processInfo.environment[key]
             .flatMap(URL.init(string:))
-#if DEBUG
         // Debug builds must never read or write production Cloud data. Apple
         // web authentication uses its separately configured registered HTTPS
         // endpoint; every ordinary API remains local.
         guard configuredURL?.host != productionBaseURL.host else {
             return nil
         }
-#endif
         return configuredURL
     }
+#endif
 
     private static func request<Body: Encodable, Response: Decodable>(
         _ url: URL,
