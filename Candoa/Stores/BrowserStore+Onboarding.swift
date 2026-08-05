@@ -86,6 +86,7 @@ extension BrowserStore {
 
         activeSpaceID = spaces[index].id
         if initialOnboardingStep == .space {
+            seedStarterFavoritesIfNeeded()
             setInitialOnboardingStep(nextAccountOrTourStep)
         }
         isCreateSpacePresented = false
@@ -97,6 +98,36 @@ extension BrowserStore {
         repairSessionState()
         updateNavigationState()
         flushSession()
+    }
+
+    /// Curated first-run favorites so a fresh workspace demonstrates
+    /// general-purpose browsing the moment the sidebar first appears.
+    private static let starterFavorites: [(title: String, url: URL)] = [
+        ("YouTube", URL(string: "https://www.youtube.com/")!),
+        ("Wikipedia", URL(string: "https://www.wikipedia.org/")!),
+        ("Gmail", URL(string: "https://mail.google.com/")!),
+        ("Google Maps", URL(string: "https://maps.google.com/")!),
+        ("GitHub", URL(string: "https://github.com/")!)
+    ]
+
+    /// Seeding is tied to the first-run Space step and skipped whenever any
+    /// favorite already exists — a workspace restored from CloudKit or an
+    /// onboarding resume must never be re-seeded on top of the user's data.
+    private func seedStarterFavoritesIfNeeded() {
+        guard !tabs.contains(where: \.isFavorite) else { return }
+
+        let starterTabs = Self.starterFavorites.enumerated().map { index, favorite in
+            BrowserTab(
+                title: favorite.title,
+                url: favorite.url,
+                faviconSymbol: faviconService.placeholderSymbol(for: favorite.url),
+                isFavorite: true,
+                spaceID: activeSpaceID,
+                sortOrder: Double(index),
+                hasBeenActivated: false
+            )
+        }
+        tabs.append(contentsOf: starterTabs)
     }
 
     func completeInitialAccountSetup() {
