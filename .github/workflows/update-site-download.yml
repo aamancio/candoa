@@ -312,6 +312,7 @@ jobs:
             --download-url-prefix "https://candoa.app/downloads/" \
             --link "https://candoa.app" \
             --maximum-versions 1 \
+            --critical-update-version "" \
             --embed-release-notes \
             -o "$APPCAST_DIR/appcast.xml" \
             "$APPCAST_DIR"
