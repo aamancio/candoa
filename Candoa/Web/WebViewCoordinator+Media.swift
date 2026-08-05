@@ -36,6 +36,17 @@ extension WebViewCoordinator {
             let href = (message.body as? [String: Any])?["href"] as? String
             store?.updateHoveredLink(tabID: tabID, href: href)
 
+        case WebPageScripts.popupDiagnosticsMessageName:
+            guard let body = message.body as? [String: Any] else { return }
+            let phase = body["phase"] as? String ?? "?"
+            let href = body["href"] as? String ?? "?"
+            let opener = body["opener"] as? Bool ?? false
+            let name = body["name"] as? String ?? ""
+            guard BrowserStore.isUITesting else { return }
+            store?.uiTestingPopupDiagnostics.append(
+                "\(phase) opener=\(opener) name=\(name) href=\(href.prefix(120))"
+            )
+
         default:
             break
         }

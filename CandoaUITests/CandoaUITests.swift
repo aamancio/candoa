@@ -1821,6 +1821,76 @@ final class CandoaUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Your cart is empty."].waitForExistence(timeout: 5))
     }
 
+    /// Diagnostic: drives the real Google One Tap flow on notion.com and
+    /// captures opener linkage inside the popup via the popup-diagnostics
+    /// script. Requires network access.
+    func testGoogleOneTapPopupDiagnostics() throws {
+        let app = launchApp()
+
+        // Prime the data store with Google cookies the way a real profile has
+        // them (the bug reproduces with prior google-property visits).
+        openNewTabPalette(in: app)
+        submitCommandPaletteText("https://www.youtube.com", in: app)
+        XCTAssertTrue(waitForState(in: app, containing: "loading=false", timeout: 30), currentState(in: app))
+        sleep(3)
+
+        openNewTabPalette(in: app)
+        submitCommandPaletteText("https://www.notion.com", in: app)
+        XCTAssertTrue(
+            waitForState(in: app, containing: "url=https://www.notion.com", timeout: 30),
+            currentState(in: app)
+        )
+        XCTAssertTrue(waitForState(in: app, containing: "loading=false", timeout: 30), currentState(in: app))
+
+        let webView = app.webViews.firstMatch
+        XCTAssertTrue(webView.waitForExistence(timeout: 10), currentState(in: app))
+
+        // The One Tap card renders in a delayed cross-origin iframe.
+        let continueButton = webView.buttons["Continue"].firstMatch
+        guard continueButton.waitForExistence(timeout: 20) else {
+            throw XCTSkip("One Tap prompt did not appear: \(webView.debugDescription.suffix(3000))")
+        }
+        continueButton.click()
+
+        XCTAssertTrue(
+            waitForState(in: app, containing: "url=https://accounts.google.com", timeout: 15),
+            currentState(in: app)
+        )
+        // Give Google's page time to decide whether to keep the popup alive,
+        // and record the timeline so a pass still shows the diagnostics.
+        var timeline: [String] = []
+        for second in 0..<10 {
+            timeline.append("t+\(second)s url=\(stateValue("url", in: app) ?? "?")")
+            sleep(1)
+        }
+        print("POPUP TIMELINE: \(timeline.joined(separator: " ; "))")
+        print("POPUP DIAG: \(stateValue("popupDiag", in: app) ?? "none")")
+        XCTAssertTrue(
+            stateValue("url", in: app)?.hasPrefix("https://accounts.google.com") == true,
+            "popup did not stay open — \(currentState(in: app))"
+        )
+    }
+
+    /// window.open (OAuth sign-in popups, target=_blank) hands Candoa the
+    /// source page's configuration; registering the popup web view against it
+    /// must not re-add script message handlers, which throws and crashed the
+    /// app before the popup could appear.
+    func testWindowOpenPopupOpensTabWithoutCrashing() {
+        let app = launchApp(fixture: "popup-open")
+
+        openFixtureTab(path: "popup", in: app)
+
+        let webView = app.webViews.firstMatch
+        XCTAssertTrue(webView.waitForExistence(timeout: 10), currentState(in: app))
+        webView.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).click()
+
+        XCTAssertTrue(
+            waitForState(in: app, containing: "url=https://fixture.candoa.test/popup-child", timeout: 10),
+            currentState(in: app)
+        )
+        XCTAssertEqual(app.state, .runningForeground)
+    }
+
     private func launchApp(
         fixture: String? = nil,
         onboardingStep: String? = nil,
@@ -1930,6 +2000,22 @@ final class CandoaUITests: XCTestCase {
     private static let pageHTMLFixtures: [String: String] = [
         "split-view": splitFixturePageHTML,
         "split-view-spaces": splitFixturePageHTML,
+        "popup-open": """
+        <!doctype html>
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <script>document.title = location.pathname.slice(1)</script>
+          </head>
+          <body>
+            <script>
+              document.addEventListener("click", () => {
+                window.open("https://fixture.candoa.test/popup-child");
+              });
+            </script>
+          </body>
+        </html>
+        """,
         "history": """
         <!doctype html>
         <html>

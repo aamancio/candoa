@@ -280,6 +280,13 @@ final class BrowserStore: ObservableObject {
     @Published var uiTestingCommandPaletteQuery = ""
     @Published var uiTestingLastCommandDescription = "none"
     @Published var uiTestingWebsiteAppearanceDescription = "pending"
+    @Published var uiTestingPopupDiagnostics: [String] = []
+
+    /// Tabs created locally since the last snapshot save. A remote-state
+    /// apply must not drop these: they exist only in memory, so a snapshot
+    /// loaded mid-race (e.g. a CloudKit import seconds after a sign-in popup
+    /// opens) predates them and would otherwise silently destroy them.
+    var unsyncedLocalTabIDs: Set<UUID> = []
 
     /// Deliberately not @Published: it's consumed by the mini player's mount
     /// (which the activeTabID change already triggers), and publishing it

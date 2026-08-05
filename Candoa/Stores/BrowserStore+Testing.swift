@@ -303,7 +303,8 @@ extension BrowserStore {
             "popover=\(uiTestingVisibleFolderPopoverDescription)",
             "query=\(uiTestingCommandPaletteQuery)",
             "command=\(uiTestingLastCommandDescription)",
-            "pageScheme=\(uiTestingWebsiteAppearanceDescription)"
+            "pageScheme=\(uiTestingWebsiteAppearanceDescription)",
+            "popupDiag=\(uiTestingPopupDiagnostics.joined(separator: "|"))"
         ].joined(separator: ";")
     }
 
