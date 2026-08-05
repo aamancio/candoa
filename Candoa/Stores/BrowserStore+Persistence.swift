@@ -90,6 +90,9 @@ extension BrowserStore {
         guard !isPrivate, !isInitialOnboardingPresented, !isApplyingRemoteState else { return }
 
         workspaceRepository.saveWorkspace(currentSnapshot())
+        // Everything current is now in the persisted snapshot, so a remote
+        // apply loading it back can no longer lose these tabs.
+        unsyncedLocalTabIDs.removeAll()
     }
 
     func currentSnapshot() -> BrowserWindowState {
@@ -121,6 +124,7 @@ extension BrowserStore {
         }
 
         let previousTabs = tabs
+        let previousActiveTabID = activeTabID
         let previousSpaceDataStores = Dictionary(uniqueKeysWithValues: spaces.map { ($0.id, $0.dataStoreID) })
         isApplyingRemoteState = true
         defer { isApplyingRemoteState = false }
@@ -130,6 +134,26 @@ extension BrowserStore {
         tabs = remoteState.tabs
         activeSpaceID = remoteState.activeSpaceID
         activeTabID = remoteState.activeTabID
+
+        // Tabs created locally after the loaded snapshot was written (e.g. a
+        // sign-in popup racing a CloudKit import) aren't in it; dropping them
+        // would destroy live tabs the user is looking at. Carry them over.
+        let remoteTabIDs = Set(tabs.map(\.id))
+        let preservedTabs = previousTabs.filter { tab in
+            unsyncedLocalTabIDs.contains(tab.id)
+                && !remoteTabIDs.contains(tab.id)
+                && spaces.contains { $0.id == tab.spaceID }
+        }
+        if !preservedTabs.isEmpty {
+            tabs.insert(contentsOf: preservedTabs, at: 0)
+            if let previousActiveTabID,
+               preservedTabs.contains(where: { $0.id == previousActiveTabID }) {
+                activeTabID = previousActiveTabID
+                if let activeSpace = preservedTabs.first(where: { $0.id == previousActiveTabID })?.spaceID {
+                    activeSpaceID = activeSpace
+                }
+            }
+        }
         splitTabIDs = remoteState.splitTabIDs
         splitPaneRatios = remoteState.splitPaneRatios
         splitLayout = SplitViewLayout(rawValue: remoteState.splitLayout) ?? .horizontal

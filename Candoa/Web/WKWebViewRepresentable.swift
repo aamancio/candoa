@@ -87,9 +87,12 @@ private final class SplitWebViewHostContainer: NSView {
         // panes relayout under a stationary pointer, so moves re-assert the
         // hover. Tracking areas fire on geometry even while the WKWebView
         // subview consumes the events themselves.
+        // .activeAlways: the hover-revealed pill is the only path to a
+        // pane's controls, so the reveal must not depend on key status —
+        // the first pass over a background window should surface it too.
         let trackingArea = NSTrackingArea(
             rect: bounds,
-            options: [.mouseEnteredAndExited, .mouseMoved, .activeInKeyWindow, .inVisibleRect],
+            options: [.mouseEnteredAndExited, .mouseMoved, .activeAlways, .inVisibleRect],
             owner: self
         )
         addTrackingArea(trackingArea)

@@ -242,12 +242,39 @@ final class CandoaUITests: XCTestCase {
         )
         XCTAssertTrue(waitForState(in: app, containing: "splitTabs=one|two"), currentState(in: app))
 
+        // Dropping the grip on a pane's bottom quarter re-stacks the group
+        // into a column with the dragged pane below its target (Zen-style
+        // edge drop) instead of swapping the two slots.
+        grip.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).press(
+            forDuration: 0.2,
+            thenDragTo: trailingPane.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.85))
+        )
+        XCTAssertTrue(waitForState(in: app, containing: "splitLayout=vertical"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "splitTabs=two|one"), currentState(in: app))
+
         // Zen-style layout shortcuts switch between rows, grid, and columns.
         app.typeKey("v", modifierFlags: [.control, .option])
         XCTAssertTrue(waitForState(in: app, containing: "splitLayout=vertical"), currentState(in: app))
 
         app.typeKey("g", modifierFlags: [.control, .option])
-        XCTAssertTrue(waitForState(in: app, containing: "splitLayout=grid"), currentState(in: app))
+        if !waitForState(in: app, containing: "splitLayout=grid") {
+            // Window managers can claim Control-Option-G as a system-wide
+            // hotkey (Rectangle's recommended scheme binds it to "Last
+            // Third"), consuming the event before the app's local monitor
+            // sees it. Only tolerate the miss when such an app is running,
+            // and still exercise the grid layout via the menu command.
+            XCTAssertFalse(
+                runningGlobalHotkeyApps().isEmpty,
+                "Control-Option-G did not switch to the grid layout and no known global-hotkey app is running: \(currentState(in: app))"
+            )
+            let viewMenu = app.menuBarItems["View"]
+            XCTAssertTrue(viewMenu.waitForExistence(timeout: 5), currentState(in: app))
+            viewMenu.click()
+            let gridItem = app.menuItems["Grid Split Layout"]
+            XCTAssertTrue(gridItem.waitForExistence(timeout: 3), currentState(in: app))
+            gridItem.click()
+            XCTAssertTrue(waitForState(in: app, containing: "splitLayout=grid"), currentState(in: app))
+        }
 
         app.typeKey("h", modifierFlags: [.control, .option])
         XCTAssertTrue(waitForState(in: app, containing: "splitLayout=horizontal"), currentState(in: app))
@@ -1241,6 +1268,23 @@ final class CandoaUITests: XCTestCase {
         assertEqualFrame(webViewHost.frame, expandedSidebarHostFrame)
     }
 
+    func testUpdateBannerOneClickInstallShowsInstallingState() throws {
+        let app = launchApp(updateVersion: "9.9.9")
+
+        XCTAssertTrue(waitForState(in: app, containing: "setup=false"), currentState(in: app))
+
+        let banner = element("sidebar-update-banner", in: app)
+        XCTAssertTrue(banner.waitForExistence(timeout: 5))
+        banner.click()
+
+        // One click must move straight into the install flow — no
+        // intermediate Sparkle dialog — and the pill reports progress.
+        let installingBanner = element("sidebar-update-banner-installing", in: app)
+        XCTAssertTrue(installingBanner.waitForExistence(timeout: 5))
+        XCTAssertFalse(installingBanner.isEnabled)
+        XCTAssertEqual(app.sheets.count, 0)
+    }
+
     func testViewMenuOffersStopAndReloadCommands() throws {
         let app = launchApp()
 
@@ -1840,6 +1884,76 @@ final class CandoaUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Your cart is empty."].waitForExistence(timeout: 5))
     }
 
+    /// Diagnostic: drives the real Google One Tap flow on notion.com and
+    /// captures opener linkage inside the popup via the popup-diagnostics
+    /// script. Requires network access.
+    func testGoogleOneTapPopupDiagnostics() throws {
+        let app = launchApp()
+
+        // Prime the data store with Google cookies the way a real profile has
+        // them (the bug reproduces with prior google-property visits).
+        openNewTabPalette(in: app)
+        submitCommandPaletteText("https://www.youtube.com", in: app)
+        XCTAssertTrue(waitForState(in: app, containing: "loading=false", timeout: 30), currentState(in: app))
+        sleep(3)
+
+        openNewTabPalette(in: app)
+        submitCommandPaletteText("https://www.notion.com", in: app)
+        XCTAssertTrue(
+            waitForState(in: app, containing: "url=https://www.notion.com", timeout: 30),
+            currentState(in: app)
+        )
+        XCTAssertTrue(waitForState(in: app, containing: "loading=false", timeout: 30), currentState(in: app))
+
+        let webView = app.webViews.firstMatch
+        XCTAssertTrue(webView.waitForExistence(timeout: 10), currentState(in: app))
+
+        // The One Tap card renders in a delayed cross-origin iframe.
+        let continueButton = webView.buttons["Continue"].firstMatch
+        guard continueButton.waitForExistence(timeout: 20) else {
+            throw XCTSkip("One Tap prompt did not appear: \(webView.debugDescription.suffix(3000))")
+        }
+        continueButton.click()
+
+        XCTAssertTrue(
+            waitForState(in: app, containing: "url=https://accounts.google.com", timeout: 15),
+            currentState(in: app)
+        )
+        // Give Google's page time to decide whether to keep the popup alive,
+        // and record the timeline so a pass still shows the diagnostics.
+        var timeline: [String] = []
+        for second in 0..<10 {
+            timeline.append("t+\(second)s url=\(stateValue("url", in: app) ?? "?")")
+            sleep(1)
+        }
+        print("POPUP TIMELINE: \(timeline.joined(separator: " ; "))")
+        print("POPUP DIAG: \(stateValue("popupDiag", in: app) ?? "none")")
+        XCTAssertTrue(
+            stateValue("url", in: app)?.hasPrefix("https://accounts.google.com") == true,
+            "popup did not stay open — \(currentState(in: app))"
+        )
+    }
+
+    /// window.open (OAuth sign-in popups, target=_blank) hands Candoa the
+    /// source page's configuration; registering the popup web view against it
+    /// must not re-add script message handlers, which throws and crashed the
+    /// app before the popup could appear.
+    func testWindowOpenPopupOpensTabWithoutCrashing() {
+        let app = launchApp(fixture: "popup-open")
+
+        openFixtureTab(path: "popup", in: app)
+
+        let webView = app.webViews.firstMatch
+        XCTAssertTrue(webView.waitForExistence(timeout: 10), currentState(in: app))
+        webView.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).click()
+
+        XCTAssertTrue(
+            waitForState(in: app, containing: "url=https://fixture.candoa.test/popup-child", timeout: 10),
+            currentState(in: app)
+        )
+        XCTAssertEqual(app.state, .runningForeground)
+    }
+
     private func launchApp(
         fixture: String? = nil,
         onboardingStep: String? = nil,
@@ -1851,7 +1965,8 @@ final class CandoaUITests: XCTestCase {
         cloudKitEntitlement: Bool = false,
         preservesStore: Bool = false,
         forcesLightAppearance: Bool = false,
-        remoteRestoreFixture: Bool = false
+        remoteRestoreFixture: Bool = false,
+        updateVersion: String? = nil
     ) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments += ["-ApplePersistenceIgnoreState", "YES"]
@@ -1892,6 +2007,9 @@ final class CandoaUITests: XCTestCase {
         }
         if remoteRestoreFixture {
             app.launchEnvironment["CANDOA_UI_TESTING_REMOTE_RESTORE_FIXTURE"] = "1"
+        }
+        if let updateVersion {
+            app.launchEnvironment["CANDOA_UI_TESTING_UPDATE_VERSION"] = updateVersion
         }
 
         app.launch()
@@ -1961,6 +2079,22 @@ final class CandoaUITests: XCTestCase {
     private static let pageHTMLFixtures: [String: String] = [
         "split-view": splitFixturePageHTML,
         "split-view-spaces": splitFixturePageHTML,
+        "popup-open": """
+        <!doctype html>
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <script>document.title = location.pathname.slice(1)</script>
+          </head>
+          <body>
+            <script>
+              document.addEventListener("click", () => {
+                window.open("https://fixture.candoa.test/popup-child");
+              });
+            </script>
+          </body>
+        </html>
+        """,
         "history": """
         <!doctype html>
         <html>
@@ -2216,6 +2350,26 @@ final class CandoaUITests: XCTestCase {
             return stateElement.label
         }
         return stateElement.debugDescription
+    }
+
+    /// Window managers and launchers that register Control-Option letter
+    /// combos as system-wide hotkeys. A global hotkey consumes the key
+    /// event before the app's local NSEvent monitor can see it, so
+    /// keystroke-driven assertions are only trustworthy when none of
+    /// these are running.
+    private func runningGlobalHotkeyApps() -> [String] {
+        let knownHotkeyApps: Set<String> = [
+            "com.knollsoft.Rectangle",
+            "com.knollsoft.Hookshot", // Rectangle Pro
+            "com.raycast.macos",
+            "com.crowdcafe.windowmagnet", // Magnet
+            "com.divisiblebyzero.Spectacle",
+            "com.hegenberg.BetterTouchTool",
+            "com.lwouis.alt-tab-macos",
+        ]
+        return NSWorkspace.shared.runningApplications
+            .compactMap(\.bundleIdentifier)
+            .filter(knownHotkeyApps.contains)
     }
 
     private func waitForAskState(in app: XCUIApplication, containing expectedText: String, timeout: TimeInterval = 5) -> Bool {

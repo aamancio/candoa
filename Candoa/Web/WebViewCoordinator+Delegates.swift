@@ -132,6 +132,11 @@ extension WebViewCoordinator {
 
     func webViewDidClose(_ webView: WKWebView) {
         guard let tabID = tabID(for: webView) else { return }
+        if BrowserStore.isUITesting {
+            store?.uiTestingPopupDiagnostics.append(
+                "jsClose href=\(webView.url?.absoluteString.prefix(80) ?? "nil")"
+            )
+        }
         store?.closeTab(tabID)
     }
 

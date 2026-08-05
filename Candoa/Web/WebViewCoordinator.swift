@@ -151,39 +151,57 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         // light and dark sites independently of Candoa's interface appearance.
         applyWebsiteAppearance(to: webView)
 
+        // Popup web views (createWebViewWith) arrive carrying the source
+        // page's configuration, whose content controller is already set up;
+        // re-adding a message handler by the same name throws NSException.
         let contentController = webView.configuration.userContentController
         if let contentRuleList, strictTrackingProtectionEnabled {
+            contentController.remove(contentRuleList)
             contentController.add(contentRuleList)
         }
+        contentController.removeScriptMessageHandler(forName: WebPageScripts.mediaStateMessageName)
         contentController.add(self, name: WebPageScripts.mediaStateMessageName)
+        contentController.removeScriptMessageHandler(forName: WebPageScripts.linkHoverMessageName)
         contentController.add(self, name: WebPageScripts.linkHoverMessageName)
-        contentController.addUserScript(
-            WKUserScript(
-                source: WebPageScripts.mediaObserverScript,
-                injectionTime: .atDocumentStart,
-                forMainFrameOnly: true
-            )
+        addUserScriptOnce(
+            WebPageScripts.mediaObserverScript,
+            to: contentController,
+            forMainFrameOnly: true
         )
-        contentController.addUserScript(
-            WKUserScript(
-                source: WebPageScripts.linkHoverObserverScript,
-                injectionTime: .atDocumentStart,
-                // Every frame: links inside embeds deserve a preview too.
-                forMainFrameOnly: false
-            )
+        addUserScriptOnce(
+            WebPageScripts.linkHoverObserverScript,
+            to: contentController,
+            // Every frame: links inside embeds deserve a preview too.
+            forMainFrameOnly: false
         )
         if BrowserStore.isUITesting {
-            contentController.addUserScript(
-                WKUserScript(
-                    source: "window.__candoaInitialDark = matchMedia('(prefers-color-scheme: dark)').matches",
-                    injectionTime: .atDocumentStart,
-                    forMainFrameOnly: true
-                )
+            addUserScriptOnce(
+                "window.__candoaInitialDark = matchMedia('(prefers-color-scheme: dark)').matches",
+                to: contentController,
+                forMainFrameOnly: true
+            )
+            contentController.removeScriptMessageHandler(forName: WebPageScripts.popupDiagnosticsMessageName)
+            contentController.add(self, name: WebPageScripts.popupDiagnosticsMessageName)
+            addUserScriptOnce(
+                WebPageScripts.popupDiagnosticsScript,
+                to: contentController,
+                forMainFrameOnly: true
             )
         }
         webViews[tabID] = webView
         tabIDsByWebView.setObject(tabID.uuidString as NSString, forKey: webView)
         observe(webView, tabID: tabID)
+    }
+
+    private func addUserScriptOnce(
+        _ source: String,
+        to contentController: WKUserContentController,
+        forMainFrameOnly: Bool
+    ) {
+        guard !contentController.userScripts.contains(where: { $0.source == source }) else { return }
+        contentController.addUserScript(
+            WKUserScript(source: source, injectionTime: .atDocumentStart, forMainFrameOnly: forMainFrameOnly)
+        )
     }
 
     func updateWebsiteAppearance(

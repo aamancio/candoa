@@ -2,6 +2,7 @@ import SwiftUI
 
 internal struct AppUpdateBanner: View {
     let update: AppUpdate
+    let isInstalling: Bool
     let automaticUpdatesEnabled: Binding<Bool>
     let action: () -> Void
 
@@ -11,29 +12,41 @@ internal struct AppUpdateBanner: View {
 
     var body: some View {
         Button(action: action) {
-            Text("New Candoa Version Available")
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(CandoaInterfaceStyle.sidebarText)
-                .lineLimit(1)
-                .minimumScaleFactor(0.82)
-                .frame(maxWidth: .infinity)
-                .frame(height: 38)
-                .background(
-                    RoundedRectangle(cornerRadius: 22, style: .continuous)
-                        .fill(isHovering ? CandoaInterfaceStyle.updateBannerFillHover : CandoaInterfaceStyle.updateBannerFill)
-                )
-                .overlay {
-                    RoundedRectangle(cornerRadius: 22, style: .continuous)
-                        .stroke(CandoaInterfaceStyle.updateBannerStroke, lineWidth: 1)
+            HStack(spacing: 6) {
+                if isInstalling {
+                    ProgressView()
+                        .controlSize(.mini)
+                } else {
+                    Image(systemName: "arrow.down.circle.fill")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(Color.accentColor)
                 }
-                .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+                Text(isInstalling ? "Installing Update…" : "Update Available")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(CandoaInterfaceStyle.sidebarText)
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, 14)
+            .frame(maxWidth: .infinity)
+            .frame(height: 32)
+            .background(
+                Capsule(style: .continuous)
+                    .fill(isHovering && !isInstalling ? CandoaInterfaceStyle.updateBannerFillHover : CandoaInterfaceStyle.updateBannerFill)
+            )
+            .overlay {
+                Capsule(style: .continuous)
+                    .stroke(CandoaInterfaceStyle.updateBannerStroke, lineWidth: 1)
+            }
+            .contentShape(Capsule(style: .continuous))
         }
         .candoaButton(.content)
+        .disabled(isInstalling)
+        .accessibilityIdentifier(isInstalling ? "sidebar-update-banner-installing" : "sidebar-update-banner")
         .onHover { hovering in
             isHovering = hovering
             hoverPresentationTask?.cancel()
 
-            guard hovering, !isUpdatePanelPresented else { return }
+            guard hovering, !isUpdatePanelPresented, !isInstalling else { return }
             hoverPresentationTask = Task { @MainActor in
                 try? await Task.sleep(for: .milliseconds(650))
                 guard !Task.isCancelled, isHovering else { return }
@@ -65,8 +78,17 @@ internal struct AppUpdateBanner: View {
             .padding(14)
             .frame(width: 280)
         }
-        .help("Candoa \(update.version) is available")
+        .help(
+            isInstalling
+                ? "Candoa \(update.version) is installing and will relaunch shortly"
+                : "Candoa \(update.version) is available"
+        )
         .animation(.easeOut(duration: 0.10), value: isHovering)
+        .onChange(of: isInstalling) { installing in
+            if installing {
+                isUpdatePanelPresented = false
+            }
+        }
         .onDisappear {
             hoverPresentationTask?.cancel()
         }

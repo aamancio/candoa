@@ -1,6 +1,24 @@
 enum WebPageScripts {
     static let mediaStateMessageName = "candoaMediaState"
     static let linkHoverMessageName = "candoaLinkHover"
+    static let popupDiagnosticsMessageName = "candoaPopupDiagnostics"
+
+    /// UI-testing only: reports each page's opener linkage so tests can see
+    /// inside cross-origin popups (e.g. OAuth flows) that XCUITest can't reach.
+    static let popupDiagnosticsScript = """
+    (() => {
+      const report = (phase) => {
+        window.webkit?.messageHandlers?.\(popupDiagnosticsMessageName)?.postMessage({
+          phase,
+          href: location.href,
+          opener: window.opener !== null,
+          name: window.name || ""
+        });
+      };
+      report("start");
+      addEventListener("pagehide", () => report("pagehide"));
+    })();
+    """
 
     /// Link-destination preview: posts the hovered link's resolved URL, or
     /// null when the pointer leaves links entirely. Injected into every frame

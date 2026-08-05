@@ -42,6 +42,7 @@ struct SidebarView: View {
     @ObservedObject var store: BrowserStore
     @Environment(\.accessibilityReduceMotion) private var accessibilityReduceMotion
     let availableUpdate: AppUpdate?
+    let isInstallingUpdate: Bool
     let automaticUpdatesEnabled: Binding<Bool>
     let onUpdateBannerTapped: () -> Void
     let onToggleSidebar: () -> Void
@@ -197,6 +198,7 @@ struct SidebarView: View {
         if let availableUpdate {
             AppUpdateBanner(
                 update: availableUpdate,
+                isInstalling: isInstallingUpdate,
                 automaticUpdatesEnabled: automaticUpdatesEnabled,
                 action: onUpdateBannerTapped
             )

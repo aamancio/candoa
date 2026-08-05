@@ -596,6 +596,7 @@ struct ContentView: View {
             SidebarView(
                 store: store,
                 availableUpdate: updateService.availableUpdate,
+                isInstallingUpdate: updateService.isInstallingUpdate,
                 automaticUpdatesEnabled: Binding(
                     get: { updateService.automaticUpdatesEnabled },
                     set: { isEnabled in

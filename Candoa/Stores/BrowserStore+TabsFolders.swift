@@ -174,6 +174,7 @@ extension BrowserStore {
         }
 
         tabs.insert(tab, at: 0)
+        unsyncedLocalTabIDs.insert(tab.id)
         switchTab(to: tab.id)
 
         if !tab.isWelcomePage {
@@ -362,6 +363,7 @@ extension BrowserStore {
         )
 
         tabs.insert(tab, at: 0)
+        unsyncedLocalTabIDs.insert(tab.id)
         switchTab(to: tab.id)
         return tab
     }
