@@ -70,6 +70,7 @@ extension BrowserStore {
     }
 
     func configureRemoteSyncObservation() {
+        configureUITestingRemoteRestoreTrigger()
         guard persistenceService.syncsWorkspaceWithICloud else { return }
 
         remoteChangeCancellable = NotificationCenter.default
@@ -161,7 +162,14 @@ extension BrowserStore {
         // other Spaces must not revive over it.
         suspendedSplitStatesBySpace = [:]
         repairSessionState()
-        if Self.isUITesting {
+        if isInitialOnboardingPresented, !hasCompletedInitialOnboarding, !needsInitialSpaceSetup() {
+            // A CloudKit restore raced first-run setup: iCloud refilled this
+            // Mac with an existing workspace while the new-user wizard was
+            // still on screen. Swap the wizard for a welcome-back
+            // acknowledgment instead of asking the person to import
+            // bookmarks and re-create Spaces they already have.
+            setInitialOnboardingStep(.restoredWorkspace, persists: !Self.isUITesting)
+        } else if Self.isUITesting {
             setInitialOnboardingStep(nil, persists: false)
         } else if needsInitialSpaceSetup() {
             setInitialOnboardingStep(.welcome)

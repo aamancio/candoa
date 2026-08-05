@@ -1,3 +1,4 @@
+import Combine
 import Foundation
 import SQLite3
 
@@ -8,6 +9,77 @@ extension BrowserStore {
 #else
         false
 #endif
+    }
+
+    /// Test-runner signal that stands in for a CloudKit import finishing:
+    /// real remote changes come from `NSPersistentCloudKitContainer`, which
+    /// UI tests can't drive, so the runner posts this distributed
+    /// notification and the app injects a fixture workspace instead.
+    static let uiTestingRemoteRestoreNotification =
+        Notification.Name("app.candoa.uitesting.remote-restore")
+
+    static var uiTestingSimulatesRemoteRestore: Bool {
+        isUITesting
+            && ProcessInfo.processInfo.environment["CANDOA_UI_TESTING_REMOTE_RESTORE_FIXTURE"] == "1"
+    }
+
+    func configureUITestingRemoteRestoreTrigger() {
+        guard Self.uiTestingSimulatesRemoteRestore else { return }
+
+        uiTestingRemoteRestoreCancellable = DistributedNotificationCenter.default()
+            .publisher(for: Self.uiTestingRemoteRestoreNotification)
+            .sink { [weak self] _ in
+                Task { @MainActor [weak self] in
+                    guard let self else { return }
+                    self.workspaceRepository.saveWorkspace(Self.uiTestingRemoteRestoreState())
+                    // One runloop beat so the background save's merge reaches
+                    // the view context before the restore is read back.
+                    try? await Task.sleep(nanoseconds: 200_000_000)
+                    self.applyRemoteStateIfNeeded()
+                }
+            }
+    }
+
+    static func uiTestingRemoteRestoreState() -> BrowserWindowState {
+        let spaceID = UUID(uuidString: "CDCDCDCD-CDCD-CDCD-CDCD-CDCDCDCDCDCD")!
+        let notesTabID = UUID(uuidString: "DEDEDEDE-DEDE-DEDE-DEDE-DEDEDEDEDEDE")!
+        let plannerTabID = UUID(uuidString: "EAEAEAEA-EAEA-EAEA-EAEA-EAEAEAEAEAEA")!
+        let fixtureDate = Date(timeIntervalSince1970: 1_800_000_000)
+
+        let space = BrowserSpace(
+            id: spaceID,
+            name: "Synced",
+            symbolName: "icloud",
+            themeAppearance: BrowserSpace.defaultThemeAppearance
+        )
+        let tabs = [
+            BrowserTab(
+                id: notesTabID,
+                title: "Synced Notes",
+                url: URL(string: "https://fixture.candoa.test/synced-notes")!,
+                spaceID: spaceID,
+                sortOrder: 0,
+                lastAccessedAt: fixtureDate,
+                hasBeenActivated: true
+            ),
+            BrowserTab(
+                id: plannerTabID,
+                title: "Synced Planner",
+                url: URL(string: "https://fixture.candoa.test/synced-planner")!,
+                spaceID: spaceID,
+                sortOrder: 1,
+                lastAccessedAt: fixtureDate.addingTimeInterval(-60),
+                hasBeenActivated: true
+            )
+        ]
+
+        return BrowserWindowState(
+            spaces: [space],
+            folders: [],
+            tabs: tabs,
+            activeSpaceID: spaceID,
+            activeTabID: notesTabID
+        )
     }
 
     static var uiTestingOnboardingStep: InitialOnboardingStep? {

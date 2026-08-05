@@ -19,11 +19,20 @@ extension BrowserStore {
 
     var isInitialOnboardingBlockingBrowsing: Bool {
         switch initialOnboardingStep {
-        case .welcome, .account, .importData, .space:
+        case .welcome, .account, .importData, .space, .restoredWorkspace:
             return true
         case .tour, .none:
             return false
         }
+    }
+
+    /// Whether this Mac has finished first-run onboarding. UI-test launches
+    /// must not read the real defaults domain (a completed flag left by the
+    /// developer's own machine would leak into every test), so there the
+    /// presented step is the source of truth.
+    var hasCompletedInitialOnboarding: Bool {
+        if Self.isUITesting { return initialOnboardingStep == nil }
+        return UserDefaults.standard.bool(forKey: Self.hasCompletedOnboardingKey)
     }
 
     var editingSpace: BrowserSpace? {
@@ -164,9 +173,21 @@ extension BrowserStore {
             setInitialOnboardingStep(.importData)
         case .account:
             setInitialOnboardingStep(.space)
-        case .welcome, .importData, .tour, .none:
+        case .welcome, .importData, .tour, .restoredWorkspace, .none:
             break
         }
+    }
+
+    /// Dismisses the welcome-back card shown when a CloudKit restore landed
+    /// during first-run setup. The person already built this workspace on
+    /// another Mac, so the remaining new-user steps — and the tour — would
+    /// only get between them and their own data.
+    func completeRestoredWorkspaceWelcome() {
+        guard initialOnboardingStep == .restoredWorkspace else { return }
+        UserDefaults.standard.set(true, forKey: Self.hasCompletedOnboardingKey)
+        UserDefaults.standard.set(true, forKey: Self.hasCompletedTourKey)
+        setInitialOnboardingStep(nil)
+        flushSession()
     }
 
     func importInitialBookmarks(
