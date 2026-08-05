@@ -79,6 +79,9 @@ final class AppUpdateService: NSObject, ObservableObject, @preconcurrency SPUSta
     }
 
     func standardUserDriverDidReceiveUserAttention(forUpdate update: SUAppcastItem) {
-        availableUpdate = nil
+        // Deliberately keep `availableUpdate` set: the update is still
+        // pending, so the banner must survive a dismissed or postponed
+        // Sparkle dialog. It only leaves the sidebar when the update
+        // installs (the app relaunches) or the process ends.
     }
 }
