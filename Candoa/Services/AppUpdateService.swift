@@ -6,33 +6,51 @@ struct AppUpdate: Equatable {
     let version: String
 }
 
+/// Drives Sparkle with a custom user driver so the sidebar banner is the whole
+/// update UI: scheduled checks surface the pill quietly, and activating it
+/// downloads, installs, and relaunches in one click — no Sparkle alerts.
 @MainActor
-final class AppUpdateService: NSObject, ObservableObject, @preconcurrency SPUStandardUserDriverDelegate {
+final class AppUpdateService: NSObject, ObservableObject {
     static let shared = AppUpdateService()
 
     @Published private(set) var availableUpdate: AppUpdate?
+    @Published private(set) var isInstallingUpdate = false
     @Published private(set) var automaticUpdatesEnabled: Bool
 
-    private lazy var updaterController = SPUStandardUpdaterController(
-        startingUpdater: true,
-        updaterDelegate: nil,
-        userDriverDelegate: self
+    /// Reply Sparkle is waiting on for an update it surfaced. Holding it keeps
+    /// the session resumable, so the banner can answer `.install` later
+    /// without a second appcast round-trip.
+    private var pendingUpdateReply: ((SPUUserUpdateChoice) -> Void)?
+    private var installOnNextUpdateFound = false
+    private let isUITestingFixture: Bool
+
+    private lazy var updater = SPUUpdater(
+        hostBundle: .main,
+        applicationBundle: .main,
+        userDriver: self,
+        delegate: nil
     )
 
     private override init() {
+        let environment = ProcessInfo.processInfo.environment
+        isUITestingFixture = environment["CANDOA_UI_TESTING"] == "1"
         automaticUpdatesEnabled = true
         super.init()
 
-        // Creating the controller starts Sparkle and resolves the persisted
-        // preference that takes precedence over the Info.plist default.
-        _ = updaterController
-        automaticUpdatesEnabled = updaterController.updater.automaticallyChecksForUpdates
-
-        let environment = ProcessInfo.processInfo.environment
-        if environment["CANDOA_UI_TESTING"] == "1",
-           let version = environment["CANDOA_UI_TESTING_UPDATE_VERSION"] {
-            availableUpdate = AppUpdate(version: version)
+        if isUITestingFixture {
+            // Keep UI-test runs hermetic: the fixture below fakes the banner
+            // and the updater never touches the network.
+            if let version = environment["CANDOA_UI_TESTING_UPDATE_VERSION"] {
+                availableUpdate = AppUpdate(version: version)
+            }
+        } else {
+            do {
+                try updater.start()
+            } catch {
+                NSLog("Sparkle updater failed to start: \(error.localizedDescription)")
+            }
         }
+        automaticUpdatesEnabled = updater.automaticallyChecksForUpdates
     }
 
     func startCheckingForUpdates() {
@@ -43,45 +61,111 @@ final class AppUpdateService: NSObject, ObservableObject, @preconcurrency SPUSta
         // Keep Sparkle's updater alive for the process lifetime.
     }
 
+    /// One-click Arc-style flow for the banner: resume the pending Sparkle
+    /// session (or start a user check) and answer every prompt with
+    /// "install", ending in a relaunch.
     func openAvailableUpdate() {
-        checkForUpdates()
-    }
+        guard !isInstallingUpdate else { return }
+        isInstallingUpdate = true
 
-    func checkForUpdates() {
-        updaterController.checkForUpdates(nil)
+        if isUITestingFixture {
+            return
+        }
+
+        if let reply = pendingUpdateReply {
+            pendingUpdateReply = nil
+            reply(.install)
+        } else {
+            installOnNextUpdateFound = true
+            if !updater.sessionInProgress {
+                updater.checkForUpdates()
+            }
+        }
     }
 
     func setAutomaticUpdatesEnabled(_ isEnabled: Bool) {
-        updaterController.updater.automaticallyChecksForUpdates = isEnabled
-        updaterController.updater.automaticallyDownloadsUpdates = isEnabled
+        updater.automaticallyChecksForUpdates = isEnabled
+        updater.automaticallyDownloadsUpdates = isEnabled
         automaticUpdatesEnabled = isEnabled
     }
+}
 
-    // MARK: - Sparkle gentle reminders
+// MARK: - SPUUserDriver
 
-    var supportsGentleScheduledUpdateReminders: Bool {
-        true
-    }
-
-    func standardUserDriverShouldHandleShowingScheduledUpdate(
-        _ update: SUAppcastItem,
-        andInImmediateFocus immediateFocus: Bool
-    ) -> Bool {
-        false
-    }
-
-    func standardUserDriverWillHandleShowingUpdate(
-        _ handleShowingUpdate: Bool,
-        forUpdate update: SUAppcastItem,
-        state: SPUUserUpdateState
+extension AppUpdateService: @preconcurrency SPUUserDriver {
+    func show(
+        _ request: SPUUpdatePermissionRequest,
+        reply: @escaping (SUUpdatePermissionResponse) -> Void
     ) {
-        availableUpdate = AppUpdate(version: update.displayVersionString)
+        reply(SUUpdatePermissionResponse(automaticUpdateChecks: true, sendSystemProfile: false))
     }
 
-    func standardUserDriverDidReceiveUserAttention(forUpdate update: SUAppcastItem) {
-        // Deliberately keep `availableUpdate` set: the update is still
-        // pending, so the banner must survive a dismissed or postponed
-        // Sparkle dialog. It only leaves the sidebar when the update
-        // installs (the app relaunches) or the process ends.
+    func showUserInitiatedUpdateCheck(cancellation: @escaping () -> Void) {}
+
+    func showUpdateFound(
+        with appcastItem: SUAppcastItem,
+        state: SPUUserUpdateState,
+        reply: @escaping (SPUUserUpdateChoice) -> Void
+    ) {
+        availableUpdate = AppUpdate(version: appcastItem.displayVersionString)
+
+        if installOnNextUpdateFound || isInstallingUpdate {
+            installOnNextUpdateFound = false
+            reply(.install)
+        } else {
+            pendingUpdateReply = reply
+        }
+    }
+
+    func showUpdateReleaseNotes(with downloadData: SPUDownloadData) {}
+
+    func showUpdateReleaseNotesFailedToDownloadWithError(_ error: Error) {}
+
+    func showUpdateNotFoundWithError(_ error: Error, acknowledgement: @escaping () -> Void) {
+        isInstallingUpdate = false
+        installOnNextUpdateFound = false
+        availableUpdate = nil
+        acknowledgement()
+    }
+
+    func showUpdaterError(_ error: Error, acknowledgement: @escaping () -> Void) {
+        // Keep `availableUpdate` set so the banner survives a failed attempt
+        // and the user can retry.
+        NSLog("Sparkle update failed: \(error.localizedDescription)")
+        isInstallingUpdate = false
+        installOnNextUpdateFound = false
+        acknowledgement()
+    }
+
+    func showDownloadInitiated(cancellation: @escaping () -> Void) {}
+
+    func showDownloadDidReceiveExpectedContentLength(_ expectedContentLength: UInt64) {}
+
+    func showDownloadDidReceiveData(ofLength length: UInt64) {}
+
+    func showDownloadDidStartExtractingUpdate() {}
+
+    func showExtractionReceivedProgress(_ progress: Double) {}
+
+    func showReady(toInstallAndRelaunch reply: @escaping (SPUUserUpdateChoice) -> Void) {
+        reply(.install)
+    }
+
+    func showInstallingUpdate(
+        withApplicationTerminated applicationTerminated: Bool,
+        retryTerminatingApplication: @escaping () -> Void
+    ) {}
+
+    func showUpdateInstalledAndRelaunched(_ relaunched: Bool, acknowledgement: @escaping () -> Void) {
+        acknowledgement()
+    }
+
+    func showUpdateInFocus() {}
+
+    func dismissUpdateInstallation() {
+        // Sparkle tears the session down (completion or abort). Keep
+        // `availableUpdate`: the update stays pending until it installs and
+        // the app relaunches.
+        pendingUpdateReply = nil
     }
 }

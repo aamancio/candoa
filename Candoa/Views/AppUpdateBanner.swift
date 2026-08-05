@@ -2,6 +2,7 @@ import SwiftUI
 
 internal struct AppUpdateBanner: View {
     let update: AppUpdate
+    let isInstalling: Bool
     let automaticUpdatesEnabled: Binding<Bool>
     let action: () -> Void
 
@@ -12,10 +13,15 @@ internal struct AppUpdateBanner: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 6) {
-                Image(systemName: "arrow.down.circle.fill")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(Color.accentColor)
-                Text("Update Available")
+                if isInstalling {
+                    ProgressView()
+                        .controlSize(.mini)
+                } else {
+                    Image(systemName: "arrow.down.circle.fill")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(Color.accentColor)
+                }
+                Text(isInstalling ? "Installing Update…" : "Update Available")
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(CandoaInterfaceStyle.sidebarText)
                     .lineLimit(1)
@@ -25,7 +31,7 @@ internal struct AppUpdateBanner: View {
             .frame(height: 32)
             .background(
                 Capsule(style: .continuous)
-                    .fill(isHovering ? CandoaInterfaceStyle.updateBannerFillHover : CandoaInterfaceStyle.updateBannerFill)
+                    .fill(isHovering && !isInstalling ? CandoaInterfaceStyle.updateBannerFillHover : CandoaInterfaceStyle.updateBannerFill)
             )
             .overlay {
                 Capsule(style: .continuous)
@@ -34,11 +40,13 @@ internal struct AppUpdateBanner: View {
             .contentShape(Capsule(style: .continuous))
         }
         .candoaButton(.content)
+        .disabled(isInstalling)
+        .accessibilityIdentifier(isInstalling ? "sidebar-update-banner-installing" : "sidebar-update-banner")
         .onHover { hovering in
             isHovering = hovering
             hoverPresentationTask?.cancel()
 
-            guard hovering, !isUpdatePanelPresented else { return }
+            guard hovering, !isUpdatePanelPresented, !isInstalling else { return }
             hoverPresentationTask = Task { @MainActor in
                 try? await Task.sleep(for: .milliseconds(650))
                 guard !Task.isCancelled, isHovering else { return }
@@ -70,8 +78,17 @@ internal struct AppUpdateBanner: View {
             .padding(14)
             .frame(width: 280)
         }
-        .help("Candoa \(update.version) is available")
+        .help(
+            isInstalling
+                ? "Candoa \(update.version) is installing and will relaunch shortly"
+                : "Candoa \(update.version) is available"
+        )
         .animation(.easeOut(duration: 0.10), value: isHovering)
+        .onChange(of: isInstalling) { installing in
+            if installing {
+                isUpdatePanelPresented = false
+            }
+        }
         .onDisappear {
             hoverPresentationTask?.cancel()
         }

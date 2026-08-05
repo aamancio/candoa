@@ -1205,6 +1205,23 @@ final class CandoaUITests: XCTestCase {
         assertEqualFrame(webViewHost.frame, expandedSidebarHostFrame)
     }
 
+    func testUpdateBannerOneClickInstallShowsInstallingState() throws {
+        let app = launchApp(updateVersion: "9.9.9")
+
+        XCTAssertTrue(waitForState(in: app, containing: "setup=false"), currentState(in: app))
+
+        let banner = element("sidebar-update-banner", in: app)
+        XCTAssertTrue(banner.waitForExistence(timeout: 5))
+        banner.click()
+
+        // One click must move straight into the install flow — no
+        // intermediate Sparkle dialog — and the pill reports progress.
+        let installingBanner = element("sidebar-update-banner-installing", in: app)
+        XCTAssertTrue(installingBanner.waitForExistence(timeout: 5))
+        XCTAssertFalse(installingBanner.isEnabled)
+        XCTAssertEqual(app.sheets.count, 0)
+    }
+
     func testViewMenuOffersStopAndReloadCommands() throws {
         let app = launchApp()
 
@@ -1814,7 +1831,8 @@ final class CandoaUITests: XCTestCase {
         websiteAppearance: String? = nil,
         cloudKitEntitlement: Bool = false,
         preservesStore: Bool = false,
-        forcesLightAppearance: Bool = false
+        forcesLightAppearance: Bool = false,
+        updateVersion: String? = nil
     ) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments += ["-ApplePersistenceIgnoreState", "YES"]
@@ -1852,6 +1870,9 @@ final class CandoaUITests: XCTestCase {
         }
         if preservesStore {
             app.launchEnvironment["CANDOA_UI_TESTING_PRESERVES_STORE"] = "1"
+        }
+        if let updateVersion {
+            app.launchEnvironment["CANDOA_UI_TESTING_UPDATE_VERSION"] = updateVersion
         }
 
         app.launch()
