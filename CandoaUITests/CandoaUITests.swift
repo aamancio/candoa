@@ -777,6 +777,31 @@ final class CandoaUITests: XCTestCase {
         XCTAssertFalse(element("initial-tour-command-bar", in: app).exists)
     }
 
+    func testFirstRunSpaceSetupSeedsStarterFavorites() throws {
+        let app = launchApp(onboardingStep: "space")
+        let createSpaceButton = app.buttons["Create Space"]
+        XCTAssertTrue(createSpaceButton.waitForExistence(timeout: 10))
+
+        createSpaceButton
+            .coordinate(withNormalizedOffset: CGVector(dx: 0.05, dy: 0.5))
+            .click()
+
+        let notNowButton = app.buttons["Not Now"]
+        XCTAssertTrue(notNowButton.waitForExistence(timeout: 10))
+        notNowButton.click()
+
+        XCTAssertTrue(
+            waitForState(
+                in: app,
+                containing: "favorites=YouTube|Wikipedia|Gmail|Google Maps|GitHub",
+                timeout: 10
+            ),
+            currentState(in: app)
+        )
+        let starterTile = element("favorite-tile-youtube", in: app)
+        XCTAssertTrue(starterTile.waitForExistence(timeout: 5), currentState(in: app))
+    }
+
     func testCloudKitRestoreDuringWelcomeShowsWelcomeBackInsteadOfSetup() throws {
         let app = launchApp(onboardingStep: "welcome", remoteRestoreFixture: true)
         XCTAssertTrue(element("initial-onboarding-welcome", in: app).waitForExistence(timeout: 10))
