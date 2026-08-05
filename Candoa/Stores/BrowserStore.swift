@@ -127,6 +127,10 @@ enum InitialOnboardingStep: String, CaseIterable {
     case importData
     case space
     case tour
+    /// A CloudKit restore refilled this Mac with an existing workspace while
+    /// first-run setup was still on screen. Replaces the new-user wizard with
+    /// a welcome-back acknowledgment; the person already has their Spaces.
+    case restoredWorkspace
 
     static let numberedSetupSteps: [Self] = [.importData, .space, .account]
 
@@ -322,6 +326,7 @@ final class BrowserStore: ObservableObject {
     let browserImportService: BrowserImportService
     var saveCancellable: AnyCancellable?
     var remoteChangeCancellable: AnyCancellable?
+    var uiTestingRemoteRestoreCancellable: AnyCancellable?
     var tabSwitcherHideWorkItem: DispatchWorkItem?
     var tabSwitcherShowWorkItem: DispatchWorkItem?
     var copiedURLToastHideWorkItem: DispatchWorkItem?
@@ -479,6 +484,11 @@ final class BrowserStore: ObservableObject {
             switch storedOnboardingStep {
             case .tour:
                 resumableStep = shouldPresentInitialSpaceSetup ? .space : .tour
+            case .restoredWorkspace:
+                // Quit at the welcome-back card: the restored workspace is
+                // already in the local store, so show the card again — unless
+                // the workspace vanished, which restarts new-user setup.
+                resumableStep = shouldPresentInitialSpaceSetup ? .welcome : .restoredWorkspace
             case .welcome, .account, .importData, .space:
                 resumableStep = storedOnboardingStep
             }

@@ -777,6 +777,69 @@ final class CandoaUITests: XCTestCase {
         XCTAssertFalse(element("initial-tour-command-bar", in: app).exists)
     }
 
+    func testCloudKitRestoreDuringWelcomeShowsWelcomeBackInsteadOfSetup() throws {
+        let app = launchApp(onboardingStep: "welcome", remoteRestoreFixture: true)
+        XCTAssertTrue(element("initial-onboarding-welcome", in: app).waitForExistence(timeout: 10))
+
+        postRemoteRestore()
+
+        let restoredStep = element("initial-onboarding-restoredWorkspace", in: app)
+        XCTAssertTrue(
+            restoredStep.waitForExistence(timeout: 10),
+            "A CloudKit restore landing mid-onboarding should swap the wizard for the welcome-back card"
+        )
+        XCTAssertFalse(element("initial-onboarding-welcome", in: app).exists)
+        XCTAssertFalse(element("initial-onboarding-space", in: app).exists)
+
+        app.buttons["Start Browsing"].click()
+
+        let dismissed = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "exists == false"),
+            object: restoredStep
+        )
+        XCTAssertEqual(XCTWaiter.wait(for: [dismissed], timeout: 5), .completed)
+        XCTAssertTrue(
+            waitForState(in: app, containing: "onboarding=none", timeout: 5),
+            currentState(in: app)
+        )
+        XCTAssertTrue(
+            waitForState(in: app, containing: "space=Synced", timeout: 5),
+            "Start Browsing should land in the restored workspace: \(currentState(in: app))"
+        )
+        // The active tab retitles itself once its web view starts loading,
+        // so the background tab is the one that proves the synced tabs came
+        // through intact.
+        XCTAssertTrue(
+            waitForState(in: app, containing: "Synced Planner", timeout: 5),
+            currentState(in: app)
+        )
+        XCTAssertFalse(
+            element("initial-tour-command-bar", in: app).exists,
+            "A returning user should not be walked through the new-user tour"
+        )
+    }
+
+    func testCloudKitRestoreDuringSpaceSetupSkipsCreatingASpace() throws {
+        let app = launchApp(onboardingStep: "space", remoteRestoreFixture: true)
+        XCTAssertTrue(element("initial-onboarding-space", in: app).waitForExistence(timeout: 10))
+
+        postRemoteRestore()
+
+        let restoredStep = element("initial-onboarding-restoredWorkspace", in: app)
+        XCTAssertTrue(
+            restoredStep.waitForExistence(timeout: 10),
+            "The space-setup step should give way to the welcome-back card once iCloud restores existing Spaces"
+        )
+        XCTAssertFalse(element("initial-onboarding-space", in: app).exists)
+        XCTAssertFalse(element("account-onboarding", in: app).exists)
+
+        app.buttons["Start Browsing"].click()
+        XCTAssertTrue(
+            waitForState(in: app, containing: "space=Synced", timeout: 5),
+            currentState(in: app)
+        )
+    }
+
     func testSpaceThemePaletteSavesRestoresAndSurvivesRelaunch() throws {
         let app = launchApp()
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
@@ -1902,6 +1965,7 @@ final class CandoaUITests: XCTestCase {
         cloudKitEntitlement: Bool = false,
         preservesStore: Bool = false,
         forcesLightAppearance: Bool = false,
+        remoteRestoreFixture: Bool = false,
         updateVersion: String? = nil
     ) -> XCUIApplication {
         let app = XCUIApplication()
@@ -1941,12 +2005,27 @@ final class CandoaUITests: XCTestCase {
         if preservesStore {
             app.launchEnvironment["CANDOA_UI_TESTING_PRESERVES_STORE"] = "1"
         }
+        if remoteRestoreFixture {
+            app.launchEnvironment["CANDOA_UI_TESTING_REMOTE_RESTORE_FIXTURE"] = "1"
+        }
         if let updateVersion {
             app.launchEnvironment["CANDOA_UI_TESTING_UPDATE_VERSION"] = updateVersion
         }
 
         app.launch()
         return app
+    }
+
+    /// Stands in for a CloudKit import finishing: the app (launched with
+    /// `remoteRestoreFixture`) listens for this distributed notification and
+    /// injects a synced-workspace fixture through the real remote-apply path.
+    private func postRemoteRestore() {
+        DistributedNotificationCenter.default().postNotificationName(
+            Notification.Name("app.candoa.uitesting.remote-restore"),
+            object: nil,
+            userInfo: nil,
+            deliverImmediately: true
+        )
     }
 
     /// Opens the new-tab palette, retrying because a synthesized ⌘T right
