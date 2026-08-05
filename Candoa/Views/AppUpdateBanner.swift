@@ -11,22 +11,27 @@ internal struct AppUpdateBanner: View {
 
     var body: some View {
         Button(action: action) {
-            Text("New Candoa Version Available")
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(CandoaInterfaceStyle.sidebarText)
-                .lineLimit(1)
-                .minimumScaleFactor(0.82)
-                .frame(maxWidth: .infinity)
-                .frame(height: 38)
-                .background(
-                    RoundedRectangle(cornerRadius: 22, style: .continuous)
-                        .fill(isHovering ? CandoaInterfaceStyle.updateBannerFillHover : CandoaInterfaceStyle.updateBannerFill)
-                )
-                .overlay {
-                    RoundedRectangle(cornerRadius: 22, style: .continuous)
-                        .stroke(CandoaInterfaceStyle.updateBannerStroke, lineWidth: 1)
-                }
-                .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+            HStack(spacing: 6) {
+                Image(systemName: "arrow.down.circle.fill")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Color.accentColor)
+                Text("Update Available")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(CandoaInterfaceStyle.sidebarText)
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, 14)
+            .frame(maxWidth: .infinity)
+            .frame(height: 32)
+            .background(
+                Capsule(style: .continuous)
+                    .fill(isHovering ? CandoaInterfaceStyle.updateBannerFillHover : CandoaInterfaceStyle.updateBannerFill)
+            )
+            .overlay {
+                Capsule(style: .continuous)
+                    .stroke(CandoaInterfaceStyle.updateBannerStroke, lineWidth: 1)
+            }
+            .contentShape(Capsule(style: .continuous))
         }
         .candoaButton(.content)
         .onHover { hovering in
