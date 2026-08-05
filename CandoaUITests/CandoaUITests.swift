@@ -44,6 +44,73 @@ final class CandoaUITests: XCTestCase {
         XCTAssertTrue(waitForState(in: app, containing: "splitActive=one"), currentState(in: app))
     }
 
+    /// Two real bugs shipped past the whole suite because chrome existed in
+    /// the view hierarchy but composited *behind* the AppKit-hosted
+    /// WKWebViews (the pane-reorder ghost and target ring, PR #84): XCUITest
+    /// asserts state and AX presence, not what's on screen. This samples the
+    /// window's real pixels over a solid-green fixture page: the split focus
+    /// ring must visibly appear on the focused pane's edge and vanish when
+    /// focus moves to the other pane.
+    func testSplitFocusRingCompositesAboveWebContent() throws {
+        let app = launchApp(fixture: "split-view-pixels")
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
+
+        openFixtureTab(path: "one", in: app)
+        openFixtureTab(path: "two", in: app)
+
+        app.typeKey("=", modifierFlags: [.control, .shift])
+        XCTAssertTrue(waitForState(in: app, containing: "splitDisplayed=true"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "splitTabs=two|one"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "splitActive=two"), currentState(in: app))
+
+        let leadingPane = element("split-pane-0", in: app)
+        XCTAssertTrue(leadingPane.waitForExistence(timeout: 5), currentState(in: app))
+        let paneFrame = leadingPane.frame
+
+        // The ring is a 1pt strokeBorder on the visible card's edge; a short
+        // horizontal run across the trailing edge at mid-height (clear of the
+        // rounded corners and of the hover-revealed pill) hedges sub-point
+        // frame alignment. The pane center must show the fixture page's
+        // solid green — proving the web content rendered and the capture
+        // isn't blank, so an "unchanged edge" can only mean a layering bug.
+        let edgePoints = (0..<4).map { offset in
+            CGPoint(x: paneFrame.maxX - 0.5 - CGFloat(offset), y: paneFrame.midY)
+        }
+        let centerPoint = CGPoint(x: paneFrame.midX, y: paneFrame.midY)
+
+        // Let the ring's fade-in and the freshly split layout settle.
+        Thread.sleep(forTimeInterval: 0.4)
+        let focusedColors = try windowPixelColors(at: edgePoints + [centerPoint], in: app)
+        XCTAssertTrue(
+            isSolidGreen(focusedColors[edgePoints.count]),
+            "Pane center should show the green fixture page, got \(focusedColors[edgePoints.count])"
+        )
+
+        // Move focus to the trailing pane and resample the same points.
+        let trailingPane = element("split-pane-1", in: app)
+        XCTAssertTrue(trailingPane.waitForExistence(timeout: 5), currentState(in: app))
+        trailingPane.click()
+        XCTAssertTrue(waitForState(in: app, containing: "splitActive=one"), currentState(in: app))
+        Thread.sleep(forTimeInterval: 0.4)
+
+        let unfocusedColors = try windowPixelColors(at: edgePoints + [centerPoint], in: app)
+        XCTAssertTrue(
+            isSolidGreen(unfocusedColors[edgePoints.count]),
+            "Pane center should show the green fixture page, got \(unfocusedColors[edgePoints.count])"
+        )
+
+        let edgeDelta = zip(focusedColors, unfocusedColors)
+            .prefix(edgePoints.count)
+            .map { zip($0, $1).map { abs($0 - $1) }.max() ?? 0 }
+            .max() ?? 0
+        XCTAssertGreaterThan(
+            edgeDelta,
+            24,
+            "Focus ring never composited over the pane edge: "
+                + "focused=\(focusedColors) unfocused=\(unfocusedColors)"
+        )
+    }
+
     func testSplitPaneGripEdgeDropStacksVertically() throws {
         let app = launchApp(fixture: "split-view")
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
@@ -2081,6 +2148,63 @@ final class CandoaUITests: XCTestCase {
         )
     }
 
+    /// Samples the composited window pixels at the given screen points from a
+    /// runner-side screenshot, as [red, green, blue] 0–255 triples.
+    /// Screenshots capture the real window-server output — including the
+    /// out-of-process WKWebView layers an in-process snapshot can't see — so
+    /// these assertions catch chrome that exists in the AX hierarchy but
+    /// renders behind the web content. Not usable mid-drag: event synthesis
+    /// blocks the test thread, so sample before and after a drag instead.
+    private func windowPixelColors(
+        at screenPoints: [CGPoint],
+        in app: XCUIApplication
+    ) throws -> [[Int]] {
+        let window = app.windows.firstMatch
+        let windowFrame = window.frame
+        let image = try XCTUnwrap(
+            window.screenshot().image.cgImage(forProposedRect: nil, context: nil, hints: nil),
+            "Window screenshot produced no bitmap"
+        )
+
+        let width = image.width
+        let height = image.height
+        let colorSpace = try XCTUnwrap(CGColorSpace(name: CGColorSpace.sRGB))
+        var buffer = [UInt8](repeating: 0, count: width * height * 4)
+        try buffer.withUnsafeMutableBytes { bytes in
+            let context = try XCTUnwrap(
+                CGContext(
+                    data: bytes.baseAddress,
+                    width: width,
+                    height: height,
+                    bitsPerComponent: 8,
+                    bytesPerRow: width * 4,
+                    space: colorSpace,
+                    bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+                ),
+                "Could not create the pixel-sampling bitmap context"
+            )
+            context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+        }
+
+        // XCUITest frames and the screenshot share a top-left origin, and the
+        // bitmap's first row is the top scanline, so only scaling remains.
+        let scaleX = CGFloat(width) / windowFrame.width
+        let scaleY = CGFloat(height) / windowFrame.height
+        return screenPoints.map { point in
+            let pixelX = min(max(Int((point.x - windowFrame.minX) * scaleX), 0), width - 1)
+            let pixelY = min(max(Int((point.y - windowFrame.minY) * scaleY), 0), height - 1)
+            let index = (pixelY * width + pixelX) * 4
+            return [Int(buffer[index]), Int(buffer[index + 1]), Int(buffer[index + 2])]
+        }
+    }
+
+    /// Loose match for the pixel fixture pages' #00ff00 background: display
+    /// color-profile conversion shifts the captured channels, so this checks
+    /// "unmistakably green", not equality.
+    private func isSolidGreen(_ color: [Int]) -> Bool {
+        color.count == 3 && color[0] <= 100 && color[1] >= 180 && color[2] <= 100
+    }
+
     /// Reads one key's value out of the semicolon-separated testing state.
     private func stateValue(_ key: String, in app: XCUIApplication) -> String? {
         currentState(in: app)
@@ -2101,9 +2225,25 @@ final class CandoaUITests: XCTestCase {
     </html>
     """
 
+    /// A solid #00ff00 page so pixel sampling has an unmistakable baseline:
+    /// the pane center proves web content rendered, and any chrome drawn
+    /// over the page must move a sampled channel away from pure green.
+    private static let pixelProbeFixturePageHTML = """
+    <!doctype html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <script>document.title = location.pathname.slice(1)</script>
+        <style>html, body { margin: 0; height: 100%; background: #00ff00; }</style>
+      </head>
+      <body></body>
+    </html>
+    """
+
     private static let pageHTMLFixtures: [String: String] = [
         "split-view": splitFixturePageHTML,
         "split-view-spaces": splitFixturePageHTML,
+        "split-view-pixels": pixelProbeFixturePageHTML,
         "popup-open": """
         <!doctype html>
         <html>

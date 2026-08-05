@@ -499,9 +499,11 @@ extension BrowserStore {
             return crossSpaceDuplicateURLFixtureState()
         }
 
-        if fixture == "split-view" {
+        if fixture == "split-view" || fixture == "split-view-pixels" {
             // An empty Space: split tests open exactly the fixture tabs they
             // need, so the seed tabs can't shift replacement-pane selection.
+            // The pixels variant loads solid-color fixture pages so pixel
+            // sampling has a known web-content baseline.
             return testingBotFixtureState(includesSeedTabs: false)
         }
 
