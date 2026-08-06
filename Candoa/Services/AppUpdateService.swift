@@ -23,6 +23,11 @@ final class AppUpdateService: NSObject, ObservableObject {
     private var pendingUpdateReply: ((SPUUserUpdateChoice) -> Void)?
     private var installOnNextUpdateFound = false
     private let isUITestingFixture: Bool
+    /// Development builds carry the repo's placeholder version stamp (CI
+    /// writes the real one at release), so the production appcast always
+    /// looks newer than a local build. Debug runs the updater only against
+    /// an explicit feed override (the localhost E2E recipe's `-SUFeedURL`).
+    private let isUpdaterActive: Bool
 
     private lazy var updater = SPUUpdater(
         hostBundle: .main,
@@ -34,6 +39,12 @@ final class AppUpdateService: NSObject, ObservableObject {
     private override init() {
         let environment = ProcessInfo.processInfo.environment
         isUITestingFixture = environment["CANDOA_UI_TESTING"] == "1"
+#if DEBUG
+        isUpdaterActive = !isUITestingFixture
+            && UserDefaults.standard.string(forKey: "SUFeedURL") != nil
+#else
+        isUpdaterActive = !isUITestingFixture
+#endif
         automaticUpdatesEnabled = true
         super.init()
 
@@ -43,14 +54,14 @@ final class AppUpdateService: NSObject, ObservableObject {
             if let version = environment["CANDOA_UI_TESTING_UPDATE_VERSION"] {
                 availableUpdate = AppUpdate(version: version)
             }
-        } else {
+        } else if isUpdaterActive {
             do {
                 try updater.start()
             } catch {
                 NSLog("Sparkle updater failed to start: \(error.localizedDescription)")
             }
+            automaticUpdatesEnabled = updater.automaticallyChecksForUpdates
         }
-        automaticUpdatesEnabled = updater.automaticallyChecksForUpdates
     }
 
     func startCheckingForUpdates() {
@@ -71,6 +82,10 @@ final class AppUpdateService: NSObject, ObservableObject {
         if isUITestingFixture {
             return
         }
+        guard isUpdaterActive else {
+            isInstallingUpdate = false
+            return
+        }
 
         if let reply = pendingUpdateReply {
             pendingUpdateReply = nil
@@ -84,8 +99,10 @@ final class AppUpdateService: NSObject, ObservableObject {
     }
 
     func setAutomaticUpdatesEnabled(_ isEnabled: Bool) {
-        updater.automaticallyChecksForUpdates = isEnabled
-        updater.automaticallyDownloadsUpdates = isEnabled
+        if isUpdaterActive {
+            updater.automaticallyChecksForUpdates = isEnabled
+            updater.automaticallyDownloadsUpdates = isEnabled
+        }
         automaticUpdatesEnabled = isEnabled
     }
 }
