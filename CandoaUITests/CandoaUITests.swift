@@ -908,6 +908,14 @@ final class CandoaUITests: XCTestCase {
             FileManager.default.fileExists(atPath: landedFile.path),
             "The downloaded file must land in ~/Downloads"
         )
+
+        // A fresh download surfaces the popover on its own — silent saves
+        // read as a dead button.
+        XCTAssertTrue(
+            waitForState(in: app, containing: "downloadsShown=true", timeout: 5),
+            currentState(in: app)
+        )
+        XCTAssertTrue(element("downloads-popover", in: app).waitForExistence(timeout: 5))
     }
 
     private func removeE2EDownloadArtifacts(in directory: URL) {
