@@ -46,13 +46,13 @@ struct TabRecoveryView: View {
             Button(failure.retryTitle, action: onRetry)
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
-                .tint(CandoaColor.accent)
+                .tint(AppColor.accent)
                 .keyboardShortcut(.defaultAction)
                 .accessibilityIdentifier("tab-recovery-retry")
         }
         .padding(40)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(CandoaInterfaceStyle.workspaceBackground)
+        .background(InterfaceStyle.workspaceBackground)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("tab-recovery-view")
     }

@@ -1,6 +1,6 @@
 import Foundation
 
-struct CandoaAIConversationTurn: Sendable {
+struct AIConversationTurn: Sendable {
     enum Role: Sendable {
         case user
         case assistant
@@ -10,7 +10,7 @@ struct CandoaAIConversationTurn: Sendable {
     let text: String
 }
 
-struct CandoaAIPageContext: Sendable {
+struct AIPageContext: Sendable {
     let title: String?
     let url: String?
     let text: String?

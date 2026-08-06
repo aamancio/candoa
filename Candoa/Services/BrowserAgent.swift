@@ -1,6 +1,6 @@
 import Foundation
 
-enum CandoaPageActionKind: String, Codable, Sendable {
+enum PageActionKind: String, Codable, Sendable {
     case navigate
     case click
     case select
@@ -8,7 +8,7 @@ enum CandoaPageActionKind: String, Codable, Sendable {
     case scroll
 }
 
-struct CandoaBrowserAgentControl: Codable, Sendable {
+struct BrowserAgentControl: Codable, Sendable {
     enum Kind: String, Codable, Sendable {
         case link
         case button
@@ -62,20 +62,20 @@ struct CandoaBrowserAgentControl: Codable, Sendable {
     }
 }
 
-struct CandoaBrowserAgentPage: Codable, Sendable {
+struct BrowserAgentPage: Codable, Sendable {
     let snapshotID: UUID
     let title: String?
     let url: String
     let text: String
-    let controls: [CandoaBrowserAgentControl]
+    let controls: [BrowserAgentControl]
 }
 
-struct CandoaBrowserAgentSnapshot: Sendable {
+struct BrowserAgentSnapshot: Sendable {
     let id: UUID
-    let controls: [CandoaBrowserAgentControl]
+    let controls: [BrowserAgentControl]
 }
 
-struct CandoaBrowserAgentActionOutcome: Codable, Sendable {
+struct BrowserAgentActionOutcome: Codable, Sendable {
     enum Status: String, Codable, Sendable {
         case executed
         case failed
@@ -84,10 +84,10 @@ struct CandoaBrowserAgentActionOutcome: Codable, Sendable {
 
     let status: Status
     let result: String
-    let page: CandoaBrowserAgentPage?
+    let page: BrowserAgentPage?
 }
 
-struct CandoaBrowserAgentRunResponse: Codable, Sendable {
+struct BrowserAgentRunResponse: Codable, Sendable {
     enum Status: String, Codable, Sendable {
         case action
         case complete
@@ -97,12 +97,12 @@ struct CandoaBrowserAgentRunResponse: Codable, Sendable {
     let runID: UUID
     let status: Status
     let message: String
-    let action: CandoaBrowserAgentAction?
+    let action: BrowserAgentAction?
 }
 
-struct CandoaBrowserAgentAction: Codable, Sendable {
+struct BrowserAgentAction: Codable, Sendable {
     let snapshotID: UUID
-    let kind: CandoaPageActionKind
+    let kind: PageActionKind
     let target: String
     let value: String
     let label: String
@@ -110,11 +110,11 @@ struct CandoaBrowserAgentAction: Codable, Sendable {
     let requiresApproval: Bool
     let message: String
 
-    func validatedAction(on page: CandoaBrowserAgentPage) -> CandoaPageActionProposal? {
+    func validatedAction(on page: BrowserAgentPage) -> PageActionProposal? {
         guard page.snapshotID == snapshotID else { return nil }
         if kind == .scroll {
             guard ["up", "down"].contains(target) else { return nil }
-            return CandoaPageActionProposal(
+            return PageActionProposal(
                 kind: .scroll,
                 target: target,
                 value: nil,
@@ -149,7 +149,7 @@ struct CandoaBrowserAgentAction: Codable, Sendable {
             break
         }
 
-        return CandoaPageActionProposal(
+        return PageActionProposal(
             kind: kind,
             target: kind == .navigate ? (control.url ?? control.label) : control.label,
             value: value.isEmpty ? nil : value,
@@ -175,20 +175,20 @@ struct CandoaBrowserAgentAction: Codable, Sendable {
     }
 }
 
-enum CandoaBrowserAgentPolicy {
+enum BrowserAgentPolicy {
     /// The model's `requiresApproval` judgment is a floor, never a ceiling: an action
     /// that targets a structurally sensitive control (per the snapshot's DOM semantics)
     /// must be confirmed natively even when the server marked it routine.
     static func requiresNativeApproval(
-        for action: CandoaBrowserAgentAction,
-        on page: CandoaBrowserAgentPage
+        for action: BrowserAgentAction,
+        on page: BrowserAgentPage
     ) -> Bool {
         if action.requiresApproval { return true }
         guard action.kind != .scroll else { return false }
         return page.controls.first(where: { $0.ref == action.target })?.sensitive == true
     }
 
-    static func sensitiveConfirmationMessage(for action: CandoaPageActionProposal) -> String {
+    static func sensitiveConfirmationMessage(for action: PageActionProposal) -> String {
         switch action.kind {
         case .click:
             return "Eli is ready to activate \"\(action.target)\". This may make a consequential change to your account."
@@ -204,27 +204,27 @@ enum CandoaBrowserAgentPolicy {
     }
 }
 
-enum CandoaBrowserAgentRemoteService {
+enum BrowserAgentRemoteService {
     static func start(
         runID: UUID,
         goal: String,
-        page: CandoaBrowserAgentPage
-    ) async throws -> CandoaBrowserAgentRunResponse {
+        page: BrowserAgentPage
+    ) async throws -> BrowserAgentRunResponse {
         try await advance(RunRequest(runID: runID, start: .init(goal: goal, page: page), outcome: nil))
     }
 
     static func resume(
         runID: UUID,
-        outcome: CandoaBrowserAgentActionOutcome
-    ) async throws -> CandoaBrowserAgentRunResponse {
+        outcome: BrowserAgentActionOutcome
+    ) async throws -> BrowserAgentRunResponse {
         try await advance(RunRequest(runID: runID, start: nil, outcome: outcome))
     }
 
-    private static func advance(_ payload: RunRequest) async throws -> CandoaBrowserAgentRunResponse {
-        guard let accessToken = CandoaAccountKeychain.accessToken else {
-            throw CandoaRemoteEliError.missingAccountSession
+    private static func advance(_ payload: RunRequest) async throws -> BrowserAgentRunResponse {
+        guard let accessToken = AccountKeychain.accessToken else {
+            throw RemoteEliError.missingAccountSession
         }
-        var request = URLRequest(url: CandoaCloudAPI.aiAgentRunURL)
+        var request = URLRequest(url: CloudAPI.aiAgentRunURL)
         request.httpMethod = "POST"
         request.timeoutInterval = 45
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -233,29 +233,29 @@ enum CandoaBrowserAgentRemoteService {
 
         let (data, response) = try await URLSession.shared.data(for: request)
         try validate(response: response, data: data)
-        return try JSONDecoder().decode(CandoaBrowserAgentRunResponse.self, from: data)
+        return try JSONDecoder().decode(BrowserAgentRunResponse.self, from: data)
     }
 
     private static func validate(response: URLResponse, data: Data) throws {
         guard let response = response as? HTTPURLResponse else {
-            throw CandoaRemoteEliError.invalidResponse
+            throw RemoteEliError.invalidResponse
         }
         guard (200...299).contains(response.statusCode) else {
             let message = (try? JSONDecoder().decode(ServerError.self, from: data))?.error
                 ?? "Eli could not continue the browser task."
-            throw CandoaRemoteEliError.server(message)
+            throw RemoteEliError.server(message)
         }
     }
 
     private struct RunRequest: Encodable {
         let runID: UUID
         let start: Start?
-        let outcome: CandoaBrowserAgentActionOutcome?
+        let outcome: BrowserAgentActionOutcome?
     }
 
     private struct Start: Encodable {
         let goal: String
-        let page: CandoaBrowserAgentPage
+        let page: BrowserAgentPage
     }
 
     private struct ServerError: Decodable {

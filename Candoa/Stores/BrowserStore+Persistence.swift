@@ -9,7 +9,7 @@ extension BrowserStore {
     func setWorkspaceICloudSyncEnabled(_ enabled: Bool) {
         guard iCloudWorkspaceSyncEnabled != enabled else { return }
 
-        if enabled, !CandoaCloudKitEntitlements.hasConfiguredContainer {
+        if enabled, !CloudKitEntitlements.hasConfiguredContainer {
             syncRestartMessage = """
             This build is not signed with the CloudKit entitlement yet. Enable the iCloud capability for iCloud.app.candoa.browser in Xcode, then build with your Apple Developer team.
             """
@@ -17,7 +17,7 @@ extension BrowserStore {
         }
 
         iCloudWorkspaceSyncEnabled = enabled
-        CandoaSyncPreferences.syncsWorkspaceWithICloud = enabled
+        SyncPreferences.syncsWorkspaceWithICloud = enabled
 
         if !enabled {
             iCloudHistorySyncEnabled = false
@@ -31,7 +31,7 @@ extension BrowserStore {
     func setHistoryICloudSyncEnabled(_ enabled: Bool) {
         guard iCloudHistorySyncEnabled != enabled else { return }
 
-        if enabled, !CandoaCloudKitEntitlements.hasConfiguredContainer {
+        if enabled, !CloudKitEntitlements.hasConfiguredContainer {
             syncRestartMessage = """
             This build is not signed with the CloudKit entitlement yet. Enable the iCloud capability for iCloud.app.candoa.browser in Xcode before syncing history.
             """
@@ -43,7 +43,7 @@ extension BrowserStore {
         }
 
         iCloudHistorySyncEnabled = enabled
-        CandoaSyncPreferences.syncsHistoryWithICloud = enabled
+        SyncPreferences.syncsHistoryWithICloud = enabled
         syncRestartMessage = enabled
             ? "Candoa will sync browsing history through your iCloud database after you relaunch the app."
             : "Candoa will keep browsing history local-only after you relaunch the app."

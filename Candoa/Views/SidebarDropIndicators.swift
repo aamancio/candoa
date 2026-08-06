@@ -9,7 +9,7 @@ internal struct SidebarHorizontalDropLine: View {
                 .strokeBorder(tint.opacity(0.92), lineWidth: 2)
                 .background(
                     Circle()
-                        .fill(CandoaInterfaceStyle.sidebarBackground)
+                        .fill(InterfaceStyle.sidebarBackground)
                 )
                 .frame(width: 7, height: 7)
 
@@ -54,7 +54,7 @@ internal extension View {
         .overlay {
             if showsSplit {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(CandoaInterfaceStyle.sidebarControlFillDropTarget)
+                    .fill(InterfaceStyle.sidebarControlFillDropTarget)
                     .allowsHitTesting(false)
 
                 RoundedRectangle(cornerRadius: 8, style: .continuous)

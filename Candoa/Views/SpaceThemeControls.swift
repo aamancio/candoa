@@ -156,11 +156,11 @@ internal struct ThemeIconButton: View {
         Button(action: action) {
             Image(systemName: systemName)
                 .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(CandoaInterfaceStyle.sidebarText.opacity(isEnabled ? 0.92 : 0.34))
+                .foregroundStyle(InterfaceStyle.sidebarText.opacity(isEnabled ? 0.92 : 0.34))
                 .frame(width: 22, height: 24)
                 .contentShape(Rectangle())
         }
-        .candoaButton(.content)
+        .buttonTreatment(.content)
         .help(help)
         .accessibilityLabel(help)
     }
@@ -182,7 +182,7 @@ internal struct ThemeHarmonyButton: View {
             Image(systemName: "point.3.connected.trianglepath.dotted")
                 .font(.system(size: 17, weight: .semibold))
                 .symbolRenderingMode(.hierarchical)
-                .foregroundStyle(CandoaInterfaceStyle.sidebarText.opacity(isEnabled ? (isActive ? 0.94 : 0.54) : 0.30))
+                .foregroundStyle(InterfaceStyle.sidebarText.opacity(isEnabled ? (isActive ? 0.94 : 0.54) : 0.30))
                 .frame(width: 34, height: 32)
                 .background(
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
@@ -190,7 +190,7 @@ internal struct ThemeHarmonyButton: View {
                 )
                 .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         }
-        .candoaButton(.content)
+        .buttonTreatment(.content)
         .help(isEnabled ? "Auto-arrange colors" : "Add another color to use harmony")
         .accessibilityLabel("Color Harmony")
         .onHover { hovering in

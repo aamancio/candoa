@@ -23,7 +23,7 @@ final class SpaceChromeTransition: ObservableObject {
     }
 }
 
-struct CandoaWindowBackdrop: View {
+struct WindowBackdrop: View {
     @ObservedObject var store: BrowserStore
     @ObservedObject private var chromeTransition: SpaceChromeTransition
 
@@ -166,7 +166,7 @@ struct CandoaWindowBackdrop: View {
             // drawn, instead of compositing over whatever sits beneath it.
             // underPageBackgroundColor is translucent in light appearance.
             Color(nsColor: .windowBackgroundColor)
-            CandoaInterfaceStyle.neutralWindowBackdrop
+            InterfaceStyle.neutralWindowBackdrop
             if usesSetupInterface {
                 if let themeHex = store.activeThemeColorHexes.first {
                     Color(spaceHex: themeHex)
@@ -230,11 +230,11 @@ private extension NSColor {
 /// overlays the web surface. Docked sidebars draw no backdrop of their own so
 /// the one window-wide surface shows through and both lanes match the center
 /// exactly.
-struct CandoaSidebarBackdrop: View {
+struct SidebarBackdrop: View {
     @ObservedObject var store: BrowserStore
 
     var body: some View {
-        CandoaWindowBackdrop(store: store)
+        WindowBackdrop(store: store)
     }
 }
 

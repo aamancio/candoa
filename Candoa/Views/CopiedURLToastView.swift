@@ -24,15 +24,15 @@ struct CopiedURLToastView: View {
 
     private var glyphWellFill: Color {
         isShareHovered
-            ? CandoaInterfaceStyle.feedbackButtonFillHover
-            : CandoaInterfaceStyle.feedbackButtonFill
+            ? InterfaceStyle.feedbackButtonFillHover
+            : InterfaceStyle.feedbackButtonFill
     }
 
     var body: some View {
         HStack(spacing: 8) {
             Text(toast.title)
                 .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(CandoaInterfaceStyle.feedbackText)
+                .foregroundStyle(InterfaceStyle.feedbackText)
                 .lineLimit(1)
                 .padding(.horizontal, 4)
 
@@ -44,14 +44,14 @@ struct CopiedURLToastView: View {
             } label: {
                 Image(systemName: "square.and.arrow.up")
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(CandoaInterfaceStyle.feedbackText)
+                    .foregroundStyle(InterfaceStyle.feedbackText)
                     .frame(width: 28, height: 28)
                     .background(
                         RoundedRectangle(cornerRadius: 6, style: .continuous)
                             .fill(glyphWellFill)
                     )
             }
-            .candoaButton(.content)
+            .buttonTreatment(.content)
             .background(SharePickerAnchor(coordinator: sharePicker))
             .onHover { isShareHovered = $0 }
             .accessibilityLabel("Share URL")
@@ -61,7 +61,7 @@ struct CopiedURLToastView: View {
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .stroke(CandoaInterfaceStyle.popoverBorder, lineWidth: 1)
+                .stroke(InterfaceStyle.popoverBorder, lineWidth: 1)
         }
         .shadow(color: Color(nsColor: .shadowColor).opacity(0.20), radius: 11)
         .animation(.easeOut(duration: 0.10), value: isShareHovered)

@@ -25,7 +25,7 @@ struct EliSidebarView: View {
     @State private var selectedMentionIndex = 0
     @State private var streamTask: Task<Void, Never>?
     @State private var includesCurrentPageContext = true
-    @State private var lastSubmittedPageContext: CandoaAIPageContext?
+    @State private var lastSubmittedPageContext: AIPageContext?
     @State private var pendingBrowserControl: PendingBrowserControl?
     @State private var pendingSensitiveAgentAction: PendingSensitiveAgentAction?
     @State private var browserAgentTask: Task<Void, Never>?
@@ -153,7 +153,7 @@ struct EliSidebarView: View {
     }
 
     private var hasPersonalEliAccess: Bool {
-        CandoaEliPreferences.usesPersonalOpenAIKey && CandoaEliKeychain.hasAPIKey
+        EliPreferences.hasDirectEliAccess
     }
 
     private var hasEliAccess: Bool {
@@ -298,7 +298,7 @@ struct EliSidebarView: View {
             Button("Stop", role: .cancel) { stopPendingSensitiveAgentAction() }
         } message: {
             if let pendingSensitiveAgentAction {
-                Text(CandoaBrowserAgentPolicy.sensitiveConfirmationMessage(for: pendingSensitiveAgentAction.action))
+                Text(BrowserAgentPolicy.sensitiveConfirmationMessage(for: pendingSensitiveAgentAction.action))
                     .accessibilityIdentifier("eli-sensitive-action-message")
             }
         }
@@ -352,15 +352,15 @@ struct EliSidebarView: View {
             Image(systemName: "at")
                 .font(.system(size: 28, weight: .medium))
                 .symbolRenderingMode(.hierarchical)
-                .foregroundStyle(CandoaInterfaceStyle.sidebarIcon)
+                .foregroundStyle(InterfaceStyle.sidebarIcon)
 
             Text("Ask about this page or another tab")
                 .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(CandoaInterfaceStyle.sidebarText)
+                .foregroundStyle(InterfaceStyle.sidebarText)
 
             Text("Type @ to mention a tab")
                 .font(.system(size: 12.5))
-                .foregroundStyle(CandoaInterfaceStyle.sidebarTextSecondary)
+                .foregroundStyle(InterfaceStyle.sidebarTextSecondary)
 
             VStack(spacing: 6) {
                 AISidebarExamplePromptButton(
@@ -480,11 +480,11 @@ struct EliSidebarView: View {
         .padding(.bottom, hasContext ? 10 : 9)
         .background {
             RoundedRectangle(cornerRadius: hasContext ? 16 : 14, style: .continuous)
-                .fill(CandoaInterfaceStyle.sidebarControlFill)
+                .fill(InterfaceStyle.sidebarControlFill)
         }
         .overlay {
             RoundedRectangle(cornerRadius: hasContext ? 16 : 14, style: .continuous)
-                .stroke(CandoaInterfaceStyle.sidebarControlStroke, lineWidth: 1)
+                .stroke(InterfaceStyle.sidebarControlStroke, lineWidth: 1)
         }
     }
 
@@ -492,7 +492,7 @@ struct EliSidebarView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(speechController.displayText)
                 .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(CandoaInterfaceStyle.sidebarTextSecondary)
+                .foregroundStyle(InterfaceStyle.sidebarTextSecondary)
                 .lineLimit(1)
                 .padding(.leading, 4)
 
@@ -502,10 +502,10 @@ struct EliSidebarView: View {
                 } label: {
                     Image(systemName: "xmark")
                         .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(CandoaInterfaceStyle.sidebarIcon)
+                        .foregroundStyle(InterfaceStyle.sidebarIcon)
                         .frame(width: 22, height: 22)
                 }
-                .candoaButton(.chrome)
+                .buttonTreatment(.chrome)
                 .disabled(!speechController.isListening)
                 .help("Cancel Dictation")
 
@@ -514,7 +514,7 @@ struct EliSidebarView: View {
 
                 Text(speechController.elapsedText)
                     .font(.system(size: 12, weight: .semibold, design: .monospaced))
-                    .foregroundStyle(CandoaInterfaceStyle.sidebarIcon)
+                    .foregroundStyle(InterfaceStyle.sidebarIcon)
                     .frame(width: 38, alignment: .trailing)
 
                 Button {
@@ -523,10 +523,10 @@ struct EliSidebarView: View {
                     Image(systemName: "stop.circle.fill")
                         .font(.system(size: 17, weight: .semibold))
                         .symbolRenderingMode(.hierarchical)
-                        .foregroundStyle(speechController.isListening ? CandoaInterfaceStyle.sidebarTextSecondary : CandoaInterfaceStyle.sidebarIcon)
+                        .foregroundStyle(speechController.isListening ? InterfaceStyle.sidebarTextSecondary : InterfaceStyle.sidebarIcon)
                         .frame(width: 22, height: 22)
                 }
-                .candoaButton(.chrome)
+                .buttonTreatment(.chrome)
                 .disabled(!speechController.isListening)
                 .help("Stop Dictation")
             }
@@ -561,7 +561,7 @@ struct EliSidebarView: View {
         VStack(alignment: .leading, spacing: 7) {
             Text("TABS")
                 .font(.system(size: 11, weight: .bold))
-                .foregroundStyle(CandoaInterfaceStyle.sidebarTextSecondary)
+                .foregroundStyle(InterfaceStyle.sidebarTextSecondary)
                 .padding(.horizontal, 10)
 
             ForEach(Array(tabMentionOptions.enumerated()), id: \.element.id) { index, option in
@@ -576,7 +576,7 @@ struct EliSidebarView: View {
 
                 Text("FILES")
                     .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(CandoaInterfaceStyle.sidebarTextSecondary)
+                    .foregroundStyle(InterfaceStyle.sidebarTextSecondary)
                     .padding(.horizontal, 10)
 
                 ForEach(Array(fileMentionOptions.enumerated()), id: \.element.id) { index, option in
@@ -589,11 +589,11 @@ struct EliSidebarView: View {
         }
         .padding(8)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(CandoaInterfaceStyle.popoverBackground)
+        .background(InterfaceStyle.popoverBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(CandoaInterfaceStyle.popoverBorder, lineWidth: 1)
+                .stroke(InterfaceStyle.popoverBorder, lineWidth: 1)
         }
         .shadow(color: Color(nsColor: .shadowColor).opacity(0.18), radius: 16, y: 8)
     }
@@ -641,7 +641,7 @@ struct EliSidebarView: View {
     private func submitPrompt(_ promptOverride: String? = nil) {
         let submittedPrompt = (promptOverride ?? prompt).trimmingCharacters(in: .whitespacesAndNewlines)
         guard !isRefreshingEliAccess, !isResolvingPageAction else { return }
-        guard CandoaEliPromptPolicy.canSubmit(submittedPrompt, hasConversation: !messages.isEmpty) else { return }
+        guard EliPromptPolicy.canSubmit(submittedPrompt, hasConversation: !messages.isEmpty) else { return }
 
         let submission = makeSubmission(prompt: submittedPrompt)
         if !hasEliAccess {
@@ -714,7 +714,7 @@ struct EliSidebarView: View {
                 }
             }
 
-            let remoteContext = CandoaEliContextCompactor.compactedContextIfNeeded(
+            let remoteContext = EliContextCompactor.compactedContextIfNeeded(
                 from: pageContext,
                 prompt: submission.prompt
             ) ?? pageContext
@@ -844,8 +844,8 @@ struct EliSidebarView: View {
     }
 
     private func continueBrowserAgent(
-        _ response: CandoaBrowserAgentRunResponse,
-        page: CandoaBrowserAgentPage,
+        _ response: BrowserAgentRunResponse,
+        page: BrowserAgentPage,
         state: BrowserAgentRunState
     ) async throws {
         try Task.checkCancellation()
@@ -868,7 +868,7 @@ struct EliSidebarView: View {
             guard let pendingAction = response.action,
                   let action = pendingAction.validatedAction(on: page) else {
                 updateBrowserAgentStatus(state, text: "Refreshing the page controls…")
-                let outcome = CandoaBrowserAgentActionOutcome(
+                let outcome = BrowserAgentActionOutcome(
                     status: .failed,
                     result: "Candoa rejected the action because its page reference was stale or unverified.",
                     page: page
@@ -884,7 +884,7 @@ struct EliSidebarView: View {
 
             updateBrowserAgentStatus(state, text: browserAgentStatus(for: pendingAction))
 
-            if CandoaBrowserAgentPolicy.requiresNativeApproval(for: pendingAction, on: page) {
+            if BrowserAgentPolicy.requiresNativeApproval(for: pendingAction, on: page) {
                 pendingSensitiveAgentAction = PendingSensitiveAgentAction(
                     action: action,
                     state: state,
@@ -898,7 +898,7 @@ struct EliSidebarView: View {
     }
 
     private func executeBrowserAgentAction(
-        _ action: CandoaPageActionProposal,
+        _ action: PageActionProposal,
         previousURL: String,
         state: BrowserAgentRunState
     ) async throws {
@@ -918,7 +918,7 @@ struct EliSidebarView: View {
         let response = try await store.resumeBrowserAgentRun(
             runID: state.runID,
             goal: state.goal,
-            outcome: CandoaBrowserAgentActionOutcome(
+            outcome: BrowserAgentActionOutcome(
                 status: failed ? .failed : .executed,
                 result: result,
                 page: page
@@ -954,7 +954,7 @@ struct EliSidebarView: View {
                 let response = try await store.resumeBrowserAgentRun(
                     runID: pending.state.runID,
                     goal: pending.state.goal,
-                    outcome: CandoaBrowserAgentActionOutcome(
+                    outcome: BrowserAgentActionOutcome(
                         status: .rejected,
                         result: "The user did not approve this action.",
                         page: nil
@@ -983,7 +983,7 @@ struct EliSidebarView: View {
         messages[index].transientStatus = text
     }
 
-    private func browserAgentStatus(for action: CandoaBrowserAgentAction) -> String {
+    private func browserAgentStatus(for action: BrowserAgentAction) -> String {
         let message = action.message.trimmingCharacters(in: .whitespacesAndNewlines)
         if !message.isEmpty {
             return message
@@ -1008,15 +1008,15 @@ struct EliSidebarView: View {
 
     private func streamRemoteAIResponse(
         prompt: String,
-        context: CandoaAIPageContext,
-        recentTurns: [CandoaAIConversationTurn],
+        context: AIPageContext,
+        recentTurns: [AIConversationTurn],
         responseID: UUID,
         browserControlTabID: UUID?
     ) async {
         do {
             var response = ""
             var displayedCharacterCount = 0
-            for try await event in CandoaRemoteEliService.streamResponse(
+            for try await event in RemoteEliService.streamResponse(
                 to: prompt,
                 context: context,
                 recentTurns: recentTurns
@@ -1078,8 +1078,12 @@ struct EliSidebarView: View {
         let errorDescription = error?.localizedDescription.lowercased() ?? ""
         let message: String
 
-        if errorDescription.contains("api key") {
-            message = "Add an OpenAI API key in Settings before using your own key."
+        if case .missingPersonalKey(let provider)? = error as? RemoteEliError {
+            message = "Add \(provider == .openai ? "an" : "a") \(provider.displayName) API key in Settings before using your own key."
+        } else if errorDescription.contains("model is unavailable") {
+            message = "This model isn't available on your current plan. Choose another model in Candoa Settings."
+        } else if errorDescription.contains("api key") {
+            message = "Add an API key in Settings before using your own key."
         } else if errorDescription.contains("authentication")
             || errorDescription.contains("session")
             || errorDescription.contains("current plan") {
@@ -1097,10 +1101,10 @@ struct EliSidebarView: View {
     private func combinedContext(
         for mentions: [AISidebarContextMention],
         currentPageTabID: UUID?
-    ) async -> CandoaAIPageContext {
+    ) async -> AIPageContext {
         let currentContext = currentPageTabID != nil
             ? await store.aiPageContext(for: currentPageTabID)
-            : CandoaAIPageContext(title: nil, url: nil, text: nil)
+            : AIPageContext(title: nil, url: nil, text: nil)
         var sections: [String] = []
 
         if currentPageTabID != nil, !mentions.isEmpty {
@@ -1130,14 +1134,14 @@ struct EliSidebarView: View {
             .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
             .joined(separator: "\n\n")
 
-        return CandoaAIPageContext(
+        return AIPageContext(
             title: currentContext.title,
             url: currentContext.url,
             text: combinedText.isEmpty ? currentContext.text : combinedText
         )
     }
 
-    private func contextSection(title: String, context: CandoaAIPageContext) -> String {
+    private func contextSection(title: String, context: AIPageContext) -> String {
         var lines = ["\(title):"]
         if let pageTitle = context.title, !pageTitle.isEmpty {
             lines.append("Title: \(pageTitle)")
@@ -1364,7 +1368,7 @@ struct EliSidebarView: View {
     }
 
     private func addImageAttachment(_ image: NSImage, name: String) {
-        let recognizedText = CandoaImageTextRecognizer.recognizedText(in: image)?
+        let recognizedText = ImageTextRecognizer.recognizedText(in: image)?
             .trimmingCharacters(in: .whitespacesAndNewlines)
         let attachmentText = recognizedText.flatMap { text in
             text.isEmpty ? nil : "Uploaded image OCR text:\n\(text)"
@@ -1441,12 +1445,12 @@ struct EliSidebarView: View {
         return representation.representation(using: .png, properties: [:])
     }
 
-    private func recentTurns() -> [CandoaAIConversationTurn] {
-        let turns: [CandoaAIConversationTurn] = messages.compactMap { message in
+    private func recentTurns() -> [AIConversationTurn] {
+        let turns: [AIConversationTurn] = messages.compactMap { message in
             guard message.action == nil else { return nil }
             let text = message.text.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !text.isEmpty else { return nil }
-            return CandoaAIConversationTurn(role: message.role.conversationRole, text: text)
+            return AIConversationTurn(role: message.role.conversationRole, text: text)
         }
         return Array(turns.suffix(6))
     }

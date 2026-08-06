@@ -124,7 +124,7 @@ struct HistoryView: View {
                 Button("Clear History…") {
                     ClearBrowsingDataPrompt.present(currentSpace: clearScope)
                 }
-                .candoaButton(.secondary)
+                .buttonTreatment(.secondary)
                 .tint(.primary)
                 .disabled(store.isLoading)
                 .accessibilityIdentifier("history-clear-button")

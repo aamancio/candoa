@@ -1450,6 +1450,77 @@ final class CandoaUITests: XCTestCase {
         )
     }
 
+    func testEliSettingsDefaultToHostedConnectionWithAutomaticModel() throws {
+        let app = launchApp()
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
+
+        openEliSettings(in: app)
+
+        XCTAssertTrue(popUpButton(withValue: "Candoa Cloud", in: app).waitForExistence(timeout: 5))
+        XCTAssertTrue(popUpButton(withValue: "Automatic", in: app).exists)
+        XCTAssertTrue(popUpButton(withValue: "Low", in: app).exists)
+        XCTAssertFalse(popUpButton(withValue: "OpenAI", in: app).exists)
+    }
+
+    func testEliSettingsScopeModelsByProviderAndClampReasoning() throws {
+        let app = launchApp(extraLaunchArguments: [
+            "-Candoa.Settings.ZenOption.AskConnection", "personalKey",
+            "-Candoa.Settings.ZenOption.AskDirectModel", "openai/gpt-5.6-luna",
+        ])
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
+
+        openEliSettings(in: app)
+
+        XCTAssertTrue(
+            popUpButton(withValue: "Personal API key", in: app).waitForExistence(timeout: 5)
+        )
+        XCTAssertTrue(popUpButton(withValue: "OpenAI", in: app).exists)
+        XCTAssertTrue(popUpButton(withValue: "GPT-5.6 Luna", in: app).exists)
+
+        // Switching provider rescopes the model picker to that provider.
+        popUpButton(withValue: "OpenAI", in: app).click()
+        let anthropicItem = app.menuItems["Anthropic"]
+        XCTAssertTrue(anthropicItem.waitForExistence(timeout: 5))
+        anthropicItem.click()
+        XCTAssertTrue(popUpButton(withValue: "Anthropic", in: app).waitForExistence(timeout: 5))
+        XCTAssertTrue(popUpButton(withValue: "Claude Opus 5", in: app).waitForExistence(timeout: 5))
+
+        // A model that only supports low reasoning collapses the effort picker.
+        popUpButton(withValue: "Claude Opus 5", in: app).click()
+        let haikuItem = app.menuItems["Claude Haiku 4.5"]
+        XCTAssertTrue(haikuItem.waitForExistence(timeout: 5))
+        haikuItem.click()
+        XCTAssertTrue(popUpButton(withValue: "Claude Haiku 4.5", in: app).waitForExistence(timeout: 5))
+        let reasoning = popUpButton(withValue: "Low", in: app)
+        XCTAssertTrue(reasoning.waitForExistence(timeout: 5))
+        reasoning.click()
+        XCTAssertTrue(app.menuItems["Low"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.menuItems["High"].exists)
+        app.typeKey(.escape, modifierFlags: [])
+
+        // Switching back to the hosted connection swaps in the plan catalog.
+        popUpButton(withValue: "Personal API key", in: app).click()
+        let hostedItem = app.menuItems["Candoa Cloud"]
+        XCTAssertTrue(hostedItem.waitForExistence(timeout: 5))
+        hostedItem.click()
+        XCTAssertTrue(popUpButton(withValue: "Automatic", in: app).waitForExistence(timeout: 5))
+        XCTAssertFalse(popUpButton(withValue: "Anthropic", in: app).exists)
+    }
+
+    private func openEliSettings(in app: XCUIApplication) {
+        app.typeKey(",", modifierFlags: .command)
+        let eliButton = app.buttons["Eli"].firstMatch
+        XCTAssertTrue(eliButton.waitForExistence(timeout: 5))
+        eliButton.click()
+        XCTAssertTrue(app.staticTexts["Connection"].waitForExistence(timeout: 5))
+    }
+
+    private func popUpButton(withValue value: String, in app: XCUIApplication) -> XCUIElement {
+        app.popUpButtons.matching(
+            NSPredicate(format: "value == %@", value)
+        ).firstMatch
+    }
+
     func testNotNowCompletesAccountSetup() throws {
         let app = launchApp(onboardingStep: "account")
         let accountOnboarding = element("account-onboarding", in: app).firstMatch
@@ -2400,10 +2471,12 @@ final class CandoaUITests: XCTestCase {
         preservesStore: Bool = false,
         forcesLightAppearance: Bool = false,
         remoteRestoreFixture: Bool = false,
-        updateVersion: String? = nil
+        updateVersion: String? = nil,
+        extraLaunchArguments: [String] = []
     ) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments += ["-ApplePersistenceIgnoreState", "YES"]
+        app.launchArguments += extraLaunchArguments
         if forcesLightAppearance {
             app.launchArguments += ["-NSRequiresAquaSystemAppearance", "YES"]
         }
@@ -2948,7 +3021,7 @@ final class CandoaUITests: XCTestCase {
 }
 
 @MainActor
-final class CandoaEliLiveUITests: XCTestCase {
+final class EliLiveUITests: XCTestCase {
     private let liveE2EMarkerPath = "/tmp/candoa-live-e2e-enabled"
 
     override func setUpWithError() throws {

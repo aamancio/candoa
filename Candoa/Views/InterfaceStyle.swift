@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-enum CandoaColor {
+enum AppColor {
     enum Apple {
         /// Reference value for persisting an explicitly selected blue Space.
         /// The app interface uses the person's dynamic macOS accent instead.
@@ -32,15 +32,15 @@ enum CandoaColor {
 }
 
 /// Space themes personalize identity and passive atmosphere. Interactive
-/// controls continue to use `CandoaColor.accent` and semantic system colors.
-enum CandoaThemeStyle {
+/// controls continue to use `AppColor.accent` and semantic system colors.
+enum ThemeStyle {
     static func identityColor(for hex: String?) -> Color {
-        guard let hex, !hex.isEmpty else { return CandoaColor.Apple.systemGray }
+        guard let hex, !hex.isEmpty else { return AppColor.Apple.systemGray }
         return Color(spaceHex: hex)
     }
 }
 
-enum CandoaInterfaceStyle {
+enum InterfaceStyle {
     static let sidebarWidth: CGFloat = 234
     static let windowBackground = Color(nsColor: .windowBackgroundColor)
     static let workspaceBackground = Color(nsColor: .underPageBackgroundColor)
@@ -55,7 +55,7 @@ enum CandoaInterfaceStyle {
     static var sidebarControlFill: Color { subtleTone.opacity(increasesContrast ? 1 : 0.72) }
     static var sidebarControlFillHover: Color { subtleTone.opacity(increasesContrast ? 1 : 0.96) }
     static var sidebarControlFillDropTarget: Color { tertiaryTone.opacity(increasesContrast ? 1 : 0.72) }
-    static var sidebarControlFillActive: Color { CandoaColor.selectedFill }
+    static var sidebarControlFillActive: Color { AppColor.selectedFill }
     static var sidebarControlStroke: Color { separatorTone.opacity(increasesContrast ? 1 : 0.80) }
     static var spaceSetupInputFill: Color {
         spaceSetupSecondaryFill
@@ -73,7 +73,7 @@ enum CandoaInterfaceStyle {
     /// controls so text stays legible for every accent choice, including
     /// Graphite and multicolor, in both appearances. Assistant messages and
     /// Space themes keep their neutral treatments.
-    static var userMessageFill: Color { CandoaColor.accent }
+    static var userMessageFill: Color { AppColor.accent }
     static var userMessageText: Color { Color(nsColor: .alternateSelectedControlTextColor) }
 
     /// Transient feedback floats above content using a system material rather

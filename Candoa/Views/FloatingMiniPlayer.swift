@@ -435,7 +435,7 @@ private struct MiniPlayerControlButton: View {
             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
             .contentShape(Rectangle())
         }
-        .candoaButton(.content)
+        .buttonTreatment(.content)
         .onHover { isHovering = $0 }
         .help(title)
     }
@@ -457,7 +457,7 @@ private struct MiniPlayerSeekButton: View {
                 .frame(width: 52, height: 64)
                 .contentShape(Rectangle())
         }
-        .candoaButton(.content)
+        .buttonTreatment(.content)
         .onHover { isHovering = $0 }
         .help(help)
     }
@@ -492,7 +492,7 @@ private struct MiniPlayerPlayPauseButton: View {
             .contentShape(Rectangle())
             .animation(.spring(response: 0.30, dampingFraction: 0.78), value: isPlaying)
         }
-        .candoaButton(.content)
+        .buttonTreatment(.content)
         .onHover { isHovering = $0 }
         .help(isPlaying ? "Pause" : "Play")
     }

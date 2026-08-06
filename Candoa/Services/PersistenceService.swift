@@ -11,12 +11,12 @@ struct PersistenceSyncConfiguration: Equatable {
     var cloudKitContainerIdentifier: String
 
     static var current: PersistenceSyncConfiguration {
-        let canUseICloud = CandoaCloudKitEntitlements.hasConfiguredContainer
+        let canUseICloud = CloudKitEntitlements.hasConfiguredContainer
         return PersistenceSyncConfiguration(
-            syncsWorkspaceWithICloud: canUseICloud && CandoaSyncPreferences.syncsWorkspaceWithICloud,
+            syncsWorkspaceWithICloud: canUseICloud && SyncPreferences.syncsWorkspaceWithICloud,
             syncsHistoryWithICloud: canUseICloud
-                && CandoaSyncPreferences.syncsWorkspaceWithICloud
-                && CandoaSyncPreferences.syncsHistoryWithICloud,
+                && SyncPreferences.syncsWorkspaceWithICloud
+                && SyncPreferences.syncsHistoryWithICloud,
             cloudKitContainerIdentifier: cloudKitContainerIdentifier
         )
     }
@@ -30,7 +30,7 @@ struct PersistenceSyncConfiguration: Equatable {
     }
 }
 
-enum CandoaSyncPreferences {
+enum SyncPreferences {
     private static let workspaceKey = "Candoa.Sync.WorkspaceWithICloud"
     private static let historyKey = "Candoa.Sync.HistoryWithICloud"
 
@@ -57,7 +57,7 @@ enum CandoaSyncPreferences {
     }
 }
 
-enum CandoaCloudKitEntitlements {
+enum CloudKitEntitlements {
     static var hasConfiguredContainer: Bool {
         let environment = ProcessInfo.processInfo.environment
         if environment["CANDOA_UI_TESTING"] == "1" {

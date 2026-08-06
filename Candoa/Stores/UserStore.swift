@@ -5,7 +5,7 @@ import SwiftUI
 
 @MainActor
 final class UserStore: ObservableObject {
-    @Published private(set) var status: CandoaAccountStatus?
+    @Published private(set) var status: AccountStatus?
     @Published private(set) var isWorking = false
     @Published private(set) var isStartingSubscription = false
     @Published private(set) var isAwaitingSubscriptionActivation = false
@@ -19,9 +19,12 @@ final class UserStore: ObservableObject {
     @Published private(set) var isLocalOnly: Bool
     @Published private(set) var hasCompletedAccountChoice: Bool
     @Published private(set) var signOutGeneration = 0
+    /// Hosted model catalog for the signed-in account, fetched on demand when
+    /// the Ask settings surface appears; empty when Cloud is unreachable.
+    @Published private(set) var hostedModels: [AIModel] = []
 
-    private let accountService: CandoaAccountService
-    private let appleSignInService: CandoaAppleSignInService
+    private let accountService: AccountService
+    private let appleSignInService: AppleSignInService
     var hasActiveSubscription: Bool { status?.hasActiveSubscription == true }
 
     static var hasStoredAccountChoice: Bool {
@@ -35,7 +38,7 @@ final class UserStore: ObservableObject {
     /// session or an explicit local-only choice). Lets callers avoid reading
     /// the account keychain directly.
     static var hasStoredAccountDecision: Bool {
-        CandoaAccountKeychain.accessToken != nil || hasStoredAccountChoice
+        AccountKeychain.accessToken != nil || hasStoredAccountChoice
     }
 
     private static let accountChoiceKey = "Candoa.HasCompletedAccountChoice"
@@ -76,8 +79,8 @@ final class UserStore: ObservableObject {
     }
 
     init(
-        accountService: CandoaAccountService = CandoaAccountService(),
-        appleSignInService: CandoaAppleSignInService = CandoaAppleSignInService()
+        accountService: AccountService = AccountService(),
+        appleSignInService: AppleSignInService = AppleSignInService()
     ) {
         self.accountService = accountService
         self.appleSignInService = appleSignInService
@@ -168,13 +171,29 @@ final class UserStore: ObservableObject {
                 return
             }
             status = nil
-            if (error as? CandoaAccountError)?.isAuthenticationFailure == true {
+            if (error as? AccountError)?.isAuthenticationFailure == true {
                 try? accountService.removeAccessToken()
                 isSignedIn = false
                 hasCloudSession = false
                 isLocalOnly = hasCompletedAccountChoice
             }
             errorMessage = error.localizedDescription
+        }
+    }
+
+    func refreshHostedModels() async {
+        if Self.isUITesting {
+            hostedModels = (status?.allowedModelIDs ?? []).map {
+                AIModelCatalog.hostedModel(id: $0, providerID: "", displayName: $0)
+            }
+            return
+        }
+        guard let accessToken = accountService.accessToken else {
+            hostedModels = []
+            return
+        }
+        if let models = try? await accountService.hostedAIModels(accessToken: accessToken) {
+            hostedModels = models
         }
     }
 
@@ -197,7 +216,7 @@ final class UserStore: ObservableObject {
             isReconcilingSubscription = true
             await Task.yield()
             try? await Task.sleep(for: .seconds(2))
-            status = CandoaAccountStatus(
+            status = AccountStatus(
                 hasAppleAccount: true,
                 planID: "pro",
                 allowedModelIDs: ["openai/gpt-5"]
@@ -401,7 +420,7 @@ final class UserStore: ObservableObject {
             if let accessToken = accountService.accessToken {
                 try await loadSession(accessToken: accessToken)
                 guard hasCloudSession, isLocalOnly else {
-                    throw CandoaAccountError.invalidResponse
+                    throw AccountError.invalidResponse
                 }
                 markAccountChoiceCompleted()
                 return
@@ -410,7 +429,7 @@ final class UserStore: ObservableObject {
             try accountService.saveAccessToken(accessToken)
             try await loadSession(accessToken: accessToken)
             guard hasCloudSession, isLocalOnly, !isSignedIn else {
-                throw CandoaAccountError.invalidResponse
+                throw AccountError.invalidResponse
             }
             markAccountChoiceCompleted()
         } catch {
@@ -436,7 +455,7 @@ final class UserStore: ObservableObject {
             isSignedIn = true
             isLocalOnly = false
             hasCloudSession = true
-            status = CandoaAccountStatus(
+            status = AccountStatus(
                 hasAppleAccount: true,
                 planID: status?.planID ?? "free",
                 allowedModelIDs: status?.allowedModelIDs ?? []
@@ -466,15 +485,15 @@ final class UserStore: ObservableObject {
                 linkingAccessToken: shouldLinkExistingAccount ? previousAccessToken : nil
             )
             let accessToken = try await accountService.exchangeAppleSignInCode(code)
-            let session: CandoaCloudSession
-            let refreshedStatus: CandoaAccountStatus
+            let session: CloudSession
+            let refreshedStatus: AccountStatus
             do {
                 session = try await accountService.session(accessToken: accessToken)
                 refreshedStatus = try await accountService.accountStatus(
                     accessToken: accessToken
                 )
                 guard !session.user.isAnonymous, refreshedStatus.hasAppleAccount else {
-                    throw CandoaAccountError.invalidResponse
+                    throw AccountError.invalidResponse
                 }
             } catch {
                 // The exchange already created a server session. Revoke it so
@@ -513,7 +532,7 @@ final class UserStore: ObservableObject {
         )
         do {
             return try await appleSignInService.authenticate(at: authorizationURL)
-        } catch CandoaAccountError.appleAccountAlreadyLinked
+        } catch AccountError.appleAccountAlreadyLinked
             where linkingAccessToken != nil {
             // The temporary local account cannot claim an Apple identity that
             // already belongs to a Candoa account. Restore that existing
@@ -528,7 +547,7 @@ final class UserStore: ObservableObject {
         apply(session: session)
     }
 
-    private func apply(session: CandoaCloudSession) {
+    private func apply(session: CloudSession) {
         hasCloudSession = true
         isLocalOnly = session.user.isAnonymous
         isSignedIn = !session.user.isAnonymous

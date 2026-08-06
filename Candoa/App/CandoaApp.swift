@@ -3,14 +3,14 @@ import SwiftUI
 
 @main
 struct CandoaApp: App {
-    @NSApplicationDelegateAdaptor(CandoaAppDelegate.self) private var appDelegate
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var userStore = UserStore()
 
     var body: some Scene {
         WindowGroup(id: AppConfiguration.browserWindowSceneID) {
             ContentView()
                 .environmentObject(userStore)
-                .tint(CandoaColor.accent)
+                .tint(AppColor.accent)
                 .handlesExternalEvents(preferring: ["*"], allowing: ["*"])
                 .frame(
                     minWidth: AppConfiguration.minimumWindowWidth,
@@ -23,6 +23,7 @@ struct CandoaApp: App {
             height: Self.initialWindowSize.height
         )
         .commands {
+            AboutCommands()
             BrowserCommands(userStore: userStore)
         }
 
@@ -34,7 +35,7 @@ struct CandoaApp: App {
         WindowGroup(id: AppConfiguration.privateBrowserWindowSceneID) {
             ContentView(isPrivate: true)
                 .environmentObject(userStore)
-                .tint(CandoaColor.accent)
+                .tint(AppColor.accent)
                 .frame(
                     minWidth: AppConfiguration.minimumWindowWidth,
                     minHeight: AppConfiguration.minimumWindowHeight
@@ -48,9 +49,9 @@ struct CandoaApp: App {
         .handlesExternalEvents(matching: [])
 
         Settings {
-            CandoaSettingsView()
+            SettingsView()
                 .environmentObject(userStore)
-                .tint(CandoaColor.accent)
+                .tint(AppColor.accent)
         }
     }
 
@@ -67,7 +68,7 @@ struct CandoaApp: App {
 }
 
 @MainActor
-private final class CandoaAppDelegate: NSObject, NSApplicationDelegate {
+private final class AppDelegate: NSObject, NSApplicationDelegate {
     private let appearanceChangedNotification = Notification.Name("AppleInterfaceThemeChangedNotification")
     private let browserPasskeyAuthorizationService = BrowserPasskeyAuthorizationService()
     private let defaultBrowserService = DefaultBrowserService()
@@ -91,7 +92,7 @@ private final class CandoaAppDelegate: NSObject, NSApplicationDelegate {
     private func requestDefaultBrowserRoleIfWanted() {
         guard
             ProcessInfo.processInfo.environment["CANDOA_UI_TESTING"] != "1",
-            UserDefaults.standard.bool(forKey: CandoaSettingsOption.checkDefaultBrowser),
+            UserDefaults.standard.bool(forKey: SettingsOption.checkDefaultBrowser),
             !defaultBrowserService.isDefaultBrowser
         else { return }
 
@@ -108,7 +109,7 @@ private final class CandoaAppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         guard
             ProcessInfo.processInfo.environment["CANDOA_UI_TESTING"] != "1",
-            CandoaSettingsOption.bool(CandoaSettingsOption.askBeforeQuitting, default: true),
+            SettingsOption.bool(SettingsOption.askBeforeQuitting, default: true),
             let event = sender.currentEvent,
             event.type == .keyDown,
             event.modifierFlags.contains(.command),
@@ -143,7 +144,22 @@ private final class CandoaAppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func updateDockIcon() {
-        CandoaDockIconPreference.updateApplicationIcon()
+        DockIconPreference.updateApplicationIcon()
+    }
+}
+
+private struct AboutCommands: Commands {
+    var body: some Commands {
+        CommandGroup(replacing: .appInfo) {
+            Button("About Candoa") {
+                // The standard panel appends the build number in parentheses;
+                // that counter is Sparkle plumbing, not something people
+                // should read. An empty version hides the parenthetical.
+                NSApplication.shared.orderFrontStandardAboutPanel(
+                    options: [.version: ""]
+                )
+            }
+        }
     }
 }
 
@@ -310,31 +326,31 @@ private struct BrowserCommands: Commands {
             Button(BrowserCommandTitles.addSplitView) {
                 actions?.addSplitView()
             }
-            .keyboardShortcut(CandoaShortcutDefinition.addSplitView.currentKeyboardShortcut)
+            .keyboardShortcut(ShortcutDefinition.addSplitView.currentKeyboardShortcut)
             .disabled(actions == nil)
 
             Button(BrowserCommandTitles.closeSplitView) {
                 actions?.closeSplitView()
             }
-            .keyboardShortcut(CandoaShortcutDefinition.closeSplitView.currentKeyboardShortcut)
+            .keyboardShortcut(ShortcutDefinition.closeSplitView.currentKeyboardShortcut)
             .disabled(actions == nil)
 
             Button(BrowserCommandTitles.splitLayoutHorizontal) {
                 actions?.setSplitLayout(.horizontal)
             }
-            .keyboardShortcut(CandoaShortcutDefinition.splitLayoutHorizontal.currentKeyboardShortcut)
+            .keyboardShortcut(ShortcutDefinition.splitLayoutHorizontal.currentKeyboardShortcut)
             .disabled(actions == nil)
 
             Button(BrowserCommandTitles.splitLayoutVertical) {
                 actions?.setSplitLayout(.vertical)
             }
-            .keyboardShortcut(CandoaShortcutDefinition.splitLayoutVertical.currentKeyboardShortcut)
+            .keyboardShortcut(ShortcutDefinition.splitLayoutVertical.currentKeyboardShortcut)
             .disabled(actions == nil)
 
             Button(BrowserCommandTitles.splitLayoutGrid) {
                 actions?.setSplitLayout(.grid)
             }
-            .keyboardShortcut(CandoaShortcutDefinition.splitLayoutGrid.currentKeyboardShortcut)
+            .keyboardShortcut(ShortcutDefinition.splitLayoutGrid.currentKeyboardShortcut)
             .disabled(actions == nil)
 
             Divider()

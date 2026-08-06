@@ -185,7 +185,7 @@ enum ClearBrowsingDataPrompt {
         Removing website data also clears cookies, caches, and other data \
         those websites stored for the same period, which may sign you out of them.
         """))
-        if CandoaSyncPreferences.syncsWorkspaceWithICloud, CandoaSyncPreferences.syncsHistoryWithICloud {
+        if SyncPreferences.syncsWorkspaceWithICloud, SyncPreferences.syncsHistoryWithICloud {
             lines.append(String(localized: """
             History is also removed from your other Macs that sync history with iCloud.
             """))
