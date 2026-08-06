@@ -116,13 +116,33 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         return webView
     }
 
+    /// One live store object per identifier, for the app's lifetime.
+    /// WKWebsiteDataStore(forIdentifier:) instances are NOT uniqued by
+    /// WebKit: each is a distinct session owner, and when any of them
+    /// deallocates WebKit tears down the identifier's network session and
+    /// kills the WebContent processes of every page riding it. Handing
+    /// each web view its own instance meant a sibling web view's teardown
+    /// (hibernation, tab close) could reap a live tab's process — most
+    /// visibly killing cross-origin link navigations moments after their
+    /// process swap committed, which read as "clicking does nothing".
+    private static var dataStoresByIdentifier: [UUID: WKWebsiteDataStore] = [:]
+
+    static func sharedDataStore(forIdentifier identifier: UUID) -> WKWebsiteDataStore {
+        if let existing = dataStoresByIdentifier[identifier] {
+            return existing
+        }
+        let dataStore = WKWebsiteDataStore(forIdentifier: identifier)
+        dataStoresByIdentifier[identifier] = dataStore
+        return dataStore
+    }
+
     func makeWebView(for tab: BrowserTab) -> WKWebView {
         let dataStore: WKWebsiteDataStore
         if let privateDataStore {
             dataStore = privateDataStore
         } else {
             let dataStoreID = store?.dataStoreID(for: tab.spaceID) ?? tab.spaceID
-            dataStore = WKWebsiteDataStore(forIdentifier: dataStoreID)
+            dataStore = Self.sharedDataStore(forIdentifier: dataStoreID)
         }
 
         let configuration = WKWebViewConfiguration()
