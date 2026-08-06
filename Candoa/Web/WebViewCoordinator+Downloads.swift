@@ -45,6 +45,44 @@ extension WebViewCoordinator {
         store?.downloadsStore.fail(download, reason: error.localizedDescription)
     }
 
+    /// WebKit's PDF viewer HUD routes its download button through this
+    /// private WKUIDelegate method (savePDFToFileInDownloadsFolder) —
+    /// without it the button is a silent no-op, since WebKit probes the
+    /// delegate with respondsToSelector and falls back to doing nothing.
+    /// Candoa ships as a direct DMG, so no App Store private-API rule
+    /// applies, and an SDK-side selector change only degrades back to
+    /// the old no-op.
+    @objc(_webView:saveDataToFile:suggestedFilename:mimeType:originatingURL:)
+    func _webView(
+        _ webView: WKWebView,
+        saveDataToFile data: Data,
+        suggestedFilename: String,
+        mimeType: String,
+        originatingURL url: URL
+    ) {
+        guard let downloadsDirectory = FileManager.default.urls(
+            for: .downloadsDirectory,
+            in: .userDomainMask
+        ).first else { return }
+
+        let destination = Self.uniqueDestination(for: suggestedFilename, in: downloadsDirectory)
+        do {
+            try data.write(to: destination, options: .atomic)
+            store?.downloadsStore.recordCompletedSave(at: destination)
+            DistributedNotificationCenter.default().postNotificationName(
+                Notification.Name("com.apple.DownloadFileFinished"),
+                object: destination.path,
+                userInfo: nil,
+                deliverImmediately: true
+            )
+        } catch {
+            store?.downloadsStore.recordFailedSave(
+                filename: suggestedFilename,
+                reason: error.localizedDescription
+            )
+        }
+    }
+
     static func uniqueDestination(for suggestedFilename: String, in directory: URL) -> URL {
         let baseName = (suggestedFilename as NSString).deletingPathExtension
         let fileExtension = (suggestedFilename as NSString).pathExtension

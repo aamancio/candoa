@@ -110,6 +110,36 @@ final class DownloadsStore: ObservableObject {
         items.removeAll { !$0.isActive }
     }
 
+    // MARK: - Direct saves (no WKDownload)
+
+    /// Records a file written directly by the app — e.g. WebKit's PDF
+    /// viewer HUD hands over finished bytes instead of a WKDownload.
+    func recordCompletedSave(at destination: URL) {
+        items.insert(
+            Item(
+                id: UUID(),
+                filename: destination.lastPathComponent,
+                destination: destination,
+                phase: .completed,
+                startedAt: Date()
+            ),
+            at: 0
+        )
+    }
+
+    func recordFailedSave(filename: String, reason: String) {
+        items.insert(
+            Item(
+                id: UUID(),
+                filename: filename,
+                destination: nil,
+                phase: .failed(reason: reason),
+                startedAt: Date()
+            ),
+            at: 0
+        )
+    }
+
     private func detach(itemID: UUID, download: WKDownload) {
         progressObservations[itemID] = nil
         downloadsByItemID[itemID] = nil
