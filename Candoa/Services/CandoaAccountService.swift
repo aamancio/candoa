@@ -2,9 +2,104 @@ import Foundation
 import OSLog
 import Security
 
+/// Generic-password storage backed by the data-protection keychain, where
+/// access is granted by the app's keychain access group — identical across
+/// Debug and Release builds — instead of the legacy login keychain's
+/// per-binary signature ACL, which shows a password prompt whenever a
+/// differently signed build touches the item (issue #120). Items written by
+/// older versions into the legacy login keychain are migrated on the first
+/// read that can complete without user interaction.
+struct CandoaKeychainStore {
+    let service: String
+    let account: String
+
+    func read() -> String? {
+        if let value = copyValue(query(dataProtection: true)) { return value }
+        return migrateLegacyItem()
+    }
+
+    func save(_ value: String) -> OSStatus {
+        let data = Data(value.utf8)
+        let updateStatus = SecItemUpdate(
+            query(dataProtection: true) as CFDictionary,
+            [kSecValueData as String: data] as CFDictionary
+        )
+        guard updateStatus == errSecItemNotFound else { return updateStatus }
+
+        var attributes = query(dataProtection: true)
+        attributes[kSecValueData as String] = data
+        attributes[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlocked
+        return SecItemAdd(attributes as CFDictionary, nil)
+    }
+
+    func remove() -> OSStatus {
+        let status = SecItemDelete(query(dataProtection: true) as CFDictionary)
+        guard status == errSecSuccess || status == errSecItemNotFound else { return status }
+
+        withoutKeychainInteraction {
+            _ = SecItemDelete(query(dataProtection: false) as CFDictionary)
+        }
+        return errSecSuccess
+    }
+
+    private func migrateLegacyItem() -> String? {
+        let value = withoutKeychainInteraction {
+            copyValue(query(dataProtection: false))
+        }
+        guard let value else { return nil }
+
+        if save(value) == errSecSuccess {
+            withoutKeychainInteraction {
+                _ = SecItemDelete(query(dataProtection: false) as CFDictionary)
+            }
+        }
+        return value
+    }
+
+    private func copyValue(_ query: [String: Any]) -> String? {
+        var result: CFTypeRef?
+        let status = SecItemCopyMatching(
+            query.merging([
+                kSecReturnData as String: true,
+                kSecMatchLimit as String: kSecMatchLimitOne
+            ]) { _, new in new } as CFDictionary,
+            &result
+        )
+
+        guard status == errSecSuccess, let data = result as? Data else { return nil }
+        let value = String(decoding: data, as: UTF8.self)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return value.isEmpty ? nil : value
+    }
+
+    /// Legacy login-keychain items are guarded by a per-binary ACL; touching
+    /// one from a build the ACL doesn't trust would show the very password
+    /// prompt this store exists to avoid. With interaction disabled the call
+    /// fails silently instead, and migration waits for a trusted binary.
+    private func withoutKeychainInteraction<T>(_ body: () -> T) -> T {
+        SecKeychainSetUserInteractionAllowed(false)
+        defer { SecKeychainSetUserInteractionAllowed(true) }
+        return body()
+    }
+
+    private func query(dataProtection: Bool) -> [String: Any] {
+        var query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account
+        ]
+        if dataProtection {
+            query[kSecUseDataProtectionKeychain as String] = true
+        }
+        return query
+    }
+}
+
 enum CandoaAccountKeychain {
-    private static let service = "app.candoa.browser.Account"
-    private static let account = "cloud-session"
+    private static let store = CandoaKeychainStore(
+        service: "app.candoa.browser.Account",
+        account: "cloud-session"
+    )
 
     private static var isUITesting: Bool {
 #if DEBUG
@@ -16,55 +111,19 @@ enum CandoaAccountKeychain {
 
     static var accessToken: String? {
         guard !isUITesting else { return nil }
-
-        var result: CFTypeRef?
-        let status = SecItemCopyMatching(
-            baseQuery.merging([
-                kSecReturnData as String: true,
-                kSecMatchLimit as String: kSecMatchLimitOne
-            ]) { _, new in new } as CFDictionary,
-            &result
-        )
-
-        guard status == errSecSuccess, let data = result as? Data else { return nil }
-        let token = String(decoding: data, as: UTF8.self)
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        return token.isEmpty ? nil : token
+        return store.read()
     }
 
     static func save(_ accessToken: String) throws {
-        let data = Data(accessToken.utf8)
-        let updateStatus = SecItemUpdate(
-            baseQuery as CFDictionary,
-            [kSecValueData as String: data] as CFDictionary
-        )
-        if updateStatus == errSecItemNotFound {
-            let addStatus = SecItemAdd(
-                baseQuery.merging([
-                    kSecValueData as String: data,
-                    kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlocked
-                ]) { _, new in new } as CFDictionary,
-                nil
-            )
-            guard addStatus == errSecSuccess else { throw CandoaAccountError.keychainUnavailable }
-            return
-        }
-        guard updateStatus == errSecSuccess else { throw CandoaAccountError.keychainUnavailable }
-    }
-
-    static func remove() throws {
-        let status = SecItemDelete(baseQuery as CFDictionary)
-        guard status == errSecSuccess || status == errSecItemNotFound else {
+        guard store.save(accessToken) == errSecSuccess else {
             throw CandoaAccountError.keychainUnavailable
         }
     }
 
-    private static var baseQuery: [String: Any] {
-        [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account
-        ]
+    static func remove() throws {
+        guard store.remove() == errSecSuccess else {
+            throw CandoaAccountError.keychainUnavailable
+        }
     }
 }
 

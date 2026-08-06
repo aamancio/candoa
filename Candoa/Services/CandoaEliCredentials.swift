@@ -16,23 +16,13 @@ enum CandoaEliPreferences {
 }
 
 enum CandoaEliKeychain {
-    private static let service = "app.candoa.browser.Ask"
-    private static let account = "openai-api-key"
+    private static let store = CandoaKeychainStore(
+        service: "app.candoa.browser.Ask",
+        account: "openai-api-key"
+    )
 
     static var apiKey: String? {
-        var result: CFTypeRef?
-        let status = SecItemCopyMatching(
-            baseQuery.merging([
-                kSecReturnData as String: true,
-                kSecMatchLimit as String: kSecMatchLimitOne
-            ]) { _, new in new } as CFDictionary,
-            &result
-        )
-
-        guard status == errSecSuccess, let data = result as? Data else { return nil }
-        let key = String(decoding: data, as: UTF8.self)
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        return key.isEmpty ? nil : key
+        store.read()
     }
 
     static var hasAPIKey: Bool {
@@ -43,40 +33,13 @@ enum CandoaEliKeychain {
         let trimmedKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedKey.isEmpty else { throw CandoaEliKeychainError.emptyKey }
 
-        let keyData = Data(trimmedKey.utf8)
-        let updateStatus = SecItemUpdate(
-            baseQuery as CFDictionary,
-            [kSecValueData as String: keyData] as CFDictionary
-        )
-
-        if updateStatus == errSecItemNotFound {
-            let addStatus = SecItemAdd(
-                baseQuery.merging([
-                    kSecValueData as String: keyData,
-                    kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlocked
-                ]) { _, new in new } as CFDictionary,
-                nil
-            )
-            guard addStatus == errSecSuccess else { throw CandoaEliKeychainError.unavailable(addStatus) }
-            return
-        }
-
-        guard updateStatus == errSecSuccess else { throw CandoaEliKeychainError.unavailable(updateStatus) }
+        let status = store.save(trimmedKey)
+        guard status == errSecSuccess else { throw CandoaEliKeychainError.unavailable(status) }
     }
 
     static func remove() throws {
-        let status = SecItemDelete(baseQuery as CFDictionary)
-        guard status == errSecSuccess || status == errSecItemNotFound else {
-            throw CandoaEliKeychainError.unavailable(status)
-        }
-    }
-
-    private static var baseQuery: [String: Any] {
-        [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account
-        ]
+        let status = store.remove()
+        guard status == errSecSuccess else { throw CandoaEliKeychainError.unavailable(status) }
     }
 }
 
