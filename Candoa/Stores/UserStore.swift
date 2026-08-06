@@ -19,6 +19,9 @@ final class UserStore: ObservableObject {
     @Published private(set) var isLocalOnly: Bool
     @Published private(set) var hasCompletedAccountChoice: Bool
     @Published private(set) var signOutGeneration = 0
+    /// Hosted model catalog for the signed-in account, fetched on demand when
+    /// the Ask settings surface appears; empty when Cloud is unreachable.
+    @Published private(set) var hostedModels: [CandoaAIModel] = []
 
     private let accountService: CandoaAccountService
     private let appleSignInService: CandoaAppleSignInService
@@ -175,6 +178,22 @@ final class UserStore: ObservableObject {
                 isLocalOnly = hasCompletedAccountChoice
             }
             errorMessage = error.localizedDescription
+        }
+    }
+
+    func refreshHostedModels() async {
+        if Self.isUITesting {
+            hostedModels = (status?.allowedModelIDs ?? []).map {
+                CandoaAIModelCatalog.hostedModel(id: $0, providerID: "", displayName: $0)
+            }
+            return
+        }
+        guard let accessToken = accountService.accessToken else {
+            hostedModels = []
+            return
+        }
+        if let models = try? await accountService.hostedAIModels(accessToken: accessToken) {
+            hostedModels = models
         }
     }
 

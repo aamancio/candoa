@@ -307,8 +307,7 @@ struct ContentView: View {
         .onChange(of: userStore.signOutGeneration) { _, generation in
             guard generation > 0 else { return }
 
-            let hasPersonalEliAccess =
-                CandoaEliPreferences.usesPersonalOpenAIKey && CandoaEliKeychain.hasAPIKey
+            let hasPersonalEliAccess = CandoaEliPreferences.hasDirectEliAccess
             if !hasPersonalEliAccess {
                 aiSidebarMessages = [.subscriptionGate]
                 pendingEliSubscriptionSubmission = nil

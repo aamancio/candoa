@@ -102,6 +102,7 @@
 		E50000000000000000000108 /* SpaceComposerModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = E50000000000000000000008 /* SpaceComposerModels.swift */; };
 		EF0000000000000000000101 /* CandoaEliModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000000000000001 /* CandoaEliModels.swift */; };
 		EF0000000000000000000102 /* CandoaEliCredentials.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000000000000002 /* CandoaEliCredentials.swift */; };
+		EF0000000000000000000110 /* CandoaAIModelCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000000000000010 /* CandoaAIModelCatalog.swift */; };
 		EF0000000000000000000103 /* CandoaBrowserAgent.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000000000000003 /* CandoaBrowserAgent.swift */; };
 		EF0000000000000000000104 /* CandoaPageActionProposal.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000000000000004 /* CandoaPageActionProposal.swift */; };
 		EF0000000000000000000105 /* WebPageScripts.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000000000000005 /* WebPageScripts.swift */; };
@@ -224,6 +225,7 @@
 		E50000000000000000000008 /* SpaceComposerModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpaceComposerModels.swift; sourceTree = "<group>"; };
 		EF0000000000000000000001 /* CandoaEliModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CandoaEliModels.swift; sourceTree = "<group>"; };
 		EF0000000000000000000002 /* CandoaEliCredentials.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CandoaEliCredentials.swift; sourceTree = "<group>"; };
+		EF0000000000000000000010 /* CandoaAIModelCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CandoaAIModelCatalog.swift; sourceTree = "<group>"; };
 		EF0000000000000000000003 /* CandoaBrowserAgent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CandoaBrowserAgent.swift; sourceTree = "<group>"; };
 		EF0000000000000000000004 /* CandoaPageActionProposal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CandoaPageActionProposal.swift; sourceTree = "<group>"; };
 		EF0000000000000000000005 /* WebPageScripts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebPageScripts.swift; sourceTree = "<group>"; };
@@ -372,6 +374,7 @@
 				010000000000000000000042 /* CandoaEliService.swift */,
 				EF0000000000000000000001 /* CandoaEliModels.swift */,
 				EF0000000000000000000002 /* CandoaEliCredentials.swift */,
+				EF0000000000000000000010 /* CandoaAIModelCatalog.swift */,
 				EF0000000000000000000003 /* CandoaBrowserAgent.swift */,
 				EF0000000000000000000004 /* CandoaPageActionProposal.swift */,
 				010000000000000000000066 /* CandoaAccountService.swift */,
@@ -672,6 +675,7 @@
 				010000000000000000000142 /* CandoaEliService.swift in Sources */,
 				EF0000000000000000000101 /* CandoaEliModels.swift in Sources */,
 				EF0000000000000000000102 /* CandoaEliCredentials.swift in Sources */,
+				EF0000000000000000000110 /* CandoaAIModelCatalog.swift in Sources */,
 				EF0000000000000000000103 /* CandoaBrowserAgent.swift in Sources */,
 				EF0000000000000000000104 /* CandoaPageActionProposal.swift in Sources */,
 				010000000000000000000176 /* CandoaAccountService.swift in Sources */,

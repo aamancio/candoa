@@ -153,7 +153,7 @@ struct EliSidebarView: View {
     }
 
     private var hasPersonalEliAccess: Bool {
-        CandoaEliPreferences.usesPersonalOpenAIKey && CandoaEliKeychain.hasAPIKey
+        CandoaEliPreferences.hasDirectEliAccess
     }
 
     private var hasEliAccess: Bool {
@@ -1078,8 +1078,12 @@ struct EliSidebarView: View {
         let errorDescription = error?.localizedDescription.lowercased() ?? ""
         let message: String
 
-        if errorDescription.contains("api key") {
-            message = "Add an OpenAI API key in Settings before using your own key."
+        if case .missingPersonalKey(let provider)? = error as? CandoaRemoteEliError {
+            message = "Add \(provider == .openai ? "an" : "a") \(provider.displayName) API key in Settings before using your own key."
+        } else if errorDescription.contains("model is unavailable") {
+            message = "This model isn't available on your current plan. Choose another model in Candoa Settings."
+        } else if errorDescription.contains("api key") {
+            message = "Add an API key in Settings before using your own key."
         } else if errorDescription.contains("authentication")
             || errorDescription.contains("session")
             || errorDescription.contains("current plan") {
