@@ -64,6 +64,23 @@ struct SpaceSwitcherView: View {
                 .frame(width: 28, height: 28)
                 .foregroundStyle(CandoaInterfaceStyle.sidebarIcon)
                 .background(bottomButtonBackground(isActive: store.isDownloadsPopoverPresented, isHovering: isHoveringDownloads))
+                .overlay {
+                    // Safari-style progress ring: in-flight progress stays
+                    // visible after the popover closes. Exists only while a
+                    // download is active, so idle costs nothing.
+                    if let progress = store.downloadsStore.activeProgress {
+                        Circle()
+                            .trim(from: 0, to: max(0.06, progress))
+                            .stroke(
+                                CandoaColor.accent,
+                                style: StrokeStyle(lineWidth: 2, lineCap: .round)
+                            )
+                            .rotationEffect(.degrees(-90))
+                            .frame(width: 23, height: 23)
+                            .animation(.linear(duration: 0.2), value: progress)
+                            .allowsHitTesting(false)
+                    }
+                }
                 .contentShape(Rectangle())
         }
         .candoaButton(.content)

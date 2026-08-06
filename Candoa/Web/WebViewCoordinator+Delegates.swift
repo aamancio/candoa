@@ -17,6 +17,8 @@ extension WebViewCoordinator {
         // at load start, so the error stays readable through a failed retry.
         if let tabID = tabID(for: webView) {
             store?.clearLoadFailure(tabID: tabID)
+            // A committed page ends the download-conversion quarantine.
+            downloadConvertedTabIDs.remove(tabID)
         }
         updateStore(from: webView, isLoading: webView.isLoading)
     }
@@ -101,10 +103,12 @@ extension WebViewCoordinator {
 
     func webView(_ webView: WKWebView, navigationAction: WKNavigationAction, didBecome download: WKDownload) {
         configureDownload(download)
+        realignTabAfterDownloadConversion(for: webView)
     }
 
     func webView(_ webView: WKWebView, navigationResponse: WKNavigationResponse, didBecome download: WKDownload) {
         configureDownload(download)
+        realignTabAfterDownloadConversion(for: webView)
     }
 
     // MARK: - WKUIDelegate

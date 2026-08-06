@@ -139,6 +139,19 @@ extension BrowserStore {
     }
 
     @discardableResult
+    /// Re-points a tab at the web view's real location after a navigation
+    /// converted to a download (see realignTabAfterDownloadConversion).
+    func realignTabURL(tabID: UUID, to url: URL?) {
+        guard let index = tabs.firstIndex(where: { $0.id == tabID }),
+              tabs[index].url?.absoluteString != url?.absoluteString else { return }
+        tabs[index].url = url
+        if url == nil {
+            tabs[index].title = ""
+        }
+        updateNavigationState()
+        flushSession()
+    }
+
     func newTab(
         url: URL,
         favorite: Bool = false,

@@ -16,6 +16,7 @@ struct ContentView: View {
     }
     @StateObject private var systemAppearance = SystemAppearanceObserver()
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.controlActiveState) private var controlActiveState
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @EnvironmentObject private var userStore: UserStore
     @AppStorage(CandoaSettingsOption.websiteAppearance) private var websiteAppearanceValue =
@@ -491,6 +492,17 @@ struct ContentView: View {
             Task {
                 await userStore.reconcilePendingSubscriptionIfNeeded(for: url)
             }
+        }
+        .onChange(of: store.downloadsStore.items.first?.id) { _, newestItemID in
+            // A new download (or a PDF-HUD save) with no visible response
+            // reads as a dead button — the Dock already bounces the
+            // Downloads stack (the modern system cue); the key window adds
+            // the popover so the row is immediately visible. Phase/progress
+            // updates keep the same newest id, so this fires once per
+            // download.
+            guard newestItemID != nil, controlActiveState == .key,
+                  !store.isDownloadsPopoverPresented else { return }
+            showDownloads()
         }
         .onChange(of: userStore.hasCompletedAccountChoice) { _, hasCompletedAccountChoice in
             store.reconcileAccountSetup(

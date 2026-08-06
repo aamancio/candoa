@@ -46,6 +46,18 @@ final class DownloadsStore: ObservableObject {
         items.contains { !$0.isActive }
     }
 
+    /// Mean progress across active downloads, or nil when none are active —
+    /// drives the ring on the sidebar's Downloads button. Indeterminate
+    /// downloads count as 0 so the ring appears the moment one starts.
+    var activeProgress: Double? {
+        let fractions = items.compactMap { item -> Double? in
+            if case .active(let fraction) = item.phase { return fraction ?? 0 }
+            return nil
+        }
+        guard !fractions.isEmpty else { return nil }
+        return fractions.reduce(0, +) / Double(fractions.count)
+    }
+
     // MARK: - WKDownload lifecycle
 
     func begin(_ download: WKDownload, destination: URL) {
