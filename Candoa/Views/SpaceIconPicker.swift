@@ -3,7 +3,7 @@ import SwiftUI
 internal struct SpaceIconPreview: View {
     let symbolName: String
     let themeColorHex: String?
-    var strokeColor: Color = CandoaInterfaceStyle.sidebarIcon.opacity(0.78)
+    var strokeColor: Color = InterfaceStyle.sidebarIcon.opacity(0.78)
 
     var body: some View {
         ZStack {
@@ -22,7 +22,7 @@ internal struct SpaceIconPreview: View {
                 } else {
                     Image(systemName: symbolName)
                         .font(.system(size: 13.5, weight: .semibold))
-                        .foregroundStyle(CandoaThemeStyle.identityColor(for: themeColorHex))
+                        .foregroundStyle(ThemeStyle.identityColor(for: themeColorHex))
                 }
             }
         }
@@ -224,13 +224,13 @@ internal struct SpaceIconPicker: View {
                         .font(.system(size: 15, weight: .semibold))
                         .frame(width: 28, height: 28)
                 }
-                .candoaButton(.content)
+                .buttonTreatment(.content)
                 .help("Clear Icon")
             }
 
             HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass")
-                    .foregroundStyle(CandoaInterfaceStyle.sidebarIcon)
+                    .foregroundStyle(InterfaceStyle.sidebarIcon)
 
                 TextField(mode.searchPlaceholder, text: $query)
                     .textFieldStyle(.plain)
@@ -242,7 +242,7 @@ internal struct SpaceIconPicker: View {
             .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .stroke(CandoaInterfaceStyle.popoverBorder, lineWidth: 1)
+                    .stroke(InterfaceStyle.popoverBorder, lineWidth: 1)
             }
 
             ScrollView(.vertical, showsIndicators: false) {
@@ -258,7 +258,7 @@ internal struct SpaceIconPicker: View {
                                 isSelected: selectedSymbolName == option.symbolName
                             )
                         }
-                        .candoaButton(.content)
+                        .buttonTreatment(.content)
                         .help(option.title)
                     }
                 }
@@ -267,7 +267,7 @@ internal struct SpaceIconPicker: View {
         }
         .padding(14)
         .frame(width: 304, height: 340)
-        .background(CandoaInterfaceStyle.popoverBackground)
+        .background(InterfaceStyle.popoverBackground)
     }
 }
 
@@ -278,7 +278,7 @@ internal struct SpaceIconOptionView: View {
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(isSelected ? CandoaColor.accent.opacity(0.18) : Color.clear)
+                .fill(isSelected ? AppColor.accent.opacity(0.18) : Color.clear)
 
             if let emoji = option.emoji {
                 Text(emoji)
@@ -286,7 +286,7 @@ internal struct SpaceIconOptionView: View {
             } else {
                 Image(systemName: option.symbolName)
                     .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(isSelected ? CandoaColor.accent : CandoaInterfaceStyle.sidebarText)
+                    .foregroundStyle(isSelected ? AppColor.accent : InterfaceStyle.sidebarText)
             }
         }
         .frame(width: 34, height: 34)
@@ -313,12 +313,12 @@ internal struct SpaceProfilePicker: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(mode.title)
                                 .font(.system(size: 15, weight: .semibold))
-                                .foregroundStyle(CandoaInterfaceStyle.sidebarText)
+                                .foregroundStyle(InterfaceStyle.sidebarText)
                                 .lineLimit(1)
 
                             Text(mode.detail)
                                 .font(.system(size: 11, weight: .medium))
-                                .foregroundStyle(CandoaInterfaceStyle.sidebarIcon)
+                                .foregroundStyle(InterfaceStyle.sidebarIcon)
                                 .lineLimit(1)
                         }
 
@@ -327,20 +327,20 @@ internal struct SpaceProfilePicker: View {
                         if selectedMode == mode {
                             Image(systemName: "checkmark")
                                 .font(.system(size: 13, weight: .bold))
-                                .foregroundStyle(CandoaColor.accent)
+                                .foregroundStyle(AppColor.accent)
                         }
                     }
                     .padding(.horizontal, 11)
                     .frame(height: 46)
                     .contentShape(Rectangle())
                 }
-                .candoaButton(.content)
+                .buttonTreatment(.content)
                 .background(selectedMode == mode ? Color.primary.opacity(0.07) : Color.clear)
                 .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
             }
         }
         .padding(10)
         .frame(width: 220)
-        .background(CandoaInterfaceStyle.popoverBackground)
+        .background(InterfaceStyle.popoverBackground)
     }
 }

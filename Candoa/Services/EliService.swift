@@ -1,11 +1,11 @@
 import Foundation
 
-enum CandoaRemoteEliEvent: Sendable {
+enum RemoteEliEvent: Sendable {
     case textDelta(String)
     case browserControl(goal: String)
 }
 
-enum CandoaRemoteEliService {
+enum RemoteEliService {
     private static let openAIEndpoint = URL(string: "https://api.openai.com/v1/responses")!
     private static let anthropicEndpoint = URL(string: "https://api.anthropic.com/v1/messages")!
     private static let googleEndpointBase =
@@ -50,9 +50,9 @@ enum CandoaRemoteEliService {
 
     static func streamResponse(
         to prompt: String,
-        context: CandoaAIPageContext,
-        recentTurns: [CandoaAIConversationTurn]
-    ) -> AsyncThrowingStream<CandoaRemoteEliEvent, Error> {
+        context: AIPageContext,
+        recentTurns: [AIConversationTurn]
+    ) -> AsyncThrowingStream<RemoteEliEvent, Error> {
         if ProcessInfo.processInfo.environment["CANDOA_UI_TESTING"] == "1",
            ProcessInfo.processInfo.environment["CANDOA_UI_TESTING_FIXTURE"] == "ask-streaming" {
             return uiTestingStreamingResponse()
@@ -68,7 +68,7 @@ enum CandoaRemoteEliService {
             }
         }
 
-        switch CandoaEliPreferences.connection {
+        switch EliPreferences.connection {
         case .candoaCloud:
             return streamCandoaResponse(
                 to: prompt,
@@ -85,7 +85,7 @@ enum CandoaRemoteEliService {
     }
 
     private static func uiTestingStreamingResponse()
-        -> AsyncThrowingStream<CandoaRemoteEliEvent, Error> {
+        -> AsyncThrowingStream<RemoteEliEvent, Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
                 continuation.yield(.textDelta("Streaming response started."))
@@ -103,37 +103,37 @@ enum CandoaRemoteEliService {
 
     private static func streamCandoaResponse(
         to prompt: String,
-        context: CandoaAIPageContext,
-        recentTurns: [CandoaAIConversationTurn]
-    ) -> AsyncThrowingStream<CandoaRemoteEliEvent, Error> {
+        context: AIPageContext,
+        recentTurns: [AIConversationTurn]
+    ) -> AsyncThrowingStream<RemoteEliEvent, Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
                 do {
-                    guard let accessToken = CandoaAccountKeychain.accessToken else {
-                        throw CandoaRemoteEliError.missingAccountSession
+                    guard let accessToken = AccountKeychain.accessToken else {
+                        throw RemoteEliError.missingAccountSession
                     }
-                    let modelID = CandoaEliPreferences.hostedModelID
+                    let modelID = EliPreferences.hostedModelID
                     // Unknown hosted IDs (and the account-default selection)
                     // budget against the catalog's conservative fallback.
-                    let budgetModel = CandoaAIModelCatalog.hostedModel(
+                    let budgetModel = AIModelCatalog.hostedModel(
                         id: modelID ?? "",
                         providerID: "",
                         displayName: modelID ?? "Automatic"
                     )
-                    let fittedContext = try CandoaEliContextBudget.fittedContext(
+                    let fittedContext = try EliContextBudget.fittedContext(
                         context,
                         prompt: prompt,
                         recentTurns: recentTurns,
                         model: budgetModel
                     )
-                    let payload = CandoaRequestPayload(
+                    let payload = RequestPayload(
                         message: prompt,
                         context: PageContext(fittedContext),
                         history: recentTurns.map(ConversationTurn.init),
                         modelID: modelID,
-                        reasoningEffort: CandoaEliPreferences.reasoningEffort.rawValue
+                        reasoningEffort: EliPreferences.reasoningEffort.rawValue
                     )
-                    var request = URLRequest(url: CandoaCloudAPI.aiChatURL)
+                    var request = URLRequest(url: CloudAPI.aiChatURL)
                     request.httpMethod = "POST"
                     request.timeoutInterval = 60
                     request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -155,18 +155,18 @@ enum CandoaRemoteEliService {
 
     private static func streamDirectResponse(
         to prompt: String,
-        context: CandoaAIPageContext,
-        recentTurns: [CandoaAIConversationTurn]
-    ) -> AsyncThrowingStream<CandoaRemoteEliEvent, Error> {
+        context: AIPageContext,
+        recentTurns: [AIConversationTurn]
+    ) -> AsyncThrowingStream<RemoteEliEvent, Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
                 do {
-                    let model = CandoaEliPreferences.directModel
-                    guard let apiKey = CandoaEliPreferences.directAPIKey else {
-                        throw CandoaRemoteEliError.missingPersonalKey(model.provider)
+                    let model = EliPreferences.directModel
+                    guard let apiKey = EliPreferences.directAPIKey else {
+                        throw RemoteEliError.missingPersonalKey(model.provider)
                     }
-                    let effort = model.clampedEffort(CandoaEliPreferences.reasoningEffort)
-                    let fittedContext = try CandoaEliContextBudget.fittedContext(
+                    let effort = model.clampedEffort(EliPreferences.reasoningEffort)
+                    let fittedContext = try EliContextBudget.fittedContext(
                         context,
                         prompt: prompt,
                         recentTurns: recentTurns,
@@ -210,8 +210,8 @@ enum CandoaRemoteEliService {
     // MARK: - OpenAI adapter (Responses API)
 
     private static func openAIRequest(
-        model: CandoaAIModel,
-        effort: CandoaAIReasoningEffort,
+        model: AIModel,
+        effort: AIReasoningEffort,
         apiKey: String,
         input: String
     ) throws -> URLRequest {
@@ -232,7 +232,7 @@ enum CandoaRemoteEliService {
 
     private static func yieldOpenAIEvents(
         _ bytes: URLSession.AsyncBytes,
-        to continuation: AsyncThrowingStream<CandoaRemoteEliEvent, Error>.Continuation
+        to continuation: AsyncThrowingStream<RemoteEliEvent, Error>.Continuation
     ) async throws {
         for try await line in bytes.lines {
             guard line.hasPrefix("data: ") else { continue }
@@ -252,7 +252,7 @@ enum CandoaRemoteEliService {
                       ) {
                 continuation.yield(.browserControl(goal: request.goal))
             } else if event.type == "error" {
-                throw CandoaRemoteEliError.server(
+                throw RemoteEliError.server(
                     event.error?.message ?? event.message ?? "OpenAI could not complete this request."
                 )
             }
@@ -262,8 +262,8 @@ enum CandoaRemoteEliService {
     // MARK: - Anthropic adapter (Messages API)
 
     private static func anthropicRequest(
-        model: CandoaAIModel,
-        effort: CandoaAIReasoningEffort,
+        model: AIModel,
+        effort: AIReasoningEffort,
         apiKey: String,
         input: String
     ) throws -> URLRequest {
@@ -287,7 +287,7 @@ enum CandoaRemoteEliService {
 
     private static func yieldAnthropicEvents(
         _ bytes: URLSession.AsyncBytes,
-        to continuation: AsyncThrowingStream<CandoaRemoteEliEvent, Error>.Continuation
+        to continuation: AsyncThrowingStream<RemoteEliEvent, Error>.Continuation
     ) async throws {
         var pendingToolName: String?
         var pendingToolInput = ""
@@ -324,12 +324,12 @@ enum CandoaRemoteEliService {
                 pendingToolInput = ""
             case "message_delta":
                 if event.delta?.stopReason == "refusal" {
-                    throw CandoaRemoteEliError.server(
+                    throw RemoteEliError.server(
                         "The model declined this request. Try rephrasing it."
                     )
                 }
             case "error":
-                throw CandoaRemoteEliError.server(
+                throw RemoteEliError.server(
                     event.error?.message ?? "Anthropic could not complete this request."
                 )
             default:
@@ -341,7 +341,7 @@ enum CandoaRemoteEliService {
     // MARK: - Google adapter (Gemini API)
 
     private static func googleRequest(
-        model: CandoaAIModel,
+        model: AIModel,
         apiKey: String,
         input: String
     ) throws -> URLRequest {
@@ -368,7 +368,7 @@ enum CandoaRemoteEliService {
 
     private static func yieldGoogleEvents(
         _ bytes: URLSession.AsyncBytes,
-        to continuation: AsyncThrowingStream<CandoaRemoteEliEvent, Error>.Continuation
+        to continuation: AsyncThrowingStream<RemoteEliEvent, Error>.Continuation
     ) async throws {
         for try await line in bytes.lines {
             guard line.hasPrefix("data: ") else { continue }
@@ -377,7 +377,7 @@ enum CandoaRemoteEliService {
 
             let event = try JSONDecoder().decode(GoogleStreamEvent.self, from: data)
             if let message = event.error?.message {
-                throw CandoaRemoteEliError.server(message)
+                throw RemoteEliError.server(message)
             }
             for part in event.candidates?.first?.content?.parts ?? [] {
                 if let call = part.functionCall, call.name == "request_browser_control" {
@@ -398,7 +398,7 @@ enum CandoaRemoteEliService {
         bytes: URLSession.AsyncBytes
     ) async throws {
         guard let httpResponse = response as? HTTPURLResponse else {
-            throw CandoaRemoteEliError.invalidResponse
+            throw RemoteEliError.invalidResponse
         }
         guard (200...299).contains(httpResponse.statusCode) else {
             var data = Data()
@@ -406,7 +406,7 @@ enum CandoaRemoteEliService {
                 data.append(byte)
             }
             let serverError = try? JSONDecoder().decode(ServerErrorPayload.self, from: data)
-            throw CandoaRemoteEliError.server(
+            throw RemoteEliError.server(
                 serverError?.resolvedMessage ?? "Eli is temporarily unavailable."
             )
         }
@@ -414,7 +414,7 @@ enum CandoaRemoteEliService {
 
     private static func yieldCandoaEvents(
         _ bytes: URLSession.AsyncBytes,
-        to continuation: AsyncThrowingStream<CandoaRemoteEliEvent, Error>.Continuation
+        to continuation: AsyncThrowingStream<RemoteEliEvent, Error>.Continuation
     ) async throws {
         for try await line in bytes.lines {
             guard line.hasPrefix("data: ") else { continue }
@@ -433,17 +433,17 @@ enum CandoaRemoteEliService {
             } else if let goal = event.goal {
                 continuation.yield(.browserControl(goal: goal))
             } else if event.type == "error", let error = event.errorText {
-                throw CandoaRemoteEliError.server(error)
+                throw RemoteEliError.server(error)
             } else if let error = event.error {
-                throw CandoaRemoteEliError.server(error)
+                throw RemoteEliError.server(error)
             }
         }
     }
 
     private static func modelInput(
         prompt: String,
-        context: CandoaAIPageContext,
-        recentTurns: [CandoaAIConversationTurn]
+        context: AIPageContext,
+        recentTurns: [AIConversationTurn]
     ) -> String {
         var parts: [String] = []
 
@@ -480,7 +480,7 @@ enum CandoaRemoteEliService {
         return parts.joined(separator: "\n\n")
     }
 
-    private struct CandoaRequestPayload: Encodable {
+    private struct RequestPayload: Encodable {
         let message: String
         let context: PageContext
         let history: [ConversationTurn]
@@ -708,7 +708,7 @@ enum CandoaRemoteEliService {
 
     private struct GoogleFunctionDeclaration: Encodable {
         let name = "request_browser_control"
-        let description = CandoaRemoteEliService.browserControlDescription
+        let description = RemoteEliService.browserControlDescription
         let parameters = GoogleSchema()
     }
 
@@ -720,7 +720,7 @@ enum CandoaRemoteEliService {
 
     private struct GoogleProperty: Encodable {
         let type = "STRING"
-        let description = CandoaRemoteEliService.browserControlGoalDescription
+        let description = RemoteEliService.browserControlGoalDescription
     }
 
     private struct GoogleGenerationConfig: Encodable {
@@ -749,7 +749,7 @@ enum CandoaRemoteEliService {
         let url: String?
         let text: String?
 
-        init(_ context: CandoaAIPageContext) {
+        init(_ context: AIPageContext) {
             title = context.title
             url = context.url
             text = context.text
@@ -760,7 +760,7 @@ enum CandoaRemoteEliService {
         let role: String
         let text: String
 
-        init(_ turn: CandoaAIConversationTurn) {
+        init(_ turn: AIConversationTurn) {
             switch turn.role {
             case .user:
                 role = "user"
@@ -827,10 +827,10 @@ enum CandoaRemoteEliService {
         let message: String?
     }
 }
-enum CandoaRemoteEliError: LocalizedError {
+enum RemoteEliError: LocalizedError {
     case invalidResponse
     case missingAccountSession
-    case missingPersonalKey(CandoaAIProvider)
+    case missingPersonalKey(AIProvider)
     case server(String)
 
     var errorDescription: String? {

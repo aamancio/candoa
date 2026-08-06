@@ -33,7 +33,7 @@ struct LinkHoverPreviewPill: View {
             )
             .overlay {
                 RoundedRectangle(cornerRadius: 7, style: .continuous)
-                    .stroke(CandoaInterfaceStyle.popoverBorder, lineWidth: 1)
+                    .stroke(InterfaceStyle.popoverBorder, lineWidth: 1)
             }
             .shadow(color: Color(nsColor: .shadowColor).opacity(0.14), radius: 6, y: 2)
             // Outside the background: caps long URLs (middle truncation

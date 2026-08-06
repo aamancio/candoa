@@ -4,7 +4,7 @@ import Foundation
 import OSLog
 
 @MainActor
-final class CandoaAppleSignInService: NSObject {
+final class AppleSignInService: NSObject {
     private static let logger = Logger(
         subsystem: "app.candoa.browser",
         category: "AppleSignIn"
@@ -37,7 +37,7 @@ final class CandoaAppleSignInService: NSObject {
 
     func authenticate(at url: URL) async throws -> String {
         guard pendingContinuation == nil else {
-            throw CandoaAccountError.server("Sign in with Apple is already in progress.")
+            throw AccountError.server("Sign in with Apple is already in progress.")
         }
 
         return try await withCheckedThrowingContinuation { continuation in
@@ -78,7 +78,7 @@ final class CandoaAppleSignInService: NSObject {
             if !session.start() {
                 finish(
                     with: .failure(
-                        CandoaAccountError.server(
+                        AccountError.server(
                             "Candoa could not open Sign in with Apple."
                         )
                     )
@@ -130,7 +130,7 @@ final class CandoaAppleSignInService: NSObject {
         }
 
         guard let callbackURL else {
-            finish(with: .failure(CandoaAccountError.invalidResponse))
+            finish(with: .failure(AccountError.invalidResponse))
             return
         }
 
@@ -152,7 +152,7 @@ final class CandoaAppleSignInService: NSObject {
             return
         }
 
-        finish(with: .failure(CandoaAccountError.invalidResponse))
+        finish(with: .failure(AccountError.invalidResponse))
     }
 
     private func complete(with callbackURL: URL) {
@@ -160,7 +160,7 @@ final class CandoaAppleSignInService: NSObject {
             url: callbackURL,
             resolvingAgainstBaseURL: false
         ) else {
-            finish(with: .failure(CandoaAccountError.invalidResponse))
+            finish(with: .failure(AccountError.invalidResponse))
             return
         }
         let values = Dictionary(
@@ -175,12 +175,12 @@ final class CandoaAppleSignInService: NSObject {
             Self.logger.notice(
                 "Apple identity belongs to an existing account; falling back to sign-in."
             )
-            finish(with: .failure(CandoaAccountError.appleAccountAlreadyLinked))
+            finish(with: .failure(AccountError.appleAccountAlreadyLinked))
         } else {
             let message = values["error"]
                 .map(Self.readableError)
                 ?? "Candoa could not complete Sign in with Apple."
-            finish(with: .failure(CandoaAccountError.server(message)))
+            finish(with: .failure(AccountError.server(message)))
         }
     }
 
@@ -199,7 +199,7 @@ final class CandoaAppleSignInService: NSObject {
         ) else {
             finish(
                 with: .failure(
-                    CandoaAccountError.server("Candoa could not open Safari for Apple sign-in.")
+                    AccountError.server("Candoa could not open Safari for Apple sign-in.")
                 )
             )
             return
@@ -211,7 +211,7 @@ final class CandoaAppleSignInService: NSObject {
             guard !Task.isCancelled, self?.pendingContinuation != nil else { return }
             self?.finish(
                 with: .failure(
-                    CandoaAccountError.server("Sign in with Apple timed out. Please try again.")
+                    AccountError.server("Sign in with Apple timed out. Please try again.")
                 )
             )
         }
@@ -332,7 +332,7 @@ final class CandoaAppleSignInService: NSObject {
     }
 }
 
-extension CandoaAppleSignInService: ASWebAuthenticationPresentationContextProviding {
+extension AppleSignInService: ASWebAuthenticationPresentationContextProviding {
     func presentationAnchor(
         for session: ASWebAuthenticationSession
     ) -> ASPresentationAnchor {

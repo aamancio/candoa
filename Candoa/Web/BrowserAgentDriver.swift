@@ -29,7 +29,7 @@ struct BrowserAgentDriver {
     func snapshot(
         in webView: WKWebView,
         id snapshotID: UUID
-    ) async throws -> CandoaBrowserAgentSnapshot {
+    ) async throws -> BrowserAgentSnapshot {
         let value = try await execute(
             .snapshot,
             arguments: ["snapshotID": snapshotID.uuidString.lowercased()],
@@ -38,14 +38,14 @@ struct BrowserAgentDriver {
         )
         let json = try stringResult(from: value)
         let controls = try JSONDecoder().decode(
-            [CandoaBrowserAgentControl].self,
+            [BrowserAgentControl].self,
             from: Data(json.utf8)
         )
-        return CandoaBrowserAgentSnapshot(id: snapshotID, controls: controls)
+        return BrowserAgentSnapshot(id: snapshotID, controls: controls)
     }
 
     func performAction(
-        _ action: CandoaPageActionProposal,
+        _ action: PageActionProposal,
         in webView: WKWebView
     ) async throws -> String {
         if action.kind == .scroll {

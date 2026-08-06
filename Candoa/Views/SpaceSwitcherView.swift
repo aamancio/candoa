@@ -62,7 +62,7 @@ struct SpaceSwitcherView: View {
             Image(systemName: "arrow.down.to.line.compact")
                 .font(.system(size: 15.5, weight: .medium))
                 .frame(width: 28, height: 28)
-                .foregroundStyle(CandoaInterfaceStyle.sidebarIcon)
+                .foregroundStyle(InterfaceStyle.sidebarIcon)
                 .background(bottomButtonBackground(isActive: store.isDownloadsPopoverPresented, isHovering: isHoveringDownloads))
                 .overlay {
                     // Safari-style progress ring: in-flight progress stays
@@ -72,7 +72,7 @@ struct SpaceSwitcherView: View {
                         Circle()
                             .trim(from: 0, to: max(0.06, progress))
                             .stroke(
-                                CandoaColor.accent,
+                                AppColor.accent,
                                 style: StrokeStyle(lineWidth: 2, lineCap: .round)
                             )
                             .rotationEffect(.degrees(-90))
@@ -83,7 +83,7 @@ struct SpaceSwitcherView: View {
                 }
                 .contentShape(Rectangle())
         }
-        .candoaButton(.content)
+        .buttonTreatment(.content)
         .onHover { isHoveringDownloads = $0 }
         .help("Downloads")
         .popover(isPresented: $store.isDownloadsPopoverPresented, arrowEdge: .bottom) {
@@ -103,11 +103,11 @@ struct SpaceSwitcherView: View {
             Image(systemName: "plus")
                 .font(.system(size: 18, weight: .regular))
                 .frame(width: 28, height: 28)
-                .foregroundStyle(CandoaInterfaceStyle.sidebarTextSecondary)
+                .foregroundStyle(InterfaceStyle.sidebarTextSecondary)
                 .background(bottomButtonBackground(isActive: false, isHovering: isHoveringNewTab))
                 .contentShape(Rectangle())
         }
-        .candoaButton(.content)
+        .buttonTreatment(.content)
         .onHover { isHoveringNewTab = $0 }
         .animation(.easeOut(duration: 0.10), value: isHoveringNewTab)
         .help(BrowserCommandTitles.newTab)
@@ -120,11 +120,11 @@ struct SpaceSwitcherView: View {
             Image(systemName: "plus")
                 .font(.system(size: 18, weight: .regular))
                 .frame(width: 28, height: 28)
-                .foregroundStyle(CandoaInterfaceStyle.sidebarTextSecondary)
+                .foregroundStyle(InterfaceStyle.sidebarTextSecondary)
                 .background(bottomButtonBackground(isActive: isActionMenuPresented, isHovering: isHoveringAddSpace))
                 .contentShape(Rectangle())
         }
-        .candoaButton(.content)
+        .buttonTreatment(.content)
         .onHover { isHoveringAddSpace = $0 }
         .animation(.easeOut(duration: 0.10), value: isHoveringAddSpace)
         .help("New Space")
@@ -138,10 +138,10 @@ struct SpaceSwitcherView: View {
 
     private func bottomButtonBackground(isActive: Bool, isHovering: Bool) -> some View {
         RoundedRectangle(cornerRadius: 8, style: .continuous)
-            .fill(isActive ? CandoaInterfaceStyle.sidebarControlFillActive : (isHovering ? CandoaInterfaceStyle.sidebarControlFillHover : Color.clear))
+            .fill(isActive ? InterfaceStyle.sidebarControlFillActive : (isHovering ? InterfaceStyle.sidebarControlFillHover : Color.clear))
             .overlay {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .stroke(isActive || isHovering ? CandoaInterfaceStyle.sidebarControlStroke : Color.clear, lineWidth: 1)
+                    .stroke(isActive || isHovering ? InterfaceStyle.sidebarControlStroke : Color.clear, lineWidth: 1)
             }
     }
 
@@ -157,7 +157,7 @@ struct SpaceSwitcherView: View {
 
     private func workspaceButton(for space: BrowserSpace) -> some View {
         let isActive = space.id == displayedActiveSpaceID
-        let themeColor = CandoaThemeStyle.identityColor(for: space.themeColorHex)
+        let themeColor = ThemeStyle.identityColor(for: space.themeColorHex)
 
         return Button {
             onSelectSpace(space.id)
@@ -190,7 +190,7 @@ struct SpaceSwitcherView: View {
             )
             .contentShape(Rectangle())
         }
-        .candoaButton(.content)
+        .buttonTreatment(.content)
         .animation(.easeOut(duration: 0.20), value: isActive)
         .shortcutTooltip(space.name, keys: switchShortcutKeys(for: space))
         .accessibilityLabel(space.name)
@@ -272,7 +272,7 @@ private struct DownloadsPopoverView: View {
                         Button("Clear") {
                             downloadsStore.clearSettledItems()
                         }
-                        .candoaButton(.quiet)
+                        .buttonTreatment(.quiet)
                         .controlSize(.small)
                         .accessibilityIdentifier("downloads-clear")
                     }
@@ -324,7 +324,7 @@ private struct SessionDownloadRow: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text(item.filename)
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(CandoaInterfaceStyle.sidebarText)
+                    .foregroundStyle(InterfaceStyle.sidebarText)
                     .lineLimit(1)
                     .truncationMode(.middle)
 
@@ -340,7 +340,7 @@ private struct SessionDownloadRow: View {
                         .font(.system(size: 15, weight: .medium))
                         .foregroundStyle(.secondary)
                 }
-                .candoaButton(.content)
+                .buttonTreatment(.content)
                 .help("Cancel Download")
                 .accessibilityLabel("Cancel Download")
             }
@@ -382,7 +382,7 @@ private struct SessionDownloadRow: View {
         case .completed:
             Text("Completed")
                 .font(.system(size: 12.5, weight: .semibold))
-                .foregroundStyle(CandoaInterfaceStyle.sidebarTextSecondary)
+                .foregroundStyle(InterfaceStyle.sidebarTextSecondary)
         case .failed(let reason):
             Text("Failed — \(reason)")
                 .font(.system(size: 12.5, weight: .semibold))
@@ -391,7 +391,7 @@ private struct SessionDownloadRow: View {
         case .cancelled:
             Text("Cancelled")
                 .font(.system(size: 12.5, weight: .semibold))
-                .foregroundStyle(CandoaInterfaceStyle.sidebarTextSecondary)
+                .foregroundStyle(InterfaceStyle.sidebarTextSecondary)
         }
     }
 
@@ -413,7 +413,7 @@ private struct SessionDownloadRow: View {
             } else {
                 Image(systemName: "arrow.down.circle")
                     .font(.system(size: 22, weight: .regular))
-                    .foregroundStyle(CandoaInterfaceStyle.sidebarIcon)
+                    .foregroundStyle(InterfaceStyle.sidebarIcon)
             }
         }
         .frame(width: 32, height: 32)
@@ -498,13 +498,13 @@ private struct DownloadItemRow: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(item.name)
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(CandoaInterfaceStyle.sidebarText)
+                        .foregroundStyle(InterfaceStyle.sidebarText)
                         .lineLimit(1)
                         .truncationMode(.middle)
 
                     Text(Self.relativeDateFormatter.localizedString(for: item.date, relativeTo: Date()))
                         .font(.system(size: 12.5, weight: .semibold))
-                        .foregroundStyle(CandoaInterfaceStyle.sidebarTextSecondary)
+                        .foregroundStyle(InterfaceStyle.sidebarTextSecondary)
                         .lineLimit(1)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -513,7 +513,7 @@ private struct DownloadItemRow: View {
             .padding(.vertical, 6)
             .contentShape(Rectangle())
         }
-        .candoaButton(.content)
+        .buttonTreatment(.content)
         .background(isHovering ? Color.primary.opacity(0.05) : Color.clear)
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         .onHover { isHovering = $0 }
@@ -562,7 +562,7 @@ private struct DownloadsPopoverRow: View {
                 .padding(.vertical, 7)
                 .contentShape(Rectangle())
         }
-        .candoaButton(.content)
+        .buttonTreatment(.content)
         .background(isHovering ? Color.primary.opacity(0.05) : Color.clear)
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         .onHover { isHovering = $0 }
@@ -632,7 +632,7 @@ private struct SpaceActionMenuRow: View {
                 .padding(.vertical, 7)
                 .contentShape(Rectangle())
         }
-        .candoaButton(.content)
+        .buttonTreatment(.content)
         .background(isHovering && isEnabled ? Color.primary.opacity(0.05) : Color.clear)
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         .onHover { isHovering = $0 }

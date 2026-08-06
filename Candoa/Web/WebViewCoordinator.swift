@@ -519,7 +519,7 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         }
     }
 
-    func browserAgentSnapshot(for tabID: UUID) async -> CandoaBrowserAgentSnapshot? {
+    func browserAgentSnapshot(for tabID: UUID) async -> BrowserAgentSnapshot? {
         guard let webView = webViews[tabID] else { return nil }
         let snapshotID = UUID()
 
@@ -547,7 +547,7 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         }
     }
 
-    func performAIPageAction(_ action: CandoaPageActionProposal, for tabID: UUID) async -> String {
+    func performAIPageAction(_ action: PageActionProposal, for tabID: UUID) async -> String {
         guard let webView = webViews[tabID] else { return "That page is not ready for an action." }
         if let expectedURL = action.browserAgentPageURL,
            webView.url?.absoluteString != expectedURL {
@@ -602,7 +602,7 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
     // MARK: - Content Blocking
 
     var strictTrackingProtectionEnabled: Bool {
-        CandoaSettingsOption.bool(CandoaSettingsOption.strictTrackingProtection, default: true)
+        SettingsOption.bool(SettingsOption.strictTrackingProtection, default: true)
     }
 
     func applyContentRuleList() async {

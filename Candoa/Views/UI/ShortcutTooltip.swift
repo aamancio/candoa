@@ -9,9 +9,9 @@ enum ShortcutKeyCaps {
     /// Resolves the person's configured shortcut for `definition` at call time,
     /// so a rebind in Settings → Shortcuts is reflected on the next hover.
     /// Returns an empty array when the shortcut is removed or unassigned.
-    static func current(for definition: CandoaShortcutDefinition) -> [String] {
+    static func current(for definition: ShortcutDefinition) -> [String] {
         let stored = UserDefaults.standard.string(forKey: definition.storageKey) ?? ""
-        guard stored != CandoaShortcutDefinition.removedValue else { return [] }
+        guard stored != ShortcutDefinition.removedValue else { return [] }
         return caps(from: stored.isEmpty ? definition.defaultShortcut : stored)
     }
 
@@ -346,7 +346,7 @@ extension View {
     /// `.help()` tooltip.
     func shortcutTooltip(
         _ title: String,
-        shortcut: CandoaShortcutDefinition? = nil
+        shortcut: ShortcutDefinition? = nil
     ) -> some View {
         modifier(
             ShortcutTooltipModifier(

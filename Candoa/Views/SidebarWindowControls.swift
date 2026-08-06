@@ -513,7 +513,7 @@ private final class NativeWindowControlsCoordinator {
 internal struct ToolbarIconButtonModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
-            .candoaButton(.content)
+            .buttonTreatment(.content)
             .font(.system(size: 15, weight: .medium))
             .symbolRenderingMode(.hierarchical)
             .frame(width: 25, height: 25)

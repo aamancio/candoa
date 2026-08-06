@@ -15,7 +15,7 @@ struct PendingBrowserControl: Sendable {
 
 struct PendingSensitiveAgentAction: Identifiable, Sendable {
     let id = UUID()
-    let action: CandoaPageActionProposal
+    let action: PageActionProposal
     let state: BrowserAgentRunState
     let previousURL: String
 }
@@ -45,7 +45,7 @@ struct AISidebarImagePreviewSheet: View {
                         .symbolRenderingMode(.monochrome)
                         .foregroundStyle(Color(nsColor: .secondaryLabelColor))
                 }
-                .candoaButton(.content)
+                .buttonTreatment(.content)
                 .help("Close Preview")
                 .keyboardShortcut(.cancelAction)
                 .accessibilityLabel("Close image preview")

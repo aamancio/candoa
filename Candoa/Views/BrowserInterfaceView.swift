@@ -65,7 +65,7 @@ struct BrowserInterfaceView: View {
                 TextField(BrowserDefaults.addressPlaceholder, text: $addressText)
                     .textFieldStyle(.plain)
                     .font(.system(size: 15))
-                    .tint(CandoaColor.accent)
+                    .tint(AppColor.accent)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 10)
                     .frame(width: 560)
@@ -84,7 +84,7 @@ struct BrowserInterfaceView: View {
                     .zIndex(2)
             }
         }
-        .candoaButton(.chrome)
+        .buttonTreatment(.chrome)
         .onAppear(perform: syncAddressText)
         .onChange(of: store.activeTabID) { _, _ in syncAddressText() }
         .onChange(of: store.activeTab?.url) { _, _ in syncAddressText() }

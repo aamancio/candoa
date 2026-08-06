@@ -9,10 +9,10 @@ struct CommandPaletteView: View {
     @State internal var fieldFocusRequestID = UUID()
     @FocusState internal var isSearchFocused: Bool
     @Environment(\.colorScheme) internal var colorScheme
-    @AppStorage(CandoaSettingsOption.defaultSearchProvider) internal var defaultSearchProvider = NavigationService.searchProviders.first?.id ?? "google"
+    @AppStorage(SettingsOption.defaultSearchProvider) internal var defaultSearchProvider = NavigationService.searchProviders.first?.id ?? "google"
 
     /// The shared Candoa primary used by search focus and default selections.
-    static var paletteTint: Color { CandoaColor.accent }
+    static var paletteTint: Color { AppColor.accent }
     internal static let maxVisibleCommandCount = 6
     internal static let commandRowHeight: CGFloat = 46
     internal static let commandRowSpacing: CGFloat = 7

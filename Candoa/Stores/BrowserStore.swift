@@ -169,25 +169,25 @@ final class BrowserStore: ObservableObject {
     static let hasCompletedTourKey = "Candoa.InitialOnboarding.TourCompleted"
 
     var ignoresPendingTabsWhenCycling: Bool {
-        boolSetting(CandoaSettingsOption.ignorePendingTabsWhenCycling, default: false)
+        boolSetting(SettingsOption.ignorePendingTabsWhenCycling, default: false)
     }
 
     var scopesControlTabToCurrentGroup: Bool {
-        boolSetting(CandoaSettingsOption.ctrlTabCyclesWithinScope, default: false)
+        boolSetting(SettingsOption.ctrlTabCyclesWithinScope, default: false)
     }
 
     var selectsRecentlyUsedTabOnClose: Bool {
-        boolSetting(CandoaSettingsOption.selectRecentlyUsedOnClose, default: true)
+        boolSetting(SettingsOption.selectRecentlyUsedOnClose, default: true)
     }
 
     var pinnedCloseShortcutBehavior: PinnedCloseShortcutBehavior {
         PinnedCloseShortcutBehavior(
-            settingValue: UserDefaults.standard.string(forKey: CandoaSettingsOption.pinnedCloseShortcutBehavior)
+            settingValue: UserDefaults.standard.string(forKey: SettingsOption.pinnedCloseShortcutBehavior)
         )
     }
 
     var defaultSearchProviderID: String? {
-        UserDefaults.standard.string(forKey: CandoaSettingsOption.defaultSearchProvider)
+        UserDefaults.standard.string(forKey: SettingsOption.defaultSearchProvider)
     }
 
     func boolSetting(_ key: String, default defaultValue: Bool) -> Bool {
@@ -276,9 +276,9 @@ final class BrowserStore: ObservableObject {
     @Published var dismissedMiniPlayerTabID: UUID?
     @Published var retainedPausedMiniPlayerTabID: UUID?
     @Published var iCloudWorkspaceSyncEnabled =
-        CandoaCloudKitEntitlements.hasConfiguredContainer && CandoaSyncPreferences.syncsWorkspaceWithICloud
+        CloudKitEntitlements.hasConfiguredContainer && SyncPreferences.syncsWorkspaceWithICloud
     @Published var iCloudHistorySyncEnabled =
-        CandoaCloudKitEntitlements.hasConfiguredContainer && CandoaSyncPreferences.syncsHistoryWithICloud
+        CloudKitEntitlements.hasConfiguredContainer && SyncPreferences.syncsHistoryWithICloud
     @Published var syncRestartMessage: String?
     @Published var copiedURLToast: CopiedURLToast?
     @Published var uiTestingVisibleFolderPopoverDescription = "none"
@@ -466,7 +466,7 @@ final class BrowserStore: ObservableObject {
         self.webCoordinator.attach(store: self)
         self.webCoordinator.updateWebsiteAppearance(
             WebsiteAppearance(
-                storedValue: UserDefaults.standard.string(forKey: CandoaSettingsOption.websiteAppearance)
+                storedValue: UserDefaults.standard.string(forKey: SettingsOption.websiteAppearance)
             ),
             systemUsesDarkAppearance: NSApp.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
         )

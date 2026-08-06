@@ -1,23 +1,23 @@
 import Foundation
 
-struct CandoaPageActionProposal: Identifiable, Sendable {
+struct PageActionProposal: Identifiable, Sendable {
     let id = UUID()
-    let kind: CandoaPageActionKind
+    let kind: PageActionKind
     let target: String
     let value: String?
     let browserAgentReference: String?
     let browserAgentSnapshotID: UUID?
     let browserAgentPageURL: String?
-    let browserAgentControlKind: CandoaBrowserAgentControl.Kind?
+    let browserAgentControlKind: BrowserAgentControl.Kind?
 
     init(
-        kind: CandoaPageActionKind,
+        kind: PageActionKind,
         target: String,
         value: String?,
         browserAgentReference: String? = nil,
         browserAgentSnapshotID: UUID? = nil,
         browserAgentPageURL: String? = nil,
-        browserAgentControlKind: CandoaBrowserAgentControl.Kind? = nil
+        browserAgentControlKind: BrowserAgentControl.Kind? = nil
     ) {
         self.kind = kind
         self.target = target

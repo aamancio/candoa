@@ -115,7 +115,7 @@ struct HistoryView: View {
             Button("Clear History…") {
                 presentClearHistoryAlert()
             }
-            .candoaButton(.secondary)
+            .buttonTreatment(.secondary)
             .tint(.primary)
             .disabled(store.isLoading || !store.hasHistory)
 

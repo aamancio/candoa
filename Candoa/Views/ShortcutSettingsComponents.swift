@@ -4,10 +4,10 @@ import SwiftUI
 struct ShortcutSettingsView: View {
     @State private var searchText = ""
 
-    private var filteredDefinitions: [CandoaShortcutDefinition] {
+    private var filteredDefinitions: [ShortcutDefinition] {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !query.isEmpty else { return CandoaShortcutDefinition.allCases }
-        return CandoaShortcutDefinition.allCases.filter {
+        guard !query.isEmpty else { return ShortcutDefinition.allCases }
+        return ShortcutDefinition.allCases.filter {
             $0.title.localizedCaseInsensitiveContains(query) ||
                 $0.category.localizedCaseInsensitiveContains(query) ||
                 $0.searchText.localizedCaseInsensitiveContains(query)
@@ -314,7 +314,7 @@ internal struct SearchProviderSettingsRow: View {
 }
 
 internal struct DockIconChoice: View {
-    let preference: CandoaDockIconPreference
+    let preference: DockIconPreference
     let isSelected: Bool
     let action: () -> Void
 
@@ -329,30 +329,30 @@ internal struct DockIconChoice: View {
 
                 Text(preference.title)
                     .font(.system(size: 12))
-                    .foregroundStyle(isSelected ? CandoaColor.accent : Color.primary)
+                    .foregroundStyle(isSelected ? AppColor.accent : Color.primary)
             }
             .padding(10)
             .frame(width: 124)
-            .background(isSelected ? CandoaColor.accent.opacity(0.12) : Color(nsColor: .controlBackgroundColor))
+            .background(isSelected ? AppColor.accent.opacity(0.12) : Color(nsColor: .controlBackgroundColor))
             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .stroke(isSelected ? CandoaColor.focusRing : Color.primary.opacity(0.08), lineWidth: 1)
+                    .stroke(isSelected ? AppColor.focusRing : Color.primary.opacity(0.08), lineWidth: 1)
             }
         }
-        .candoaButton(.content)
+        .buttonTreatment(.content)
         .help(preference.title)
     }
 }
 
 internal struct ShortcutSettingsRow: View {
-    let definition: CandoaShortcutDefinition
+    let definition: ShortcutDefinition
 
     @AppStorage private var storedShortcut: String
     @State private var isRecording = false
 
     private var displayShortcut: String {
-        if storedShortcut == CandoaShortcutDefinition.removedValue {
+        if storedShortcut == ShortcutDefinition.removedValue {
             return "None"
         }
 
@@ -360,10 +360,10 @@ internal struct ShortcutSettingsRow: View {
     }
 
     private var isRemoved: Bool {
-        storedShortcut == CandoaShortcutDefinition.removedValue
+        storedShortcut == ShortcutDefinition.removedValue
     }
 
-    init(definition: CandoaShortcutDefinition) {
+    init(definition: ShortcutDefinition) {
         self.definition = definition
         _storedShortcut = AppStorage(wrappedValue: "", definition.storageKey)
     }
@@ -393,17 +393,17 @@ internal struct ShortcutSettingsRow: View {
                     .font(.system(size: 12, weight: .medium, design: .rounded))
                     .frame(minWidth: 132)
             }
-            .candoaButton(.secondary)
+            .buttonTreatment(.secondary)
             .controlSize(.small)
             .help("Set Shortcut")
 
             Button {
-                storedShortcut = isRemoved ? "" : CandoaShortcutDefinition.removedValue
+                storedShortcut = isRemoved ? "" : ShortcutDefinition.removedValue
             } label: {
                 Image(systemName: isRemoved ? "plus" : "minus")
                     .frame(width: 16, height: 16)
             }
-            .candoaButton(.chrome)
+            .buttonTreatment(.chrome)
             .controlSize(.small)
             .help(isRemoved ? "Restore Shortcut" : "Remove Shortcut")
 
@@ -413,7 +413,7 @@ internal struct ShortcutSettingsRow: View {
                 Image(systemName: "arrow.counterclockwise")
                     .frame(width: 16, height: 16)
             }
-            .candoaButton(.chrome)
+            .buttonTreatment(.chrome)
             .controlSize(.small)
             .disabled(storedShortcut.isEmpty)
             .help("Reset to Default")
@@ -523,7 +523,7 @@ internal struct ShortcutCaptureView: NSViewRepresentable {
     }
 }
 
-enum CandoaShortcutDefinition: String, CaseIterable, Identifiable {
+enum ShortcutDefinition: String, CaseIterable, Identifiable {
     static let removedValue = "none"
 
     case newTab
@@ -706,7 +706,7 @@ enum CandoaShortcutDefinition: String, CaseIterable, Identifiable {
     }
 }
 
-extension CandoaShortcutDefinition {
+extension ShortcutDefinition {
     /// The person's effective shortcut as a SwiftUI key equivalent, so menu
     /// items can display the same binding the event monitor acts on. Nil when
     /// the shortcut is removed or not representable as a menu equivalent.

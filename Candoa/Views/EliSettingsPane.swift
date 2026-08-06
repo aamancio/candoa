@@ -2,13 +2,13 @@ import AppKit
 import SwiftUI
 
 internal struct EliSettingsPane: View {
-    @State private var connection = CandoaEliPreferences.connection
-    @State private var hostedModelID = CandoaEliPreferences.hostedModelID ?? ""
-    @State private var directModelID = CandoaEliPreferences.directModel.id
-    @State private var reasoningEffort = CandoaEliPreferences.reasoningEffort
+    @State private var connection = EliPreferences.connection
+    @State private var hostedModelID = EliPreferences.hostedModelID ?? ""
+    @State private var directModelID = EliPreferences.directModel.id
+    @State private var reasoningEffort = EliPreferences.reasoningEffort
     @State private var apiKey = ""
     @State private var savedKeyProviders = Set(
-        CandoaAIProvider.allCases.filter(CandoaEliKeychain.hasAPIKey(for:))
+        AIProvider.allCases.filter(EliKeychain.hasAPIKey(for:))
     )
     @State private var keychainError: String?
     @EnvironmentObject private var userStore: UserStore
@@ -20,18 +20,18 @@ internal struct EliSettingsPane: View {
         ProcessInfo.processInfo.environment["CANDOA_UI_TESTING"] == "1"
     }
 
-    private var directModel: CandoaAIModel {
-        CandoaAIModelCatalog.model(forID: directModelID)
-            ?? CandoaAIModelCatalog.directModels[0]
+    private var directModel: AIModel {
+        AIModelCatalog.model(forID: directModelID)
+            ?? AIModelCatalog.directModels[0]
     }
 
-    private var selectedProvider: CandoaAIProvider { directModel.provider }
+    private var selectedProvider: AIProvider { directModel.provider }
 
     private var connectionOptions: [SettingsPickerOption] {
-        var connections: [CandoaEliConnection] = [.candoaCloud, .personalKey]
+        var connections: [EliConnection] = [.candoaCloud, .personalKey]
 #if DEBUG
-        if CandoaAIProvider.allCases.contains(where: {
-            CandoaEliPreferences.environmentAPIKey(for: $0) != nil
+        if AIProvider.allCases.contains(where: {
+            EliPreferences.environmentAPIKey(for: $0) != nil
         }) || connection == .environment {
             connections.append(.environment)
         }
@@ -40,20 +40,20 @@ internal struct EliSettingsPane: View {
     }
 
     private var providerOptions: [SettingsPickerOption] {
-        let providers: [CandoaAIProvider]
+        let providers: [AIProvider]
         if connection == .environment {
-            let available = CandoaAIProvider.allCases.filter {
-                CandoaEliPreferences.environmentAPIKey(for: $0) != nil
+            let available = AIProvider.allCases.filter {
+                EliPreferences.environmentAPIKey(for: $0) != nil
             }
-            providers = available.isEmpty ? CandoaAIProvider.allCases : available
+            providers = available.isEmpty ? AIProvider.allCases : available
         } else {
-            providers = CandoaAIProvider.allCases
+            providers = AIProvider.allCases
         }
         return providers.map { SettingsPickerOption(id: $0.rawValue, title: $0.displayName) }
     }
 
     private var directModelOptions: [SettingsPickerOption] {
-        CandoaAIModelCatalog.directModels(for: selectedProvider).map {
+        AIModelCatalog.directModels(for: selectedProvider).map {
             SettingsPickerOption(id: $0.id, title: $0.displayName)
         }
     }
@@ -67,7 +67,7 @@ internal struct EliSettingsPane: View {
 
     private var reasoningOptions: [SettingsPickerOption] {
         let efforts = connection == .candoaCloud
-            ? CandoaAIReasoningEffort.allCases
+            ? AIReasoningEffort.allCases
             : directModel.supportedEfforts
         return efforts.map { SettingsPickerOption(id: $0.rawValue, title: $0.displayName) }
     }
@@ -172,7 +172,7 @@ internal struct EliSettingsPane: View {
                             savedKeyProviders.contains(selectedProvider) ? "Replace" : "Save",
                             action: saveAPIKey
                         )
-                        .candoaButton(.secondary)
+                        .buttonTreatment(.secondary)
                         .controlSize(.small)
                         .disabled(apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     }
@@ -187,7 +187,7 @@ internal struct EliSettingsPane: View {
                         subtitle: "Eli sends direct requests with this key while \(selectedProvider.displayName) is selected."
                     ) {
                         Button("Remove", role: .destructive, action: removeAPIKey)
-                            .candoaButton(.secondary)
+                            .buttonTreatment(.secondary)
                             .controlSize(.small)
                     }
                 } else {
@@ -207,7 +207,7 @@ internal struct EliSettingsPane: View {
 
                     Text(keychainError)
                         .font(.callout)
-                        .foregroundStyle(CandoaColor.danger)
+                        .foregroundStyle(AppColor.danger)
                         .fixedSize(horizontal: false, vertical: true)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 12)
@@ -223,10 +223,10 @@ internal struct EliSettingsPane: View {
 
             SettingsCard {
                 SettingsRow(
-                    systemImage: CandoaEliPreferences.environmentAPIKey(for: selectedProvider) != nil
+                    systemImage: EliPreferences.environmentAPIKey(for: selectedProvider) != nil
                         ? "checkmark.shield"
                         : "exclamationmark.triangle",
-                    title: CandoaEliPreferences.environmentAPIKey(for: selectedProvider) != nil
+                    title: EliPreferences.environmentAPIKey(for: selectedProvider) != nil
                         ? "\(selectedProvider.environmentVariable) is set"
                         : "\(selectedProvider.environmentVariable) is not set",
                     subtitle: "Debug builds only: reads the provider key from this process's environment."
@@ -256,7 +256,7 @@ internal struct EliSettingsPane: View {
                 ) {
                     if userStore.hasActiveSubscription {
                         Button("Manage", action: openBillingPortal)
-                            .candoaButton(.secondary)
+                            .buttonTreatment(.secondary)
                             .controlSize(.small)
                             .disabled(userStore.isWorking)
                     }
@@ -283,7 +283,7 @@ internal struct EliSettingsPane: View {
                         ) {
                             userStore.signInWithApple()
                         }
-                        .candoaButton(.secondary)
+                        .buttonTreatment(.secondary)
                         .controlSize(.small)
                         .disabled(userStore.isWorking)
                     }
@@ -305,7 +305,7 @@ internal struct EliSettingsPane: View {
 
                     Text(accountError)
                         .font(.callout)
-                        .foregroundStyle(CandoaColor.danger)
+                        .foregroundStyle(AppColor.danger)
                         .fixedSize(horizontal: false, vertical: true)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 12)
@@ -318,10 +318,10 @@ internal struct EliSettingsPane: View {
         Binding(
             get: { connection.rawValue },
             set: { newValue in
-                guard let newConnection = CandoaEliConnection(rawValue: newValue) else { return }
+                guard let newConnection = EliConnection(rawValue: newValue) else { return }
                 connection = newConnection
                 if !Self.isUITesting {
-                    CandoaEliPreferences.setConnection(newConnection)
+                    EliPreferences.setConnection(newConnection)
                 }
                 coerceReasoningEffort()
             }
@@ -333,7 +333,7 @@ internal struct EliSettingsPane: View {
             get: { hostedModelID },
             set: { newValue in
                 hostedModelID = newValue
-                persist(newValue, forKey: CandoaSettingsOption.askHostedModel)
+                persist(newValue, forKey: SettingsOption.askHostedModel)
             }
         )
     }
@@ -342,9 +342,9 @@ internal struct EliSettingsPane: View {
         Binding(
             get: { selectedProvider.rawValue },
             set: { newValue in
-                guard let provider = CandoaAIProvider(rawValue: newValue),
+                guard let provider = AIProvider(rawValue: newValue),
                       provider != selectedProvider else { return }
-                setDirectModel(CandoaAIModelCatalog.directDefaultModel(for: provider).id)
+                setDirectModel(AIModelCatalog.directDefaultModel(for: provider).id)
             }
         )
     }
@@ -360,17 +360,17 @@ internal struct EliSettingsPane: View {
         Binding(
             get: { reasoningEffort.rawValue },
             set: { newValue in
-                guard let effort = CandoaAIReasoningEffort(rawValue: newValue) else { return }
+                guard let effort = AIReasoningEffort(rawValue: newValue) else { return }
                 reasoningEffort = effort
-                persist(effort.rawValue, forKey: CandoaSettingsOption.askReasoningEffort)
+                persist(effort.rawValue, forKey: SettingsOption.askReasoningEffort)
             }
         )
     }
 
     private func setDirectModel(_ modelID: String) {
-        guard CandoaAIModelCatalog.model(forID: modelID) != nil else { return }
+        guard AIModelCatalog.model(forID: modelID) != nil else { return }
         directModelID = modelID
-        persist(modelID, forKey: CandoaSettingsOption.askDirectModel)
+        persist(modelID, forKey: SettingsOption.askDirectModel)
         apiKey = ""
         keychainError = nil
         coerceReasoningEffort()
@@ -380,9 +380,9 @@ internal struct EliSettingsPane: View {
     /// resolved selection, mirroring normalizeDefaultSearchProvider().
     private func normalizeSelections() {
         if !Self.isUITesting {
-            CandoaEliPreferences.setConnection(connection)
-            persist(directModelID, forKey: CandoaSettingsOption.askDirectModel)
-            persist(reasoningEffort.rawValue, forKey: CandoaSettingsOption.askReasoningEffort)
+            EliPreferences.setConnection(connection)
+            persist(directModelID, forKey: SettingsOption.askDirectModel)
+            persist(reasoningEffort.rawValue, forKey: SettingsOption.askReasoningEffort)
         }
         coerceReasoningEffort()
     }
@@ -392,7 +392,7 @@ internal struct EliSettingsPane: View {
         let clamped = directModel.clampedEffort(reasoningEffort)
         if clamped != reasoningEffort {
             reasoningEffort = clamped
-            persist(clamped.rawValue, forKey: CandoaSettingsOption.askReasoningEffort)
+            persist(clamped.rawValue, forKey: SettingsOption.askReasoningEffort)
         }
     }
 
@@ -403,7 +403,7 @@ internal struct EliSettingsPane: View {
 
     private func saveAPIKey() {
         do {
-            try CandoaEliKeychain.save(apiKey, for: selectedProvider)
+            try EliKeychain.save(apiKey, for: selectedProvider)
             apiKey = ""
             savedKeyProviders.insert(selectedProvider)
             keychainError = nil
@@ -414,7 +414,7 @@ internal struct EliSettingsPane: View {
 
     private func removeAPIKey() {
         do {
-            try CandoaEliKeychain.remove(for: selectedProvider)
+            try EliKeychain.remove(for: selectedProvider)
             savedKeyProviders.remove(selectedProvider)
             keychainError = nil
         } catch {

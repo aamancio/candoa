@@ -2,13 +2,13 @@ import AppKit
 import SwiftUI
 
 internal struct GeneralSettingsPane: View {
-    @AppStorage(CandoaSettingsOption.checkDefaultBrowser) private var checkDefaultBrowser = false
-    @AppStorage(CandoaSettingsOption.askBeforeQuitting) private var askBeforeQuitting = true
-    @AppStorage(CandoaSettingsOption.websiteAppearance) private var websiteAppearance = WebsiteAppearance.dark.rawValue
-    @AppStorage(CandoaSettingsOption.defaultSearchProvider) private var defaultSearchProvider = NavigationService.searchProviders.first?.id ?? "google"
-    @AppStorage(CandoaSettingsOption.showSearchSuggestions) private var showSearchSuggestions = true
-    @State private var syncsWorkspaceWithICloud = CandoaSyncPreferences.syncsWorkspaceWithICloud
-    @State private var syncsHistoryWithICloud = CandoaSyncPreferences.syncsHistoryWithICloud
+    @AppStorage(SettingsOption.checkDefaultBrowser) private var checkDefaultBrowser = false
+    @AppStorage(SettingsOption.askBeforeQuitting) private var askBeforeQuitting = true
+    @AppStorage(SettingsOption.websiteAppearance) private var websiteAppearance = WebsiteAppearance.dark.rawValue
+    @AppStorage(SettingsOption.defaultSearchProvider) private var defaultSearchProvider = NavigationService.searchProviders.first?.id ?? "google"
+    @AppStorage(SettingsOption.showSearchSuggestions) private var showSearchSuggestions = true
+    @State private var syncsWorkspaceWithICloud = SyncPreferences.syncsWorkspaceWithICloud
+    @State private var syncsHistoryWithICloud = SyncPreferences.syncsHistoryWithICloud
     @StateObject private var defaultBrowserService = DefaultBrowserService()
 
     var body: some View {
@@ -30,7 +30,7 @@ internal struct GeneralSettingsPane: View {
                                     await defaultBrowserService.requestDefaultBrowserRole()
                                 }
                             }
-                            .candoaButton(.secondary)
+                            .buttonTreatment(.secondary)
                             .controlSize(.small)
                         }
                     }
@@ -93,12 +93,12 @@ internal struct GeneralSettingsPane: View {
                     SettingsToggleRow(
                         systemImage: "square.grid.2x2",
                         title: "Sync Spaces and tabs with iCloud",
-                        subtitle: CandoaCloudKitEntitlements.hasConfiguredContainer
+                        subtitle: CloudKitEntitlements.hasConfiguredContainer
                             ? "Keep them available on Macs using this Apple Account."
                             : "This build is missing the CloudKit entitlement.",
                         isOn: workspaceSyncBinding
                     )
-                    .disabled(!CandoaCloudKitEntitlements.hasConfiguredContainer)
+                    .disabled(!CloudKitEntitlements.hasConfiguredContainer)
 
                     SettingsDivider()
 
@@ -108,7 +108,7 @@ internal struct GeneralSettingsPane: View {
                         subtitle: "Requires Spaces sync.",
                         isOn: historySyncBinding
                     )
-                    .disabled(!CandoaCloudKitEntitlements.hasConfiguredContainer || !syncsWorkspaceWithICloud)
+                    .disabled(!CloudKitEntitlements.hasConfiguredContainer || !syncsWorkspaceWithICloud)
                 }
             }
         }
@@ -145,10 +145,10 @@ internal struct GeneralSettingsPane: View {
             syncsWorkspaceWithICloud
         } set: { newValue in
             syncsWorkspaceWithICloud = newValue
-            CandoaSyncPreferences.syncsWorkspaceWithICloud = newValue
+            SyncPreferences.syncsWorkspaceWithICloud = newValue
             if !newValue {
                 syncsHistoryWithICloud = false
-                CandoaSyncPreferences.syncsHistoryWithICloud = false
+                SyncPreferences.syncsHistoryWithICloud = false
             }
         }
     }
@@ -159,19 +159,19 @@ internal struct GeneralSettingsPane: View {
         } set: { newValue in
             if newValue, !syncsWorkspaceWithICloud {
                 syncsWorkspaceWithICloud = true
-                CandoaSyncPreferences.syncsWorkspaceWithICloud = true
+                SyncPreferences.syncsWorkspaceWithICloud = true
             }
             syncsHistoryWithICloud = newValue
-            CandoaSyncPreferences.syncsHistoryWithICloud = newValue
+            SyncPreferences.syncsHistoryWithICloud = newValue
         }
     }
 }
 
 internal struct SpacesSettingsPane: View {
-    @AppStorage(CandoaSettingsOption.ignorePendingTabsWhenCycling) private var ignorePendingTabsWhenCycling = false
-    @AppStorage(CandoaSettingsOption.ctrlTabCyclesWithinScope) private var ctrlTabCyclesWithinScope = false
-    @AppStorage(CandoaSettingsOption.selectRecentlyUsedOnClose) private var selectRecentlyUsedOnClose = true
-    @AppStorage(CandoaSettingsOption.pinnedCloseShortcutBehavior) private var pinnedCloseShortcutBehavior = "reset-unload-switch"
+    @AppStorage(SettingsOption.ignorePendingTabsWhenCycling) private var ignorePendingTabsWhenCycling = false
+    @AppStorage(SettingsOption.ctrlTabCyclesWithinScope) private var ctrlTabCyclesWithinScope = false
+    @AppStorage(SettingsOption.selectRecentlyUsedOnClose) private var selectRecentlyUsedOnClose = true
+    @AppStorage(SettingsOption.pinnedCloseShortcutBehavior) private var pinnedCloseShortcutBehavior = "reset-unload-switch"
 
     var body: some View {
         SettingsPane {
@@ -225,20 +225,20 @@ internal struct SpacesSettingsPane: View {
 }
 
 internal struct IconSettingsPane: View {
-    @AppStorage(CandoaDockIconPreference.storageKey) private var selectedIconPreference = CandoaDockIconPreference.system.rawValue
+    @AppStorage(DockIconPreference.storageKey) private var selectedIconPreference = DockIconPreference.system.rawValue
 
     var body: some View {
         SettingsPane {
             VStack(alignment: .leading, spacing: 20) {
                 SettingsCard {
                     HStack(alignment: .top, spacing: 18) {
-                        ForEach(CandoaDockIconPreference.allCases) { preference in
+                        ForEach(DockIconPreference.allCases) { preference in
                             DockIconChoice(
                                 preference: preference,
                                 isSelected: selectedIconPreference == preference.rawValue
                             ) {
                                 selectedIconPreference = preference.rawValue
-                                CandoaDockIconPreference.updateApplicationIcon()
+                                DockIconPreference.updateApplicationIcon()
                             }
                         }
                     }
@@ -263,8 +263,8 @@ internal struct IconSettingsPane: View {
 internal struct SearchSettingsPane: View {
     private let providers = NavigationService.searchProviders
     private let defaultSearchProviders = NavigationService.defaultSearchProviders
-    @AppStorage(CandoaSettingsOption.defaultSearchProvider) private var defaultSearchProvider = NavigationService.searchProviders.first?.id ?? "google"
-    @AppStorage(CandoaSettingsOption.showSearchSuggestions) private var showSearchSuggestions = true
+    @AppStorage(SettingsOption.defaultSearchProvider) private var defaultSearchProvider = NavigationService.searchProviders.first?.id ?? "google"
+    @AppStorage(SettingsOption.showSearchSuggestions) private var showSearchSuggestions = true
 
     var body: some View {
         SettingsPane {
@@ -328,7 +328,7 @@ internal struct SearchSettingsPane: View {
 }
 
 internal struct PrivacySettingsPane: View {
-    @AppStorage(CandoaSettingsOption.strictTrackingProtection) private var strictTrackingProtection = true
+    @AppStorage(SettingsOption.strictTrackingProtection) private var strictTrackingProtection = true
 
     var body: some View {
         SettingsPane {
@@ -349,8 +349,8 @@ internal struct PrivacySettingsPane: View {
 }
 
 internal struct SyncSettingsPane: View {
-    @State private var syncsWorkspaceWithICloud = CandoaSyncPreferences.syncsWorkspaceWithICloud
-    @State private var syncsHistoryWithICloud = CandoaSyncPreferences.syncsHistoryWithICloud
+    @State private var syncsWorkspaceWithICloud = SyncPreferences.syncsWorkspaceWithICloud
+    @State private var syncsHistoryWithICloud = SyncPreferences.syncsHistoryWithICloud
     @State private var syncMessage: String?
 
     var body: some View {
@@ -362,12 +362,12 @@ internal struct SyncSettingsPane: View {
                     SettingsToggleRow(
                         systemImage: "square.grid.2x2",
                         title: "Workspace recovery",
-                        subtitle: CandoaCloudKitEntitlements.hasConfiguredContainer
+                        subtitle: CloudKitEntitlements.hasConfiguredContainer
                             ? "Keep Spaces, tabs, pinned sites, and bookmarks available on your Macs."
                             : "This build is missing the CloudKit entitlement.",
                         isOn: workspaceSyncBinding
                     )
-                    .disabled(!CandoaCloudKitEntitlements.hasConfiguredContainer)
+                    .disabled(!CloudKitEntitlements.hasConfiguredContainer)
 
                     SettingsDivider()
 
@@ -377,7 +377,7 @@ internal struct SyncSettingsPane: View {
                         subtitle: "History sync depends on workspace sync.",
                         isOn: historySyncBinding
                     )
-                    .disabled(!CandoaCloudKitEntitlements.hasConfiguredContainer || !syncsWorkspaceWithICloud)
+                    .disabled(!CloudKitEntitlements.hasConfiguredContainer || !syncsWorkspaceWithICloud)
 
                     SettingsDivider()
 
@@ -409,7 +409,7 @@ internal struct SyncSettingsPane: View {
             syncsWorkspaceWithICloud
         } set: { newValue in
             syncsWorkspaceWithICloud = newValue
-            CandoaSyncPreferences.syncsWorkspaceWithICloud = newValue
+            SyncPreferences.syncsWorkspaceWithICloud = newValue
             if !newValue {
                 syncsHistoryWithICloud = false
             }
@@ -425,10 +425,10 @@ internal struct SyncSettingsPane: View {
         } set: { newValue in
             if newValue, !syncsWorkspaceWithICloud {
                 syncsWorkspaceWithICloud = true
-                CandoaSyncPreferences.syncsWorkspaceWithICloud = true
+                SyncPreferences.syncsWorkspaceWithICloud = true
             }
             syncsHistoryWithICloud = newValue
-            CandoaSyncPreferences.syncsHistoryWithICloud = newValue
+            SyncPreferences.syncsHistoryWithICloud = newValue
             syncMessage = newValue
                 ? "Candoa will sync history through your private iCloud database after relaunch."
                 : "Candoa will keep history local-only after relaunch."

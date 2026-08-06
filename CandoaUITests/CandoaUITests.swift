@@ -2955,7 +2955,7 @@ final class CandoaUITests: XCTestCase {
 }
 
 @MainActor
-final class CandoaEliLiveUITests: XCTestCase {
+final class EliLiveUITests: XCTestCase {
     private let liveE2EMarkerPath = "/tmp/candoa-live-e2e-enabled"
 
     override func setUpWithError() throws {
