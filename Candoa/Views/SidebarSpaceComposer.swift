@@ -44,10 +44,10 @@ internal struct UpsertSpaceSidebarComposer: View {
     private var usesDarkForeground: Bool {
         let previewHexes = store.activeThemeColorHexes
         if !previewHexes.isEmpty {
-            return CandoaInterfaceStyle.prefersDarkForeground(forSpaceHexes: previewHexes)
+            return InterfaceStyle.prefersDarkForeground(forSpaceHexes: previewHexes)
         }
         guard let themeColorHex else { return false }
-        return CandoaInterfaceStyle.prefersDarkForeground(forSpaceHex: themeColorHex)
+        return InterfaceStyle.prefersDarkForeground(forSpaceHex: themeColorHex)
     }
 
     private var foregroundBase: Color {
@@ -55,35 +55,35 @@ internal struct UpsertSpaceSidebarComposer: View {
     }
 
     private var textColor: Color {
-        isThemePreviewActive ? foregroundBase.opacity(usesDarkForeground ? 0.82 : 0.88) : CandoaInterfaceStyle.sidebarText
+        isThemePreviewActive ? foregroundBase.opacity(usesDarkForeground ? 0.82 : 0.88) : InterfaceStyle.sidebarText
     }
 
     private var secondaryTextColor: Color {
-        isThemePreviewActive ? foregroundBase.opacity(usesDarkForeground ? 0.55 : 0.58) : CandoaInterfaceStyle.sidebarTextSecondary
+        isThemePreviewActive ? foregroundBase.opacity(usesDarkForeground ? 0.55 : 0.58) : InterfaceStyle.sidebarTextSecondary
     }
 
     private var iconColor: Color {
-        isThemePreviewActive ? foregroundBase.opacity(0.42) : CandoaInterfaceStyle.sidebarIcon
+        isThemePreviewActive ? foregroundBase.opacity(0.42) : InterfaceStyle.sidebarIcon
     }
 
     private var inputFill: Color {
         isThemePreviewActive
             ? foregroundBase.opacity(usesDarkForeground ? 0.09 : 0.11)
-            : CandoaInterfaceStyle.spaceSetupInputFill
+            : InterfaceStyle.spaceSetupInputFill
     }
 
     private var secondaryControlFill: Color {
         isThemePreviewActive
             ? foregroundBase.opacity(usesDarkForeground ? 0.045 : 0.06)
-            : CandoaInterfaceStyle.spaceSetupSecondaryFill
+            : InterfaceStyle.spaceSetupSecondaryFill
     }
 
     private var controlStroke: Color {
-        isThemePreviewActive ? foregroundBase.opacity(0.08) : CandoaInterfaceStyle.spaceSetupControlStroke
+        isThemePreviewActive ? foregroundBase.opacity(0.08) : InterfaceStyle.spaceSetupControlStroke
     }
 
     private var pillFill: Color {
-        isThemePreviewActive ? foregroundBase.opacity(usesDarkForeground ? 0.08 : 0.10) : CandoaInterfaceStyle.spaceSetupPillFill
+        isThemePreviewActive ? foregroundBase.opacity(usesDarkForeground ? 0.08 : 0.10) : InterfaceStyle.spaceSetupPillFill
     }
 
     private var themeAppearanceSelection: Binding<SpaceThemeAppearance> {
@@ -126,7 +126,7 @@ internal struct UpsertSpaceSidebarComposer: View {
                 Text(mode.primaryButtonTitle)
                     .frame(maxWidth: .infinity)
             }
-            .candoaButton(.primary)
+            .buttonTreatment(.primary)
             .controlSize(.large)
             .frame(maxWidth: .infinity)
             .disabled(trimmedName.isEmpty)
@@ -141,7 +141,7 @@ internal struct UpsertSpaceSidebarComposer: View {
                         store.isCreateSpacePresented = false
                     }
                 }
-                .candoaButton(.quiet)
+                .buttonTreatment(.quiet)
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(isThemePreviewActive ? foregroundBase.opacity(usesDarkForeground ? 0.78 : 0.82) : Color.primary.opacity(0.86))
                 .frame(maxWidth: .infinity)
@@ -216,10 +216,10 @@ internal struct UpsertSpaceSidebarComposer: View {
                     themeColorHex: themeColorHex,
                     strokeColor: isThemePreviewActive
                         ? foregroundBase.opacity(0.46)
-                        : CandoaInterfaceStyle.sidebarIcon.opacity(0.78)
+                        : InterfaceStyle.sidebarIcon.opacity(0.78)
                 )
             }
-            .candoaButton(.content)
+            .buttonTreatment(.content)
             .help("Change Icon")
             .popover(isPresented: $isIconPickerPresented, arrowEdge: .leading) {
                 SpaceIconPicker(
@@ -288,7 +288,7 @@ internal struct UpsertSpaceSidebarComposer: View {
                     .background(pillFill)
                     .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
             }
-            .candoaButton(.content)
+            .buttonTreatment(.content)
             .popover(isPresented: $isProfilePickerPresented, arrowEdge: .trailing) {
                 SpaceProfilePicker(
                     selectedMode: $dataMode,
@@ -333,7 +333,7 @@ internal struct UpsertSpaceSidebarComposer: View {
                     .stroke(controlStroke, lineWidth: 1)
             }
         }
-        .candoaButton(.content)
+        .buttonTreatment(.content)
         .popover(isPresented: $isThemeEditorPresented, arrowEdge: .trailing) {
             SpaceThemePanel(
                 selectedHex: $themeColorHex,

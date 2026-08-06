@@ -1,7 +1,7 @@
 import Foundation
 
 extension BrowserStore {
-    func browserAgentPage(for tabID: UUID?) async -> CandoaBrowserAgentPage? {
+    func browserAgentPage(for tabID: UUID?) async -> BrowserAgentPage? {
         guard let tabID else { return nil }
         var resolvedTab = tabs.first(where: { $0.id == tabID && $0.url != nil })
         if resolvedTab == nil {
@@ -19,7 +19,7 @@ extension BrowserStore {
 
         let pageText = await webCoordinator.readablePageText(for: tabID) ?? ""
         guard let snapshot = await webCoordinator.browserAgentSnapshot(for: tabID) else { return nil }
-        return CandoaBrowserAgentPage(
+        return BrowserAgentPage(
             snapshotID: snapshot.id,
             title: tab.title.trimmingCharacters(in: .whitespacesAndNewlines),
             url: url.absoluteString,
@@ -31,32 +31,32 @@ extension BrowserStore {
     func startBrowserAgentRun(
         runID: UUID,
         goal: String,
-        page: CandoaBrowserAgentPage
-    ) async throws -> CandoaBrowserAgentRunResponse {
+        page: BrowserAgentPage
+    ) async throws -> BrowserAgentRunResponse {
         if let fixture = fixtureBrowserAgentResponse(runID: runID, goal: goal, page: page, outcome: nil) {
             return fixture
         }
-        return try await CandoaBrowserAgentRemoteService.start(runID: runID, goal: goal, page: page)
+        return try await BrowserAgentRemoteService.start(runID: runID, goal: goal, page: page)
     }
 
     func resumeBrowserAgentRun(
         runID: UUID,
         goal: String,
-        outcome: CandoaBrowserAgentActionOutcome
-    ) async throws -> CandoaBrowserAgentRunResponse {
+        outcome: BrowserAgentActionOutcome
+    ) async throws -> BrowserAgentRunResponse {
         if let page = outcome.page,
            let fixture = fixtureBrowserAgentResponse(runID: runID, goal: goal, page: page, outcome: outcome) {
             return fixture
         }
-        return try await CandoaBrowserAgentRemoteService.resume(runID: runID, outcome: outcome)
+        return try await BrowserAgentRemoteService.resume(runID: runID, outcome: outcome)
     }
 
     private func fixtureBrowserAgentResponse(
         runID: UUID,
         goal: String,
-        page: CandoaBrowserAgentPage,
-        outcome: CandoaBrowserAgentActionOutcome?
-    ) -> CandoaBrowserAgentRunResponse? {
+        page: BrowserAgentPage,
+        outcome: BrowserAgentActionOutcome?
+    ) -> BrowserAgentRunResponse? {
         guard Self.isUITesting,
               let fixture = ProcessInfo.processInfo.environment["CANDOA_UI_TESTING_FIXTURE"],
               ["ask-agent-navigation", "ask-agent-normalized-navigation", "ask-agent-selection"]
@@ -75,11 +75,11 @@ extension BrowserStore {
                 )
             }
             if outcome?.result.hasPrefix("Navigated") == true {
-                return CandoaBrowserAgentRunResponse(
+                return BrowserAgentRunResponse(
                     runID: runID,
                     status: .action,
                     message: "Scroll to reveal the remaining laptop configuration options.",
-                    action: CandoaBrowserAgentAction(
+                    action: BrowserAgentAction(
                         snapshotID: page.snapshotID,
                         kind: .scroll,
                         target: "down",
@@ -100,7 +100,7 @@ extension BrowserStore {
         }
 
         if fixture == "ask-agent-selection" {
-            let normalizedGoal = CandoaEliPromptPolicy.normalizedText(goal)
+            let normalizedGoal = EliPromptPolicy.normalizedText(goal)
             let control = page.controls.first(where: { $0.label == "Add to Cart" })
                 ?? page.controls.first(where: { $0.label == "Remove" && normalizedGoal.contains("remove") })
                 ?? page.controls.first(where: { $0.label == "Sky Blue" && !$0.selected })
@@ -146,17 +146,17 @@ extension BrowserStore {
 
     private func fixtureActionResponse(
         runID: UUID,
-        page: CandoaBrowserAgentPage,
-        control: CandoaBrowserAgentControl,
-        kind: CandoaPageActionKind,
+        page: BrowserAgentPage,
+        control: BrowserAgentControl,
+        kind: PageActionKind,
         message: String = "",
         requiresApproval: Bool = false
-    ) -> CandoaBrowserAgentRunResponse {
-        CandoaBrowserAgentRunResponse(
+    ) -> BrowserAgentRunResponse {
+        BrowserAgentRunResponse(
             runID: runID,
             status: .action,
             message: message,
-            action: CandoaBrowserAgentAction(
+            action: BrowserAgentAction(
                 snapshotID: page.snapshotID,
                 kind: kind,
                 target: control.ref,
@@ -173,11 +173,11 @@ extension BrowserStore {
         await webCoordinator.waitForBrowserAgentPageSettled(for: tabID, previousURL: previousURL)
     }
 
-    func activeAIPageContext() async -> CandoaAIPageContext {
+    func activeAIPageContext() async -> AIPageContext {
         await aiPageContext(for: activeTabID)
     }
 
-    func aiPageContext(for tabID: UUID?) async -> CandoaAIPageContext {
+    func aiPageContext(for tabID: UUID?) async -> AIPageContext {
         let tab = tabID.flatMap { id in tabs.first { $0.id == id } }
         let pageText: String?
         let controlsText: String?
@@ -203,14 +203,14 @@ extension BrowserStore {
             }
             .joined(separator: "\n\n")
 
-        return CandoaAIPageContext(
+        return AIPageContext(
             title: tab?.title.trimmingCharacters(in: .whitespacesAndNewlines),
             url: tab?.url?.absoluteString,
             text: combinedText.isEmpty ? nil : combinedText
         )
     }
 
-    func performAIPageAction(_ action: CandoaPageActionProposal, in tabID: UUID?) async -> String {
+    func performAIPageAction(_ action: PageActionProposal, in tabID: UUID?) async -> String {
         guard let tabID, tabs.contains(where: { $0.id == tabID }) else {
             return "That page is no longer open."
         }
@@ -240,7 +240,7 @@ extension BrowserStore {
                     return
                 }
 
-                continuation.resume(returning: CandoaImageTextRecognizer.recognizedText(in: image))
+                continuation.resume(returning: ImageTextRecognizer.recognizedText(in: image))
             }
         }
     }

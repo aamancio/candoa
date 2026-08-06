@@ -34,7 +34,7 @@ private struct RestoredWorkspaceOnboardingStep: View {
                 Image(systemName: "checkmark.icloud")
                     .font(.system(size: 44, weight: .medium))
                     .symbolRenderingMode(.hierarchical)
-                    .foregroundStyle(CandoaInterfaceStyle.decorativeSymbol)
+                    .foregroundStyle(InterfaceStyle.decorativeSymbol)
 
                 Text("Welcome back")
                     .font(.system(size: 34, weight: .semibold))
@@ -55,7 +55,7 @@ private struct RestoredWorkspaceOnboardingStep: View {
                 Label("Start Browsing", systemImage: "arrow.right")
                     .frame(minWidth: 136)
             }
-            .candoaButton(.primary)
+            .buttonTreatment(.primary)
             .controlSize(.large)
             .keyboardShortcut(.defaultAction)
             .accessibilityIdentifier("onboarding-start-browsing")
@@ -64,7 +64,7 @@ private struct RestoredWorkspaceOnboardingStep: View {
         .opacity(revealsContent ? 1 : 0)
         .offset(y: reduceMotion || revealsContent ? 0 : 10)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(CandoaInterfaceStyle.surfaceFill)
+        .background(InterfaceStyle.surfaceFill)
         .accessibilityIdentifier("initial-onboarding-restoredWorkspace")
         .onAppear {
             guard !revealsContent else { return }
@@ -145,7 +145,7 @@ private struct InitialTourPopover: View {
             HStack(spacing: 10) {
                 Image(systemName: tip.symbolName)
                     .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(CandoaInterfaceStyle.decorativeSymbol)
+                    .foregroundStyle(InterfaceStyle.decorativeSymbol)
                     .frame(width: 28, height: 28)
 
                 Text(tip.title)
@@ -168,7 +168,7 @@ private struct InitialTourPopover: View {
                 Button(String(localized: "Skip Tour")) {
                     store.completeInitialTour()
                 }
-                .candoaButton(.quiet)
+                .buttonTreatment(.quiet)
 
                 Spacer()
 
@@ -176,13 +176,13 @@ private struct InitialTourPopover: View {
                     Button(String(localized: "Back")) {
                         store.showPreviousInitialTourTip()
                     }
-                    .candoaButton(.secondary)
+                    .buttonTreatment(.secondary)
                 }
 
                 Button(isLastTip ? String(localized: "Done") : String(localized: "Next")) {
                     store.showNextInitialTourTip()
                 }
-                .candoaButton(.primary)
+                .buttonTreatment(.primary)
                 .keyboardShortcut(.defaultAction)
             }
         }
@@ -277,7 +277,7 @@ struct WelcomeToCandoaPage: View {
                 .offset(y: reduceMotion || revealsContent ? 0 : 8)
             }
         }
-        .background(CandoaInterfaceStyle.surfaceFill.opacity(0.72))
+        .background(InterfaceStyle.surfaceFill.opacity(0.72))
         .accessibilityIdentifier("welcome-to-candoa-page")
         .onAppear {
             guard !revealsContent else { return }
@@ -304,7 +304,7 @@ struct WelcomeToCandoaPage: View {
             VStack(alignment: .leading, spacing: 9) {
                 Image(systemName: symbolName)
                     .font(.system(size: 20, weight: .medium))
-                    .foregroundStyle(CandoaInterfaceStyle.decorativeSymbol)
+                    .foregroundStyle(InterfaceStyle.decorativeSymbol)
 
                 Text(title)
                     .font(.headline)
@@ -353,7 +353,7 @@ private struct WelcomeOnboardingStep: View {
                     Label("Begin Setup", systemImage: "arrow.right")
                         .frame(minWidth: 116)
                 }
-                .candoaButton(.primary)
+                .buttonTreatment(.primary)
                 .controlSize(.large)
                 .keyboardShortcut(.defaultAction)
                 .opacity(revealsAction ? 1 : 0)
@@ -363,7 +363,7 @@ private struct WelcomeOnboardingStep: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(CandoaInterfaceStyle.surfaceFill)
+        .background(InterfaceStyle.surfaceFill)
         .accessibilityIdentifier("initial-onboarding-welcome")
         .task {
             guard !revealsAction else { return }
@@ -404,7 +404,7 @@ private struct AccountOnboardingStep: View {
                     Image(systemName: "apple.logo")
                         .font(.system(size: 34, weight: .medium))
                         .symbolRenderingMode(.hierarchical)
-                        .foregroundStyle(CandoaInterfaceStyle.decorativeSymbol)
+                        .foregroundStyle(InterfaceStyle.decorativeSymbol)
 
                     VStack(spacing: 10) {
                         Text("Keep your Candoa account with you")
@@ -437,7 +437,7 @@ private struct AccountOnboardingStep: View {
                             }
                             .frame(maxWidth: .infinity)
                         }
-                        .candoaButton(.primary)
+                        .buttonTreatment(.primary)
                         .controlSize(.large)
                         .frame(maxWidth: .infinity)
                         .keyboardShortcut(.defaultAction)
@@ -447,14 +447,14 @@ private struct AccountOnboardingStep: View {
                         if let errorMessage = userStore.errorMessage, !userStore.isWorking {
                             Text(errorMessage)
                                 .font(.system(size: 12))
-                                .foregroundStyle(CandoaColor.danger)
+                                .foregroundStyle(AppColor.danger)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
 
                         Button("Not Now") {
                             userStore.continueOnThisMac()
                         }
-                        .candoaButton(.quiet)
+                        .buttonTreatment(.quiet)
                         .controlSize(.large)
                         .disabled(userStore.isWorking)
                         .accessibilityIdentifier("onboarding-not-now")
@@ -499,7 +499,7 @@ private struct AccountOnboardingSurface<Content: View>: View {
                     Button(action: onBack) {
                         Label("Back", systemImage: "chevron.left")
                     }
-                    .candoaButton(.quiet)
+                    .buttonTreatment(.quiet)
                     .font(.system(size: 12, weight: .semibold))
                     .help("Back")
                     .accessibilityIdentifier("onboarding-back")
@@ -517,16 +517,16 @@ private struct AccountOnboardingSurface<Content: View>: View {
             }
             .padding(38)
             .frame(width: cardWidth, height: cardHeight)
-            .background(CandoaInterfaceStyle.surfaceFill)
+            .background(InterfaceStyle.surfaceFill)
             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(CandoaInterfaceStyle.surfaceBorder, lineWidth: 1)
+                    .stroke(InterfaceStyle.surfaceBorder, lineWidth: 1)
             }
             .shadow(color: Color.black.opacity(0.16), radius: 30, y: 14)
             .position(x: proxy.size.width / 2, y: proxy.size.height / 2)
         }
-        .background(CandoaInterfaceStyle.surfaceFill.opacity(0.72))
+        .background(InterfaceStyle.surfaceFill.opacity(0.72))
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .accessibilityIdentifier("initial-onboarding-account")
         .accessibilityValue("Step \(Self.step.position) of \(Self.step.count)")
@@ -591,7 +591,7 @@ private struct ImportOnboardingStep: View {
                     }
                         .frame(maxWidth: .infinity)
                 }
-                .candoaButton(.primary)
+                .buttonTreatment(.primary)
                 .controlSize(.large)
                 .keyboardShortcut(.defaultAction)
                 .disabled(isImporting)
@@ -600,7 +600,7 @@ private struct ImportOnboardingStep: View {
                 Button(String(localized: "Skip")) {
                     store.completeInitialImport()
                 }
-                .candoaButton(.quiet)
+                .buttonTreatment(.quiet)
                 .controlSize(.large)
                 .frame(maxWidth: .infinity)
             }
@@ -776,12 +776,12 @@ private struct OnboardingSpacePreview: View {
                 HStack(spacing: 12) {
                     Image(systemName: space.symbolName)
                         .font(.system(size: 15, weight: .medium))
-                        .foregroundStyle(space.isActive ? CandoaColor.accent : .secondary)
+                        .foregroundStyle(space.isActive ? AppColor.accent : .secondary)
                         .frame(width: 30, height: 30)
                         .background(
                             space.isActive
-                                ? CandoaColor.accent.opacity(0.14)
-                                : CandoaInterfaceStyle.sidebarControlFill,
+                                ? AppColor.accent.opacity(0.14)
+                                : InterfaceStyle.sidebarControlFill,
                             in: RoundedRectangle(cornerRadius: 8, style: .continuous)
                         )
 
@@ -799,7 +799,7 @@ private struct OnboardingSpacePreview: View {
                     if space.isActive {
                         Image(systemName: "checkmark.circle.fill")
                             .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(CandoaColor.accent)
+                            .foregroundStyle(AppColor.accent)
                             .accessibilityHidden(true)
                     }
                 }
@@ -807,7 +807,7 @@ private struct OnboardingSpacePreview: View {
                 .frame(height: 58)
                 .background(
                     space.isActive
-                        ? CandoaColor.accent.opacity(0.08)
+                        ? AppColor.accent.opacity(0.08)
                         : Color(nsColor: .controlBackgroundColor).opacity(0.42),
                     in: RoundedRectangle(cornerRadius: 10, style: .continuous)
                 )
@@ -815,8 +815,8 @@ private struct OnboardingSpacePreview: View {
                     RoundedRectangle(cornerRadius: 10, style: .continuous)
                         .stroke(
                             space.isActive
-                                ? CandoaColor.accent.opacity(0.34)
-                                : CandoaInterfaceStyle.surfaceBorder,
+                                ? AppColor.accent.opacity(0.34)
+                                : InterfaceStyle.surfaceBorder,
                             lineWidth: 1
                         )
                 }
@@ -835,7 +835,7 @@ private struct OnboardingSpacePreview: View {
         )
         .overlay {
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .stroke(CandoaInterfaceStyle.surfaceBorder, lineWidth: 1)
+                .stroke(InterfaceStyle.surfaceBorder, lineWidth: 1)
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Example Spaces")
@@ -873,16 +873,16 @@ private struct OnboardingSurface<Leading: View, Preview: View>: View {
                 previewRail
             }
             .frame(width: cardWidth, height: cardHeight)
-            .background(CandoaInterfaceStyle.surfaceFill)
+            .background(InterfaceStyle.surfaceFill)
             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(CandoaInterfaceStyle.surfaceBorder, lineWidth: 1)
+                    .stroke(InterfaceStyle.surfaceBorder, lineWidth: 1)
             }
             .shadow(color: Color.black.opacity(0.16), radius: 30, y: 14)
             .position(x: proxy.size.width / 2, y: proxy.size.height / 2)
         }
-        .background(CandoaInterfaceStyle.surfaceFill.opacity(0.72))
+        .background(InterfaceStyle.surfaceFill.opacity(0.72))
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .accessibilityIdentifier("initial-onboarding-\(step.rawValue)")
         .accessibilityValue("Step \(step.position) of \(step.count)")
@@ -907,7 +907,7 @@ private struct OnboardingSurface<Leading: View, Preview: View>: View {
                 Button(action: onBack) {
                     Label("Back", systemImage: "chevron.left")
                 }
-                .candoaButton(.quiet)
+                .buttonTreatment(.quiet)
                 .font(.system(size: 12, weight: .semibold))
                 .help("Back")
                 .accessibilityIdentifier("onboarding-back")
@@ -929,7 +929,7 @@ private struct OnboardingSurface<Leading: View, Preview: View>: View {
         preview
             .padding(36)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(CandoaInterfaceStyle.sidebarControlFill.opacity(0.50))
+            .background(InterfaceStyle.sidebarControlFill.opacity(0.50))
     }
 }
 
@@ -942,7 +942,7 @@ private struct OnboardingPageHeader: View {
         VStack(alignment: .leading, spacing: 16) {
             Image(systemName: symbolName)
                 .font(.system(size: 26, weight: .medium))
-                .foregroundStyle(CandoaInterfaceStyle.decorativeSymbol)
+                .foregroundStyle(InterfaceStyle.decorativeSymbol)
 
             Text(title)
                 .font(.system(size: 30, weight: .semibold))
@@ -1021,7 +1021,7 @@ private struct OnboardingImportPreview: View {
             .background(.background.opacity(0.62), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .stroke(CandoaInterfaceStyle.surfaceBorder, lineWidth: 1)
+                    .stroke(InterfaceStyle.surfaceBorder, lineWidth: 1)
             }
         }
     }

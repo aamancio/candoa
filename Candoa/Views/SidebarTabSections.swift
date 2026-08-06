@@ -27,7 +27,7 @@ internal struct EssentialTileView: View {
                     .fill(
                         isActive
                             ? AnyShapeStyle(accentColor.opacity(0.18))
-                            : AnyShapeStyle(CandoaInterfaceStyle.sidebarControlFill)
+                            : AnyShapeStyle(InterfaceStyle.sidebarControlFill)
                     )
 
                 faviconImage
@@ -45,7 +45,7 @@ internal struct EssentialTileView: View {
                     )
             }
         }
-        .candoaButton(.content)
+        .buttonTreatment(.content)
         .animation(.easeOut(duration: 0.12), value: isActive)
         .help(placement == .favorite ? tab.favoriteDisplayTitle : tab.title)
         .accessibilityLabel(placement == .favorite ? tab.favoriteDisplayTitle : tab.title)
@@ -78,7 +78,7 @@ internal struct EssentialTileView: View {
         } else {
             Image(systemName: placement == .favorite ? tab.favoriteDisplayFaviconSymbol : tab.faviconSymbol)
                 .font(.system(size: 20, weight: .medium))
-                .foregroundStyle(isActive ? CandoaInterfaceStyle.sidebarText : CandoaInterfaceStyle.sidebarTextSecondary)
+                .foregroundStyle(isActive ? InterfaceStyle.sidebarText : InterfaceStyle.sidebarTextSecondary)
         }
     }
 }
@@ -114,13 +114,13 @@ internal struct SidebarSplitGroupView: View {
         .frame(minHeight: 36)
         .background(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(isHovering ? CandoaInterfaceStyle.sidebarControlFillHover : CandoaInterfaceStyle.sidebarControlFill)
+                .fill(isHovering ? InterfaceStyle.sidebarControlFillHover : InterfaceStyle.sidebarControlFill)
         )
         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .strokeBorder(
-                    isHovering ? CandoaInterfaceStyle.sidebarControlStroke : Color.clear,
+                    isHovering ? InterfaceStyle.sidebarControlStroke : Color.clear,
                     lineWidth: 1
                 )
         }
@@ -173,11 +173,11 @@ internal struct SidebarSplitGroupChip: View {
                     .frame(width: 16, height: 16)
                     .contentShape(Rectangle())
             }
-            .candoaButton(.content)
-            .foregroundStyle(CandoaInterfaceStyle.sidebarIcon)
+            .buttonTreatment(.content)
+            .foregroundStyle(InterfaceStyle.sidebarIcon)
             .background(
                 Circle()
-                    .fill(isHoveringCloseButton ? CandoaInterfaceStyle.sidebarControlFillHover : Color.clear)
+                    .fill(isHoveringCloseButton ? InterfaceStyle.sidebarControlFillHover : Color.clear)
             )
             .opacity(showsCloseButton ? 1 : 0)
             .accessibilityHidden(!showsCloseButton)
@@ -210,7 +210,7 @@ internal struct SidebarSplitGroupChip: View {
 
     private var chipBackground: Color {
         if isHovering {
-            return CandoaInterfaceStyle.sidebarControlFillHover
+            return InterfaceStyle.sidebarControlFillHover
         }
         if isActive {
             return accentColor.opacity(0.12)
@@ -227,7 +227,7 @@ internal struct SidebarSplitGroupChip: View {
         } else {
             Image(systemName: tab.faviconSymbol)
                 .font(.system(size: 14.5, weight: .medium))
-                .foregroundStyle(isActive ? CandoaInterfaceStyle.sidebarText : CandoaInterfaceStyle.sidebarIcon)
+                .foregroundStyle(isActive ? InterfaceStyle.sidebarText : InterfaceStyle.sidebarIcon)
         }
     }
 }
@@ -242,15 +242,15 @@ internal struct FavoriteDropZone: View {
             Image(systemName: "star.circle.fill")
                 .font(.system(size: 19, weight: .semibold))
                 .symbolRenderingMode(.hierarchical)
-                .foregroundStyle(CandoaInterfaceStyle.sidebarTextSecondary)
+                .foregroundStyle(InterfaceStyle.sidebarTextSecondary)
 
             Text("Drag to add Favorites")
                 .font(.system(size: 13.5, weight: .semibold))
-                .foregroundStyle(CandoaInterfaceStyle.sidebarText)
+                .foregroundStyle(InterfaceStyle.sidebarText)
 
             Text("Favorites keep your most used sites and apps close")
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(CandoaInterfaceStyle.sidebarTextSecondary)
+                .foregroundStyle(InterfaceStyle.sidebarTextSecondary)
                 .multilineTextAlignment(.center)
                 .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
@@ -265,22 +265,22 @@ internal struct FavoriteDropZone: View {
                     .frame(width: 22, height: 22)
                     .contentShape(Rectangle())
             }
-            .candoaButton(.content)
-            .foregroundStyle(isHoveringCloseButton ? CandoaInterfaceStyle.sidebarTextSecondary : CandoaInterfaceStyle.sidebarIcon)
+            .buttonTreatment(.content)
+            .foregroundStyle(isHoveringCloseButton ? InterfaceStyle.sidebarTextSecondary : InterfaceStyle.sidebarIcon)
             .background(
                 Circle()
-                    .fill(isHoveringCloseButton ? CandoaInterfaceStyle.sidebarControlFillHover : Color.clear)
+                    .fill(isHoveringCloseButton ? InterfaceStyle.sidebarControlFillHover : Color.clear)
             )
             .onHover { isHoveringCloseButton = $0 }
             .help("Dismiss Favorites Hint")
             .padding(6)
         }
-        .background(CandoaInterfaceStyle.sidebarControlFill.opacity(0.56))
+        .background(InterfaceStyle.sidebarControlFill.opacity(0.56))
         .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 11, style: .continuous)
                 .strokeBorder(
-                    CandoaInterfaceStyle.sidebarTextSecondary.opacity(0.26),
+                    InterfaceStyle.sidebarTextSecondary.opacity(0.26),
                     style: StrokeStyle(lineWidth: 1, dash: [6, 5])
                 )
         }
@@ -414,13 +414,13 @@ internal struct FolderSectionView: View {
     private var folderHeader: some View {
         HStack(spacing: 8) {
             SidebarFolderIcon()
-                .foregroundStyle(CandoaInterfaceStyle.sidebarIcon)
+                .foregroundStyle(InterfaceStyle.sidebarIcon)
 
             if isEditing {
                 TextField("Folder Name", text: $draftName)
                     .textFieldStyle(.plain)
                     .font(.system(size: 13, weight: .regular))
-                    .foregroundStyle(CandoaInterfaceStyle.sidebarText)
+                    .foregroundStyle(InterfaceStyle.sidebarText)
                     .focused($isNameFocused)
                     .lineLimit(1)
                     .onSubmit(commitRename)
@@ -433,7 +433,7 @@ internal struct FolderSectionView: View {
                     .lineLimit(1)
                     .truncationMode(.tail)
                     .font(.system(size: 13, weight: .regular))
-                    .foregroundStyle(CandoaInterfaceStyle.sidebarText)
+                    .foregroundStyle(InterfaceStyle.sidebarText)
             }
 
             SidebarDisclosureChevron(
@@ -441,7 +441,7 @@ internal struct FolderSectionView: View {
                 isVisible: hasFolderContents,
                 opacity: isHovering || folder.isExpanded ? 0.82 : 0.48
             )
-                .foregroundStyle(CandoaInterfaceStyle.sidebarIcon)
+                .foregroundStyle(InterfaceStyle.sidebarIcon)
 
             Spacer(minLength: 0)
         }
@@ -450,7 +450,7 @@ internal struct FolderSectionView: View {
         .padding(.leading, CGFloat(nestingLevel) * 12)
         .frame(minHeight: 32)
         .contentShape(Rectangle())
-        .background(isHovering ? CandoaInterfaceStyle.sidebarControlFillHover : Color.clear)
+        .background(isHovering ? InterfaceStyle.sidebarControlFillHover : Color.clear)
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         .onHover { hovering in
             isHovering = hovering

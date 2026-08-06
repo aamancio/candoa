@@ -50,8 +50,8 @@ struct TabRowView: View {
                         .frame(width: 16, height: 16)
                         .contentShape(Rectangle())
                 }
-                .candoaButton(.content)
-                .foregroundStyle(isActive ? CandoaInterfaceStyle.sidebarText : CandoaInterfaceStyle.sidebarIcon)
+                .buttonTreatment(.content)
+                .foregroundStyle(isActive ? InterfaceStyle.sidebarText : InterfaceStyle.sidebarIcon)
                 .help(mediaState?.isMuted == true ? "Unmute Tab" : "Mute Tab")
                 .transition(.opacity)
             }
@@ -60,14 +60,14 @@ struct TabRowView: View {
                 .lineLimit(1)
                 .truncationMode(.tail)
                 .font(.system(size: 13, weight: isActive ? .medium : .regular))
-                .foregroundStyle(isActive ? CandoaInterfaceStyle.sidebarText : CandoaInterfaceStyle.sidebarTextSecondary)
+                .foregroundStyle(isActive ? InterfaceStyle.sidebarText : InterfaceStyle.sidebarTextSecondary)
 
             Spacer(minLength: 8)
 
             if isSplit {
                 Image(systemName: "rectangle.split.2x1")
                     .font(.caption)
-                    .foregroundStyle(CandoaInterfaceStyle.sidebarIcon)
+                    .foregroundStyle(InterfaceStyle.sidebarIcon)
             }
 
             Button(action: onClose) {
@@ -76,8 +76,8 @@ struct TabRowView: View {
                     .frame(width: 14, height: 14)
                     .contentShape(Rectangle())
             }
-            .candoaButton(.content)
-            .foregroundStyle(CandoaInterfaceStyle.sidebarIcon)
+            .buttonTreatment(.content)
+            .foregroundStyle(InterfaceStyle.sidebarIcon)
             .help("Close Tab")
             .opacity(isHovering ? 1 : 0)
             .accessibilityHidden(!isHovering)
@@ -109,7 +109,7 @@ struct TabRowView: View {
         .overlay {
             if isHovering {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .stroke(CandoaInterfaceStyle.sidebarControlStroke, lineWidth: 1)
+                    .stroke(InterfaceStyle.sidebarControlStroke, lineWidth: 1)
                     .allowsHitTesting(false)
             }
         }
@@ -134,7 +134,7 @@ struct TabRowView: View {
             return accentColor.opacity(0.18)
         }
         if isHovering {
-            return CandoaInterfaceStyle.sidebarControlFillHover
+            return InterfaceStyle.sidebarControlFillHover
         }
         return Color.clear
     }
@@ -149,7 +149,7 @@ struct TabRowView: View {
         } else {
             Image(systemName: tab.faviconSymbol)
                 .font(.system(size: 14.5, weight: .medium))
-                .foregroundStyle(isActive ? CandoaInterfaceStyle.sidebarText : CandoaInterfaceStyle.sidebarIcon)
+                .foregroundStyle(isActive ? InterfaceStyle.sidebarText : InterfaceStyle.sidebarIcon)
         }
     }
 }
@@ -274,16 +274,16 @@ struct TabDragGhost: View {
                     .font(.system(size: 11, weight: .medium))
                     .lineLimit(1)
                     .truncationMode(.tail)
-                    .foregroundStyle(CandoaInterfaceStyle.sidebarText)
+                    .foregroundStyle(InterfaceStyle.sidebarText)
 
                 Spacer(minLength: 0)
             }
             .padding(.horizontal, 9)
             .frame(height: 27)
-            .background(CandoaInterfaceStyle.sidebarControlFill)
+            .background(InterfaceStyle.sidebarControlFill)
 
             Rectangle()
-                .fill(CandoaInterfaceStyle.surfaceBorder)
+                .fill(InterfaceStyle.surfaceBorder)
                 .frame(height: 1)
 
             VStack(alignment: .leading, spacing: 6) {
@@ -297,13 +297,13 @@ struct TabDragGhost: View {
             }
             .padding(10)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .background(CandoaInterfaceStyle.surfaceFill)
+            .background(InterfaceStyle.surfaceFill)
         }
         .frame(width: width, height: height)
         .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 9, style: .continuous)
-                .strokeBorder(CandoaInterfaceStyle.surfaceBorder, lineWidth: 1)
+                .strokeBorder(InterfaceStyle.surfaceBorder, lineWidth: 1)
         }
         .shadow(color: .black.opacity(0.22), radius: 9, y: 4)
     }
@@ -329,7 +329,7 @@ struct TabDragGhost: View {
         } else {
             Image(systemName: tab.faviconSymbol)
                 .font(.system(size: 10, weight: .medium))
-                .foregroundStyle(CandoaInterfaceStyle.sidebarIcon)
+                .foregroundStyle(InterfaceStyle.sidebarIcon)
         }
     }
 }

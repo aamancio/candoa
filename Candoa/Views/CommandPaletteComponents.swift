@@ -3,7 +3,7 @@ import SwiftUI
 
 internal struct PaletteBackground: View {
     var body: some View {
-        CandoaInterfaceStyle.popoverBackground
+        InterfaceStyle.popoverBackground
     }
 }
 

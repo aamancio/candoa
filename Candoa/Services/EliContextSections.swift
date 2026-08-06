@@ -1,6 +1,6 @@
 import Foundation
 
-enum CandoaEliContextSections {
+enum EliContextSections {
     static func semanticPageText(from contextText: String?) -> String? {
         guard let contextText else { return nil }
         let markerStarts = [

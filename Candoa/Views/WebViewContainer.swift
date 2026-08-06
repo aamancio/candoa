@@ -155,12 +155,12 @@ struct WebViewContainer: View {
             .overlay {
                 if drawsBorder {
                     shape
-                        .stroke(CandoaInterfaceStyle.surfaceBorder, lineWidth: 1)
+                        .stroke(InterfaceStyle.surfaceBorder, lineWidth: 1)
                 }
             }
             .background(
                 shape
-                    .fill(CandoaInterfaceStyle.surfaceFill.opacity(0.74))
+                    .fill(InterfaceStyle.surfaceFill.opacity(0.74))
             )
             .compositingGroup()
             // Kept tight: the surrounding gutter is only 8pt, so a wide
@@ -275,7 +275,7 @@ struct WebViewContainer: View {
                     store.openNewTabCommandPalette()
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(CandoaInterfaceStyle.surfaceFill.opacity(0.72))
+                .background(InterfaceStyle.surfaceFill.opacity(0.72))
             } else {
                 ActiveWebViewHost(
                     tab: tab,
@@ -283,7 +283,7 @@ struct WebViewContainer: View {
                     obscuredContentInsets: webContentInsets
                 )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(CandoaInterfaceStyle.surfaceFill.opacity(0.72))
+                    .background(InterfaceStyle.surfaceFill.opacity(0.72))
                     .overlay {
                         // Covers the pane, never replaces it: the web view
                         // stays mounted so retrying repaints underneath and
@@ -316,7 +316,7 @@ struct WebViewContainer: View {
 
                 TextField("Find in page", text: $store.findQuery)
                     .textFieldStyle(.plain)
-                    .tint(CandoaColor.accent)
+                    .tint(AppColor.accent)
                     .frame(width: 190)
                     .focused($isFieldFocused)
                     .accessibilityIdentifier("find-bar-field")
@@ -327,7 +327,7 @@ struct WebViewContainer: View {
                 } label: {
                     Image(systemName: "chevron.up")
                 }
-                .candoaButton(.content)
+                .buttonTreatment(.content)
                 .disabled(store.findQuery.isEmpty)
                 .help("Find Previous")
 
@@ -336,7 +336,7 @@ struct WebViewContainer: View {
                 } label: {
                     Image(systemName: "chevron.down")
                 }
-                .candoaButton(.content)
+                .buttonTreatment(.content)
                 .disabled(store.findQuery.isEmpty)
                 .help("Find Next")
 
@@ -346,15 +346,15 @@ struct WebViewContainer: View {
                     Image(systemName: "xmark.circle.fill")
                         .foregroundStyle(.secondary)
                 }
-                .candoaButton(.content)
+                .buttonTreatment(.content)
                 .help("Done")
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
-            .background(CandoaInterfaceStyle.popoverBackground, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .background(InterfaceStyle.popoverBackground, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .stroke(CandoaInterfaceStyle.popoverBorder, lineWidth: 1)
+                    .stroke(InterfaceStyle.popoverBorder, lineWidth: 1)
             }
             .onAppear { isFieldFocused = true }
             .onExitCommand { store.dismissFindBar() }
@@ -409,7 +409,7 @@ struct WebViewContainer: View {
                             // straddles the visible card's edge, and the
                             // interface mask clips the half that falls on the
                             // lane side — the leading edge vanished entirely.
-                            .strokeBorder(CandoaColor.accent.opacity(isFocused ? 0.55 : 0), lineWidth: 1)
+                            .strokeBorder(AppColor.accent.opacity(isFocused ? 0.55 : 0), lineWidth: 1)
                             .padding(.leading, paneInsets.leading)
                             .padding(.trailing, paneInsets.trailing)
                             .allowsHitTesting(false)
@@ -499,10 +499,10 @@ struct WebViewContainer: View {
                         )
                         : paneVisibleFrame(at: targetIndex, frames: frames, paneCount: splitTabs.count, layout: layout)
                     RoundedRectangle(cornerRadius: surfaceCornerRadius, style: .continuous)
-                        .fill(CandoaColor.accent.opacity(0.14))
+                        .fill(AppColor.accent.opacity(0.14))
                         .overlay {
                             RoundedRectangle(cornerRadius: surfaceCornerRadius, style: .continuous)
-                                .strokeBorder(CandoaColor.accent.opacity(0.85), lineWidth: 2)
+                                .strokeBorder(AppColor.accent.opacity(0.85), lineWidth: 2)
                         }
                         .frame(width: highlightFrame.width, height: highlightFrame.height)
                         .offset(x: highlightFrame.minX, y: highlightFrame.minY)
@@ -820,7 +820,7 @@ struct WebViewContainer: View {
         )
             .id(tab.id)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(CandoaInterfaceStyle.surfaceFill.opacity(0.72))
+            .background(InterfaceStyle.surfaceFill.opacity(0.72))
             .overlay {
                 if let failure = store.tabLoadFailures[tab.id] {
                     TabRecoveryView(failure: failure) {
@@ -872,7 +872,7 @@ private struct SplitPaneDivider: View {
             RoundedRectangle(cornerRadius: 1.5, style: .continuous)
                 .fill(
                     isDragging
-                        ? CandoaColor.accent.opacity(0.85)
+                        ? AppColor.accent.opacity(0.85)
                         : Color.primary.opacity(isHovering ? 0.28 : 0)
                 )
                 .frame(
@@ -886,7 +886,7 @@ private struct SplitPaneDivider: View {
                 .padding(axis == .horizontal ? .vertical : .horizontal, 10)
         }
         .onHover { isHovering = $0 }
-        .candoaAISidebarCursor(
+        .aiSidebarCursor(
             axis == .horizontal ? AISidebarResizeCursor.horizontal : AISidebarResizeCursor.vertical
         )
         .gesture(
@@ -963,7 +963,7 @@ private struct SplitPaneControlPill: View {
                     .frame(width: 26, height: 20)
                     .contentShape(Rectangle())
             }
-            .candoaButton(.content)
+            .buttonTreatment(.content)
             .foregroundStyle(.secondary)
             .help("Unsplit — Move Back to Tab List")
             .accessibilityLabel("Unsplit")
@@ -975,7 +975,7 @@ private struct SplitPaneControlPill: View {
                     .frame(width: 26, height: 20)
                     .contentShape(Rectangle())
             }
-            .candoaButton(.content)
+            .buttonTreatment(.content)
             .foregroundStyle(.secondary)
             .help("Close Tab")
             .accessibilityLabel("Close Tab")
@@ -986,7 +986,7 @@ private struct SplitPaneControlPill: View {
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .strokeBorder(CandoaInterfaceStyle.popoverBorder, lineWidth: 1)
+                .strokeBorder(InterfaceStyle.popoverBorder, lineWidth: 1)
         }
         // Not 0: fully transparent views stop hit-testing, and the pill must
         // keep its hover/click footprint while visually absent.
@@ -1003,7 +1003,7 @@ private struct SplitPaneControlPill: View {
                         Circle()
                             .fill(
                                 isDraggingThisPane
-                                    ? CandoaColor.accent
+                                    ? AppColor.accent
                                     : Color.secondary
                             )
                             .frame(width: 2.5, height: 2.5)
@@ -1070,7 +1070,7 @@ private struct BrowserInterfaceMaskModifier: ViewModifier {
             .overlay {
                 if drawsFullSurfaceBorder {
                     RoundedRectangle(cornerRadius: surfaceCornerRadius, style: .continuous)
-                        .stroke(CandoaInterfaceStyle.surfaceBorder, lineWidth: 1)
+                        .stroke(InterfaceStyle.surfaceBorder, lineWidth: 1)
                         .padding(.vertical, surfacePadding)
                         .padding(.leading, leadingInset + surfacePadding)
                         .padding(.trailing, trailingInset + trailingSurfacePadding)
@@ -1080,7 +1080,7 @@ private struct BrowserInterfaceMaskModifier: ViewModifier {
                     // introduced by this mask so shared edges are not repainted.
                     if leadingInset > 0 {
                         RoundedRectangle(cornerRadius: surfaceCornerRadius, style: .continuous)
-                            .stroke(CandoaInterfaceStyle.surfaceBorder, lineWidth: 1)
+                            .stroke(InterfaceStyle.surfaceBorder, lineWidth: 1)
                             .mask(alignment: .leading) {
                                 Rectangle()
                                     .frame(width: surfaceCornerRadius + 1)
@@ -1093,7 +1093,7 @@ private struct BrowserInterfaceMaskModifier: ViewModifier {
 
                     if trailingInset > 0 {
                         RoundedRectangle(cornerRadius: surfaceCornerRadius, style: .continuous)
-                            .stroke(CandoaInterfaceStyle.surfaceBorder, lineWidth: 1)
+                            .stroke(InterfaceStyle.surfaceBorder, lineWidth: 1)
                             .mask(alignment: .trailing) {
                                 Rectangle()
                                     .frame(width: surfaceCornerRadius + 1)
@@ -1237,10 +1237,10 @@ private struct SplitDropPreviewOverlay: View {
             let claim = WebViewContainer.splitPaneEdgeHighlightFrame(for: preview.side, in: page)
 
             RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                .fill(CandoaColor.accent.opacity(0.14))
+                .fill(AppColor.accent.opacity(0.14))
                 .overlay {
                     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .strokeBorder(CandoaColor.accent.opacity(0.85), lineWidth: 2)
+                        .strokeBorder(AppColor.accent.opacity(0.85), lineWidth: 2)
                 }
                 .frame(width: claim.width, height: claim.height)
                 .offset(x: claim.minX, y: claim.minY)
@@ -1275,7 +1275,7 @@ private struct DeveloperToolbar: View {
     @AppStorage(Self.storageKey) private var storedControlIDs = ""
     @FocusState private var isURLFieldFocused: Bool
 
-    private var foreground: Color { CandoaInterfaceStyle.sidebarText }
+    private var foreground: Color { InterfaceStyle.sidebarText }
 
     private var selectedControlIDs: [String] {
         if storedControlIDs == Self.noControlIDsValue {
@@ -1308,7 +1308,7 @@ private struct DeveloperToolbar: View {
                 .textFieldStyle(.plain)
                 .font(.system(size: 12, weight: .medium, design: .monospaced))
                 .foregroundStyle(foreground.opacity(0.92))
-                .tint(CandoaColor.accent)
+                .tint(AppColor.accent)
                 .lineLimit(1)
                 .focused($isURLFieldFocused)
                 .onSubmit {
@@ -1357,7 +1357,7 @@ private struct DeveloperToolbar: View {
         .background(.regularMaterial)
         .overlay(alignment: .bottom) {
             Rectangle()
-                .fill(CandoaInterfaceStyle.sidebarSeparator)
+                .fill(InterfaceStyle.sidebarSeparator)
                 .frame(height: 1)
         }
     }
@@ -1418,7 +1418,7 @@ private struct DeveloperToolbar: View {
                 .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
                 .contentShape(Rectangle())
         }
-        .candoaButton(.content)
+        .buttonTreatment(.content)
         .disabled(!control.isImplemented)
         .onHover { isHovering in
             hoveredControl = isHovering ? control : nil
@@ -1761,10 +1761,10 @@ internal struct SpaceSetupCanvas: View {
 
     private var neutralCanvas: some View {
         RoundedRectangle(cornerRadius: 12, style: .continuous)
-            .fill(CandoaInterfaceStyle.workspaceBackground)
+            .fill(InterfaceStyle.workspaceBackground)
             .overlay {
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .stroke(CandoaInterfaceStyle.surfaceBorder, lineWidth: 1)
+                    .stroke(InterfaceStyle.surfaceBorder, lineWidth: 1)
             }
     }
 
@@ -1792,7 +1792,7 @@ internal struct SpaceSetupCanvas: View {
             .clipShape(shape)
         }
         .overlay {
-            shape.stroke(CandoaInterfaceStyle.surfaceBorder, lineWidth: 1)
+            shape.stroke(InterfaceStyle.surfaceBorder, lineWidth: 1)
         }
         .compositingGroup()
         .shadow(color: shadow.opacity(0.18), radius: 30, y: 10)
@@ -1804,7 +1804,7 @@ internal struct SpaceSetupCanvas: View {
             // This is the visible empty-workspace surface. Keep it on the
             // semantic under-page role instead of compositing the darker
             // control background over the window backdrop.
-            return CandoaInterfaceStyle.workspaceBackground
+            return InterfaceStyle.workspaceBackground
         }
 
         // The window backdrop already carries the theme color at full

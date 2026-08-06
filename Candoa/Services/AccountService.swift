@@ -9,7 +9,7 @@ import Security
 /// differently signed build touches the item (issue #120). Items written by
 /// older versions into the legacy login keychain are migrated on the first
 /// read that can complete without user interaction.
-struct CandoaKeychainStore {
+struct KeychainStore {
     let service: String
     let account: String
 
@@ -95,8 +95,8 @@ struct CandoaKeychainStore {
     }
 }
 
-enum CandoaAccountKeychain {
-    private static let store = CandoaKeychainStore(
+enum AccountKeychain {
+    private static let store = KeychainStore(
         service: "app.candoa.browser.Account",
         account: "cloud-session"
     )
@@ -116,18 +116,18 @@ enum CandoaAccountKeychain {
 
     static func save(_ accessToken: String) throws {
         guard store.save(accessToken) == errSecSuccess else {
-            throw CandoaAccountError.keychainUnavailable
+            throw AccountError.keychainUnavailable
         }
     }
 
     static func remove() throws {
         guard store.remove() == errSecSuccess else {
-            throw CandoaAccountError.keychainUnavailable
+            throw AccountError.keychainUnavailable
         }
     }
 }
 
-struct CandoaAccountStatus: Decodable, Sendable {
+struct AccountStatus: Decodable, Sendable {
     let hasAppleAccount: Bool
     let planID: String
     let allowedModelIDs: [String]
@@ -166,11 +166,11 @@ struct CandoaAccountStatus: Decodable, Sendable {
     }
 }
 
-struct CandoaCloudSession: Decodable, Sendable {
-    let user: CandoaCloudUser
+struct CloudSession: Decodable, Sendable {
+    let user: CloudUser
 }
 
-struct CandoaCloudUser: Decodable, Sendable {
+struct CloudUser: Decodable, Sendable {
     let id: String
     let isAnonymous: Bool
 
@@ -186,7 +186,7 @@ struct CandoaCloudUser: Decodable, Sendable {
     }
 }
 
-enum CandoaCloudAPI {
+enum CloudAPI {
     private static let logger = Logger(
         subsystem: "app.candoa.browser",
         category: "CloudAPI"
@@ -217,7 +217,7 @@ enum CandoaCloudAPI {
     /// The plan-filtered hosted model catalog. The server stays authoritative
     /// for availability and credit cost; the client only adds display and
     /// budgeting metadata.
-    static func hostedAIModels(accessToken: String) async throws -> [CandoaAIModel] {
+    static func hostedAIModels(accessToken: String) async throws -> [AIModel] {
         let response: HostedModelsResponse = try await request(
             endpoint("ai/models"),
             method: "GET",
@@ -225,7 +225,7 @@ enum CandoaCloudAPI {
             accessToken: accessToken
         )
         return response.models.map { model in
-            CandoaAIModelCatalog.hostedModel(
+            AIModelCatalog.hostedModel(
                 id: model.id,
                 providerID: model.providerID,
                 displayName: model.displayName
@@ -247,15 +247,15 @@ enum CandoaCloudAPI {
         return endpoint("ai/agent")
     }
 
-    static func session(accessToken: String) async throws -> CandoaCloudSession {
-        let session: CandoaCloudSession? = try await request(
+    static func session(accessToken: String) async throws -> CloudSession {
+        let session: CloudSession? = try await request(
             endpoint("auth/get-session"),
             method: "GET",
             body: Optional<String>.none,
             accessToken: accessToken
         )
         guard let session else {
-            throw CandoaAccountError.sessionExpired
+            throw AccountError.sessionExpired
         }
         return session
     }
@@ -269,7 +269,7 @@ enum CandoaCloudAPI {
         )
         guard let accessToken = response.value(forHTTPHeaderField: "set-auth-token"),
               !accessToken.isEmpty else {
-            throw CandoaAccountError.invalidResponse
+            throw AccountError.invalidResponse
         }
         return accessToken
     }
@@ -287,7 +287,7 @@ enum CandoaCloudAPI {
         let path = accessToken == nil
             ? "auth/native-apple/sign-in-intent"
             : "auth/native-apple/link-intent"
-        let response: CandoaURLResponse = try await request(
+        let response: CloudURLResponse = try await request(
             appleAuthenticationBaseURL.appending(path: path),
             method: "POST",
             body: EmptyRequest(),
@@ -295,7 +295,7 @@ enum CandoaCloudAPI {
         )
         guard let url = URL(string: response.url) else {
             logger.error("Apple authentication intent returned a malformed URL.")
-            throw CandoaAccountError.invalidResponse
+            throw AccountError.invalidResponse
         }
         guard url.scheme == "https",
               url.host == appleAuthenticationBaseURL.host else {
@@ -308,7 +308,7 @@ enum CandoaCloudAPI {
                 \(appleAuthenticationBaseURL.host ?? "nil", privacy: .public)
                 """
             )
-            throw CandoaAccountError.invalidResponse
+            throw AccountError.invalidResponse
         }
         return url
     }
@@ -322,12 +322,12 @@ enum CandoaCloudAPI {
         )
         guard let accessToken = response.value(forHTTPHeaderField: "set-auth-token"),
               !accessToken.isEmpty else {
-            throw CandoaAccountError.invalidResponse
+            throw AccountError.invalidResponse
         }
         return accessToken
     }
 
-    static func accountStatus(accessToken: String) async throws -> CandoaAccountStatus {
+    static func accountStatus(accessToken: String) async throws -> AccountStatus {
         try await request(
             endpoint("account"),
             method: "GET",
@@ -337,24 +337,24 @@ enum CandoaCloudAPI {
     }
 
     static func checkoutURL(accessToken: String, planID: String) async throws -> URL {
-        let response: CandoaURLResponse = try await request(
+        let response: CloudURLResponse = try await request(
             endpoint("billing/checkout"),
             method: "POST",
             body: BillingPlanRequest(planID: planID),
             accessToken: accessToken
         )
-        guard let url = URL(string: response.url) else { throw CandoaAccountError.invalidResponse }
+        guard let url = URL(string: response.url) else { throw AccountError.invalidResponse }
         return url
     }
 
     static func portalURL(accessToken: String) async throws -> URL {
-        let response: CandoaURLResponse = try await request(
+        let response: CloudURLResponse = try await request(
             endpoint("billing/portal"),
             method: "POST",
             body: Optional<String>.none,
             accessToken: accessToken
         )
-        guard let url = URL(string: response.url) else { throw CandoaAccountError.invalidResponse }
+        guard let url = URL(string: response.url) else { throw AccountError.invalidResponse }
         return url
     }
 
@@ -421,16 +421,16 @@ enum CandoaCloudAPI {
 
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse else {
-            throw CandoaAccountError.invalidResponse
+            throw AccountError.invalidResponse
         }
         guard (200...299).contains(httpResponse.statusCode) else {
-            let error = try? JSONDecoder().decode(CandoaErrorResponse.self, from: data)
+            let error = try? JSONDecoder().decode(CloudErrorResponse.self, from: data)
             let message = error?.error ?? error?.message
                 ?? "Candoa could not complete that request."
             if httpResponse.statusCode == 401 {
-                throw CandoaAccountError.unauthorized(message)
+                throw AccountError.unauthorized(message)
             }
-            throw CandoaAccountError.server(message)
+            throw AccountError.server(message)
         }
         return (data, httpResponse)
     }
@@ -458,65 +458,65 @@ enum CandoaCloudAPI {
         let code: String
     }
 
-    private struct CandoaURLResponse: Decodable {
+    private struct CloudURLResponse: Decodable {
         let url: String
     }
 
-    private struct CandoaErrorResponse: Decodable {
+    private struct CloudErrorResponse: Decodable {
         let error: String?
         let message: String?
     }
 }
 
-struct CandoaAccountService {
-    var accessToken: String? { CandoaAccountKeychain.accessToken }
+struct AccountService {
+    var accessToken: String? { AccountKeychain.accessToken }
 
-    func session(accessToken: String) async throws -> CandoaCloudSession {
-        try await CandoaCloudAPI.session(accessToken: accessToken)
+    func session(accessToken: String) async throws -> CloudSession {
+        try await CloudAPI.session(accessToken: accessToken)
     }
 
     func signInAnonymously() async throws -> String {
-        try await CandoaCloudAPI.signInAnonymously()
+        try await CloudAPI.signInAnonymously()
     }
 
     func signOut(accessToken: String) async throws {
-        try await CandoaCloudAPI.signOut(accessToken: accessToken)
+        try await CloudAPI.signOut(accessToken: accessToken)
     }
 
     func appleSignInURL(accessToken: String?) async throws -> URL {
-        try await CandoaCloudAPI.appleSignInURL(accessToken: accessToken)
+        try await CloudAPI.appleSignInURL(accessToken: accessToken)
     }
 
     func exchangeAppleSignInCode(_ code: String) async throws -> String {
-        try await CandoaCloudAPI.exchangeAppleSignInCode(code)
+        try await CloudAPI.exchangeAppleSignInCode(code)
     }
 
     func saveAccessToken(_ accessToken: String) throws {
-        try CandoaAccountKeychain.save(accessToken)
+        try AccountKeychain.save(accessToken)
     }
 
     func removeAccessToken() throws {
-        try CandoaAccountKeychain.remove()
+        try AccountKeychain.remove()
     }
 
-    func accountStatus(accessToken: String) async throws -> CandoaAccountStatus {
-        try await CandoaCloudAPI.accountStatus(accessToken: accessToken)
+    func accountStatus(accessToken: String) async throws -> AccountStatus {
+        try await CloudAPI.accountStatus(accessToken: accessToken)
     }
 
-    func hostedAIModels(accessToken: String) async throws -> [CandoaAIModel] {
-        try await CandoaCloudAPI.hostedAIModels(accessToken: accessToken)
+    func hostedAIModels(accessToken: String) async throws -> [AIModel] {
+        try await CloudAPI.hostedAIModels(accessToken: accessToken)
     }
 
     func proCheckoutURL(accessToken: String) async throws -> URL {
-        try await CandoaCloudAPI.checkoutURL(accessToken: accessToken, planID: "pro")
+        try await CloudAPI.checkoutURL(accessToken: accessToken, planID: "pro")
     }
 
     func billingPortalURL(accessToken: String) async throws -> URL {
-        try await CandoaCloudAPI.portalURL(accessToken: accessToken)
+        try await CloudAPI.portalURL(accessToken: accessToken)
     }
 }
 
-enum CandoaAccountError: LocalizedError, Sendable {
+enum AccountError: LocalizedError, Sendable {
     case appleAccountAlreadyLinked
     case invalidResponse
     case keychainUnavailable

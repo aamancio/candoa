@@ -12,7 +12,7 @@ struct AISidebarResizeHandle: View {
     var body: some View {
         Color.clear
             .contentShape(Rectangle())
-            .candoaAISidebarCursor(AISidebarResizeCursor.horizontal)
+            .aiSidebarCursor(AISidebarResizeCursor.horizontal)
             .help("Resize Eli Sidebar")
     }
 }
@@ -59,7 +59,7 @@ struct AISidebarCursorHoverModifier: ViewModifier {
 }
 
 extension View {
-    func candoaAISidebarCursor(_ cursor: NSCursor) -> some View {
+    func aiSidebarCursor(_ cursor: NSCursor) -> some View {
         modifier(AISidebarCursorHoverModifier(cursor: cursor))
     }
 }

@@ -129,7 +129,7 @@ internal struct SpaceThemePanel: View {
         .frame(height: 352)
         .overlay {
             RoundedRectangle(cornerRadius: 13, style: .continuous)
-                .stroke(CandoaInterfaceStyle.popoverBorder, lineWidth: 1)
+                .stroke(InterfaceStyle.popoverBorder, lineWidth: 1)
         }
     }
 
@@ -142,13 +142,13 @@ internal struct SpaceThemePanel: View {
                     Image(systemName: option.symbolName)
                         .font(.system(size: 17, weight: .semibold))
                         .frame(width: 34, height: 32)
-                        .foregroundStyle(CandoaInterfaceStyle.sidebarText)
+                        .foregroundStyle(InterfaceStyle.sidebarText)
                         .background(
                             RoundedRectangle(cornerRadius: 9, style: .continuous)
                                 .fill(selectedAppearance == option ? Color.primary.opacity(0.13) : Color.clear)
                         )
                 }
-                .candoaButton(.content)
+                .buttonTreatment(.content)
                 .help(option.title)
                 .accessibilityLabel(option.title)
             }
@@ -231,13 +231,13 @@ internal struct SpaceThemePanel: View {
                         .overlay {
                             Circle()
                                 .strokeBorder(
-                                    selectedHex == option.hex ? CandoaInterfaceStyle.sidebarText.opacity(0.68) : Color.clear,
+                                    selectedHex == option.hex ? InterfaceStyle.sidebarText.opacity(0.68) : Color.clear,
                                     lineWidth: 1
                                 )
                                 .padding(-1)
                         }
                 }
-                .candoaButton(.content)
+                .buttonTreatment(.content)
                 .help(option.name)
             }
 

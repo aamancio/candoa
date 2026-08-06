@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Semantic treatments for Candoa actions. Each treatment delegates rendering,
 /// interaction, focus, accessibility, and platform adaptation to SwiftUI.
-enum CandoaButtonTreatment {
+enum ButtonTreatment {
     /// The single emphasized action in a view or task.
     case primary
 
@@ -30,7 +30,7 @@ extension View {
     /// at the call site.
     @MainActor
     @ViewBuilder
-    func candoaButton(_ treatment: CandoaButtonTreatment) -> some View {
+    func buttonTreatment(_ treatment: ButtonTreatment) -> some View {
         switch treatment {
         case .primary:
             buttonStyle(.borderedProminent)

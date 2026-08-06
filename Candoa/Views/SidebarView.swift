@@ -91,9 +91,9 @@ struct SidebarView: View {
     }
 
     private var sidebarIconColor: Color {
-        guard isSetupThemePreviewActive else { return CandoaInterfaceStyle.sidebarIcon }
+        guard isSetupThemePreviewActive else { return InterfaceStyle.sidebarIcon }
 
-        let usesDarkForeground = CandoaInterfaceStyle.prefersDarkForeground(
+        let usesDarkForeground = InterfaceStyle.prefersDarkForeground(
             forSpaceHexes: store.activeThemeColorHexes
         )
         return (usesDarkForeground ? Color.black : Color.white).opacity(0.42)
@@ -580,7 +580,7 @@ struct SidebarView: View {
             // buttons, wherever AppKit put them.
             .offset(y: windowControlsGeometry.controlsCenterOffsetY)
         }
-        .candoaButton(.content)
+        .buttonTreatment(.content)
         .foregroundStyle(sidebarIconColor)
         .frame(maxWidth: .infinity)
         .frame(height: 34)
@@ -634,7 +634,7 @@ struct SidebarView: View {
                 Image(systemName: developerModeEnabled ? "info.circle" : "magnifyingglass")
                     .font(.system(size: 15, weight: .medium))
                     .frame(width: 18)
-                    .foregroundStyle(CandoaInterfaceStyle.sidebarIcon)
+                    .foregroundStyle(InterfaceStyle.sidebarIcon)
 
                 Text(sidebarAddressText(for: url, developerModeEnabled: developerModeEnabled))
                     .lineLimit(1)
@@ -644,20 +644,20 @@ struct SidebarView: View {
                             ? .system(size: 13, weight: .medium, design: .monospaced)
                             : .system(size: 14, weight: .semibold)
                     )
-                    .foregroundStyle(CandoaInterfaceStyle.sidebarTextSecondary)
+                    .foregroundStyle(InterfaceStyle.sidebarTextSecondary)
 
                 Spacer(minLength: 0)
             }
             .padding(.horizontal, 11)
             .frame(height: 40)
-            .background(CandoaInterfaceStyle.sidebarControlFill)
+            .background(InterfaceStyle.sidebarControlFill)
             .overlay {
                 RoundedRectangle(cornerRadius: 11, style: .continuous)
                     .fill(Color.primary.opacity(isHoveringAddressPill ? 0.07 : 0))
             }
             .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
         }
-        .candoaButton(.content)
+        .buttonTreatment(.content)
         .onHover { isHoveringAddressPill = $0 }
         .help(developerModeEnabled ? "Developer Mode" : BrowserDefaults.addressPlaceholder)
         .contextMenu {
@@ -755,7 +755,7 @@ struct SidebarView: View {
             tab: tab,
             isActive: tab.id == store.activeTabID &&
                 !store.isNewTabPaletteActive,
-            accentColor: CandoaColor.accent,
+            accentColor: AppColor.accent,
             placement: .favorite,
             onSelect: { store.activateFavorite(tab.id) },
             onClose: { store.closeTab(tab.id) },
@@ -776,7 +776,7 @@ struct SidebarView: View {
                 targetTabID: tab.id,
                 edge: .after
             ),
-            tint: CandoaColor.accent
+            tint: AppColor.accent
         )
         .background(TabDragSourceBackground(store: store, tabID: tab.id))
         .onDrop(
@@ -827,7 +827,7 @@ struct SidebarView: View {
                                 store: store,
                                 folder: folder,
                                 editingFolderID: $store.editingFolderID,
-                                accentColor: CandoaColor.accent,
+                                accentColor: AppColor.accent,
                                 nestingLevel: 0
                             )
                         }
@@ -836,7 +836,7 @@ struct SidebarView: View {
 
                 if showsPinnedAreaDivider {
                     Rectangle()
-                        .fill(CandoaInterfaceStyle.sidebarSeparator)
+                        .fill(InterfaceStyle.sidebarSeparator)
                         .frame(height: 1)
                         .padding(.horizontal, 8)
                 }
@@ -860,7 +860,7 @@ struct SidebarView: View {
                 targetTabID: nil,
                 edge: .after
             ) {
-                SidebarHorizontalDropLine(tint: CandoaColor.accent)
+                SidebarHorizontalDropLine(tint: AppColor.accent)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 2)
             } else {
@@ -885,7 +885,7 @@ struct SidebarView: View {
             tab: tab,
             isActive: tab.id == displayedActiveTabID(for: spaceID) && !store.isNewTabPaletteActive,
             isSplit: spaceID == store.activeSpaceID && store.activeSplitGroupTabIDs.contains(tab.id),
-            accentColor: CandoaColor.accent,
+            accentColor: AppColor.accent,
             mediaState: store.mediaStates[tab.id],
             onSelect: { store.switchTab(to: tab.id) },
             onClose: { store.closeTab(tab.id) },
@@ -914,7 +914,7 @@ struct SidebarView: View {
                 targetTabID: tab.id,
                 edge: .after
             ),
-            tint: CandoaColor.accent
+            tint: AppColor.accent
         )
         .background(TabDragSourceBackground(store: store, tabID: tab.id))
         .onDrop(
@@ -948,7 +948,7 @@ struct SidebarView: View {
 
                 Spacer(minLength: 0)
             }
-            .foregroundStyle(CandoaInterfaceStyle.sidebarTextSecondary)
+            .foregroundStyle(InterfaceStyle.sidebarTextSecondary)
             .padding(.horizontal, 8)
             .padding(.vertical, 5)
             .frame(minHeight: 32)
@@ -978,13 +978,13 @@ struct SidebarView: View {
 
                 Spacer(minLength: 0)
             }
-            .foregroundStyle(CandoaInterfaceStyle.sidebarTextSecondary)
+            .foregroundStyle(InterfaceStyle.sidebarTextSecondary)
             .padding(.horizontal, 8)
             .padding(.vertical, 5)
             .frame(minHeight: 32)
             .background(
                 isSpaceDropTargeted
-                    ? CandoaInterfaceStyle.sidebarControlFillDropTarget
+                    ? InterfaceStyle.sidebarControlFillDropTarget
                     : Color.clear
             )
             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
@@ -1027,7 +1027,7 @@ struct SidebarView: View {
                     targetTabID: nil,
                     edge: .after
                 ) {
-                    SidebarHorizontalDropLine(tint: CandoaColor.accent)
+                    SidebarHorizontalDropLine(tint: AppColor.accent)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 2)
                 }
@@ -1037,7 +1037,7 @@ struct SidebarView: View {
                         SidebarSplitGroupView(
                             store: store,
                             tabs: splitTabs,
-                            accentColor: CandoaColor.accent
+                            accentColor: AppColor.accent
                         )
                     }
 
@@ -1046,7 +1046,7 @@ struct SidebarView: View {
                             tab: tab,
                             isActive: tab.id == displayedActiveTabID(for: spaceID) && !store.isNewTabPaletteActive,
                             isSplit: spaceID == store.activeSpaceID && store.activeSplitGroupTabIDs.contains(tab.id),
-                            accentColor: CandoaColor.accent,
+                            accentColor: AppColor.accent,
                             mediaState: store.mediaStates[tab.id],
                             onSelect: { store.switchTab(to: tab.id) },
                             onClose: { store.closeTab(tab.id) },
@@ -1076,7 +1076,7 @@ struct SidebarView: View {
                                 targetTabID: tab.id,
                                 edge: .after
                             ),
-                            tint: CandoaColor.accent
+                            tint: AppColor.accent
                         )
                         .background(TabDragSourceBackground(store: store, tabID: tab.id))
                         .onDrop(
@@ -1097,7 +1097,7 @@ struct SidebarView: View {
                         targetTabID: nil,
                         edge: .after
                     ) {
-                        SidebarHorizontalDropLine(tint: CandoaColor.accent)
+                        SidebarHorizontalDropLine(tint: AppColor.accent)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 2)
                     }
@@ -1142,13 +1142,13 @@ struct SidebarView: View {
             HStack(spacing: 8) {
                 Image(systemName: "plus")
                     .font(.system(size: 14.5, weight: .medium))
-                    .foregroundStyle(isArmed ? CandoaInterfaceStyle.sidebarText : CandoaInterfaceStyle.sidebarIcon)
+                    .foregroundStyle(isArmed ? InterfaceStyle.sidebarText : InterfaceStyle.sidebarIcon)
                     .frame(width: 16, height: 16)
 
                 Text(BrowserCommandTitles.newTab)
                     .lineLimit(1)
                     .font(.system(size: 13, weight: isArmed ? .medium : .regular))
-                    .foregroundStyle(isArmed ? CandoaInterfaceStyle.sidebarText : CandoaInterfaceStyle.sidebarTextSecondary)
+                    .foregroundStyle(isArmed ? InterfaceStyle.sidebarText : InterfaceStyle.sidebarTextSecondary)
 
                 Spacer(minLength: 8)
             }
@@ -1157,7 +1157,7 @@ struct SidebarView: View {
             .frame(minHeight: 32)
             .contentShape(Rectangle())
         }
-        .candoaButton(.content)
+        .buttonTreatment(.content)
         .background(newTabButtonBackground(isArmed: isArmed))
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         .onHover { isHoveringNewTab = $0 }
@@ -1166,7 +1166,7 @@ struct SidebarView: View {
         .overlay {
             if isHoveringNewTab && !isArmed && store.draggedTabID == nil {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .stroke(CandoaInterfaceStyle.sidebarControlStroke, lineWidth: 1)
+                    .stroke(InterfaceStyle.sidebarControlStroke, lineWidth: 1)
                     .allowsHitTesting(false)
             }
         }
@@ -1176,10 +1176,10 @@ struct SidebarView: View {
 
     private func newTabButtonBackground(isArmed: Bool) -> Color {
         if isArmed {
-            return CandoaInterfaceStyle.sidebarControlFillActive
+            return InterfaceStyle.sidebarControlFillActive
         }
         if isHoveringNewTab && store.draggedTabID == nil {
-            return CandoaInterfaceStyle.sidebarControlFillHover
+            return InterfaceStyle.sidebarControlFillHover
         }
         return Color.clear
     }

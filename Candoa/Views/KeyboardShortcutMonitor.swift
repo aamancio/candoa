@@ -404,9 +404,9 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
                 .subtracting([.capsLock, .function, .numericPad])
         }
 
-        private static func matchesConfiguredShortcut(_ definition: CandoaShortcutDefinition, _ event: NSEvent) -> Bool {
+        private static func matchesConfiguredShortcut(_ definition: ShortcutDefinition, _ event: NSEvent) -> Bool {
             let storedShortcut = UserDefaults.standard.string(forKey: definition.storageKey) ?? ""
-            guard storedShortcut != CandoaShortcutDefinition.removedValue else { return false }
+            guard storedShortcut != ShortcutDefinition.removedValue else { return false }
 
             guard let shortcut = shortcutString(for: event) else { return false }
 

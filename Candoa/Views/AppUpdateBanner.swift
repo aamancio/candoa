@@ -23,7 +23,7 @@ internal struct AppUpdateBanner: View {
                 }
                 Text(isInstalling ? "Installing Update…" : "Update Available")
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(CandoaInterfaceStyle.sidebarText)
+                    .foregroundStyle(InterfaceStyle.sidebarText)
                     .lineLimit(1)
             }
             .padding(.horizontal, 14)
@@ -31,15 +31,15 @@ internal struct AppUpdateBanner: View {
             .frame(height: 32)
             .background(
                 Capsule(style: .continuous)
-                    .fill(isHovering && !isInstalling ? CandoaInterfaceStyle.updateBannerFillHover : CandoaInterfaceStyle.updateBannerFill)
+                    .fill(isHovering && !isInstalling ? InterfaceStyle.updateBannerFillHover : InterfaceStyle.updateBannerFill)
             )
             .overlay {
                 Capsule(style: .continuous)
-                    .stroke(CandoaInterfaceStyle.updateBannerStroke, lineWidth: 1)
+                    .stroke(InterfaceStyle.updateBannerStroke, lineWidth: 1)
             }
             .contentShape(Capsule(style: .continuous))
         }
-        .candoaButton(.content)
+        .buttonTreatment(.content)
         .disabled(isInstalling)
         .accessibilityIdentifier(isInstalling ? "sidebar-update-banner-installing" : "sidebar-update-banner")
         .onHover { hovering in
@@ -72,7 +72,7 @@ internal struct AppUpdateBanner: View {
                     Text("Restart and Update")
                         .frame(maxWidth: .infinity)
                 }
-                .candoaButton(.primary)
+                .buttonTreatment(.primary)
                 .controlSize(.large)
             }
             .padding(14)

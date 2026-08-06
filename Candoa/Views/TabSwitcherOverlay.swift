@@ -37,7 +37,7 @@ struct TabSwitcherOverlay: View {
                 .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
                 .overlay {
                     RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .stroke(CandoaInterfaceStyle.popoverBorder, lineWidth: 1)
+                        .stroke(InterfaceStyle.popoverBorder, lineWidth: 1)
                 }
                 .shadow(color: Color(nsColor: .shadowColor).opacity(0.24), radius: 26, y: 14)
             }
@@ -149,12 +149,12 @@ private struct TabSwitcherPreviewCard: View {
         .frame(width: cardWidth)
         .background(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(isSelected ? CandoaColor.accent.opacity(0.20) : CandoaInterfaceStyle.surfaceFill.opacity(0.72))
+                .fill(isSelected ? AppColor.accent.opacity(0.20) : InterfaceStyle.surfaceFill.opacity(0.72))
         )
         .overlay {
             RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .stroke(
-                    isSelected ? CandoaColor.accent.opacity(0.92) : CandoaInterfaceStyle.surfaceBorder.opacity(0.72),
+                    isSelected ? AppColor.accent.opacity(0.92) : InterfaceStyle.surfaceBorder.opacity(0.72),
                     lineWidth: isSelected ? 2 : 1
                 )
         }
@@ -178,7 +178,7 @@ private struct TabSwitcherPreviewCard: View {
         .frame(width: contentWidth, height: previewHeight)
         .clipShape(windowShape)
         .overlay {
-            windowShape.stroke(CandoaInterfaceStyle.surfaceBorder, lineWidth: 1)
+            windowShape.stroke(InterfaceStyle.surfaceBorder, lineWidth: 1)
         }
     }
 

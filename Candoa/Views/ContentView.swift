@@ -19,7 +19,7 @@ struct ContentView: View {
     @Environment(\.controlActiveState) private var controlActiveState
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @EnvironmentObject private var userStore: UserStore
-    @AppStorage(CandoaSettingsOption.websiteAppearance) private var websiteAppearanceValue =
+    @AppStorage(SettingsOption.websiteAppearance) private var websiteAppearanceValue =
         WebsiteAppearance.dark.rawValue
     @AppStorage(DeveloperModeConfiguration.storageKey) private var developerModeOverrides = ""
     @SceneStorage("candoa.windowAutosaveID") private var windowAutosaveID = UUID().uuidString
@@ -48,7 +48,7 @@ struct ContentView: View {
     @State private var miniPlayerOrigin: CGPoint?
     @State private var miniPlayerExpandedSize = MiniPlayerLayout.defaultExpandedSize
     @SceneStorage("candoa.aiSidebarWidth.diaLayout") private var aiSidebarWidth = 540.0
-    private let sidebarWidth = CandoaInterfaceStyle.sidebarWidth
+    private let sidebarWidth = InterfaceStyle.sidebarWidth
     private let sidebarDividerWidth: CGFloat = 0
 
     private var activeThemeAppearance: SpaceThemeAppearance {
@@ -127,7 +127,7 @@ struct ContentView: View {
                         )
                         .id(store.activeSpaceID)
                         .padding(.leading, isSidebarVisible ? sidebarTotalWidth : 0)
-                        .tint(CandoaColor.accent)
+                        .tint(AppColor.accent)
                     } else {
                         // Keep the WebKit host at one stable width when the left
                         // or right sidebar toggles. WebKit paints through a remote
@@ -307,7 +307,7 @@ struct ContentView: View {
         .onChange(of: userStore.signOutGeneration) { _, generation in
             guard generation > 0 else { return }
 
-            let hasPersonalEliAccess = CandoaEliPreferences.hasDirectEliAccess
+            let hasPersonalEliAccess = EliPreferences.hasDirectEliAccess
             if !hasPersonalEliAccess {
                 aiSidebarMessages = [.subscriptionGate]
                 pendingEliSubscriptionSubmission = nil
@@ -326,7 +326,7 @@ struct ContentView: View {
             }
         }
         .background {
-            CandoaWindowBackdrop(store: store)
+            WindowBackdrop(store: store)
                 .ignoresSafeArea()
         }
         .preferredColorScheme(resolvedColorScheme)
@@ -631,7 +631,7 @@ struct ContentView: View {
             // shows through and the sidebar matches the center exactly. Only
             // the hover overlay needs its own opaque copy over the page.
             if isSidebarOverlaying {
-                CandoaSidebarBackdrop(store: store)
+                SidebarBackdrop(store: store)
                     .ignoresSafeArea(.container, edges: .top)
             }
         }
@@ -850,7 +850,7 @@ private struct SignOutConfirmationView: View {
             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .stroke(CandoaInterfaceStyle.popoverBorder, lineWidth: 1)
+                    .stroke(InterfaceStyle.popoverBorder, lineWidth: 1)
             }
             .shadow(color: Color(nsColor: .shadowColor).opacity(0.18), radius: 9, y: 3)
             .accessibilityIdentifier("sign-out-confirmation")

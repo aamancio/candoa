@@ -241,7 +241,7 @@ extension CommandPaletteView {
         for provider: SearchProvider,
         matching rawQuery: String
     ) -> [PaletteCommand] {
-        guard CandoaSettingsOption.bool(CandoaSettingsOption.showSearchSuggestions, default: true) else {
+        guard SettingsOption.bool(SettingsOption.showSearchSuggestions, default: true) else {
             return []
         }
 

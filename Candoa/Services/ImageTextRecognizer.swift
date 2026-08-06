@@ -2,7 +2,7 @@ import AppKit
 import Foundation
 import Vision
 
-enum CandoaImageTextRecognizer {
+enum ImageTextRecognizer {
     private static let textLimit = 6000
 
     static func recognizedText(in image: NSImage) -> String? {

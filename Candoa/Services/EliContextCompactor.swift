@@ -1,6 +1,6 @@
 import Foundation
 
-enum CandoaEliContextCompactor {
+enum EliContextCompactor {
     private static let contextThreshold = 18_000
     private static let leadingLimit = 2_500
     private static let trailingLimit = 2_500
@@ -9,19 +9,19 @@ enum CandoaEliContextCompactor {
     private static let ocrLimit = 2_500
 
     static func compactedContextIfNeeded(
-        from context: CandoaAIPageContext,
+        from context: AIPageContext,
         prompt: String
-    ) -> CandoaAIPageContext? {
+    ) -> AIPageContext? {
         guard let text = context.text, text.count > contextThreshold else { return nil }
 
-        let semanticText = CandoaEliContextSections.semanticPageText(from: text) ?? text
+        let semanticText = EliContextSections.semanticPageText(from: text) ?? text
         let focusedLines = focusedContextLines(from: semanticText, prompt: prompt)
         let leadingText = String(semanticText.prefix(leadingLimit))
         let trailingText = String(semanticText.suffix(trailingLimit))
-        let visibleControls = CandoaEliContextSections.visibleControlsSection(from: text)
+        let visibleControls = EliContextSections.visibleControlsSection(from: text)
             .flatMap(compactControlsForModel)
             .map { "\n\nVisible page controls and links:\n\($0)" } ?? ""
-        let ocrText = CandoaEliContextSections.visibleOCRSection(from: text)
+        let ocrText = EliContextSections.visibleOCRSection(from: text)
             .map { "\n\nVisible page image text from OCR:\n\(String($0.prefix(ocrLimit)))" } ?? ""
 
         let compactText = """
@@ -39,7 +39,7 @@ enum CandoaEliContextCompactor {
 
         guard compactText.count < text.count else { return nil }
 
-        return CandoaAIPageContext(
+        return AIPageContext(
             title: context.title,
             url: context.url,
             text: compactText
@@ -47,7 +47,7 @@ enum CandoaEliContextCompactor {
     }
 
     private static func focusedContextLines(from text: String, prompt: String) -> [String] {
-        let terms = searchTerms(in: CandoaEliPromptPolicy.normalizedText(prompt))
+        let terms = searchTerms(in: EliPromptPolicy.normalizedText(prompt))
         guard !terms.isEmpty else { return [] }
 
         let lines = text
@@ -55,7 +55,7 @@ enum CandoaEliContextCompactor {
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
         let matchingIndexes = lines.indices.filter { index in
-            let normalizedLine = CandoaEliPromptPolicy.normalizedText(lines[index])
+            let normalizedLine = EliPromptPolicy.normalizedText(lines[index])
             return terms.contains { normalizedLine.contains($0) }
         }
 

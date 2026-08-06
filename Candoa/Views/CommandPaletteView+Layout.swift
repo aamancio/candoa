@@ -45,7 +45,7 @@ extension CommandPaletteView {
             .padding(.vertical, paletteHeaderVerticalPadding)
 
             Rectangle()
-                .fill(CandoaInterfaceStyle.popoverBorder)
+                .fill(InterfaceStyle.popoverBorder)
                 .frame(height: 1)
 
             ScrollView(.vertical, showsIndicators: false) {
@@ -60,7 +60,7 @@ extension CommandPaletteView {
                                 selectedTint: activeTint
                             )
                         }
-                        .candoaButton(.content)
+                        .buttonTreatment(.content)
                     }
                 }
                 .padding(.horizontal, 12)
@@ -76,7 +76,7 @@ extension CommandPaletteView {
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .strokeBorder(CandoaInterfaceStyle.popoverBorder, lineWidth: 1)
+                .strokeBorder(InterfaceStyle.popoverBorder, lineWidth: 1)
         }
         .shadow(color: Color(nsColor: .shadowColor).opacity(0.24), radius: 46, y: 24)
     }

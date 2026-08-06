@@ -15,7 +15,7 @@ struct AISidebarExamplePromptButton: View {
         Button(action: action) {
             Label(title, systemImage: symbolName)
                 .font(.system(size: 12.5, weight: .medium))
-                .foregroundStyle(CandoaInterfaceStyle.sidebarText.opacity(isEnabled ? 1 : 0.5))
+                .foregroundStyle(InterfaceStyle.sidebarText.opacity(isEnabled ? 1 : 0.5))
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 11)
                 .frame(height: 34)
@@ -23,12 +23,12 @@ struct AISidebarExamplePromptButton: View {
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
                         .fill(
                             isHovered && isEnabled
-                                ? CandoaInterfaceStyle.sidebarControlFillHover
-                                : CandoaInterfaceStyle.sidebarControlFill
+                                ? InterfaceStyle.sidebarControlFillHover
+                                : InterfaceStyle.sidebarControlFill
                         )
                 }
         }
-        .candoaButton(.content)
+        .buttonTreatment(.content)
         .onHover { hovering in
             isHovered = hovering
         }
@@ -39,7 +39,7 @@ struct AISidebarTopBarIconButton: View {
     let symbolName: String
     let helpText: String
     var iconSize: CGFloat = 15
-    var shortcut: CandoaShortcutDefinition?
+    var shortcut: ShortcutDefinition?
     let action: () -> Void
 
     @State private var isHovered = false
@@ -49,15 +49,15 @@ struct AISidebarTopBarIconButton: View {
             Image(systemName: symbolName)
                 .font(.system(size: iconSize, weight: .medium))
                 .symbolRenderingMode(.hierarchical)
-                .foregroundStyle(CandoaInterfaceStyle.sidebarIcon.opacity(isHovered ? 0.92 : 0.72))
+                .foregroundStyle(InterfaceStyle.sidebarIcon.opacity(isHovered ? 0.92 : 0.72))
                 .frame(width: 34, height: 34)
                 .background {
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(isHovered ? CandoaInterfaceStyle.sidebarControlFillHover : Color.clear)
+                        .fill(isHovered ? InterfaceStyle.sidebarControlFillHover : Color.clear)
                 }
                 .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         }
-        .candoaButton(.content)
+        .buttonTreatment(.content)
         .shortcutTooltip(helpText, shortcut: shortcut)
         .onHover { hovering in
             withAnimation(.easeOut(duration: 0.10)) {
@@ -84,7 +84,7 @@ struct AISidebarSubscriptionGateView: View {
                     systemImage: "lock.fill"
                 )
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(CandoaInterfaceStyle.sidebarText)
+                    .foregroundStyle(InterfaceStyle.sidebarText)
                     .accessibilityIdentifier("agent-subscription-gate")
 
                 Text(
@@ -93,7 +93,7 @@ struct AISidebarSubscriptionGateView: View {
                         : "Summarize pages, answer questions, and let Eli research and take action across the web."
                 )
                     .font(.system(size: 13.5))
-                    .foregroundStyle(CandoaInterfaceStyle.sidebarTextSecondary)
+                    .foregroundStyle(InterfaceStyle.sidebarTextSecondary)
                     .fixedSize(horizontal: false, vertical: true)
 
                 if isConfirming {
@@ -225,10 +225,10 @@ struct AISidebarMessageRow: View {
                 if message.contextChips.count > 2 {
                     Text("+\(message.contextChips.count - 2)")
                         .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(CandoaInterfaceStyle.sidebarTextSecondary)
+                        .foregroundStyle(InterfaceStyle.sidebarTextSecondary)
                         .padding(.horizontal, 8)
                         .frame(height: 24)
-                        .background(CandoaInterfaceStyle.sidebarControlFill)
+                        .background(InterfaceStyle.sidebarControlFill)
                         .clipShape(Capsule())
                 }
             }
@@ -278,7 +278,7 @@ struct AISidebarMessageRow: View {
                         if let transientStatus = message.transientStatus {
                             Text(transientStatus)
                                 .font(.system(size: 13.5))
-                                .foregroundStyle(CandoaInterfaceStyle.sidebarTextSecondary)
+                                .foregroundStyle(InterfaceStyle.sidebarTextSecondary)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                     }
@@ -287,7 +287,7 @@ struct AISidebarMessageRow: View {
                 } else if !message.hasCopyableContent {
                     Text("No response.")
                         .font(.system(size: 13.5))
-                        .foregroundStyle(CandoaInterfaceStyle.sidebarTextSecondary)
+                        .foregroundStyle(InterfaceStyle.sidebarTextSecondary)
                 }
             }
         }
@@ -398,13 +398,13 @@ struct AISidebarMessageRow: View {
     }
 
     private var messageBackground: Color {
-        guard isUser else { return CandoaInterfaceStyle.sidebarControlFill }
-        return CandoaInterfaceStyle.userMessageFill
+        guard isUser else { return InterfaceStyle.sidebarControlFill }
+        return InterfaceStyle.userMessageFill
     }
 
     private var messageForeground: Color {
-        guard isUser else { return CandoaInterfaceStyle.sidebarText }
-        return CandoaInterfaceStyle.userMessageText
+        guard isUser else { return InterfaceStyle.sidebarText }
+        return InterfaceStyle.userMessageText
     }
 
 }
@@ -522,13 +522,13 @@ struct AISidebarSentContextChipView: View {
             VStack(alignment: .leading, spacing: 0) {
                 Text(chip.title)
                     .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(CandoaInterfaceStyle.sidebarText)
+                    .foregroundStyle(InterfaceStyle.sidebarText)
                     .lineLimit(1)
 
                 if !chip.subtitle.isEmpty {
                     Text(chip.subtitle)
                         .font(.system(size: 10, weight: .medium))
-                        .foregroundStyle(CandoaInterfaceStyle.sidebarTextSecondary)
+                        .foregroundStyle(InterfaceStyle.sidebarTextSecondary)
                         .lineLimit(1)
                 }
             }
@@ -536,7 +536,7 @@ struct AISidebarSentContextChipView: View {
         .padding(.horizontal, 8)
         .frame(height: 30)
         .frame(maxWidth: 150, alignment: .leading)
-        .background(CandoaInterfaceStyle.sidebarControlFill)
+        .background(InterfaceStyle.sidebarControlFill)
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
 }
@@ -732,7 +732,7 @@ struct AISidebarComposerIconButton: View {
                         .fill(backgroundFill)
                 }
         }
-        .candoaButton(.chrome)
+        .buttonTreatment(.chrome)
         .disabled(!isEnabled)
         .help(helpText)
         .onHover { hovering in
@@ -743,13 +743,13 @@ struct AISidebarComposerIconButton: View {
     }
 
     private var foregroundStyle: Color {
-        guard isEnabled else { return CandoaInterfaceStyle.sidebarIcon.opacity(0.55) }
-        return isHovered ? CandoaInterfaceStyle.sidebarTextSecondary : CandoaInterfaceStyle.sidebarIcon
+        guard isEnabled else { return InterfaceStyle.sidebarIcon.opacity(0.55) }
+        return isHovered ? InterfaceStyle.sidebarTextSecondary : InterfaceStyle.sidebarIcon
     }
 
     private var backgroundFill: Color {
         guard isEnabled, isHovered else { return Color.clear }
-        return CandoaInterfaceStyle.sidebarControlFillHover
+        return InterfaceStyle.sidebarControlFillHover
     }
 }
 
@@ -770,7 +770,7 @@ struct AISidebarComposerSendButton: View {
                         .fill(backgroundFill)
                 }
         }
-        .candoaButton(.chrome)
+        .buttonTreatment(.chrome)
         .disabled(!isEnabled)
         .help("Send to Eli")
         .onHover { hovering in
@@ -781,11 +781,11 @@ struct AISidebarComposerSendButton: View {
     }
 
     private var iconColor: Color {
-        isEnabled ? Color.black.opacity(0.88) : CandoaInterfaceStyle.sidebarIcon.opacity(0.58)
+        isEnabled ? Color.black.opacity(0.88) : InterfaceStyle.sidebarIcon.opacity(0.58)
     }
 
     private var backgroundFill: Color {
-        guard isEnabled else { return CandoaInterfaceStyle.sidebarControlFillHover }
+        guard isEnabled else { return InterfaceStyle.sidebarControlFillHover }
         return isHovered ? Color.white.opacity(0.82) : Color.white.opacity(0.96)
     }
 }
@@ -803,7 +803,7 @@ struct AISidebarSpeechWaveformView: View {
             HStack(alignment: .center, spacing: 2.5) {
                 ForEach(levels.indices, id: \.self) { index in
                     Capsule(style: .continuous)
-                        .fill(CandoaInterfaceStyle.sidebarTextSecondary.opacity(index % 5 == 0 ? 0.86 : 0.72))
+                        .fill(InterfaceStyle.sidebarTextSecondary.opacity(index % 5 == 0 ? 0.86 : 0.72))
                         .frame(width: 1.5, height: max(2, proxy.size.height * levels[index]))
                 }
 
@@ -834,13 +834,13 @@ struct AISidebarMentionButton: View {
                 VStack(alignment: .leading, spacing: 1) {
                     Text(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Untitled" : title)
                         .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(isSelected ? Color.white : CandoaInterfaceStyle.sidebarText)
+                        .foregroundStyle(isSelected ? Color.white : InterfaceStyle.sidebarText)
                         .lineLimit(1)
 
                     if let detail, !detail.isEmpty {
                         Text(detail)
                             .font(.system(size: 11))
-                            .foregroundStyle(isSelected ? Color.white.opacity(0.72) : CandoaInterfaceStyle.sidebarTextSecondary)
+                            .foregroundStyle(isSelected ? Color.white.opacity(0.72) : InterfaceStyle.sidebarTextSecondary)
                             .lineLimit(1)
                     }
                 }
@@ -853,7 +853,7 @@ struct AISidebarMentionButton: View {
             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
             .contentShape(Rectangle())
         }
-        .candoaButton(.content)
+        .buttonTreatment(.content)
         .onHover { hovering in
             withAnimation(.easeOut(duration: 0.10)) {
                 isHovered = hovering
@@ -863,10 +863,10 @@ struct AISidebarMentionButton: View {
 
     private var rowBackground: Color {
         if isSelected {
-            return CandoaColor.accent
+            return AppColor.accent
         }
 
-        return isHovered ? CandoaInterfaceStyle.sidebarControlFillHover : Color.clear
+        return isHovered ? InterfaceStyle.sidebarControlFillHover : Color.clear
     }
 }
 
@@ -884,7 +884,7 @@ struct AISidebarContextChipView: View {
                 Button(action: onPreview) {
                     chipBody
                 }
-                .candoaButton(.content)
+                .buttonTreatment(.content)
                 .help("Preview Image")
                 .accessibilityLabel("Preview attached image")
                 .accessibilityIdentifier("agent-attachment-preview")
@@ -903,7 +903,7 @@ struct AISidebarContextChipView: View {
                                 .fill(isRemoveHovered ? Color.white.opacity(0.96) : Color.white.opacity(0.22))
                         )
                 }
-                .candoaButton(.chrome)
+                .buttonTreatment(.chrome)
                 .offset(x: 8, y: -8)
                 .help("Remove Context")
                 .transition(.opacity)
@@ -931,14 +931,14 @@ struct AISidebarContextChipView: View {
             VStack(alignment: .leading, spacing: 1) {
                 Text(chip.title)
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(CandoaInterfaceStyle.sidebarText)
+                    .foregroundStyle(InterfaceStyle.sidebarText)
                     .lineLimit(1)
                     .truncationMode(.tail)
 
                 if !chip.subtitle.isEmpty {
                     Text(chip.subtitle)
                         .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(CandoaInterfaceStyle.sidebarTextSecondary)
+                        .foregroundStyle(InterfaceStyle.sidebarTextSecondary)
                         .lineLimit(1)
                         .truncationMode(.tail)
                 }
@@ -952,7 +952,7 @@ struct AISidebarContextChipView: View {
         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .stroke(CandoaInterfaceStyle.sidebarControlStroke, lineWidth: 1)
+                .stroke(InterfaceStyle.sidebarControlStroke, lineWidth: 1)
         }
     }
 
@@ -989,7 +989,7 @@ struct AISidebarMentionIcon: View {
             } else {
                 Image(systemName: symbolName)
                     .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(isSelected ? Color.white.opacity(0.86) : CandoaInterfaceStyle.sidebarIcon)
+                    .foregroundStyle(isSelected ? Color.white.opacity(0.86) : InterfaceStyle.sidebarIcon)
             }
         }
         .frame(width: size, height: size)
@@ -1043,10 +1043,10 @@ struct EliSubmission {
     let prompt: String
     let contextChips: [AISidebarContextChip]
     let contextMentions: [AISidebarContextMention]
-    let recentTurns: [CandoaAIConversationTurn]
+    let recentTurns: [AIConversationTurn]
     let currentPageTabID: UUID?
     let browserControlTabID: UUID?
-    let inheritedPageContext: CandoaAIPageContext?
+    let inheritedPageContext: AIPageContext?
 }
 
 struct AISidebarMessage: Identifiable, Equatable {
@@ -1086,7 +1086,7 @@ enum AISidebarMessageRole: Equatable {
     case user
     case assistant
 
-    var conversationRole: CandoaAIConversationTurn.Role {
+    var conversationRole: AIConversationTurn.Role {
         switch self {
         case .user:
             return .user

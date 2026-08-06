@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-enum CandoaDockIconPreference: String, CaseIterable, Identifiable {
+enum DockIconPreference: String, CaseIterable, Identifiable {
     static let storageKey = "Candoa.Settings.DockIconPreference"
 
     case system
@@ -33,7 +33,7 @@ enum CandoaDockIconPreference: String, CaseIterable, Identifiable {
     @MainActor
     static func updateApplicationIcon() {
         let storedValue = UserDefaults.standard.string(forKey: storageKey)
-        let preference = CandoaDockIconPreference(rawValue: storedValue ?? "") ?? .system
+        let preference = DockIconPreference(rawValue: storedValue ?? "") ?? .system
         guard let image = NSImage(named: preference.imageName) else { return }
 
         image.isTemplate = false
@@ -47,65 +47,65 @@ enum CandoaDockIconPreference: String, CaseIterable, Identifiable {
         return NSImage.Name(isDark ? "DockIconDark" : "DockIconLight")
     }
 }
-struct CandoaSettingsView: View {
+struct SettingsView: View {
     @EnvironmentObject private var userStore: UserStore
-    @State private var selectedTab = CandoaSettingsTab.general
+    @State private var selectedTab = SettingsTab.general
 
     var body: some View {
         TabView(selection: $selectedTab) {
             GeneralSettingsPane()
                 .tabItem {
-                    Label(CandoaSettingsTab.general.title, systemImage: CandoaSettingsTab.general.symbolName)
+                    Label(SettingsTab.general.title, systemImage: SettingsTab.general.symbolName)
                 }
-                .tag(CandoaSettingsTab.general)
+                .tag(SettingsTab.general)
 
             SpacesSettingsPane()
                 .tabItem {
-                    Label(CandoaSettingsTab.spaces.title, systemImage: CandoaSettingsTab.spaces.symbolName)
+                    Label(SettingsTab.spaces.title, systemImage: SettingsTab.spaces.symbolName)
                 }
-                .tag(CandoaSettingsTab.spaces)
+                .tag(SettingsTab.spaces)
 
             SearchSettingsPane()
                 .tabItem {
-                    Label(CandoaSettingsTab.search.title, systemImage: CandoaSettingsTab.search.symbolName)
+                    Label(SettingsTab.search.title, systemImage: SettingsTab.search.symbolName)
                 }
-                .tag(CandoaSettingsTab.search)
+                .tag(SettingsTab.search)
 
             PrivacySettingsPane()
                 .tabItem {
-                    Label(CandoaSettingsTab.privacy.title, systemImage: CandoaSettingsTab.privacy.symbolName)
+                    Label(SettingsTab.privacy.title, systemImage: SettingsTab.privacy.symbolName)
                 }
-                .tag(CandoaSettingsTab.privacy)
+                .tag(SettingsTab.privacy)
 
             SyncSettingsPane()
                 .tabItem {
-                    Label(CandoaSettingsTab.sync.title, systemImage: CandoaSettingsTab.sync.symbolName)
+                    Label(SettingsTab.sync.title, systemImage: SettingsTab.sync.symbolName)
                 }
-                .tag(CandoaSettingsTab.sync)
+                .tag(SettingsTab.sync)
 
             EliSettingsPane()
                 .tabItem {
-                    Label(CandoaSettingsTab.ask.title, systemImage: CandoaSettingsTab.ask.symbolName)
+                    Label(SettingsTab.ask.title, systemImage: SettingsTab.ask.symbolName)
                 }
-                .tag(CandoaSettingsTab.ask)
+                .tag(SettingsTab.ask)
 
             ShortcutSettingsView()
                 .tabItem {
-                    Label(CandoaSettingsTab.shortcuts.title, systemImage: CandoaSettingsTab.shortcuts.symbolName)
+                    Label(SettingsTab.shortcuts.title, systemImage: SettingsTab.shortcuts.symbolName)
                 }
-                .tag(CandoaSettingsTab.shortcuts)
+                .tag(SettingsTab.shortcuts)
 
             IconSettingsPane()
                 .tabItem {
-                    Label(CandoaSettingsTab.icon.title, systemImage: CandoaSettingsTab.icon.symbolName)
+                    Label(SettingsTab.icon.title, systemImage: SettingsTab.icon.symbolName)
                 }
-                .tag(CandoaSettingsTab.icon)
+                .tag(SettingsTab.icon)
 
             AdvancedSettingsPane()
                 .tabItem {
-                    Label(CandoaSettingsTab.advanced.title, systemImage: CandoaSettingsTab.advanced.symbolName)
+                    Label(SettingsTab.advanced.title, systemImage: SettingsTab.advanced.symbolName)
                 }
-                .tag(CandoaSettingsTab.advanced)
+                .tag(SettingsTab.advanced)
         }
         .tabViewStyle(.automatic)
         .frame(width: 780, height: 590)
@@ -115,7 +115,7 @@ struct CandoaSettingsView: View {
     }
 }
 
-internal enum CandoaSettingsTab: Hashable {
+internal enum SettingsTab: Hashable {
     case general
     case spaces
     case search
@@ -158,7 +158,7 @@ internal enum CandoaSettingsTab: Hashable {
 /// Every key listed here is read somewhere at runtime — settings that only
 /// persisted unused UI state were removed for the MVP (issue #20). Add a key
 /// back only together with the behavior it controls.
-enum CandoaSettingsOption {
+enum SettingsOption {
     static let prefix = "Candoa.Settings.ZenOption."
 
     static let checkDefaultBrowser = prefix + "CheckDefaultBrowser"
