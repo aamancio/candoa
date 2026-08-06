@@ -29,6 +29,24 @@ cleanup() {
 }
 trap cleanup EXIT
 
+# hdiutil intermittently fails with EBUSY (exit 16, often with no stderr) on
+# CI runners while Spotlight or diskarbitrationd briefly holds the image.
+# Every hdiutil step goes through this retry wrapper; output is captured and
+# surfaced only when an attempt fails, so logs stay quiet on the happy path.
+run_hdiutil() {
+  local attempt output status
+  for attempt in 1 2 3 4 5; do
+    if output="$(hdiutil "$@" 2>&1)"; then
+      printf '%s\n' "$output"
+      return 0
+    fi
+    status=$?
+    echo "hdiutil $1 failed (exit $status, attempt $attempt/5): $output" >&2
+    sleep $((attempt * 3))
+  done
+  return "$status"
+}
+
 mkdir -p "$STAGE_DIR/.background" "$(dirname "$OUT_DMG")"
 ditto "$APP_PATH" "$STAGE_DIR/$APP_NAME"
 ln -s /Applications "$STAGE_DIR/Applications"
@@ -130,14 +148,14 @@ with open(path, "wb") as f:
 PY
 
 rm -f "$OUT_DMG" "$RW_DMG"
-hdiutil create \
+run_hdiutil create \
   -volname "$VOLUME_NAME" \
   -srcfolder "$STAGE_DIR" \
   -ov \
   -format UDRW \
   "$RW_DMG" >/dev/null
 
-MOUNT_INFO="$(hdiutil attach "$RW_DMG" -readwrite -noverify -noautoopen)"
+MOUNT_INFO="$(run_hdiutil attach "$RW_DMG" -readwrite -noverify -noautoopen)"
 DMG_DEVICE="$(printf '%s\n' "$MOUNT_INFO" | awk -v volume="/Volumes/$VOLUME_NAME" '$0 ~ volume {print $1; exit}')"
 
 if [ -z "$DMG_DEVICE" ]; then
@@ -170,12 +188,12 @@ end tell
 OSA
 
 sync
-hdiutil detach "$DMG_DEVICE" -quiet
+run_hdiutil detach "$DMG_DEVICE" -quiet
 DMG_DEVICE=""
 
-hdiutil convert "$RW_DMG" \
+run_hdiutil convert "$RW_DMG" \
   -format UDZO \
   -imagekey zlib-level=9 \
   -o "$OUT_DMG" >/dev/null
 
-hdiutil verify "$OUT_DMG" >/dev/null
+run_hdiutil verify "$OUT_DMG" >/dev/null
