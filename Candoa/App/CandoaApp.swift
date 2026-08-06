@@ -23,6 +23,7 @@ struct CandoaApp: App {
             height: Self.initialWindowSize.height
         )
         .commands {
+            AboutCommands()
             BrowserCommands(userStore: userStore)
         }
 
@@ -144,6 +145,21 @@ private final class CandoaAppDelegate: NSObject, NSApplicationDelegate {
 
     private func updateDockIcon() {
         CandoaDockIconPreference.updateApplicationIcon()
+    }
+}
+
+private struct AboutCommands: Commands {
+    var body: some Commands {
+        CommandGroup(replacing: .appInfo) {
+            Button("About Candoa") {
+                // The standard panel appends the build number in parentheses;
+                // that counter is Sparkle plumbing, not something people
+                // should read. An empty version hides the parenthetical.
+                NSApplication.shared.orderFrontStandardAboutPanel(
+                    options: [.version: ""]
+                )
+            }
+        }
     }
 }
 
