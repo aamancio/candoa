@@ -214,6 +214,35 @@ enum CandoaCloudAPI {
         return endpoint("ai/chat")
     }
 
+    /// The plan-filtered hosted model catalog. The server stays authoritative
+    /// for availability and credit cost; the client only adds display and
+    /// budgeting metadata.
+    static func hostedAIModels(accessToken: String) async throws -> [CandoaAIModel] {
+        let response: HostedModelsResponse = try await request(
+            endpoint("ai/models"),
+            method: "GET",
+            body: Optional<String>.none,
+            accessToken: accessToken
+        )
+        return response.models.map { model in
+            CandoaAIModelCatalog.hostedModel(
+                id: model.id,
+                providerID: model.providerID,
+                displayName: model.displayName
+            )
+        }
+    }
+
+    private struct HostedModelsResponse: Decodable {
+        let models: [HostedModelEntry]
+    }
+
+    private struct HostedModelEntry: Decodable {
+        let id: String
+        let providerID: String
+        let displayName: String
+    }
+
     static var aiAgentRunURL: URL {
         return endpoint("ai/agent")
     }
@@ -472,6 +501,10 @@ struct CandoaAccountService {
 
     func accountStatus(accessToken: String) async throws -> CandoaAccountStatus {
         try await CandoaCloudAPI.accountStatus(accessToken: accessToken)
+    }
+
+    func hostedAIModels(accessToken: String) async throws -> [CandoaAIModel] {
+        try await CandoaCloudAPI.hostedAIModels(accessToken: accessToken)
     }
 
     func proCheckoutURL(accessToken: String) async throws -> URL {
