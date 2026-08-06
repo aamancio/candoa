@@ -44,10 +44,14 @@ extension WebViewCoordinator {
         store?.downloadsStore.finish(download)
         guard let destination = downloadDestinations.removeValue(forKey: download) else { return }
 
-        // Bounces the Downloads stack in the Dock, matching native browser behavior.
+        // Bounces the Downloads stack in the Dock, matching native browser
+        // behavior. The path must be symlink-resolved: the sandbox reports
+        // the container's Downloads (a symlink to the real ~/Downloads),
+        // and the Dock string-matches the path against its stack URL — the
+        // container form silently never bounces.
         DistributedNotificationCenter.default().postNotificationName(
             Notification.Name("com.apple.DownloadFileFinished"),
-            object: destination.path,
+            object: destination.resolvingSymlinksInPath().path,
             userInfo: nil,
             deliverImmediately: true
         )
@@ -83,9 +87,10 @@ extension WebViewCoordinator {
         do {
             try data.write(to: destination, options: .atomic)
             store?.downloadsStore.recordCompletedSave(at: destination)
+            // Symlink-resolved for the same reason as downloadDidFinish.
             DistributedNotificationCenter.default().postNotificationName(
                 Notification.Name("com.apple.DownloadFileFinished"),
-                object: destination.path,
+                object: destination.resolvingSymlinksInPath().path,
                 userInfo: nil,
                 deliverImmediately: true
             )
