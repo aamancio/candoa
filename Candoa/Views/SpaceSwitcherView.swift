@@ -8,7 +8,6 @@ struct SpaceSwitcherView: View {
     @ObservedObject var store: BrowserStore
     let displayedActiveSpaceID: UUID
     let onSelectSpace: (UUID) -> Void
-    @State private var isDownloadsPresented = false
     @State private var isHoveringDownloads = false
     @State private var isActionMenuPresented = false
     @State private var isHoveringAddSpace = false
@@ -58,21 +57,21 @@ struct SpaceSwitcherView: View {
 
     private var downloadsButton: some View {
         Button {
-            isDownloadsPresented.toggle()
+            store.isDownloadsPopoverPresented.toggle()
         } label: {
             Image(systemName: "arrow.down.to.line.compact")
                 .font(.system(size: 15.5, weight: .medium))
                 .frame(width: 28, height: 28)
                 .foregroundStyle(CandoaInterfaceStyle.sidebarIcon)
-                .background(bottomButtonBackground(isActive: isDownloadsPresented, isHovering: isHoveringDownloads))
+                .background(bottomButtonBackground(isActive: store.isDownloadsPopoverPresented, isHovering: isHoveringDownloads))
                 .contentShape(Rectangle())
         }
         .candoaButton(.content)
         .onHover { isHoveringDownloads = $0 }
         .help("Downloads")
-        .popover(isPresented: $isDownloadsPresented, arrowEdge: .bottom) {
-            DownloadsPopoverView {
-                isDownloadsPresented = false
+        .popover(isPresented: $store.isDownloadsPopoverPresented, arrowEdge: .bottom) {
+            DownloadsPopoverView(downloadsStore: store.downloadsStore) {
+                store.isDownloadsPopoverPresented = false
                 openDownloadsFolder()
             }
         }
@@ -236,20 +235,45 @@ struct SpaceSwitcherView: View {
 }
 
 private struct DownloadsPopoverView: View {
+    @ObservedObject var downloadsStore: DownloadsStore
     let onShowAllDownloads: () -> Void
 
-    @State private var downloads: [DownloadListItem] = []
+    @State private var recentFiles: [DownloadListItem] = []
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
-            if downloads.isEmpty {
+            if !downloadsStore.items.isEmpty {
+                HStack {
+                    Text("Downloads")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.secondary)
+
+                    Spacer()
+
+                    if downloadsStore.hasClearableItems {
+                        // List-only: the downloaded files stay on disk.
+                        Button("Clear") {
+                            downloadsStore.clearSettledItems()
+                        }
+                        .candoaButton(.quiet)
+                        .controlSize(.small)
+                        .accessibilityIdentifier("downloads-clear")
+                    }
+                }
+                .padding(.horizontal, 8)
+                .padding(.top, 2)
+
+                ForEach(downloadsStore.items) { item in
+                    SessionDownloadRow(item: item, downloadsStore: downloadsStore)
+                }
+            } else if recentFiles.isEmpty {
                 Text("No downloads found.")
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 7)
             } else {
-                ForEach(downloads) { item in
+                ForEach(recentFiles) { item in
                     DownloadItemRow(item: item)
                 }
             }
@@ -261,9 +285,127 @@ private struct DownloadsPopoverView: View {
         }
         .padding(10)
         .frame(width: 300)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("downloads-popover")
         .onAppear {
-            downloads = DownloadListItem.recentDownloads()
+            // One filesystem snapshot on open; the session list needs none.
+            recentFiles = DownloadListItem.recentDownloads()
         }
+    }
+}
+
+private struct SessionDownloadRow: View {
+    let item: DownloadsStore.Item
+    let downloadsStore: DownloadsStore
+
+    @State private var isHovering = false
+
+    var body: some View {
+        HStack(spacing: 10) {
+            icon
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(item.filename)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(CandoaInterfaceStyle.sidebarText)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+
+                detail
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            if case .active = item.phase {
+                Button {
+                    downloadsStore.cancelItem(item.id)
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(.secondary)
+                }
+                .candoaButton(.content)
+                .help("Cancel Download")
+                .accessibilityLabel("Cancel Download")
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+        .contentShape(Rectangle())
+        .background(isHovering ? Color.primary.opacity(0.05) : Color.clear)
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .onHover { isHovering = $0 }
+        .onTapGesture {
+            guard case .completed = item.phase, let destination = item.destination else { return }
+            NSWorkspace.shared.open(destination)
+        }
+        .contextMenu {
+            if case .completed = item.phase, let destination = item.destination {
+                Button("Open") {
+                    NSWorkspace.shared.open(destination)
+                }
+
+                Button("Show in Finder") {
+                    NSWorkspace.shared.activateFileViewerSelecting([destination])
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var detail: some View {
+        switch item.phase {
+        case .active(let fraction):
+            if let fraction {
+                ProgressView(value: fraction)
+                    .controlSize(.small)
+            } else {
+                ProgressView()
+                    .controlSize(.small)
+            }
+        case .completed:
+            Text("Completed")
+                .font(.system(size: 12.5, weight: .semibold))
+                .foregroundStyle(CandoaInterfaceStyle.sidebarTextSecondary)
+        case .failed(let reason):
+            Text("Failed — \(reason)")
+                .font(.system(size: 12.5, weight: .semibold))
+                .foregroundStyle(.red)
+                .lineLimit(2)
+        case .cancelled:
+            Text("Cancelled")
+                .font(.system(size: 12.5, weight: .semibold))
+                .foregroundStyle(CandoaInterfaceStyle.sidebarTextSecondary)
+        }
+    }
+
+    private var accessibilityPhase: String {
+        switch item.phase {
+        case .active: String(localized: "downloading")
+        case .completed: String(localized: "completed")
+        case .failed: String(localized: "failed")
+        case .cancelled: String(localized: "cancelled")
+        }
+    }
+
+    private var icon: some View {
+        Group {
+            if let destination = item.destination, case .completed = item.phase {
+                Image(nsImage: fileIcon(for: destination))
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+            } else {
+                Image(systemName: "arrow.down.circle")
+                    .font(.system(size: 22, weight: .regular))
+                    .foregroundStyle(CandoaInterfaceStyle.sidebarIcon)
+            }
+        }
+        .frame(width: 32, height: 32)
+    }
+
+    private func fileIcon(for url: URL) -> NSImage {
+        let image = NSWorkspace.shared.icon(forFile: url.path)
+        image.size = NSSize(width: 32, height: 32)
+        return image
     }
 }
 

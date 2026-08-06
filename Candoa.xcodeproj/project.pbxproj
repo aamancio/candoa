@@ -69,6 +69,7 @@
 		AA0000000000000000000102 /* BrowserStore+Testing.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000002 /* BrowserStore+Testing.swift */; };
 		AA0000000000000000000103 /* BrowserStore+CommandPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000003 /* BrowserStore+CommandPalette.swift */; };
 		AA0000000000000000000104 /* BrowserStore+Onboarding.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000004 /* BrowserStore+Onboarding.swift */; };
+		CD0000000000000000000002 /* DownloadsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD0000000000000000000001 /* DownloadsStore.swift */; };
 		AA0000000000000000000105 /* BrowserStore+Spaces.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000005 /* BrowserStore+Spaces.swift */; };
 		AA0000000000000000000106 /* BrowserStore+TabsFolders.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000006 /* BrowserStore+TabsFolders.swift */; };
 		AA0000000000000000000107 /* BrowserStore+BrowserActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000007 /* BrowserStore+BrowserActions.swift */; };
@@ -192,6 +193,7 @@
 		AA0000000000000000000002 /* BrowserStore+Testing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+Testing.swift"; sourceTree = "<group>"; };
 		AA0000000000000000000003 /* BrowserStore+CommandPalette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+CommandPalette.swift"; sourceTree = "<group>"; };
 		AA0000000000000000000004 /* BrowserStore+Onboarding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+Onboarding.swift"; sourceTree = "<group>"; };
+		CD0000000000000000000001 /* DownloadsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadsStore.swift; sourceTree = "<group>"; };
 		AA0000000000000000000005 /* BrowserStore+Spaces.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+Spaces.swift"; sourceTree = "<group>"; };
 		AA0000000000000000000006 /* BrowserStore+TabsFolders.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+TabsFolders.swift"; sourceTree = "<group>"; };
 		AA0000000000000000000007 /* BrowserStore+BrowserActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+BrowserActions.swift"; sourceTree = "<group>"; };
@@ -442,6 +444,7 @@
 				AA0000000000000000000002 /* BrowserStore+Testing.swift */,
 				AA0000000000000000000003 /* BrowserStore+CommandPalette.swift */,
 				AA0000000000000000000004 /* BrowserStore+Onboarding.swift */,
+				CD0000000000000000000001 /* DownloadsStore.swift */,
 				AA0000000000000000000005 /* BrowserStore+Spaces.swift */,
 				AA0000000000000000000006 /* BrowserStore+TabsFolders.swift */,
 				AA0000000000000000000007 /* BrowserStore+BrowserActions.swift */,
@@ -595,6 +598,7 @@
 				AA0000000000000000000102 /* BrowserStore+Testing.swift in Sources */,
 				AA0000000000000000000103 /* BrowserStore+CommandPalette.swift in Sources */,
 				AA0000000000000000000104 /* BrowserStore+Onboarding.swift in Sources */,
+				CD0000000000000000000002 /* DownloadsStore.swift in Sources */,
 				AA0000000000000000000105 /* BrowserStore+Spaces.swift in Sources */,
 				AA0000000000000000000106 /* BrowserStore+TabsFolders.swift in Sources */,
 				AA0000000000000000000107 /* BrowserStore+BrowserActions.swift in Sources */,

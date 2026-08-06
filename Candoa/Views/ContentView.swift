@@ -542,6 +542,8 @@ struct ContentView: View {
             isAISidebarVisible: isAISidebarVisible,
             showHistory: showHistory,
             isHistoryVisible: isHistoryPresented,
+            showDownloads: showDownloads,
+            isDownloadsVisible: store.isDownloadsPopoverPresented,
             showQuickTour: showQuickTour,
             reloadTab: store.reloadActiveTab,
             reloadTabFromOrigin: store.reloadActiveTabFromOrigin,
@@ -727,6 +729,25 @@ struct ContentView: View {
         }
         closeAISidebar()
         isHistoryPresented = true
+    }
+
+    private func showDownloads() {
+        if store.isDownloadsPopoverPresented {
+            store.isDownloadsPopoverPresented = false
+            return
+        }
+        guard isSidebarVisible else {
+            // The popover anchors to the sidebar's Downloads button, so a
+            // hidden sidebar must be revealed first. Presenting in the same
+            // transaction races the reveal commit and anchors nowhere
+            // (see the two-beat handoff pattern) — defer to its completion.
+            toggleSidebar()
+            CATransaction.setCompletionBlock { [weak store] in
+                store?.isDownloadsPopoverPresented = true
+            }
+            return
+        }
+        store.isDownloadsPopoverPresented = true
     }
 
     private func showFind() {
