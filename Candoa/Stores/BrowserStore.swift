@@ -227,6 +227,7 @@ final class BrowserStore: ObservableObject {
     @Published var commandPaletteWasOpenedFromSidebarAddress = false
     @Published var commandPaletteOpensNewTab = false
     @Published var isCreateSpacePresented = false
+    @Published var isDownloadsPopoverPresented = false
     @Published var editingSpaceID: UUID?
     @Published var editingFolderID: UUID?
     @Published var initialOnboardingStep: InitialOnboardingStep?
@@ -319,6 +320,9 @@ final class BrowserStore: ObservableObject {
 
     let navigationService: NavigationService
     let webCoordinator: WebViewCoordinator
+    /// Ordinary windows share the app-wide list; a private window owns an
+    /// ephemeral one so its downloads never surface elsewhere or persist.
+    let downloadsStore: DownloadsStore
 
     let persistenceService: PersistenceService
     let workspaceRepository: any WorkspaceRepository
@@ -329,6 +333,8 @@ final class BrowserStore: ObservableObject {
     var remoteChangeCancellable: AnyCancellable?
     var uiTestingRemoteRestoreCancellable: AnyCancellable?
     var uiTestingWebAuthEventCancellable: AnyCancellable?
+    var downloadsChangeCancellable: AnyCancellable?
+    var uiTestingDownloadFixtureCancellable: AnyCancellable?
     var tabSwitcherHideWorkItem: DispatchWorkItem?
     var tabSwitcherShowWorkItem: DispatchWorkItem?
     var copiedURLToastHideWorkItem: DispatchWorkItem?
@@ -393,6 +399,7 @@ final class BrowserStore: ObservableObject {
             ?? Self.uiTestingBrowserImportService()
             ?? BrowserImportService()
         self.webCoordinator = webCoordinator ?? WebViewCoordinator(isPrivate: isPrivate)
+        self.downloadsStore = isPrivate ? DownloadsStore() : .shared
 
         // Private windows never restore anything — not the persisted
         // workspace, and not a UI-testing fixture either: fixtures describe
@@ -518,6 +525,12 @@ final class BrowserStore: ObservableObject {
             needsWorkspaceSaveAfterRepair = false
             flushSession()
         }
+        // The downloads list lives in its own (possibly shared) store;
+        // republish its changes so views observing this store — and the
+        // UI-testing state element — refresh with it.
+        downloadsChangeCancellable = downloadsStore.objectWillChange
+            .sink { [weak self] _ in self?.objectWillChange.send() }
+        configureUITestingDownloadFixtureTrigger()
     }
 
 }

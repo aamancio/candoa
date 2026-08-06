@@ -99,6 +99,27 @@ extension BrowserStore {
             }
     }
 
+    /// Test-runner seam for download rows: real WKDownloads need a server
+    /// the harness doesn't have, so tests drive the same item states the
+    /// delegate callbacks would produce. Spec: "filename|phase|fraction".
+    static let uiTestingDownloadFixtureNotification =
+        Notification.Name("app.candoa.uitesting.download-fixture")
+
+    func configureUITestingDownloadFixtureTrigger() {
+        // Fixtures describe the ordinary windows' shared list; a private
+        // window's ephemeral list must stay empty unless it downloads.
+        guard Self.isUITesting, !isPrivate else { return }
+
+        uiTestingDownloadFixtureCancellable = DistributedNotificationCenter.default()
+            .publisher(for: Self.uiTestingDownloadFixtureNotification)
+            .sink { [weak self] notification in
+                guard let spec = notification.object as? String else { return }
+                Task { @MainActor [weak self] in
+                    self?.downloadsStore.applyUITestingFixture(spec)
+                }
+            }
+    }
+
     static var uiTestingOnboardingStep: InitialOnboardingStep? {
         guard isUITesting else { return nil }
         return ProcessInfo.processInfo.environment["CANDOA_UI_TESTING_ONBOARDING_STEP"]
@@ -389,6 +410,8 @@ extension BrowserStore {
             "splitActive=\(splitActiveTitle)",
             "splitRatios=\(splitRatioText)",
             "splitLayout=\(splitLayout.rawValue)",
+            "downloads=\(downloadsStore.uiTestingDescription)",
+            "downloadsShown=\(isDownloadsPopoverPresented)",
             "popover=\(uiTestingVisibleFolderPopoverDescription)",
             "query=\(uiTestingCommandPaletteQuery)",
             "command=\(uiTestingLastCommandDescription)",

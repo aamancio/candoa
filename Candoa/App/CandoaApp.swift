@@ -244,6 +244,12 @@ private struct BrowserCommands: Commands {
             .keyboardShortcut("e", modifiers: .command)
             .disabled(actions == nil)
 
+            Button(actions?.isDownloadsVisible == true ? "Hide Downloads" : "Show Downloads") {
+                actions?.showDownloads()
+            }
+            .keyboardShortcut("l", modifiers: [.command, .option])
+            .disabled(actions == nil)
+
             Divider()
 
             Button(BrowserCommandTitles.focusAddressBar) {
@@ -480,6 +486,8 @@ struct BrowserCommandActions {
     var isAISidebarVisible: Bool
     var showHistory: () -> Void
     var isHistoryVisible: Bool
+    var showDownloads: () -> Void
+    var isDownloadsVisible: Bool
     var showQuickTour: () -> Void
     var reloadTab: () -> Void
     var reloadTabFromOrigin: () -> Void

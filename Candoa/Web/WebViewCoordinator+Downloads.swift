@@ -21,11 +21,13 @@ extension WebViewCoordinator {
 
         let destination = Self.uniqueDestination(for: suggestedFilename, in: downloadsDirectory)
         downloadDestinations[download] = destination
+        store?.downloadsStore.begin(download, destination: destination)
         return destination
     }
 
     func downloadDidFinish(_ download: WKDownload) {
         activeDownloads.remove(download)
+        store?.downloadsStore.finish(download)
         guard let destination = downloadDestinations.removeValue(forKey: download) else { return }
 
         // Bounces the Downloads stack in the Dock, matching native browser behavior.
@@ -40,6 +42,7 @@ extension WebViewCoordinator {
     func download(_ download: WKDownload, didFailWithError error: Error, resumeData: Data?) {
         activeDownloads.remove(download)
         downloadDestinations[download] = nil
+        store?.downloadsStore.fail(download, reason: error.localizedDescription)
     }
 
     static func uniqueDestination(for suggestedFilename: String, in directory: URL) -> URL {
