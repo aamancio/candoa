@@ -175,16 +175,92 @@ struct PersistenceService: @unchecked Sendable {
 
         container.viewContext.automaticallyMergesChangesFromParent = true
         container.viewContext.mergePolicy = NSMergePolicy(merge: .mergeByPropertyObjectTrumpMergePolicyType)
+        container.viewContext.transactionAuthor = Self.localTransactionAuthor
 
         self.container = container
+        let tokenBox = HistoryTokenBox()
         remoteChangeObserver = NotificationCenter.default.addObserver(
             forName: .NSPersistentStoreRemoteChange,
             object: container.persistentStoreCoordinator,
             queue: .main
         ) { _ in
-            NotificationCenter.default.post(name: Self.remoteStoreDidChange, object: nil)
+            Self.forwardRemoteChangeIfForeign(container: container, tokenBox: tokenBox)
         }
 
+    }
+
+    static let localTransactionAuthor = "app.candoa.browser.local"
+
+    /// Reference holder for the history position: the service is a struct,
+    /// so the observer closure needs shared mutable state across firings.
+    private final class HistoryTokenBox: @unchecked Sendable {
+        /// Transactions older than launch are already reflected in the
+        /// initial load, so the first fetch never scans the full history.
+        let startedAt = Date()
+
+        private let lock = NSLock()
+        private var token: NSPersistentHistoryToken?
+
+        var current: NSPersistentHistoryToken? {
+            lock.lock()
+            defer { lock.unlock() }
+            return token
+        }
+
+        func advance(to newToken: NSPersistentHistoryToken?) {
+            guard let newToken else { return }
+            lock.lock()
+            defer { lock.unlock() }
+            token = newToken
+        }
+    }
+
+    /// NSPersistentStoreRemoteChange fires for this process's own saves as
+    /// well as CloudKit imports. Forwarding our own saves as "remote state"
+    /// made `applyRemoteStateIfNeeded` replay a just-stale workspace
+    /// snapshot over live navigation — a click-driven page commit could be
+    /// stomped back to the tab's previous URL within a second (the visible
+    /// "click bounces back" bug). Filter through persistent history: only
+    /// transactions authored by someone other than this app (CloudKit
+    /// mirroring) count as remote.
+    private static func forwardRemoteChangeIfForeign(
+        container: NSPersistentContainer,
+        tokenBox: HistoryTokenBox
+    ) {
+        let context = container.newBackgroundContext()
+        context.transactionAuthor = localTransactionAuthor
+        context.perform {
+            let request = tokenBox.current.map(NSPersistentHistoryChangeRequest.fetchHistory(after:))
+                ?? NSPersistentHistoryChangeRequest.fetchHistory(after: tokenBox.startedAt)
+            guard
+                let result = try? context.execute(request) as? NSPersistentHistoryResult,
+                let transactions = result.result as? [NSPersistentHistoryTransaction]
+            else {
+                // History is unreadable — fail open so a real remote change
+                // is never dropped; a spurious apply is a no-op when state
+                // matches.
+                DispatchQueue.main.async {
+                    NotificationCenter.default.post(name: Self.remoteStoreDidChange, object: nil)
+                }
+                return
+            }
+
+            tokenBox.advance(to: transactions.last?.token)
+            let hasForeignTransactions = transactions.contains {
+                $0.author != localTransactionAuthor
+            }
+            guard hasForeignTransactions else { return }
+
+            DispatchQueue.main.async {
+                NotificationCenter.default.post(name: Self.remoteStoreDidChange, object: nil)
+            }
+        }
+    }
+
+    private func makeBackgroundContext() -> NSManagedObjectContext {
+        let context = container.newBackgroundContext()
+        context.transactionAuthor = Self.localTransactionAuthor
+        return context
     }
 
     private static func storeURLs(from baseStoreURL: URL?) -> (session: URL, history: URL) {
@@ -237,7 +313,7 @@ struct PersistenceService: @unchecked Sendable {
     }
 
     func saveState(_ state: BrowserWindowState) {
-        let context = container.newBackgroundContext()
+        let context = makeBackgroundContext()
         context.mergePolicy = NSMergePolicy(merge: .mergeByPropertyObjectTrumpMergePolicyType)
 
         context.performAndWait {
@@ -252,7 +328,7 @@ struct PersistenceService: @unchecked Sendable {
     }
 
     func recordVisit(title: String, url: URL, tabID: UUID, spaceID: UUID, visitedAt: Date = Date()) {
-        let context = container.newBackgroundContext()
+        let context = makeBackgroundContext()
         let visit = HistoryVisit(
             id: UUID(),
             title: title,
@@ -344,7 +420,7 @@ struct PersistenceService: @unchecked Sendable {
         guard limit > 0, offset >= 0 else { return [] }
 
         let query = rawQuery.trimmingCharacters(in: .whitespacesAndNewlines)
-        let context = container.newBackgroundContext()
+        let context = makeBackgroundContext()
 
         return context.performAndWait {
             do {
@@ -396,7 +472,7 @@ struct PersistenceService: @unchecked Sendable {
     }
 
     private func deleteHistory(_ deletion: HistoryDeletion) throws {
-        let context = container.newBackgroundContext()
+        let context = makeBackgroundContext()
         context.mergePolicy = NSMergePolicy(merge: .mergeByPropertyObjectTrumpMergePolicyType)
 
         try context.performAndWait {
