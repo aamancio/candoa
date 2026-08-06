@@ -347,19 +347,27 @@ private struct WelcomeOnboardingStep: View {
             VStack {
                 Spacer()
 
-                Button {
-                    store.completeInitialWelcome()
-                } label: {
-                    Label("Begin Setup", systemImage: "arrow.right")
-                        .frame(minWidth: 116)
+                VStack(spacing: 12) {
+                    Button {
+                        store.completeInitialWelcome()
+                    } label: {
+                        Label("Begin Setup", systemImage: "arrow.right")
+                            .frame(minWidth: 116)
+                    }
+                    .candoaButton(.primary)
+                    .controlSize(.large)
+                    .keyboardShortcut(.defaultAction)
+                    .accessibilityIdentifier("onboarding-get-started")
+
+                    Button("Skip for Now") {
+                        store.skipInitialOnboardingSetup()
+                    }
+                    .candoaButton(.quiet)
+                    .accessibilityIdentifier("onboarding-skip-setup")
                 }
-                .candoaButton(.primary)
-                .controlSize(.large)
-                .keyboardShortcut(.defaultAction)
                 .opacity(revealsAction ? 1 : 0)
                 .offset(y: revealsAction ? 0 : 8)
-                .accessibilityIdentifier("onboarding-get-started")
-                .padding(.bottom, 62)
+                .padding(.bottom, 50)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

@@ -780,6 +780,51 @@ final class CandoaUITests: XCTestCase {
         XCTAssertFalse(element("account-onboarding", in: app).exists)
     }
 
+    func testWelcomeSkipForNowReachesBrowserEssentialsInOneClick() throws {
+        let app = launchApp(fixture: "fresh-workspace", onboardingStep: "welcome")
+        XCTAssertTrue(element("initial-onboarding-welcome", in: app).waitForExistence(timeout: 10))
+
+        // The welcome container's accessibility identifier swallows child
+        // button ids, so target the button by its title like the other
+        // onboarding tests do.
+        let skipButton = app.buttons["Skip for Now"]
+        XCTAssertTrue(skipButton.waitForExistence(timeout: 5))
+        skipButton.click()
+
+        // One click swaps the blocking canvas for the browsable welcome page
+        // with the non-blocking tour, a named default Space, and the starter
+        // favorites — no import, space, or account step in between.
+        XCTAssertTrue(element("welcome-to-candoa-page", in: app).waitForExistence(timeout: 10))
+        XCTAssertFalse(element("initial-onboarding-welcome", in: app).exists)
+        XCTAssertFalse(element("initial-onboarding-importData", in: app).exists)
+        XCTAssertFalse(element("account-onboarding", in: app).exists)
+        XCTAssertTrue(
+            waitForState(in: app, containing: "onboarding=tour", timeout: 5),
+            currentState(in: app)
+        )
+        XCTAssertTrue(
+            waitForState(in: app, containing: "space=Personal", timeout: 5),
+            currentState(in: app)
+        )
+        XCTAssertTrue(
+            waitForState(
+                in: app,
+                containing: "favorites=YouTube|Wikipedia|Gmail|Google Maps|GitHub",
+                timeout: 5
+            ),
+            currentState(in: app)
+        )
+        XCTAssertTrue(element("favorite-tile-youtube", in: app).waitForExistence(timeout: 5))
+
+        // URL entry and search are live immediately.
+        app.typeKey("t", modifierFlags: .command)
+        submitCommandPaletteText("https://example.com", in: app)
+        XCTAssertTrue(
+            waitForState(in: app, containing: "url=https://example.com/", timeout: 10),
+            currentState(in: app)
+        )
+    }
+
     func testBrowserMigrationImportsChromeFixtureThroughRealParser() throws {
         try assertBrowserMigration(
             source: "Chrome",

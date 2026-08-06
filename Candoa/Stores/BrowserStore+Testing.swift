@@ -435,6 +435,24 @@ extension BrowserStore {
             return testingBotFixtureState(includesSeedTabs: false)
         }
 
+        if fixture == "fresh-workspace" {
+            // Mirrors a true first launch — one unnamed Space and nothing
+            // else — so onboarding paths that name the default Space behave
+            // exactly as they do on a clean Mac.
+            let space = BrowserSpace(
+                name: "",
+                symbolName: "circle.grid.2x2",
+                themeAppearance: BrowserSpace.defaultThemeAppearance
+            )
+            return BrowserWindowState(
+                spaces: [space],
+                folders: [],
+                tabs: [],
+                activeSpaceID: space.id,
+                activeTabID: nil
+            )
+        }
+
         if fixture == "ask-agent-navigation" {
             let spaceID = UUID(uuidString: "AEAEAEAE-AEAE-AEAE-AEAE-AEAEAEAEAEAE")!
             let tabID = UUID(uuidString: "BFBFBFBF-BFBF-BFBF-BFBF-BFBFBFBFBFBF")!

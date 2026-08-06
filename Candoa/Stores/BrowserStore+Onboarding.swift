@@ -162,6 +162,22 @@ extension BrowserStore {
         setInitialOnboardingStep(.importData)
     }
 
+    /// One-click escape from the welcome step so browser essentials — URL
+    /// entry, search, and starter favorites — are reachable before any
+    /// blocking setup (Apple's web-browser entitlement criteria). Import,
+    /// naming the Space, and the account choice all remain available later;
+    /// the Space must still get a real name here or the next-launch resume
+    /// logic would route back into the blocking space step.
+    func skipInitialOnboardingSetup() {
+        guard initialOnboardingStep == .welcome else { return }
+        if needsInitialSpaceSetup(), let index = spaces.firstIndex(where: { $0.id == activeSpaceID }) {
+            spaces[index].name = SpaceComposerMode.initial.defaultName
+        }
+        seedStarterFavoritesIfNeeded()
+        setInitialOnboardingStep(.tour)
+        flushSession()
+    }
+
     func completeInitialImport() {
         guard initialOnboardingStep == .importData else { return }
         setInitialOnboardingStep(.space)
