@@ -10,6 +10,20 @@ extension WebViewCoordinator {
         activeDownloads.insert(download)
     }
 
+    /// A navigation that became a download never commits, but the tab model
+    /// may already carry its URL (URL-bar navigations write it up front).
+    /// Left mismatched, every SwiftUI pass re-requests the URL through
+    /// ensureLoaded — with a download that cannot finish, that's an
+    /// infinite retry loop spamming failed rows. Point the tab back at the
+    /// last committed page. Not webView.url: during the conversion that
+    /// still reports the provisional (download) URL, which is exactly the
+    /// value that must go away.
+    func realignTabAfterDownloadConversion(for webView: WKWebView?) {
+        guard let webView, let store, let tabID = tabID(for: webView) else { return }
+        downloadConvertedTabIDs.insert(tabID)
+        store.realignTabURL(tabID: tabID, to: webView.backForwardList.currentItem?.url)
+    }
+
     func download(
         _ download: WKDownload,
         decideDestinationUsing response: URLResponse,

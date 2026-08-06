@@ -49,6 +49,12 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
     var popupTabIDsAwaitingFirstLoad = Set<UUID>()
     var activeDownloads = Set<WKDownload>()
     var downloadDestinations: [WKDownload: URL] = [:]
+    /// Tabs whose last navigation converted to a download: the model may
+    /// keep showing the download URL (provisional-URL updates race any
+    /// cleanup), but re-requesting it via ensureLoaded would start the
+    /// download again on every SwiftUI pass. Cleared when a real page
+    /// commits in the tab.
+    var downloadConvertedTabIDs: Set<UUID> = []
     var hostedActiveTabID: UUID?
     var miniPlayerHostedTabID: UUID?
     var contentRuleList: WKContentRuleList?
@@ -287,6 +293,10 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         guard !restoringTabIDs.contains(tab.id) else { return }
 
         guard let expectedURL = tab.url else { return }
+
+        // A navigation that became a download never commits; re-requesting
+        // its URL here would restart the download on every SwiftUI pass.
+        guard !downloadConvertedTabIDs.contains(tab.id) else { return }
 
         if webView.url?.absoluteString != expectedURL.absoluteString {
             load(expectedURL, in: tab.id)

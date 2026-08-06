@@ -47,6 +47,7 @@ struct ContentView: View {
     @State private var aiSidebarResizeStartWidth: CGFloat?
     @State private var miniPlayerOrigin: CGPoint?
     @State private var miniPlayerExpandedSize = MiniPlayerLayout.defaultExpandedSize
+    @State private var downloadFlight: DownloadFlightRequest?
     @SceneStorage("candoa.aiSidebarWidth.diaLayout") private var aiSidebarWidth = 540.0
     private let sidebarWidth = CandoaInterfaceStyle.sidebarWidth
     private let sidebarDividerWidth: CGFloat = 0
@@ -495,12 +496,46 @@ struct ContentView: View {
         }
         .onChange(of: store.downloadsStore.items.first?.id) { _, newestItemID in
             // A new download (or a PDF-HUD save) with no visible response
-            // reads as a dead button — surface the popover in the key
-            // window the moment a row lands. Phase/progress updates keep
-            // the same newest id, so this fires once per download.
-            guard newestItemID != nil, controlActiveState == .key,
-                  !store.isDownloadsPopoverPresented else { return }
-            showDownloads()
+            // reads as a dead button. The key window flies a file icon into
+            // the sidebar's Downloads button, then surfaces the popover on
+            // landing. Phase/progress updates keep the same newest id, so
+            // this fires once per download.
+            guard let newestItemID, controlActiveState == .key else { return }
+
+            if reduceMotion || !isSidebarPresented {
+                // No flight without a visible landing pad (or with reduced
+                // motion) — fall back to presenting the popover directly.
+                if !store.isDownloadsPopoverPresented { showDownloads() }
+                return
+            }
+            downloadFlight = DownloadFlightRequest(
+                itemID: newestItemID,
+                filename: store.downloadsStore.items.first?.filename ?? ""
+            )
+        }
+        .overlayPreferenceValue(DownloadsButtonAnchorKey.self) { downloadsButtonAnchor in
+            GeometryReader { proxy in
+                if let downloadFlight, let downloadsButtonAnchor {
+                    DownloadFlightView(
+                        request: downloadFlight,
+                        start: CGPoint(
+                            x: proxy.size.width * 0.5,
+                            y: proxy.size.height * 0.30
+                        ),
+                        target: CGPoint(
+                            x: proxy[downloadsButtonAnchor].midX,
+                            y: proxy[downloadsButtonAnchor].midY
+                        ),
+                        onLanded: {
+                            self.downloadFlight = nil
+                            if !store.isDownloadsPopoverPresented {
+                                showDownloads()
+                            }
+                        }
+                    )
+                }
+            }
+            .allowsHitTesting(false)
         }
         .onChange(of: userStore.hasCompletedAccountChoice) { _, hasCompletedAccountChoice in
             store.reconcileAccountSetup(
@@ -853,5 +888,99 @@ private struct SignOutConfirmationView: View {
             }
             .shadow(color: Color(nsColor: .shadowColor).opacity(0.18), radius: 9, y: 3)
             .accessibilityIdentifier("sign-out-confirmation")
+    }
+}
+
+/// Landing-pad anchor published by the sidebar's Downloads button so the
+/// window-level flight overlay knows where downloads visually land.
+struct DownloadsButtonAnchorKey: PreferenceKey {
+    static let defaultValue: Anchor<CGRect>? = nil
+
+    static func reduce(value: inout Anchor<CGRect>?, nextValue: () -> Anchor<CGRect>?) {
+        value = value ?? nextValue()
+    }
+}
+
+struct DownloadFlightRequest: Equatable {
+    let itemID: UUID
+    let filename: String
+}
+
+/// Safari-style download feedback: the file's icon swoops from the page
+/// into the sidebar's Downloads button along a quadratic arc, shrinking as
+/// it goes, then hands off to the popover presentation.
+private struct DownloadFlightView: View {
+    let request: DownloadFlightRequest
+    let start: CGPoint
+    let target: CGPoint
+    let onLanded: () -> Void
+
+    @State private var progress: CGFloat = 0
+
+    private static let flightDuration: TimeInterval = 0.55
+
+    var body: some View {
+        Image(nsImage: fileIcon)
+            .resizable()
+            .frame(width: 48, height: 48)
+            .modifier(
+                DownloadFlightPathEffect(progress: progress, start: start, end: target)
+            )
+            .opacity(progress >= 1 ? 0 : 1)
+            .id(request.itemID)
+            .onAppear {
+                withAnimation(.easeIn(duration: Self.flightDuration)) {
+                    progress = 1
+                }
+                // Slight hold past the flight so the landing and the popover
+                // presentation read as cause and effect, not a glitch.
+                DispatchQueue.main.asyncAfter(deadline: .now() + Self.flightDuration + 0.05) {
+                    onLanded()
+                }
+            }
+    }
+
+    private var fileIcon: NSImage {
+        let fileExtension = (request.filename as NSString).pathExtension
+        let contentType = UTType(filenameExtension: fileExtension) ?? .data
+        return NSWorkspace.shared.icon(for: contentType)
+    }
+}
+
+/// Moves the icon along a quadratic bezier from `start` to `end` while
+/// shrinking it — a GeometryEffect so the curve itself is animatable,
+/// not just the endpoints.
+private struct DownloadFlightPathEffect: GeometryEffect {
+    var progress: CGFloat
+    let start: CGPoint
+    let end: CGPoint
+
+    var animatableData: CGFloat {
+        get { progress }
+        set { progress = newValue }
+    }
+
+    func effectValue(size: CGSize) -> ProjectionTransform {
+        // Control point pulled toward the target's column and above the
+        // midline, so the icon swoops sideways-then-down like Safari's.
+        let control = CGPoint(
+            x: (start.x + end.x * 2) / 3,
+            y: min(start.y, end.y) - 60
+        )
+        let t = progress
+        let mt = 1 - t
+        let x = mt * mt * start.x + 2 * mt * t * control.x + t * t * end.x
+        let y = mt * mt * start.y + 2 * mt * t * control.y + t * t * end.y
+        let scale = 1 - 0.72 * t
+
+        // The icon's frame is positioned at the view origin; center the
+        // scaled icon on the path point.
+        let halfEdge = size.width / 2
+        let transform = CGAffineTransform(
+            translationX: x - halfEdge * scale,
+            y: y - halfEdge * scale
+        )
+        .scaledBy(x: scale, y: scale)
+        return ProjectionTransform(transform)
     }
 }

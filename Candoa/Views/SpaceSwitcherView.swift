@@ -69,6 +69,9 @@ struct SpaceSwitcherView: View {
         .candoaButton(.content)
         .onHover { isHoveringDownloads = $0 }
         .help("Downloads")
+        // Landing pad for the download flight animation: the window-level
+        // overlay resolves this anchor to aim the flying file icon here.
+        .anchorPreference(key: DownloadsButtonAnchorKey.self, value: .bounds) { $0 }
         .popover(isPresented: $store.isDownloadsPopoverPresented, arrowEdge: .bottom) {
             DownloadsPopoverView(downloadsStore: store.downloadsStore) {
                 store.isDownloadsPopoverPresented = false
