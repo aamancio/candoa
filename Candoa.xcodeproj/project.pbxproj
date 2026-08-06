@@ -80,6 +80,7 @@
 		AA000000000000000000010C /* BrowserStore+SessionRepair.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000000C /* BrowserStore+SessionRepair.swift */; };
 		AA000000000000000000010D /* CandoaImageTextRecognizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000000D /* CandoaImageTextRecognizer.swift */; };
 		AB1000000000000000000101 /* WebsiteAppearanceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB1000000000000000000001 /* WebsiteAppearanceService.swift */; };
+		AB10000000000000000BD101 /* BrowsingDataService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB10000000000000000BD001 /* BrowsingDataService.swift */; };
 		BA0000000000000000000101 /* BrowserAgentDriver.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA0000000000000000000001 /* BrowserAgentDriver.swift */; };
 		BA0000000000000000000102 /* BrowserAgent in Resources */ = {isa = PBXBuildFile; fileRef = BA0000000000000000000002 /* BrowserAgent */; };
 		BB0000000000000000000101 /* BrowserPasskeyAuthorizationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000000001 /* BrowserPasskeyAuthorizationService.swift */; };
@@ -204,6 +205,7 @@
 		AA000000000000000000000C /* BrowserStore+SessionRepair.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+SessionRepair.swift"; sourceTree = "<group>"; };
 		AA000000000000000000000D /* CandoaImageTextRecognizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CandoaImageTextRecognizer.swift; sourceTree = "<group>"; };
 		AB1000000000000000000001 /* WebsiteAppearanceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebsiteAppearanceService.swift; sourceTree = "<group>"; };
+		AB10000000000000000BD001 /* BrowsingDataService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowsingDataService.swift; sourceTree = "<group>"; };
 		B1C2D3E4F5A60718293A4B5C /* CommandPaletteSearch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandPaletteSearch.swift; sourceTree = "<group>"; };
 		BA0000000000000000000001 /* BrowserAgentDriver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserAgentDriver.swift; sourceTree = "<group>"; };
 		BA0000000000000000000002 /* BrowserAgent */ = {isa = PBXFileReference; lastKnownFileType = folder; path = BrowserAgent; sourceTree = "<group>"; };
@@ -368,6 +370,7 @@
 				TS00000000000000000000A1 /* TabSnapshotStore.swift */,
 				010000000000000000000040 /* ContentBlockerService.swift */,
 				AB1000000000000000000001 /* WebsiteAppearanceService.swift */,
+				AB10000000000000000BD001 /* BrowsingDataService.swift */,
 				01000000000000000000001D /* AppUpdateService.swift */,
 				010000000000000000000042 /* CandoaEliService.swift */,
 				EF0000000000000000000001 /* CandoaEliModels.swift */,
@@ -668,6 +671,7 @@
 				E3A2B3D4F5C60718293A4B5C /* ShortcutSettingsComponents.swift in Sources */,
 				010000000000000000000140 /* ContentBlockerService.swift in Sources */,
 				AB1000000000000000000101 /* WebsiteAppearanceService.swift in Sources */,
+				AB10000000000000000BD101 /* BrowsingDataService.swift in Sources */,
 				010000000000000000000141 /* CopiedURLToastView.swift in Sources */,
 				010000000000000000000142 /* CandoaEliService.swift in Sources */,
 				EF0000000000000000000101 /* CandoaEliModels.swift in Sources */,

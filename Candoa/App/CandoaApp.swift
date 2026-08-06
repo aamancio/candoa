@@ -411,6 +411,15 @@ private struct BrowserCommands: Commands {
             }
             .keyboardShortcut("t", modifiers: [.command, .shift])
             .disabled(actions == nil)
+
+            Divider()
+
+            // Private windows keep no persistent history or website data,
+            // so the clear command only targets ordinary windows.
+            Button(BrowserCommandTitles.clearHistory) {
+                actions?.clearBrowsingData()
+            }
+            .disabled(actions?.canClearBrowsingData != true)
         }
 
         CommandMenu("Bookmarks") {
@@ -486,6 +495,8 @@ struct BrowserCommandActions {
     var isAISidebarVisible: Bool
     var showHistory: () -> Void
     var isHistoryVisible: Bool
+    var clearBrowsingData: () -> Void
+    var canClearBrowsingData: Bool
     var showDownloads: () -> Void
     var isDownloadsVisible: Bool
     var showQuickTour: () -> Void

@@ -110,6 +110,10 @@ struct ContentView: View {
                         HistoryView(
                             repository: store.historyRepository,
                             spaceID: store.activeSpaceID,
+                            clearScope: store.isPrivate ? nil : ClearBrowsingDataPrompt.CurrentSpace(
+                                id: store.activeSpaceID,
+                                dataStoreID: store.dataStoreID(for: store.activeSpaceID)
+                            ),
                             onOpen: { visit in
                                 isHistoryPresented = false
                                 store.navigateActiveTab(to: visit.url)
@@ -543,6 +547,16 @@ struct ContentView: View {
         )
     }
 
+    private func presentClearBrowsingData() {
+        guard !store.isPrivate else { return }
+        ClearBrowsingDataPrompt.present(
+            currentSpace: ClearBrowsingDataPrompt.CurrentSpace(
+                id: store.activeSpaceID,
+                dataStoreID: store.dataStoreID(for: store.activeSpaceID)
+            )
+        )
+    }
+
     private var browserCommandActions: BrowserCommandActions {
         BrowserCommandActions(
             newTab: openNewTabFlow,
@@ -554,6 +568,8 @@ struct ContentView: View {
             isAISidebarVisible: isAISidebarVisible,
             showHistory: showHistory,
             isHistoryVisible: isHistoryPresented,
+            clearBrowsingData: presentClearBrowsingData,
+            canClearBrowsingData: !store.isPrivate,
             showDownloads: showDownloads,
             isDownloadsVisible: store.isDownloadsPopoverPresented,
             showQuickTour: showQuickTour,

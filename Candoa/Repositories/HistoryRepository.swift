@@ -10,9 +10,11 @@ protocol HistoryRepository: Sendable {
 
 /// History repository for private windows. Visits are dropped — private
 /// browsing records no history and therefore syncs none. Reads and
-/// deletes pass through to the persistent store; since all consumers
-/// scope queries to the active space and a private window's space is
-/// ephemeral, a private window surfaces no history in practice.
+/// per-space deletes pass through to the persistent store; since all
+/// consumers scope queries to the active space and a private window's
+/// space is ephemeral, a private window surfaces no history in practice.
+/// A space-less delete would wipe every ordinary Space's history, so it
+/// is refused here even though no private surface currently offers one.
 struct PrivateBrowsingHistoryRepository: HistoryRepository {
     let base: CoreDataHistoryRepository
 
@@ -31,6 +33,7 @@ struct PrivateBrowsingHistoryRepository: HistoryRepository {
     }
 
     func deleteVisits(visitedAfter startDate: Date?, in spaceID: UUID?) throws {
+        guard spaceID != nil else { return }
         try base.deleteVisits(visitedAfter: startDate, in: spaceID)
     }
 }

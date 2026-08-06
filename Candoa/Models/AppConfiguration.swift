@@ -29,6 +29,7 @@ enum BrowserCommandTitles {
     static let toggleSplitView = String(localized: "Toggle Split View")
     static let createSpace = String(localized: "Create Space")
     static let reopenClosedTab = String(localized: "Reopen Closed Tab")
+    static let clearHistory = String(localized: "Clear History…")
     static let pinOrUnpinTab = String(localized: "Pin or Unpin Tab")
     static let clearUnpinnedTabs = String(localized: "Clear Unpinned Tabs")
     static let copyURL = String(localized: "Copy URL")
