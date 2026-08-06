@@ -51,101 +51,144 @@ mkdir -p "$STAGE_DIR/.background" "$(dirname "$OUT_DMG")"
 ditto "$APP_PATH" "$STAGE_DIR/$APP_NAME"
 ln -s /Applications "$STAGE_DIR/Applications"
 
-python3 - "$STAGE_DIR/.background/background.png" <<'PY'
+# Finder resolves the window background per-display when it is a multi-page
+# HiDPI TIFF, so render the artwork at 1x and 2x and stitch them together.
+# Shapes are rasterized from signed distance fields so edges stay anti-aliased
+# at every scale.
+python3 - "$STAGE_DIR/.background" <<'PY'
 import math
 import struct
 import sys
 import zlib
 
-path = sys.argv[1]
-width, height = 760, 420
-pixels = bytearray()
+out_dir = sys.argv[1]
+BASE_W, BASE_H = 760, 420
 
-def blend(dst, src):
-    r, g, b = dst
-    sr, sg, sb, a = src
-    alpha = a / 255.0
-    return (
-        int(sr * alpha + r * (1 - alpha)),
-        int(sg * alpha + g * (1 - alpha)),
-        int(sb * alpha + b * (1 - alpha)),
+def sdf_round_rect(px, py, x0, y0, x1, y1, radius):
+    cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
+    hw, hh = (x1 - x0) / 2 - radius, (y1 - y0) / 2 - radius
+    qx, qy = abs(px - cx) - hw, abs(py - cy) - hh
+    outside = math.hypot(max(qx, 0), max(qy, 0))
+    return outside + min(max(qx, qy), 0) - radius
+
+def sdf_segment(px, py, x0, y0, x1, y1):
+    dx, dy = x1 - x0, y1 - y0
+    t = max(0.0, min(1.0, ((px - x0) * dx + (py - y0) * dy) / (dx * dx + dy * dy)))
+    return math.hypot(px - x0 - t * dx, py - y0 - t * dy)
+
+def sdf_triangle(px, py, p0, p1, p2):
+    d = min(
+        sdf_segment(px, py, p0[0], p0[1], p1[0], p1[1]),
+        sdf_segment(px, py, p1[0], p1[1], p2[0], p2[1]),
+        sdf_segment(px, py, p2[0], p2[1], p0[0], p0[1]),
     )
+    def cross(o, a):
+        return (a[0] - o[0]) * (py - o[1]) - (a[1] - o[1]) * (px - o[0])
+    c0, c1, c2 = cross(p0, p1), cross(p1, p2), cross(p2, p0)
+    inside = (c0 >= 0 and c1 >= 0 and c2 >= 0) or (c0 <= 0 and c1 <= 0 and c2 <= 0)
+    return -d if inside else d
 
-canvas = []
-for y in range(height):
-    row = []
-    for x in range(width):
-        nx = x / width
+def coverage(dist):
+    return max(0.0, min(1.0, 0.5 - dist))
+
+def render(scale):
+    width, height = BASE_W * scale, BASE_H * scale
+    canvas = []
+    for y in range(height):
+        row = []
         ny = y / height
-        glow = max(0, 1 - (((nx - 0.42) ** 2) / 0.18 + ((ny - 0.48) ** 2) / 0.36))
-        row.append((18 + int(42 * glow), 24 + int(22 * glow), 29 + int(50 * glow)))
-    canvas.append(row)
+        for x in range(width):
+            nx = x / width
+            glow = max(0, 1 - (((nx - 0.42) ** 2) / 0.18 + ((ny - 0.48) ** 2) / 0.36))
+            row.append((18 + 42 * glow, 24 + 22 * glow, 29 + 50 * glow))
+        canvas.append(row)
 
-def rect(x0, y0, x1, y1, color):
-    for y in range(max(0, y0), min(height, y1)):
-        for x in range(max(0, x0), min(width, x1)):
-            canvas[y][x] = blend(canvas[y][x], color)
+    def blend(x, y, color, alpha):
+        if alpha <= 0:
+            return
+        r, g, b = canvas[y][x]
+        sr, sg, sb = color
+        canvas[y][x] = (
+            sr * alpha + r * (1 - alpha),
+            sg * alpha + g * (1 - alpha),
+            sb * alpha + b * (1 - alpha),
+        )
 
-def rounded_rect(x0, y0, x1, y1, radius, color):
-    for y in range(max(0, y0), min(height, y1)):
-        for x in range(max(0, x0), min(width, x1)):
-            cx = min(max(x, x0 + radius), x1 - radius)
-            cy = min(max(y, y0 + radius), y1 - radius)
-            if (x - cx) ** 2 + (y - cy) ** 2 <= radius ** 2:
-                canvas[y][x] = blend(canvas[y][x], color)
+    def paint(bbox, distance, fill_alpha, stroke_alpha=0.0, stroke_half=0.0):
+        x0, y0, x1, y1 = bbox
+        pad = int(math.ceil(stroke_half)) + 2
+        for y in range(max(0, y0 - pad), min(height, y1 + pad)):
+            for x in range(max(0, x0 - pad), min(width, x1 + pad)):
+                d = distance(x + 0.5, y + 0.5)
+                blend(x, y, (255, 255, 255), fill_alpha * coverage(d))
+                if stroke_alpha > 0:
+                    blend(x, y, (255, 255, 255), stroke_alpha * coverage(abs(d) - stroke_half))
 
-def line(x0, y0, x1, y1, thickness, color):
-    dx = x1 - x0
-    dy = y1 - y0
-    length_sq = dx * dx + dy * dy
-    for y in range(max(0, min(y0, y1) - thickness), min(height, max(y0, y1) + thickness + 1)):
-        for x in range(max(0, min(x0, x1) - thickness), min(width, max(x0, x1) + thickness + 1)):
-            t = 0 if length_sq == 0 else max(0, min(1, ((x - x0) * dx + (y - y0) * dy) / length_sq))
-            px = x0 + t * dx
-            py = y0 + t * dy
-            if math.hypot(x - px, y - py) <= thickness:
-                canvas[y][x] = blend(canvas[y][x], color)
+    s = scale
+    # Wells behind the app icon and the Applications shortcut: soft fill plus
+    # a hairline rim so the drop targets read as recessed panels.
+    for x0, y0, x1, y1 in ((50, 84, 312, 322), (448, 84, 710, 322)):
+        paint(
+            (x0 * s, y0 * s, x1 * s, y1 * s),
+            lambda px, py, r=(x0, y0, x1, y1): sdf_round_rect(px, py, r[0] * s, r[1] * s, r[2] * s, r[3] * s, 26 * s),
+            fill_alpha=24 / 255,
+            stroke_alpha=42 / 255,
+            stroke_half=0.5 * s,
+        )
 
-def triangle(points, color):
-    (x1, y1), (x2, y2), (x3, y3) = points
-    min_x = max(0, min(x1, x2, x3))
-    max_x = min(width - 1, max(x1, x2, x3))
-    min_y = max(0, min(y1, y2, y3))
-    max_y = min(height - 1, max(y1, y2, y3))
-    denom = ((y2 - y3) * (x1 - x3) + (x3 - x2) * (y1 - y3))
-    for y in range(min_y, max_y + 1):
-        for x in range(min_x, max_x + 1):
-            a = ((y2 - y3) * (x - x3) + (x3 - x2) * (y - y3)) / denom
-            b = ((y3 - y1) * (x - x3) + (x1 - x3) * (y - y3)) / denom
-            c = 1 - a - b
-            if a >= 0 and b >= 0 and c >= 0:
-                canvas[y][x] = blend(canvas[y][x], color)
+    # Drag arrow, drawn as one union SDF (shaft capsule + head triangle) so the
+    # shaft/head junction blends without a seam.
+    head = ((392 * s, 176 * s), (444 * s, 204 * s), (392 * s, 232 * s))
+    def arrow_dist(px, py):
+        shaft = sdf_segment(px, py, 318 * s, 204 * s, 398 * s, 204 * s) - 5.5 * s
+        return min(shaft, sdf_triangle(px, py, *head))
+    paint((310 * s, 170 * s, 450 * s, 238 * s), arrow_dist, fill_alpha=235 / 255)
 
-rounded_rect(50, 84, 312, 322, 26, (255, 255, 255, 24))
-rounded_rect(448, 84, 710, 322, 26, (255, 255, 255, 24))
-line(350, 204, 430, 204, 5, (255, 255, 255, 235))
-triangle([(430, 174), (486, 204), (430, 234)], (255, 255, 255, 235))
+    return width, height, canvas
 
-raw = bytearray()
-for row in canvas:
-    raw.append(0)
-    for r, g, b in row:
-        raw.extend((r, g, b))
+def write_png(path, width, height, canvas):
+    raw = bytearray()
+    for row in canvas:
+        raw.append(0)
+        for r, g, b in row:
+            raw.extend((
+                min(255, max(0, int(round(r)))),
+                min(255, max(0, int(round(g)))),
+                min(255, max(0, int(round(b)))),
+            ))
+    def png_chunk(kind, data):
+        return (
+            struct.pack(">I", len(data))
+            + kind
+            + data
+            + struct.pack(">I", zlib.crc32(kind + data) & 0xFFFFFFFF)
+        )
+    with open(path, "wb") as f:
+        f.write(b"\x89PNG\r\n\x1a\n")
+        f.write(png_chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0)))
+        f.write(png_chunk(b"IDAT", zlib.compress(bytes(raw), 9)))
+        f.write(png_chunk(b"IEND", b""))
 
-def png_chunk(kind, data):
-    return (
-        struct.pack(">I", len(data))
-        + kind
-        + data
-        + struct.pack(">I", zlib.crc32(kind + data) & 0xFFFFFFFF)
-    )
-
-with open(path, "wb") as f:
-    f.write(b"\x89PNG\r\n\x1a\n")
-    f.write(png_chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0)))
-    f.write(png_chunk(b"IDAT", zlib.compress(bytes(raw), 9)))
-    f.write(png_chunk(b"IEND", b""))
+for scale, name in ((1, "background.png"), (2, "background@2x.png")):
+    write_png(f"{out_dir}/{name}", *render(scale))
 PY
+
+tiffutil -cathidpicheck \
+  "$STAGE_DIR/.background/background.png" \
+  "$STAGE_DIR/.background/background@2x.png" \
+  -out "$STAGE_DIR/.background/background.tiff"
+rm "$STAGE_DIR/.background/background.png" "$STAGE_DIR/.background/background@2x.png"
+
+# A pre-mounted volume with the same name (e.g. the shipping DMG opened from
+# ~/Downloads) makes Finder's `tell disk "$VOLUME_NAME"` target that read-only
+# disk, so the layout pass below silently no-ops. Detach it first.
+if [ -d "/Volumes/$VOLUME_NAME" ]; then
+  echo "Detaching pre-mounted /Volumes/$VOLUME_NAME so Finder layout targets the new image." >&2
+  if ! hdiutil detach "/Volumes/$VOLUME_NAME" -quiet; then
+    echo "Could not detach existing /Volumes/$VOLUME_NAME; eject it and re-run." >&2
+    exit 75
+  fi
+fi
 
 rm -f "$OUT_DMG" "$RW_DMG"
 run_hdiutil create \
@@ -177,7 +220,7 @@ tell application "Finder"
     set viewOptions to the icon view options of container window
     set arrangement of viewOptions to not arranged
     set icon size of viewOptions to 128
-    set background picture of viewOptions to file ".background:background.png"
+    set background picture of viewOptions to file ".background:background.tiff"
     set position of item "$APP_NAME" of container window to {180, 210}
     set position of item "Applications" of container window to {580, 210}
     update without registering applications
