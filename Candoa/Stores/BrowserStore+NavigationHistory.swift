@@ -144,7 +144,7 @@ extension BrowserStore {
             return
         }
 
-        newTab(url: url)
+        _ = newTab(url: url)
     }
 
     func goBack() {

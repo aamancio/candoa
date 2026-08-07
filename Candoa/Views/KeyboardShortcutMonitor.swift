@@ -92,6 +92,7 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
         coordinator.onSplitLayout = onSplitLayout
     }
 
+    @MainActor
     final class Coordinator: NSObject {
         var onCommandT: () -> Void = {}
         var onCommandW: () -> Void = {}
@@ -127,7 +128,9 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
         var onAddSplit: () -> Void = {}
         var onCloseSplit: () -> Void = {}
         var onSplitLayout: (SplitViewLayout) -> Void = { _ in }
-        private var monitor: Any?
+        /// Written only from MainActor-isolated methods; `nonisolated(unsafe)`
+        /// so the nonisolated deinit can tear the monitor down.
+        private nonisolated(unsafe) var monitor: Any?
         /// The monitor is app-wide (NSEvent local monitors always are), but
         /// every window mounts its own instance against its own store. Each
         /// handler therefore acts only while its window is key, or two
@@ -149,196 +152,206 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
                     return event
                 }
 
-                guard hostView?.window?.isKeyWindow == true else {
-                    return event
+                // Local event monitors always fire on the main thread; the
+                // AppKit handler type just isn't annotated with the isolation.
+                // NSEvent is not Sendable, so only a Bool crosses back out.
+                let consumed = MainActor.assumeIsolated {
+                    self.handle(event) == nil
                 }
+                return consumed ? nil : event
+            }
+        }
 
-                if event.type == .flagsChanged {
-                    if !Self.isControlPressed(event) {
-                        onControlReleased()
-                    }
-                    return event
-                }
-
-                if Self.matchesConfiguredShortcut(.newTab, event) {
-                    onCommandT()
-                    return nil
-                }
-
-                if Self.matchesConfiguredShortcut(.closeCurrentTab, event) {
-                    onCommandW()
-                    return nil
-                }
-
-                if Self.matchesConfiguredShortcut(.reopenClosedTab, event) {
-                    onReopenClosedTab()
-                    return nil
-                }
-
-                if Self.matchesConfiguredShortcut(.focusAddressBar, event) {
-                    onFocusAddressBar()
-                    return nil
-                }
-
-                if Self.matchesConfiguredShortcut(.copyURLAsMarkdown, event) {
-                    onCopyURLAsMarkdown()
-                    return nil
-                }
-
-                if Self.matchesConfiguredShortcut(.copyURL, event) {
-                    onCopyURL()
-                    return nil
-                }
-
-                if Self.matchesConfiguredShortcut(.captureFullPage, event) {
-                    onCaptureFullPage()
-                    return nil
-                }
-
-                if Self.matchesConfiguredShortcut(.pinOrUnpinTab, event) {
-                    onPinOrUnpinTab()
-                    return nil
-                }
-
-                if Self.matchesConfiguredShortcut(.toggleSidebar, event) {
-                    onToggleSidebar()
-                    return nil
-                }
-
-                if Self.matchesConfiguredShortcut(.toggleAISidebar, event) {
-                    onToggleAISidebar()
-                    return nil
-                }
-
-                if Self.matchesConfiguredShortcut(.findInPage, event) {
-                    onFindInPage()
-                    return nil
-                }
-
-                if Self.matchesConfiguredShortcut(.findNext, event) {
-                    onFindNext()
-                    return nil
-                }
-
-                if Self.matchesConfiguredShortcut(.findPrevious, event) {
-                    onFindPrevious()
-                    return nil
-                }
-
-                if Self.matchesConfiguredShortcut(.reloadTab, event) {
-                    onReload()
-                    return nil
-                }
-
-                if Self.matchesConfiguredShortcut(.reloadTabFromOrigin, event) {
-                    onReloadFromOrigin()
-                    return nil
-                }
-
-                // Command-. doubles as the system cancel key: consume it only
-                // when a load was actually stopped so dialogs keep their
-                // cancel behavior.
-                if Self.matchesConfiguredShortcut(.stopLoading, event), onStopLoading() {
-                    return nil
-                }
-
-                if Self.matchesConfiguredShortcut(.goBack, event) {
-                    onGoBack()
-                    return nil
-                }
-
-                if Self.matchesConfiguredShortcut(.goForward, event) {
-                    onGoForward()
-                    return nil
-                }
-
-                if Self.matchesConfiguredShortcut(.clearUnpinnedTabs, event) {
-                    onClearUnpinnedTabs()
-                    return nil
-                }
-
-                if Self.matchesConfiguredShortcut(.previousRecentTab, event) {
-                    onControlShiftTab()
-                    return nil
-                }
-
-                if Self.matchesConfiguredShortcut(.nextRecentTab, event) {
-                    onControlTab()
-                    return nil
-                }
-
-                if let digit = Self.digit(for: event, requiring: .command) {
-                    onCommandDigit(digit)
-                    return nil
-                }
-
-                if let digit = Self.digit(for: event, requiring: .control) {
-                    onControlDigit(digit)
-                    return nil
-                }
-
-                if Self.matchesConfiguredShortcut(.addSplitView, event) {
-                    onAddSplit()
-                    return nil
-                }
-
-                if Self.matchesConfiguredShortcut(.closeSplitView, event) {
-                    onCloseSplit()
-                    return nil
-                }
-
-                if Self.matchesConfiguredShortcut(.splitLayoutHorizontal, event) {
-                    onSplitLayout(.horizontal)
-                    return nil
-                }
-
-                if Self.matchesConfiguredShortcut(.splitLayoutVertical, event) {
-                    onSplitLayout(.vertical)
-                    return nil
-                }
-
-                if Self.matchesConfiguredShortcut(.splitLayoutGrid, event) {
-                    onSplitLayout(.grid)
-                    return nil
-                }
-
-                if Self.matchesConfiguredShortcut(.zoomIn, event) {
-                    onZoomIn()
-                    return nil
-                }
-
-                if Self.matchesConfiguredShortcut(.zoomOut, event) {
-                    onZoomOut()
-                    return nil
-                }
-
-                if Self.matchesConfiguredShortcut(.resetZoom, event) {
-                    onResetZoom()
-                    return nil
-                }
-
-                if Self.matchesConfiguredShortcut(.nextTab, event) {
-                    onNextTab()
-                    return nil
-                }
-
-                if Self.matchesConfiguredShortcut(.previousTab, event) {
-                    onPreviousTab()
-                    return nil
-                }
-
-                if Self.matchesConfiguredShortcut(.nextSpace, event) {
-                    onNextSpace()
-                    return nil
-                }
-
-                if Self.matchesConfiguredShortcut(.previousSpace, event) {
-                    onPreviousSpace()
-                    return nil
-                }
-
+        private func handle(_ event: NSEvent) -> NSEvent? {
+            guard hostView?.window?.isKeyWindow == true else {
                 return event
             }
+
+            if event.type == .flagsChanged {
+                if !Self.isControlPressed(event) {
+                    onControlReleased()
+                }
+                return event
+            }
+
+            if Self.matchesConfiguredShortcut(.newTab, event) {
+                onCommandT()
+                return nil
+            }
+
+            if Self.matchesConfiguredShortcut(.closeCurrentTab, event) {
+                onCommandW()
+                return nil
+            }
+
+            if Self.matchesConfiguredShortcut(.reopenClosedTab, event) {
+                onReopenClosedTab()
+                return nil
+            }
+
+            if Self.matchesConfiguredShortcut(.focusAddressBar, event) {
+                onFocusAddressBar()
+                return nil
+            }
+
+            if Self.matchesConfiguredShortcut(.copyURLAsMarkdown, event) {
+                onCopyURLAsMarkdown()
+                return nil
+            }
+
+            if Self.matchesConfiguredShortcut(.copyURL, event) {
+                onCopyURL()
+                return nil
+            }
+
+            if Self.matchesConfiguredShortcut(.captureFullPage, event) {
+                onCaptureFullPage()
+                return nil
+            }
+
+            if Self.matchesConfiguredShortcut(.pinOrUnpinTab, event) {
+                onPinOrUnpinTab()
+                return nil
+            }
+
+            if Self.matchesConfiguredShortcut(.toggleSidebar, event) {
+                onToggleSidebar()
+                return nil
+            }
+
+            if Self.matchesConfiguredShortcut(.toggleAISidebar, event) {
+                onToggleAISidebar()
+                return nil
+            }
+
+            if Self.matchesConfiguredShortcut(.findInPage, event) {
+                onFindInPage()
+                return nil
+            }
+
+            if Self.matchesConfiguredShortcut(.findNext, event) {
+                onFindNext()
+                return nil
+            }
+
+            if Self.matchesConfiguredShortcut(.findPrevious, event) {
+                onFindPrevious()
+                return nil
+            }
+
+            if Self.matchesConfiguredShortcut(.reloadTab, event) {
+                onReload()
+                return nil
+            }
+
+            if Self.matchesConfiguredShortcut(.reloadTabFromOrigin, event) {
+                onReloadFromOrigin()
+                return nil
+            }
+
+            // Command-. doubles as the system cancel key: consume it only
+            // when a load was actually stopped so dialogs keep their
+            // cancel behavior.
+            if Self.matchesConfiguredShortcut(.stopLoading, event), onStopLoading() {
+                return nil
+            }
+
+            if Self.matchesConfiguredShortcut(.goBack, event) {
+                onGoBack()
+                return nil
+            }
+
+            if Self.matchesConfiguredShortcut(.goForward, event) {
+                onGoForward()
+                return nil
+            }
+
+            if Self.matchesConfiguredShortcut(.clearUnpinnedTabs, event) {
+                onClearUnpinnedTabs()
+                return nil
+            }
+
+            if Self.matchesConfiguredShortcut(.previousRecentTab, event) {
+                onControlShiftTab()
+                return nil
+            }
+
+            if Self.matchesConfiguredShortcut(.nextRecentTab, event) {
+                onControlTab()
+                return nil
+            }
+
+            if let digit = Self.digit(for: event, requiring: .command) {
+                onCommandDigit(digit)
+                return nil
+            }
+
+            if let digit = Self.digit(for: event, requiring: .control) {
+                onControlDigit(digit)
+                return nil
+            }
+
+            if Self.matchesConfiguredShortcut(.addSplitView, event) {
+                onAddSplit()
+                return nil
+            }
+
+            if Self.matchesConfiguredShortcut(.closeSplitView, event) {
+                onCloseSplit()
+                return nil
+            }
+
+            if Self.matchesConfiguredShortcut(.splitLayoutHorizontal, event) {
+                onSplitLayout(.horizontal)
+                return nil
+            }
+
+            if Self.matchesConfiguredShortcut(.splitLayoutVertical, event) {
+                onSplitLayout(.vertical)
+                return nil
+            }
+
+            if Self.matchesConfiguredShortcut(.splitLayoutGrid, event) {
+                onSplitLayout(.grid)
+                return nil
+            }
+
+            if Self.matchesConfiguredShortcut(.zoomIn, event) {
+                onZoomIn()
+                return nil
+            }
+
+            if Self.matchesConfiguredShortcut(.zoomOut, event) {
+                onZoomOut()
+                return nil
+            }
+
+            if Self.matchesConfiguredShortcut(.resetZoom, event) {
+                onResetZoom()
+                return nil
+            }
+
+            if Self.matchesConfiguredShortcut(.nextTab, event) {
+                onNextTab()
+                return nil
+            }
+
+            if Self.matchesConfiguredShortcut(.previousTab, event) {
+                onPreviousTab()
+                return nil
+            }
+
+            if Self.matchesConfiguredShortcut(.nextSpace, event) {
+                onNextSpace()
+                return nil
+            }
+
+            if Self.matchesConfiguredShortcut(.previousSpace, event) {
+                onPreviousSpace()
+                return nil
+            }
+
+            return event
         }
 
         private static func isCommandT(_ event: NSEvent) -> Bool {

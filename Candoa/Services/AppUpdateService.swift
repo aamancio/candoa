@@ -109,7 +109,7 @@ final class AppUpdateService: NSObject, ObservableObject {
 
 // MARK: - SPUUserDriver
 
-extension AppUpdateService: @preconcurrency SPUUserDriver {
+extension AppUpdateService: SPUUserDriver {
     func show(
         _ request: SPUUpdatePermissionRequest,
         reply: @escaping (SUUpdatePermissionResponse) -> Void

@@ -138,7 +138,6 @@ extension BrowserStore {
         }
     }
 
-    @discardableResult
     /// Re-points a tab at the web view's real location after a navigation
     /// converted to a download (see realignTabAfterDownloadConversion).
     func realignTabURL(tabID: UUID, to url: URL?) {
