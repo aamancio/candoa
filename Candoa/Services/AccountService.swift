@@ -215,8 +215,8 @@ enum CloudAPI {
     }
 
     /// The plan-filtered hosted model catalog. The server stays authoritative
-    /// for availability and credit cost; the client only adds display and
-    /// budgeting metadata.
+    /// for availability, credit cost, and model metadata; the curated client
+    /// catalog only backfills fields the server response omits.
     static func hostedAIModels(accessToken: String) async throws -> [AIModel] {
         let response: HostedModelsResponse = try await request(
             endpoint("ai/models"),
@@ -225,10 +225,15 @@ enum CloudAPI {
             accessToken: accessToken
         )
         return response.models.map { model in
-            AIModelCatalog.hostedModel(
+            let efforts = model.supportedReasoningEfforts?
+                .compactMap(AIReasoningEffort.init(rawValue:))
+            return AIModelCatalog.hostedModel(
                 id: model.id,
                 providerID: model.providerID,
-                displayName: model.displayName
+                displayName: model.displayName,
+                contextWindowTokens: model.contextWindowTokens.flatMap { $0 > 0 ? $0 : nil },
+                maxOutputTokens: model.maxOutputTokens.flatMap { $0 > 0 ? $0 : nil },
+                supportedEfforts: (efforts?.isEmpty ?? true) ? nil : efforts
             )
         }
     }
@@ -241,6 +246,9 @@ enum CloudAPI {
         let id: String
         let providerID: String
         let displayName: String
+        let contextWindowTokens: Int?
+        let maxOutputTokens: Int?
+        let supportedReasoningEfforts: [String]?
     }
 
     static var aiAgentRunURL: URL {
