@@ -395,8 +395,16 @@ private struct AccountOnboardingStep: View {
     @ObservedObject var store: BrowserStore
     @EnvironmentObject private var userStore: UserStore
 
+    // A sign-out relaunch re-presents this gate on its own, outside the
+    // first-run flow: there is no earlier step to go back to.
+    private var backAction: (() -> Void)? {
+        if store.hasCompletedInitialOnboarding { return nil }
+        let store = self.store
+        return { store.goBackInInitialOnboarding() }
+    }
+
     var body: some View {
-        AccountOnboardingSurface(onBack: store.goBackInInitialOnboarding) {
+        AccountOnboardingSurface(onBack: backAction) {
             VStack(spacing: 0) {
                 Spacer(minLength: 20)
 
@@ -478,11 +486,11 @@ private struct AccountOnboardingStep: View {
 private struct AccountOnboardingSurface<Content: View>: View {
     private static var step: InitialOnboardingStep { .account }
 
-    let onBack: () -> Void
+    let onBack: (() -> Void)?
     @ViewBuilder let content: Content
 
     init(
-        onBack: @escaping () -> Void,
+        onBack: (() -> Void)?,
         @ViewBuilder content: () -> Content
     ) {
         self.onBack = onBack
@@ -496,19 +504,21 @@ private struct AccountOnboardingSurface<Content: View>: View {
 
             VStack(spacing: 0) {
                 HStack(spacing: 10) {
-                    Button(action: onBack) {
-                        Label("Back", systemImage: "chevron.left")
+                    if let onBack {
+                        Button(action: onBack) {
+                            Label("Back", systemImage: "chevron.left")
+                        }
+                        .buttonTreatment(.quiet)
+                        .font(.system(size: 12, weight: .semibold))
+                        .help("Back")
+                        .accessibilityIdentifier("onboarding-back")
+
+                        Spacer()
+
+                        Text("\(Self.step.position) of \(Self.step.count)")
+                            .font(.system(size: 11, weight: .medium, design: .rounded))
+                            .foregroundStyle(.tertiary)
                     }
-                    .buttonTreatment(.quiet)
-                    .font(.system(size: 12, weight: .semibold))
-                    .help("Back")
-                    .accessibilityIdentifier("onboarding-back")
-
-                    Spacer()
-
-                    Text("\(Self.step.position) of \(Self.step.count)")
-                        .font(.system(size: 11, weight: .medium, design: .rounded))
-                        .foregroundStyle(.tertiary)
                 }
 
                 content
@@ -529,7 +539,11 @@ private struct AccountOnboardingSurface<Content: View>: View {
         .background(InterfaceStyle.surfaceFill.opacity(0.72))
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .accessibilityIdentifier("initial-onboarding-account")
-        .accessibilityValue("Step \(Self.step.position) of \(Self.step.count)")
+        .accessibilityValue(
+            onBack != nil
+                ? "Step \(Self.step.position) of \(Self.step.count)"
+                : "Account"
+        )
     }
 }
 

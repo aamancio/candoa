@@ -1954,6 +1954,36 @@ final class CandoaUITests: XCTestCase {
         add(attachment)
     }
 
+    func testEliCloudFailureOffersRetryInSettings() throws {
+        let app = launchApp(fixture: "ask-cloud-unavailable")
+
+        app.typeKey("e", modifierFlags: .command)
+        XCTAssertTrue(element("agent-sidebar", in: app).waitForExistence(timeout: 5))
+        submitAskText("Summarize this page", in: app)
+        XCTAssertTrue(
+            element("agent-subscription-gate", in: app).waitForExistence(timeout: 5),
+            askState(in: app)
+        )
+
+        openEliSettings(in: app)
+        XCTAssertTrue(
+            app.staticTexts["Could not connect to the local Candoa Cloud."]
+                .waitForExistence(timeout: 5)
+        )
+        let retryButton = element("account-refresh-retry-button", in: app)
+        XCTAssertTrue(retryButton.waitForExistence(timeout: 5))
+        XCTAssertTrue(retryButton.isEnabled)
+        retryButton.click()
+
+        // The fixture keeps Cloud unavailable, so a retry lands back on the
+        // same recoverable error instead of losing the session state.
+        XCTAssertTrue(
+            app.staticTexts["Could not connect to the local Candoa Cloud."]
+                .waitForExistence(timeout: 5)
+        )
+        XCTAssertTrue(retryButton.exists)
+    }
+
     func testEliSubscriptionGateShowsConfirmationAndDisappearsAfterCheckout() throws {
         let app = launchApp(
             fixture: "ask-streaming",
