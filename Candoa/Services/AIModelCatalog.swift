@@ -128,6 +128,14 @@ enum AIModelCatalog {
             supportedEfforts: [.low, .medium, .high]
         ),
         AIModel(
+            id: "anthropic/claude-fable-5",
+            provider: .anthropic,
+            displayName: "Claude Fable 5",
+            contextWindowTokens: 1_000_000,
+            maxOutputTokens: 128_000,
+            supportedEfforts: [.low, .medium, .high]
+        ),
+        AIModel(
             id: "anthropic/claude-opus-5",
             provider: .anthropic,
             displayName: "Claude Opus 5",
@@ -152,6 +160,14 @@ enum AIModelCatalog {
             supportedEfforts: [.low]
         ),
         AIModel(
+            id: "google/gemini-3.1-pro",
+            provider: .google,
+            displayName: "Gemini 3.1 Pro",
+            contextWindowTokens: 1_000_000,
+            maxOutputTokens: 64_000,
+            supportedEfforts: [.low]
+        ),
+        AIModel(
             id: "google/gemini-3.5-flash",
             provider: .google,
             displayName: "Gemini 3.5 Flash",
@@ -165,11 +181,17 @@ enum AIModelCatalog {
         directModels.filter { $0.provider == provider }
     }
 
-    /// The default stays the affordable tier even though the flagship lists
-    /// first, so switching provider never silently lands on the priciest model.
+    /// Defaults stay affordable even though flagships list first, so
+    /// switching provider never silently lands on the priciest model.
+    private static let providerDefaultModelIDs: [AIProvider: String] = [
+        .openai: EliPreferences.defaultDirectModelID,
+        .anthropic: "anthropic/claude-opus-5",
+        .google: "google/gemini-3.5-flash",
+    ]
+
     static func directDefaultModel(for provider: AIProvider) -> AIModel {
-        if let preferred = model(forID: EliPreferences.defaultDirectModelID),
-           preferred.provider == provider {
+        if let preferredID = providerDefaultModelIDs[provider],
+           let preferred = model(forID: preferredID) {
             return preferred
         }
         return directModels(for: provider)[0]
