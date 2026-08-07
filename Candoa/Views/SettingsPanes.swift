@@ -342,6 +342,19 @@ internal struct PrivacySettingsPane: View {
                         subtitle: "Block trackers and ads with WebKit content rules. Pages already open apply the change when they reload.",
                         isOn: $strictTrackingProtection
                     )
+
+                    SettingsDivider()
+
+                    SettingsRow(
+                        systemImage: "trash",
+                        title: "Browsing data",
+                        subtitle: "Clear history, cookies, caches, and other website data across all Spaces. Private windows keep nothing to clear."
+                    ) {
+                        Button("Clear Browsing Data…") {
+                            ClearBrowsingDataPrompt.present(currentSpace: nil)
+                        }
+                        .accessibilityIdentifier("settings-clear-browsing-data")
+                    }
                 }
             }
         }

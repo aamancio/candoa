@@ -553,6 +553,72 @@ final class CandoaUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["https://fixture.candoa.test/history"].exists)
     }
 
+    func testClearHistoryMenuClearsHistoryAndIsDisabledInPrivateWindows() throws {
+        let app = launchApp(fixture: "history")
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
+
+        app.typeKey("t", modifierFlags: .command)
+        XCTAssertTrue(waitForState(in: app, containing: "newTabPalette=true"), currentState(in: app))
+        submitCommandPaletteText("https://fixture.candoa.test/history", in: app)
+        XCTAssertTrue(app.staticTexts["Candoa History Fixture"].waitForExistence(timeout: 10))
+
+        app.typeKey("y", modifierFlags: .command)
+        XCTAssertTrue(element("history-view", in: app).waitForExistence(timeout: 5))
+        let historyRow = app.staticTexts["https://fixture.candoa.test/history"].firstMatch
+        XCTAssertTrue(historyRow.waitForExistence(timeout: 5))
+
+        // Private windows have nothing persistent to clear, so the menu
+        // command must be disabled while one is key.
+        app.typeKey("n", modifierFlags: [.command, .shift])
+        let privateWindow = app.windows["Private Browsing"]
+        XCTAssertTrue(privateWindow.waitForExistence(timeout: 10))
+        element("private-browsing-label", in: privateWindow).click()
+        let historyMenu = app.menuBars.menuBarItems["History"]
+        historyMenu.click()
+        let clearHistoryItem = app.menuBars.menuItems["Clear History…"]
+        XCTAssertTrue(clearHistoryItem.waitForExistence(timeout: 5))
+        XCTAssertFalse(
+            clearHistoryItem.isEnabled,
+            "Clear History… must be disabled while a private window is key"
+        )
+        app.typeKey(.escape, modifierFlags: [])
+        app.typeKey("w", modifierFlags: .command)
+        let privateWindowClosed = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "exists == false"),
+            object: privateWindow
+        )
+        XCTAssertEqual(XCTWaiter.wait(for: [privateWindowClosed], timeout: 10), .completed)
+
+        // Back in the ordinary window the command opens the confirmation
+        // sheet; the default scope (This Space, Last Hour) covers the visit.
+        // Focus needs a beat to land back on the ordinary window after the
+        // private one closes — opening the menu mid-transition leaves its
+        // items without frames.
+        app.activate()
+        XCTAssertTrue(element("history-view", in: app).waitForExistence(timeout: 5))
+        XCTAssertTrue(historyRow.waitForExistence(timeout: 5))
+        historyMenu.click()
+        let enabledClearItem = app.menuBars.menuItems["Clear History…"]
+        XCTAssertTrue(enabledClearItem.waitForExistence(timeout: 5))
+        XCTAssertTrue(enabledClearItem.isEnabled)
+        XCTAssertTrue(enabledClearItem.isHittable)
+        enabledClearItem.click()
+
+        let confirmButton = app.sheets.buttons["Clear"].firstMatch
+        XCTAssertTrue(confirmButton.waitForExistence(timeout: 5))
+        confirmButton.click()
+
+        let historyRowGone = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "exists == false"),
+            object: historyRow
+        )
+        XCTAssertEqual(XCTWaiter.wait(for: [historyRowGone], timeout: 10), .completed)
+        XCTAssertTrue(
+            app.staticTexts["No History"].waitForExistence(timeout: 5),
+            "Clearing everything in range should leave the empty history state"
+        )
+    }
+
     func testPrivateWindowOpensIsolatedAndRecordsNoHistory() throws {
         let app = launchApp(fixture: "history")
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))

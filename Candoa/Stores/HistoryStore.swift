@@ -84,34 +84,6 @@ final class HistoryStore: ObservableObject {
         deleteVisits(withIDs: [visit.id])
     }
 
-    func clear(_ range: HistoryClearRange) {
-        let repository = repository
-        let requestedSpaceID = spaceID
-        let startDate = range.startDate()
-        isLoading = true
-        loadTask?.cancel()
-        loadTask = Task {
-            do {
-                let hasHistory = try await Task.detached(priority: .userInitiated) {
-                    try repository.deleteVisits(visitedAfter: startDate, in: requestedSpaceID)
-                    return !repository.visits(
-                        matching: "",
-                        in: requestedSpaceID,
-                        limit: 1,
-                        offset: 0
-                    ).isEmpty
-                }.value
-                self.hasHistory = hasHistory
-                reload()
-            } catch is CancellationError {
-                isLoading = false
-            } catch {
-                isLoading = false
-                errorMessage = error.localizedDescription
-            }
-        }
-    }
-
     private func deleteVisits(withIDs ids: Set<UUID>) {
         guard !ids.isEmpty else { return }
         let repository = repository

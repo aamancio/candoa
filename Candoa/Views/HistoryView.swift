@@ -7,6 +7,7 @@ extension Notification.Name {
 
 struct HistoryView: View {
     @StateObject private var store: HistoryStore
+    let clearScope: ClearBrowsingDataPrompt.CurrentSpace?
     let onOpen: (HistoryVisit) -> Void
     let onOpenInNewTab: (HistoryVisit) -> Void
     let onCopyAddress: (HistoryVisit) -> Void
@@ -19,12 +20,14 @@ struct HistoryView: View {
     init(
         repository: any HistoryRepository,
         spaceID: UUID,
+        clearScope: ClearBrowsingDataPrompt.CurrentSpace?,
         onOpen: @escaping (HistoryVisit) -> Void,
         onOpenInNewTab: @escaping (HistoryVisit) -> Void,
         onCopyAddress: @escaping (HistoryVisit) -> Void,
         onDismiss: @escaping () -> Void
     ) {
         _store = StateObject(wrappedValue: HistoryStore(repository: repository, spaceID: spaceID))
+        self.clearScope = clearScope
         self.onOpen = onOpen
         self.onOpenInNewTab = onOpenInNewTab
         self.onCopyAddress = onCopyAddress
@@ -60,6 +63,9 @@ struct HistoryView: View {
             store.load()
         }
         .onReceive(NotificationCenter.default.publisher(for: PersistenceService.remoteStoreDidChange)) { _ in
+            store.reload()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: BrowsingDataService.browsingDataDidClear)) { _ in
             store.reload()
         }
         .onReceive(NotificationCenter.default.publisher(for: .focusHistorySearch)) { _ in
@@ -112,12 +118,17 @@ struct HistoryView: View {
 
             Spacer(minLength: 24)
 
-            Button("Clear History…") {
-                presentClearHistoryAlert()
+            // Private windows browse an ephemeral Space with no persisted
+            // history or website data, so there is nothing for them to clear.
+            if let clearScope {
+                Button("Clear History…") {
+                    ClearBrowsingDataPrompt.present(currentSpace: clearScope)
+                }
+                .buttonTreatment(.secondary)
+                .tint(.primary)
+                .disabled(store.isLoading)
+                .accessibilityIdentifier("history-clear-button")
             }
-            .buttonTreatment(.secondary)
-            .tint(.primary)
-            .disabled(store.isLoading || !store.hasHistory)
 
             HistorySearchField(
                 text: $store.searchText,
@@ -279,44 +290,6 @@ struct HistoryView: View {
             return "Last Visited Today"
         }
         return date.formatted(.dateTime.weekday(.wide).month(.wide).day().year())
-    }
-
-    private func presentClearHistoryAlert() {
-        let ranges = HistoryClearRange.allCases
-        let rangePicker = NSPopUpButton(frame: NSRect(x: 0, y: 0, width: 210, height: 26), pullsDown: false)
-        rangePicker.addItems(withTitles: ranges.map(\.title))
-        rangePicker.selectItem(at: 0)
-
-        let clearLabel = NSTextField(labelWithString: "Clear")
-        let accessory = NSStackView(
-            frame: NSRect(x: 0, y: 0, width: 300, height: 26)
-        )
-        accessory.orientation = .horizontal
-        accessory.alignment = .centerY
-        accessory.spacing = 8
-        accessory.addArrangedSubview(clearLabel)
-        accessory.addArrangedSubview(rangePicker)
-
-        let alert = NSAlert()
-        alert.alertStyle = .warning
-        alert.icon = NSApplication.shared.applicationIconImage
-        alert.messageText = "Clearing history will remove visited pages from this Space."
-        alert.informativeText = "History in other Spaces will not be affected. This action cannot be undone."
-        alert.accessoryView = accessory
-        alert.addButton(withTitle: "Clear History")
-        alert.addButton(withTitle: "Cancel")
-
-        let handleResponse: (NSApplication.ModalResponse) -> Void = { response in
-            guard response == .alertFirstButtonReturn else { return }
-            let selectedIndex = max(rangePicker.indexOfSelectedItem, 0)
-            store.clear(ranges[selectedIndex])
-        }
-
-        if let window = NSApplication.shared.keyWindow {
-            alert.beginSheetModal(for: window, completionHandler: handleResponse)
-        } else {
-            handleResponse(alert.runModal())
-        }
     }
 
 }
