@@ -41,6 +41,21 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         super.init()
     }
 
+    /// Owns a block-based NotificationCenter registration and unregisters it
+    /// when released, so a MainActor class can drop the observation from its
+    /// nonisolated deinit via plain ARC.
+    private final class NotificationToken {
+        private let token: any NSObjectProtocol
+
+        init(_ token: any NSObjectProtocol) {
+            self.token = token
+        }
+
+        deinit {
+            NotificationCenter.default.removeObserver(token)
+        }
+    }
+
     weak var store: BrowserStore?
     var webViews: [UUID: WKWebView] = [:]
     var tabIDsByWebView = NSMapTable<WKWebView, NSString>.weakToStrongObjects()
@@ -69,6 +84,7 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
     /// within this window surfaces recovery UI instead of crash-looping.
     var webContentTerminationDates: [UUID: Date] = [:]
     var hibernationScanTask: Task<Void, Never>?
+    private var userDefaultsObserver: NotificationToken?
     var websiteAppearance = WebsiteAppearance.dark
     var systemUsesDarkAppearance = false
     var pendingAppearanceNavigationTokens: [UUID: UUID] = [:]
@@ -84,12 +100,21 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         }
 
         // The strict-tracking-protection toggle takes effect on live web
-        // views (their next load), not just newly created ones.
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(userDefaultsDidChange),
-            name: UserDefaults.didChangeNotification,
-            object: nil
+        // views (their next load), not just newly created ones. Defaults can
+        // change on any thread (CloudKit writes some at launch), so the
+        // observation must marshal onto the main queue — a selector-based
+        // observer runs on the posting thread and trips this class's
+        // MainActor isolation assertion.
+        userDefaultsObserver = NotificationToken(
+            NotificationCenter.default.addObserver(
+                forName: UserDefaults.didChangeNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                MainActor.assumeIsolated {
+                    self?.userDefaultsDidChange()
+                }
+            }
         )
 
         hibernationScanTask?.cancel()
@@ -619,7 +644,7 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         }
     }
 
-    @objc private func userDefaultsDidChange(_ notification: Notification) {
+    private func userDefaultsDidChange() {
         guard let contentRuleList, strictTrackingProtectionEnabled != appliedTrackingProtection else { return }
         appliedTrackingProtection.toggle()
 
