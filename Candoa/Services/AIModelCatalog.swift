@@ -157,20 +157,25 @@ enum AIModelCatalog {
         directModels.first { $0.id == id }
     }
 
-    /// Hosted plan availability comes from the server; only display metadata
-    /// and budgeting numbers are resolved client-side, with conservative
-    /// defaults for hosted models this build does not know.
-    static func hostedModel(id: String, providerID: String, displayName: String) -> AIModel {
-        if let known = model(forID: id) {
-            return known
-        }
+    /// Hosted plan availability and model metadata come from the server.
+    /// The curated catalog backfills budgeting numbers and efforts the server
+    /// omits, with conservative defaults for models this build does not know.
+    static func hostedModel(
+        id: String,
+        providerID: String,
+        displayName: String,
+        contextWindowTokens: Int? = nil,
+        maxOutputTokens: Int? = nil,
+        supportedEfforts: [AIReasoningEffort]? = nil
+    ) -> AIModel {
+        let known = model(forID: id)
         return AIModel(
             id: id,
-            provider: AIProvider(rawValue: providerID) ?? .openai,
+            provider: AIProvider(rawValue: providerID) ?? known?.provider ?? .openai,
             displayName: displayName,
-            contextWindowTokens: 128_000,
-            maxOutputTokens: 16_000,
-            supportedEfforts: [.low, .medium, .high]
+            contextWindowTokens: contextWindowTokens ?? known?.contextWindowTokens ?? 128_000,
+            maxOutputTokens: maxOutputTokens ?? known?.maxOutputTokens ?? 16_000,
+            supportedEfforts: supportedEfforts ?? known?.supportedEfforts ?? [.low, .medium, .high]
         )
     }
 }
