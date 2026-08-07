@@ -33,6 +33,7 @@
 		010000000000000000000119 /* AppConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01000000000000000000001C /* AppConfiguration.swift */; };
 		TF00000000000000000000B1 /* TabLoadFailure.swift in Sources */ = {isa = PBXBuildFile; fileRef = TF00000000000000000000A1 /* TabLoadFailure.swift */; };
 		010000000000000000000120 /* AppUpdateService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01000000000000000000001D /* AppUpdateService.swift */; };
+		AB1200000000000000000102 /* WhatsNewService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB1200000000000000000002 /* WhatsNewService.swift */; };
 		010000000000000000000121 /* KeyboardShortcutMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000031 /* KeyboardShortcutMonitor.swift */; };
 		010000000000000000000122 /* SidebarRevealMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000032 /* SidebarRevealMonitor.swift */; };
 		010000000000000000000123 /* WindowInteractionConfigurator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000033 /* WindowInteractionConfigurator.swift */; };
@@ -94,6 +95,7 @@
 		E2A2B3D4F5C60718293A4B5C /* EliSettingsPane.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2A2B3C4D5E60718293A4B5C /* EliSettingsPane.swift */; };
 		E3A2B3D4F5C60718293A4B5C /* ShortcutSettingsComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3A2B3C4D5E60718293A4B5C /* ShortcutSettingsComponents.swift */; };
 		E50000000000000000000101 /* AppUpdateBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = E50000000000000000000001 /* AppUpdateBanner.swift */; };
+		AB1200000000000000000101 /* WhatsNewBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB1200000000000000000001 /* WhatsNewBanner.swift */; };
 		E50000000000000000000102 /* InterfaceStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = E50000000000000000000002 /* InterfaceStyle.swift */; };
 		E50000000000000000000103 /* SpaceThemeBackdrop.swift in Sources */ = {isa = PBXBuildFile; fileRef = E50000000000000000000003 /* SpaceThemeBackdrop.swift */; };
 		E50000000000000000000104 /* SidebarDropIndicators.swift in Sources */ = {isa = PBXBuildFile; fileRef = E50000000000000000000004 /* SidebarDropIndicators.swift */; };
@@ -159,6 +161,7 @@
 		01000000000000000000001C /* AppConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfiguration.swift; sourceTree = "<group>"; };
 		TF00000000000000000000A1 /* TabLoadFailure.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabLoadFailure.swift; sourceTree = "<group>"; };
 		01000000000000000000001D /* AppUpdateService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppUpdateService.swift; sourceTree = "<group>"; };
+		AB1200000000000000000002 /* WhatsNewService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhatsNewService.swift; sourceTree = "<group>"; };
 		010000000000000000000031 /* KeyboardShortcutMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardShortcutMonitor.swift; sourceTree = "<group>"; };
 		010000000000000000000032 /* SidebarRevealMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarRevealMonitor.swift; sourceTree = "<group>"; };
 		010000000000000000000033 /* WindowInteractionConfigurator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowInteractionConfigurator.swift; sourceTree = "<group>"; };
@@ -218,6 +221,7 @@
 		D3A2B3C4E5F60718293A4B5C /* SidebarWindowControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarWindowControls.swift; sourceTree = "<group>"; };
 		D4A2B3C4E5F60718293A4B5C /* SidebarDragDrop.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarDragDrop.swift; sourceTree = "<group>"; };
 		E50000000000000000000001 /* AppUpdateBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppUpdateBanner.swift; sourceTree = "<group>"; };
+		AB1200000000000000000001 /* WhatsNewBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhatsNewBanner.swift; sourceTree = "<group>"; };
 		E50000000000000000000002 /* InterfaceStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InterfaceStyle.swift; sourceTree = "<group>"; };
 		E50000000000000000000003 /* SpaceThemeBackdrop.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpaceThemeBackdrop.swift; sourceTree = "<group>"; };
 		E50000000000000000000004 /* SidebarDropIndicators.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarDropIndicators.swift; sourceTree = "<group>"; };
@@ -324,6 +328,7 @@
 				010000000000000000000047 /* EliSidebarComponents.swift */,
 				010000000000000000000012 /* SidebarView.swift */,
 				E50000000000000000000001 /* AppUpdateBanner.swift */,
+				AB1200000000000000000001 /* WhatsNewBanner.swift */,
 				D1A2B3C4E5F60718293A4B5C /* SidebarSpaceComposer.swift */,
 				E50000000000000000000005 /* SpaceIconPicker.swift */,
 				E50000000000000000000006 /* SpaceThemePanel.swift */,
@@ -374,6 +379,7 @@
 				AB1000000000000000000001 /* WebsiteAppearanceService.swift */,
 				AB10000000000000000BD001 /* BrowsingDataService.swift */,
 				01000000000000000000001D /* AppUpdateService.swift */,
+				AB1200000000000000000002 /* WhatsNewService.swift */,
 				010000000000000000000042 /* EliService.swift */,
 				EF0000000000000000000001 /* EliModels.swift */,
 				EF0000000000000000000002 /* EliCredentials.swift */,
@@ -657,6 +663,7 @@
 				C3A2B3D4E5F60718293A4B5C /* SidebarWindowControls.swift in Sources */,
 				C4A2B3D4E5F60718293A4B5C /* SidebarDragDrop.swift in Sources */,
 				E50000000000000000000101 /* AppUpdateBanner.swift in Sources */,
+				AB1200000000000000000101 /* WhatsNewBanner.swift in Sources */,
 				E50000000000000000000102 /* InterfaceStyle.swift in Sources */,
 				E50000000000000000000103 /* SpaceThemeBackdrop.swift in Sources */,
 				E50000000000000000000104 /* SidebarDropIndicators.swift in Sources */,
@@ -683,6 +690,7 @@
 				010000000000000000000119 /* AppConfiguration.swift in Sources */,
 				TF00000000000000000000B1 /* TabLoadFailure.swift in Sources */,
 				010000000000000000000120 /* AppUpdateService.swift in Sources */,
+				AB1200000000000000000102 /* WhatsNewService.swift in Sources */,
 				010000000000000000000121 /* KeyboardShortcutMonitor.swift in Sources */,
 				010000000000000000000122 /* SidebarRevealMonitor.swift in Sources */,
 				010000000000000000000123 /* WindowInteractionConfigurator.swift in Sources */,

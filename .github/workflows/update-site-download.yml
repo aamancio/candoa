@@ -58,6 +58,8 @@ jobs:
             VERSION="$MAJOR.$MINOR.$PATCH"
           fi
           echo "APP_MARKETING_VERSION=$VERSION" >> "$GITHUB_ENV"
+          # The What's New generator turns commits since this tag into notes.
+          echo "LAST_RELEASE_TAG=$LAST_TAG" >> "$GITHUB_ENV"
           echo "Version $VERSION (build $(git rev-list --count HEAD)), previous tag: ${LAST_TAG:-none}"
 
       - name: Cache Swift packages
@@ -342,7 +344,7 @@ jobs:
               "stableDownloadURL": "https://candoa.app/downloads/Candoa.dmg",
               "archiveURL": f"https://candoa.app/downloads/{os.environ['APP_ARCHIVE_NAME']}",
               "appcastURL": "https://candoa.app/downloads/appcast.xml",
-              "releaseNotesURL": "https://github.com/aamancio/candoa-browser/releases",
+              "releaseNotesURL": "https://candoa.app/whats-new",
           }
 
           Path("CandoaCloud/public/downloads/latest.json").write_text(
@@ -352,17 +354,70 @@ jobs:
           PY
           rm -f CandoaCloud/public/downloads/Candoa.zip
 
+      - name: Update Candoa Cloud What's New entry
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import re
+          import subprocess
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          version = os.environ["APP_VERSION"]
+          last_tag = os.environ.get("LAST_RELEASE_TAG", "")
+
+          range_spec = f"{last_tag}..HEAD" if last_tag else "HEAD"
+          subjects = subprocess.run(
+              ["git", "log", "--no-merges", "--format=%s", range_spec],
+              capture_output=True, text=True, check=True,
+          ).stdout.splitlines()
+
+          conventional = re.compile(r"^(feat|fix|perf)(\([^)]*\))?!?:\s*(.+)$")
+          feats, fixes = [], []
+          for subject in subjects:
+              match = conventional.match(subject.strip())
+              if not match:
+                  continue
+              kind, _, text = match.groups()
+              text = text.strip()
+              text = text[0].upper() + text[1:]
+              (feats if kind == "feat" else fixes).append(text)
+          notes = feats + fixes or ["Maintenance and stability improvements."]
+
+          entry = {
+              "version": version,
+              "date": datetime.now(timezone.utc).date().isoformat(),
+              "notes": notes,
+          }
+
+          releases_path = Path("CandoaCloud/content/releases.json")
+          releases = (
+              json.loads(releases_path.read_text(encoding="utf-8"))
+              if releases_path.exists()
+              else []
+          )
+          # A re-run republishes the same version; replace instead of stacking.
+          releases = [entry] + [r for r in releases if r["version"] != version]
+          releases_path.parent.mkdir(parents=True, exist_ok=True)
+          releases_path.write_text(
+              json.dumps(releases, indent=2, ensure_ascii=False) + "\n",
+              encoding="utf-8",
+          )
+          print(f"What's New entry for {version}: {len(notes)} note(s)")
+          PY
+
       - name: Commit Candoa Cloud download
         working-directory: CandoaCloud
         run: |
-          if [ -z "$(git status --porcelain -- public/downloads)" ]; then
+          if [ -z "$(git status --porcelain -- public/downloads content/releases.json)" ]; then
             echo "Candoa download is unchanged; nothing to commit."
             exit 0
           fi
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add public/downloads
+          git add public/downloads content/releases.json
           git commit -m "Update Candoa $APP_VERSION download from ${GITHUB_SHA::7}"
           git push origin "HEAD:$CLOUD_BRANCH"
 

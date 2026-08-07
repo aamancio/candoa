@@ -45,6 +45,9 @@ struct SidebarView: View {
     let isInstallingUpdate: Bool
     let automaticUpdatesEnabled: Binding<Bool>
     let onUpdateBannerTapped: () -> Void
+    let isWhatsNewVisible: Bool
+    let onWhatsNewTapped: () -> Void
+    let onWhatsNewDismissed: () -> Void
     let onToggleSidebar: () -> Void
     let isSidebarPinned: Bool
 
@@ -201,6 +204,13 @@ struct SidebarView: View {
                 isInstalling: isInstallingUpdate,
                 automaticUpdatesEnabled: automaticUpdatesEnabled,
                 action: onUpdateBannerTapped
+            )
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+        }
+        if isWhatsNewVisible {
+            WhatsNewBanner(
+                action: onWhatsNewTapped,
+                dismiss: onWhatsNewDismissed
             )
                 .transition(.move(edge: .bottom).combined(with: .opacity))
         }

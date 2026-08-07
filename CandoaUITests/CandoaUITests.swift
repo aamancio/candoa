@@ -1660,6 +1660,26 @@ final class CandoaUITests: XCTestCase {
         XCTAssertEqual(app.sheets.count, 0)
     }
 
+    func testWhatsNewBannerOpensHostedPageAndDismisses() throws {
+        let app = launchApp(whatsNewFixture: true)
+
+        XCTAssertTrue(waitForState(in: app, containing: "setup=false"), currentState(in: app))
+
+        let banner = element("sidebar-whats-new-banner", in: app)
+        XCTAssertTrue(banner.waitForExistence(timeout: 5))
+        banner.click()
+
+        // One click opens the hosted release-notes page in a new tab and
+        // retires the pill. The site may redirect to a locale path
+        // (candoa.app/whats-new -> www.candoa.app/en/whats-new), so match
+        // the stable path segment rather than the exact URL.
+        XCTAssertTrue(
+            waitForState(in: app, containing: "/whats-new"),
+            currentState(in: app)
+        )
+        XCTAssertFalse(banner.exists)
+    }
+
     func testViewMenuOffersStopAndReloadCommands() throws {
         let app = launchApp()
 
@@ -2502,6 +2522,7 @@ final class CandoaUITests: XCTestCase {
         forcesLightAppearance: Bool = false,
         remoteRestoreFixture: Bool = false,
         updateVersion: String? = nil,
+        whatsNewFixture: Bool = false,
         extraLaunchArguments: [String] = []
     ) -> XCUIApplication {
         let app = XCUIApplication()
@@ -2547,6 +2568,9 @@ final class CandoaUITests: XCTestCase {
         }
         if let updateVersion {
             app.launchEnvironment["CANDOA_UI_TESTING_UPDATE_VERSION"] = updateVersion
+        }
+        if whatsNewFixture {
+            app.launchEnvironment["CANDOA_UI_TESTING_WHATS_NEW"] = "1"
         }
 
         app.launch()
