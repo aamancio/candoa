@@ -1,6 +1,6 @@
 import Foundation
 
-enum AIProvider: String, CaseIterable, Identifiable, Sendable {
+enum AIProvider: String, CaseIterable, Identifiable, Sendable, Codable {
     case openai
     case anthropic
     case google
@@ -36,7 +36,7 @@ enum AIProvider: String, CaseIterable, Identifiable, Sendable {
     }
 }
 
-enum AIReasoningEffort: String, CaseIterable, Identifiable, Sendable {
+enum AIReasoningEffort: String, CaseIterable, Identifiable, Sendable, Codable {
     case low
     case medium
     case high
@@ -55,7 +55,7 @@ enum AIReasoningEffort: String, CaseIterable, Identifiable, Sendable {
 /// A provider-qualified model identity plus the request-time metadata Ask
 /// needs: context budgeting inputs and which reasoning efforts the adapter
 /// can express without inventing unsupported API values.
-struct AIModel: Identifiable, Equatable, Sendable {
+struct AIModel: Identifiable, Equatable, Sendable, Codable {
     /// Provider-qualified identity, e.g. `openai/gpt-5.6-luna`.
     let id: String
     let provider: AIProvider
