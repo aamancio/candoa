@@ -1,4 +1,5 @@
 import Foundation
+import LocalAuthentication
 import OSLog
 import Security
 
@@ -36,22 +37,15 @@ struct KeychainStore {
         let status = SecItemDelete(query(dataProtection: true) as CFDictionary)
         guard status == errSecSuccess || status == errSecItemNotFound else { return status }
 
-        withoutKeychainInteraction {
-            _ = SecItemDelete(query(dataProtection: false) as CFDictionary)
-        }
+        _ = SecItemDelete(query(dataProtection: false) as CFDictionary)
         return errSecSuccess
     }
 
     private func migrateLegacyItem() -> String? {
-        let value = withoutKeychainInteraction {
-            copyValue(query(dataProtection: false))
-        }
-        guard let value else { return nil }
+        guard let value = copyValue(query(dataProtection: false)) else { return nil }
 
         if save(value) == errSecSuccess {
-            withoutKeychainInteraction {
-                _ = SecItemDelete(query(dataProtection: false) as CFDictionary)
-            }
+            _ = SecItemDelete(query(dataProtection: false) as CFDictionary)
         }
         return value
     }
@@ -72,16 +66,6 @@ struct KeychainStore {
         return value.isEmpty ? nil : value
     }
 
-    /// Legacy login-keychain items are guarded by a per-binary ACL; touching
-    /// one from a build the ACL doesn't trust would show the very password
-    /// prompt this store exists to avoid. With interaction disabled the call
-    /// fails silently instead, and migration waits for a trusted binary.
-    private func withoutKeychainInteraction<T>(_ body: () -> T) -> T {
-        SecKeychainSetUserInteractionAllowed(false)
-        defer { SecKeychainSetUserInteractionAllowed(true) }
-        return body()
-    }
-
     private func query(dataProtection: Bool) -> [String: Any] {
         var query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
@@ -90,6 +74,15 @@ struct KeychainStore {
         ]
         if dataProtection {
             query[kSecUseDataProtectionKeychain as String] = true
+        } else {
+            // Legacy login-keychain items are guarded by a per-binary ACL;
+            // touching one from a build the ACL doesn't trust would show the
+            // very password prompt this store exists to avoid. With UI
+            // disallowed the call fails with errSecInteractionNotAllowed
+            // instead, and migration waits for a trusted binary.
+            let context = LAContext()
+            context.interactionNotAllowed = true
+            query[kSecUseAuthenticationContext as String] = context
         }
         return query
     }

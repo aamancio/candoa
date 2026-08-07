@@ -84,7 +84,7 @@ internal struct AppUpdateBanner: View {
                 : "Candoa \(update.version) is available"
         )
         .animation(.easeOut(duration: 0.10), value: isHovering)
-        .onChange(of: isInstalling) { installing in
+        .onChange(of: isInstalling) { _, installing in
             if installing {
                 isUpdatePanelPresented = false
             }
