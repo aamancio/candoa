@@ -11,6 +11,9 @@ internal struct EliSettingsPane: View {
         AIProvider.allCases.filter(EliKeychain.hasAPIKey(for:))
     )
     @State private var keychainError: String?
+    /// Per-provider model lists fetched from the provider's own API with the
+    /// available credential; absent entries fall back to the curated catalog.
+    @State private var dynamicDirectModels: [AIProvider: [AIModel]] = [:]
     @EnvironmentObject private var userStore: UserStore
 
     /// UI-test launches share the real defaults domain, so persistence is
@@ -22,7 +25,20 @@ internal struct EliSettingsPane: View {
 
     private var directModel: AIModel {
         AIModelCatalog.model(forID: directModelID)
+            ?? listedDynamicModel(forID: directModelID)
+            ?? persistedDynamicModel(forID: directModelID)
             ?? AIModelCatalog.directModels[0]
+    }
+
+    private func listedDynamicModel(forID id: String) -> AIModel? {
+        dynamicDirectModels.values.joined().first { $0.id == id }
+    }
+
+    /// The metadata snapshot saved with a dynamic selection, so the pane
+    /// resolves it before the provider list has loaded (or offline).
+    private func persistedDynamicModel(forID id: String) -> AIModel? {
+        let persisted = EliPreferences.directModel
+        return persisted.id == id ? persisted : nil
     }
 
     private var selectedProvider: AIProvider { directModel.provider }
@@ -53,9 +69,19 @@ internal struct EliSettingsPane: View {
     }
 
     private var directModelOptions: [SettingsPickerOption] {
-        AIModelCatalog.directModels(for: selectedProvider).map {
+        let models = dynamicDirectModels[selectedProvider]
+            ?? AIModelCatalog.directModels(for: selectedProvider)
+        var options = models.map {
             SettingsPickerOption(id: $0.id, title: $0.displayName)
         }
+        if !options.contains(where: { $0.id == directModelID }),
+           directModel.id == directModelID {
+            options.insert(
+                SettingsPickerOption(id: directModel.id, title: directModel.displayName),
+                at: 0
+            )
+        }
+        return options
     }
 
     private var hostedModelOptions: [SettingsPickerOption] {
@@ -114,7 +140,9 @@ internal struct EliSettingsPane: View {
                         SettingsPickerRow(
                             systemImage: "cpu",
                             title: "Model",
-                            subtitle: "Curated current models for \(selectedProvider.displayName).",
+                            subtitle: dynamicDirectModels[selectedProvider] != nil
+                                ? "Current \(selectedProvider.displayName) models available to your key."
+                                : "Curated current models for \(selectedProvider.displayName).",
                             selection: directModelBinding,
                             options: directModelOptions
                         )
@@ -148,6 +176,9 @@ internal struct EliSettingsPane: View {
             normalizeSelections()
             await userStore.refresh()
             await userStore.refreshHostedModels()
+        }
+        .task(id: dynamicModelFetchKey) {
+            await refreshDynamicDirectModels()
         }
     }
 
@@ -530,12 +561,57 @@ internal struct EliSettingsPane: View {
     }
 
     private func setDirectModel(_ modelID: String) {
-        guard AIModelCatalog.model(forID: modelID) != nil else { return }
+        guard let model = AIModelCatalog.model(forID: modelID)
+            ?? listedDynamicModel(forID: modelID) else { return }
         directModelID = modelID
-        persist(modelID, forKey: SettingsOption.askDirectModel)
+        if !Self.isUITesting {
+            EliPreferences.setDirectModel(model)
+        }
         apiKey = ""
         keychainError = nil
         coerceReasoningEffort()
+    }
+
+    /// Refetch whenever the route, provider, or key availability changes.
+    private var dynamicModelFetchKey: String {
+        "\(connection.rawValue)|\(selectedProvider.rawValue)|"
+            + "\(savedKeyProviders.contains(selectedProvider))"
+    }
+
+    private func refreshDynamicDirectModels() async {
+        guard connection != .candoaCloud,
+              dynamicDirectModels[selectedProvider] == nil,
+              let credential = dynamicListingCredential else { return }
+        let provider = selectedProvider
+        guard let models = try? await ProviderModelDirectory.models(
+            for: provider,
+            apiKey: credential
+        ), !models.isEmpty else { return }
+        dynamicDirectModels[provider] = models
+        coerceReasoningEffort()
+    }
+
+    /// The key used to list models for the selected provider, mirroring the
+    /// request routes: saved personal key, or the Debug environment key. UI
+    /// tests inject a fixture list instead of reaching provider APIs, so a
+    /// placeholder unlocks the fetch there.
+    private var dynamicListingCredential: String? {
+#if DEBUG
+        if Self.isUITesting {
+            return ProcessInfo.processInfo
+                .environment["CANDOA_UI_TESTING_DIRECT_MODELS"] != nil
+                ? "ui-testing-fixture"
+                : nil
+        }
+#endif
+        switch connection {
+        case .candoaCloud:
+            return nil
+        case .personalKey:
+            return EliKeychain.apiKey(for: selectedProvider)
+        case .environment:
+            return EliPreferences.environmentAPIKey(for: selectedProvider)
+        }
     }
 
     /// Coerces stale stored IDs back into the catalog and persists the

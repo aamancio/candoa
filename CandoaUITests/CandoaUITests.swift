@@ -1507,6 +1507,61 @@ final class CandoaUITests: XCTestCase {
         XCTAssertFalse(popUpButton(withValue: "Anthropic", in: app).exists)
     }
 
+    func testEliSettingsListDirectModelsDynamicallyFromProviderAPI() throws {
+        let fixtureModels = """
+        [{"id":"openai/gpt-6-nova","provider":"openai","displayName":"GPT-6 Nova",\
+        "contextWindowTokens":500000,"maxOutputTokens":128000,\
+        "supportedEfforts":["low","medium","high"]},\
+        {"id":"openai/gpt-6-mini","provider":"openai","displayName":"GPT-6 Mini",\
+        "contextWindowTokens":200000,"maxOutputTokens":64000,\
+        "supportedEfforts":["low"]}]
+        """.replacingOccurrences(of: "\n", with: "")
+        let app = launchApp(
+            extraLaunchArguments: [
+                "-Candoa.Settings.ZenOption.AskConnection", "personalKey",
+            ],
+            extraLaunchEnvironment: [
+                "CANDOA_UI_TESTING_DIRECT_MODELS": fixtureModels,
+            ]
+        )
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
+
+        openEliSettings(in: app)
+
+        // The dynamically listed models replace the curated picker contents.
+        XCTAssertTrue(
+            app.staticTexts["Current OpenAI models available to your key."]
+                .waitForExistence(timeout: 5)
+        )
+        let modelPicker = popUpButton(withValue: "GPT-5.6 Luna", in: app)
+        XCTAssertTrue(modelPicker.waitForExistence(timeout: 5))
+        modelPicker.click()
+        let novaItem = app.menuItems["GPT-6 Nova"]
+        XCTAssertTrue(novaItem.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.menuItems["GPT-6 Mini"].exists)
+        novaItem.click()
+        XCTAssertTrue(popUpButton(withValue: "GPT-6 Nova", in: app).waitForExistence(timeout: 5))
+
+        // Reasoning follows the listed model's declared support.
+        let reasoning = popUpButton(withValue: "Low", in: app)
+        XCTAssertTrue(reasoning.waitForExistence(timeout: 5))
+        reasoning.click()
+        XCTAssertTrue(app.menuItems["High"].waitForExistence(timeout: 5))
+        app.typeKey(.escape, modifierFlags: [])
+
+        popUpButton(withValue: "GPT-6 Nova", in: app).click()
+        let miniItem = app.menuItems["GPT-6 Mini"]
+        XCTAssertTrue(miniItem.waitForExistence(timeout: 5))
+        miniItem.click()
+        XCTAssertTrue(popUpButton(withValue: "GPT-6 Mini", in: app).waitForExistence(timeout: 5))
+        let clampedReasoning = popUpButton(withValue: "Low", in: app)
+        XCTAssertTrue(clampedReasoning.waitForExistence(timeout: 5))
+        clampedReasoning.click()
+        XCTAssertTrue(app.menuItems["Low"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.menuItems["High"].exists)
+        app.typeKey(.escape, modifierFlags: [])
+    }
+
     private func openEliSettings(in app: XCUIApplication) {
         app.typeKey(",", modifierFlags: .command)
         let eliButton = app.buttons["Eli"].firstMatch
@@ -2588,11 +2643,13 @@ final class CandoaUITests: XCTestCase {
         remoteRestoreFixture: Bool = false,
         updateVersion: String? = nil,
         whatsNewFixture: Bool = false,
-        extraLaunchArguments: [String] = []
+        extraLaunchArguments: [String] = [],
+        extraLaunchEnvironment: [String: String] = [:]
     ) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments += ["-ApplePersistenceIgnoreState", "YES"]
         app.launchArguments += extraLaunchArguments
+        app.launchEnvironment.merge(extraLaunchEnvironment) { _, new in new }
         if forcesLightAppearance {
             app.launchArguments += ["-NSRequiresAquaSystemAppearance", "YES"]
         }

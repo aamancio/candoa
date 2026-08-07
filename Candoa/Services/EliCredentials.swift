@@ -31,15 +31,39 @@ enum EliPreferences {
         return stored
     }
 
-    /// Provider-qualified BYOK selection, coerced back into the curated
-    /// catalog when the stored value is stale.
+    /// Provider-qualified BYOK selection. A curated-catalog match wins; a
+    /// dynamically listed model resolves through the metadata snapshot saved
+    /// alongside the selection, so budgeting and clamping survive relaunches
+    /// and offline periods; anything else coerces back to the default.
     static var directModel: AIModel {
-        if let stored = UserDefaults.standard.string(forKey: SettingsOption.askDirectModel),
-           let model = AIModelCatalog.model(forID: stored) {
-            return model
+        if let stored = UserDefaults.standard.string(forKey: SettingsOption.askDirectModel) {
+            if let model = AIModelCatalog.model(forID: stored) {
+                return model
+            }
+            if let dynamic = storedDynamicDirectModel, dynamic.id == stored {
+                return dynamic
+            }
         }
         return AIModelCatalog.model(forID: defaultDirectModelID)
             ?? AIModelCatalog.directModels[0]
+    }
+
+    /// Persists a BYOK selection, keeping a metadata snapshot only for models
+    /// outside the curated catalog.
+    static func setDirectModel(_ model: AIModel) {
+        UserDefaults.standard.set(model.id, forKey: SettingsOption.askDirectModel)
+        if AIModelCatalog.model(forID: model.id) != nil {
+            UserDefaults.standard.removeObject(forKey: SettingsOption.askDirectModelInfo)
+        } else if let data = try? JSONEncoder().encode(model) {
+            UserDefaults.standard.set(data, forKey: SettingsOption.askDirectModelInfo)
+        }
+    }
+
+    private static var storedDynamicDirectModel: AIModel? {
+        guard let data = UserDefaults.standard.data(
+            forKey: SettingsOption.askDirectModelInfo
+        ) else { return nil }
+        return try? JSONDecoder().decode(AIModel.self, from: data)
     }
 
     static var reasoningEffort: AIReasoningEffort {

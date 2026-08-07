@@ -34,6 +34,7 @@
 		TF00000000000000000000B1 /* TabLoadFailure.swift in Sources */ = {isa = PBXBuildFile; fileRef = TF00000000000000000000A1 /* TabLoadFailure.swift */; };
 		010000000000000000000120 /* AppUpdateService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01000000000000000000001D /* AppUpdateService.swift */; };
 		AB1200000000000000000102 /* WhatsNewService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB1200000000000000000002 /* WhatsNewService.swift */; };
+		AB1300000000000000000102 /* ProviderModelDirectory.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB1300000000000000000002 /* ProviderModelDirectory.swift */; };
 		010000000000000000000121 /* KeyboardShortcutMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000031 /* KeyboardShortcutMonitor.swift */; };
 		010000000000000000000122 /* SidebarRevealMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000032 /* SidebarRevealMonitor.swift */; };
 		010000000000000000000123 /* WindowInteractionConfigurator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000033 /* WindowInteractionConfigurator.swift */; };
@@ -162,6 +163,7 @@
 		TF00000000000000000000A1 /* TabLoadFailure.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabLoadFailure.swift; sourceTree = "<group>"; };
 		01000000000000000000001D /* AppUpdateService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppUpdateService.swift; sourceTree = "<group>"; };
 		AB1200000000000000000002 /* WhatsNewService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhatsNewService.swift; sourceTree = "<group>"; };
+		AB1300000000000000000002 /* ProviderModelDirectory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderModelDirectory.swift; sourceTree = "<group>"; };
 		010000000000000000000031 /* KeyboardShortcutMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardShortcutMonitor.swift; sourceTree = "<group>"; };
 		010000000000000000000032 /* SidebarRevealMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarRevealMonitor.swift; sourceTree = "<group>"; };
 		010000000000000000000033 /* WindowInteractionConfigurator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowInteractionConfigurator.swift; sourceTree = "<group>"; };
@@ -380,6 +382,7 @@
 				AB10000000000000000BD001 /* BrowsingDataService.swift */,
 				01000000000000000000001D /* AppUpdateService.swift */,
 				AB1200000000000000000002 /* WhatsNewService.swift */,
+				AB1300000000000000000002 /* ProviderModelDirectory.swift */,
 				010000000000000000000042 /* EliService.swift */,
 				EF0000000000000000000001 /* EliModels.swift */,
 				EF0000000000000000000002 /* EliCredentials.swift */,
@@ -691,6 +694,7 @@
 				TF00000000000000000000B1 /* TabLoadFailure.swift in Sources */,
 				010000000000000000000120 /* AppUpdateService.swift in Sources */,
 				AB1200000000000000000102 /* WhatsNewService.swift in Sources */,
+				AB1300000000000000000102 /* ProviderModelDirectory.swift in Sources */,
 				010000000000000000000121 /* KeyboardShortcutMonitor.swift in Sources */,
 				010000000000000000000122 /* SidebarRevealMonitor.swift in Sources */,
 				010000000000000000000123 /* WindowInteractionConfigurator.swift in Sources */,

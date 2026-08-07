@@ -166,6 +166,7 @@ enum SettingsOption {
     static let askConnection = prefix + "AskConnection"
     static let askHostedModel = prefix + "AskHostedModel"
     static let askDirectModel = prefix + "AskDirectModel"
+    static let askDirectModelInfo = prefix + "AskDirectModelInfo"
     static let askReasoningEffort = prefix + "AskReasoningEffort"
 
     static let websiteAppearance = prefix + "WebsiteAppearance"
