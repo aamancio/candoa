@@ -170,15 +170,29 @@ final class UserStore: ObservableObject {
                   accountService.accessToken == accessToken else {
                 return
             }
-            status = nil
             if (error as? AccountError)?.isAuthenticationFailure == true {
+                status = nil
                 try? accountService.removeAccessToken()
                 isSignedIn = false
                 hasCloudSession = false
                 isLocalOnly = hasCompletedAccountChoice
             }
+            // A network or server blip is not a sign-out: keep the last known
+            // account status so the session stays usable, and surface a
+            // retryable error instead.
             errorMessage = error.localizedDescription
         }
+    }
+
+    /// Retries a session refresh that previously failed without touching a
+    /// healthy session. Called from user-visible activation points (app
+    /// becoming active, settings retry) — never from a timer.
+    func recoverSessionIfNeeded() async {
+        guard hasCloudSession, status == nil, !isWorking,
+              accountService.accessToken != nil else {
+            return
+        }
+        await refresh()
     }
 
     func refreshHostedModels() async {

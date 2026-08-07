@@ -477,6 +477,7 @@ struct ContentView: View {
                 store.flushSession()
             } else {
                 Task {
+                    await userStore.recoverSessionIfNeeded()
                     await userStore.reconcilePendingSubscriptionIfNeeded()
                 }
             }
@@ -487,6 +488,7 @@ struct ContentView: View {
             )
         ) { _ in
             Task {
+                await userStore.recoverSessionIfNeeded()
                 await userStore.reconcilePendingSubscriptionIfNeeded()
             }
         }

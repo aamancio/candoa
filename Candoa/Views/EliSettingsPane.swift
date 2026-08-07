@@ -303,12 +303,27 @@ internal struct EliSettingsPane: View {
                 if let accountError = userStore.errorMessage {
                     SettingsDivider()
 
-                    Text(accountError)
-                        .font(.callout)
-                        .foregroundStyle(AppColor.danger)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 12)
+                    HStack(alignment: .firstTextBaseline, spacing: 12) {
+                        Text(accountError)
+                            .font(.callout)
+                            .foregroundStyle(AppColor.danger)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+
+                        if userStore.hasCloudSession {
+                            Button("Try Again") {
+                                Task {
+                                    await userStore.refresh()
+                                }
+                            }
+                            .buttonTreatment(.secondary)
+                            .controlSize(.small)
+                            .disabled(userStore.isWorking)
+                            .accessibilityIdentifier("account-refresh-retry-button")
+                        }
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 12)
                 }
             }
         }

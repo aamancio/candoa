@@ -504,6 +504,11 @@ final class BrowserStore: ObservableObject {
             setInitialOnboardingStep(resumableStep)
         } else if shouldPresentInitialSpaceSetup {
             setInitialOnboardingStep(.welcome)
+        } else if !UserStore.hasStoredAccountDecision {
+            // Signing out clears the account decision but deliberately keeps
+            // the current session browsing. The next launch returns to the
+            // account gate so the Mac regains an explicit account state.
+            setInitialOnboardingStep(.account)
         } else {
             if !UserDefaults.standard.bool(forKey: Self.hasCompletedTourKey) {
                 setInitialOnboardingStep(.tour)
