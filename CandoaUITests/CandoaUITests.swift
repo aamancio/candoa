@@ -1489,6 +1489,7 @@ final class CandoaUITests: XCTestCase {
         popUpButton(withValue: "Claude Opus 5", in: app).click()
         let haikuItem = app.menuItems["Claude Haiku 4.5"]
         XCTAssertTrue(haikuItem.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.menuItems["Claude Fable 5"].exists)
         haikuItem.click()
         XCTAssertTrue(popUpButton(withValue: "Claude Haiku 4.5", in: app).waitForExistence(timeout: 5))
         let reasoning = popUpButton(withValue: "Low", in: app)
