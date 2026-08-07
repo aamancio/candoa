@@ -60,6 +60,16 @@ jobs:
           echo "APP_MARKETING_VERSION=$VERSION" >> "$GITHUB_ENV"
           echo "Version $VERSION (build $(git rev-list --count HEAD)), previous tag: ${LAST_TAG:-none}"
 
+      - name: Cache Swift packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Caches/org.swift.swiftpm
+            build/DerivedData/SourcePackages
+          key: ${{ runner.os }}-spm-${{ hashFiles('Candoa.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
+          restore-keys: |
+            ${{ runner.os }}-spm-
+
       - name: Prepare signing keychain path
         run: echo "SIGNING_KEYCHAIN_PATH=$RUNNER_TEMP/candoa-signing.keychain-db" >> "$GITHUB_ENV"
 
