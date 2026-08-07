@@ -9,6 +9,7 @@ struct ContentView: View {
     let isPrivate: Bool
     @StateObject private var store: BrowserStore
     @StateObject private var updateService = AppUpdateService.shared
+    @StateObject private var whatsNewService = WhatsNewService.shared
 
     init(isPrivate: Bool = false) {
         self.isPrivate = isPrivate
@@ -636,6 +637,14 @@ struct ContentView: View {
                 ),
                 onUpdateBannerTapped: {
                     updateService.openAvailableUpdate()
+                },
+                isWhatsNewVisible: whatsNewService.isPromptVisible,
+                onWhatsNewTapped: {
+                    whatsNewService.acknowledge()
+                    _ = store.newTab(url: WhatsNewService.pageURL)
+                },
+                onWhatsNewDismissed: {
+                    whatsNewService.acknowledge()
                 },
                 onToggleSidebar: toggleSidebar,
                 isSidebarPinned: isSidebarVisible
