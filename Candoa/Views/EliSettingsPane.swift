@@ -262,6 +262,36 @@ internal struct EliSettingsPane: View {
                     }
                 }
 
+                if let credits = userStore.status?.credits {
+                    SettingsDivider()
+                    creditsUsageRow(credits)
+                }
+
+                if let subscription = userStore.status?.subscription {
+                    SettingsDivider()
+                    billingRow(subscription)
+                }
+
+                if userStore.hasCloudSession, userStore.status != nil {
+                    SettingsDivider()
+
+                    SettingsRow(
+                        systemImage: "arrow.clockwise",
+                        title: "Refresh subscription details",
+                        subtitle: lastUpdatedDescription
+                    ) {
+                        Button("Refresh") {
+                            Task {
+                                await userStore.refresh()
+                            }
+                        }
+                        .buttonTreatment(.secondary)
+                        .controlSize(.small)
+                        .disabled(userStore.isWorking)
+                        .accessibilityIdentifier("subscription-refresh-button")
+                    }
+                }
+
                 SettingsDivider()
 
                 SettingsRow(
@@ -327,6 +357,123 @@ internal struct EliSettingsPane: View {
                 }
             }
         }
+    }
+
+    /// Usage is presented in provider-neutral Candoa credits with the numbers
+    /// spelled out in text, so the progress bar is reinforcement rather than
+    /// the only signal.
+    private func creditsUsageRow(_ credits: AccountCredits) -> some View {
+        HStack(alignment: .center, spacing: 14) {
+            Image(systemName: credits.isExhausted ? "gauge.with.needle.fill" : "gauge.with.needle")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .frame(width: 20)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(
+                    "\(credits.usedCredits.formatted()) of "
+                    + "\(credits.monthlyAllowance.formatted()) Candoa credits used"
+                )
+                .font(.system(size: 13))
+                .foregroundStyle(.primary)
+                .accessibilityIdentifier("subscription-usage-summary")
+
+                ProgressView(
+                    value: Double(min(credits.usedCredits, credits.monthlyAllowance)),
+                    total: Double(max(credits.monthlyAllowance, 1))
+                )
+                .progressViewStyle(.linear)
+                .frame(maxWidth: 240)
+                .accessibilityHidden(true)
+
+                Text(creditsSubtitle(credits))
+                    .font(.system(size: 11.5))
+                    .foregroundStyle(credits.isExhausted ? AnyShapeStyle(AppColor.danger) : AnyShapeStyle(.secondary))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("subscription-usage-detail")
+            }
+
+            Spacer(minLength: 16)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 11)
+    }
+
+    private func creditsSubtitle(_ credits: AccountCredits) -> String {
+        let reset = credits.periodEnd.map {
+            "They reset on \($0.formatted(date: .abbreviated, time: .omitted))."
+        } ?? "The reset date isn’t available yet."
+        let explanation = "Usage is measured in provider-neutral Candoa credits, not raw tokens."
+        return credits.isExhausted
+            ? "You’ve used all of this period’s credits. \(reset) \(explanation)"
+            : "\(reset) \(explanation)"
+    }
+
+    private func billingRow(_ subscription: AccountSubscription) -> some View {
+        let details = billingDetails(subscription)
+        return SettingsRow(
+            systemImage: details.systemImage,
+            title: details.title,
+            subtitle: details.subtitle
+        ) {
+            EmptyView()
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("subscription-billing-row")
+    }
+
+    private func billingDetails(
+        _ subscription: AccountSubscription
+    ) -> (systemImage: String, title: String, subtitle: String) {
+        let periodEnd = subscription.currentPeriodEnd
+            .map { $0.formatted(date: .abbreviated, time: .omitted) }
+
+        switch subscription.status {
+        case "trialing":
+            return (
+                "clock",
+                periodEnd.map { "Trial ends \($0)" } ?? "Trial in progress",
+                "Your paid subscription starts when the trial ends. The exact charge appears in the billing portal."
+            )
+        case "active" where subscription.cancelAtPeriodEnd:
+            return (
+                "calendar.badge.minus",
+                periodEnd.map { "Subscription ends \($0)" } ?? "Subscription is scheduled to end",
+                "Your plan stays active until then, and credits won’t renew afterward. Use Manage to resume it."
+            )
+        case "active":
+            return (
+                "calendar",
+                periodEnd.map { "Next billing date: \($0)" } ?? "Next billing date isn’t available yet",
+                "The exact charge amount appears in the billing portal via Manage."
+            )
+        case "past_due", "unpaid":
+            return (
+                "exclamationmark.triangle",
+                "Payment is past due",
+                "Update your payment method in the billing portal to keep your plan and credits."
+            )
+        case "canceled", "incomplete_expired":
+            return (
+                "calendar.badge.minus",
+                periodEnd.map { "Subscription ended \($0)" } ?? "Subscription ended",
+                "Open Eli to subscribe again and restore hosted models."
+            )
+        default:
+            return (
+                "calendar",
+                "Subscription status: \(subscription.status.replacingOccurrences(of: "_", with: " "))",
+                "Check the billing portal via Manage for details."
+            )
+        }
+    }
+
+    private var lastUpdatedDescription: String {
+        guard let updated = userStore.statusLastUpdated else {
+            return "Waiting for the first update from Candoa Cloud."
+        }
+        let relative = updated.formatted(.relative(presentation: .named))
+        return "Updated \(relative)."
     }
 
     private var connectionBinding: Binding<String> {

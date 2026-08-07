@@ -6,6 +6,9 @@ import SwiftUI
 @MainActor
 final class UserStore: ObservableObject {
     @Published private(set) var status: AccountStatus?
+    /// When the current `status` was last fetched from Candoa Cloud, so the
+    /// subscription surface can state how fresh its usage numbers are.
+    @Published private(set) var statusLastUpdated: Date?
     @Published private(set) var isWorking = false
     @Published private(set) var isStartingSubscription = false
     @Published private(set) var isAwaitingSubscriptionActivation = false
@@ -78,6 +81,48 @@ final class UserStore: ObservableObject {
 #endif
     }
 
+    /// Deterministic subscription states for UI tests: a healthy plan with
+    /// partial usage, and one that needs attention (past due, scheduled to
+    /// cancel, out of credits).
+    private static var subscriptionFixtureStatus: AccountStatus? {
+        let periodEnd = Date(timeIntervalSinceNow: 9 * 24 * 60 * 60)
+        switch uiTestingFixture {
+        case "subscription-usage":
+            return AccountStatus(
+                hasAppleAccount: true,
+                planID: "pro",
+                allowedModelIDs: ["openai/gpt-5"],
+                credits: AccountCredits(
+                    monthlyAllowance: 6_000,
+                    availableCredits: 1_900,
+                    periodEnd: periodEnd
+                ),
+                subscription: AccountSubscription(
+                    status: "active",
+                    currentPeriodEnd: periodEnd
+                )
+            )
+        case "subscription-attention":
+            return AccountStatus(
+                hasAppleAccount: true,
+                planID: "pro",
+                allowedModelIDs: ["openai/gpt-5"],
+                credits: AccountCredits(
+                    monthlyAllowance: 6_000,
+                    availableCredits: 0,
+                    periodEnd: periodEnd
+                ),
+                subscription: AccountSubscription(
+                    status: "past_due",
+                    currentPeriodEnd: periodEnd,
+                    cancelAtPeriodEnd: true
+                )
+            )
+        default:
+            return nil
+        }
+    }
+
     init(
         accountService: AccountService = AccountService(),
         appleSignInService: AppleSignInService = AppleSignInService()
@@ -126,6 +171,16 @@ final class UserStore: ObservableObject {
     }
 
     func refresh() async {
+        if let fixtureStatus = Self.subscriptionFixtureStatus {
+            status = fixtureStatus
+            statusLastUpdated = Date()
+            isWorking = false
+            isSignedIn = true
+            hasCloudSession = true
+            isLocalOnly = false
+            errorMessage = nil
+            return
+        }
         if Self.uiTestingFixture == "ask-cloud-unavailable" {
             status = nil
             isWorking = false
@@ -164,6 +219,7 @@ final class UserStore: ObservableObject {
             }
             apply(session: session)
             status = refreshedStatus
+            statusLastUpdated = Date()
             errorMessage = nil
         } catch {
             guard !isSigningInWithApple,
@@ -172,6 +228,7 @@ final class UserStore: ObservableObject {
             }
             if (error as? AccountError)?.isAuthenticationFailure == true {
                 status = nil
+                statusLastUpdated = nil
                 try? accountService.removeAccessToken()
                 isSignedIn = false
                 hasCloudSession = false
@@ -235,6 +292,7 @@ final class UserStore: ObservableObject {
                 planID: "pro",
                 allowedModelIDs: ["openai/gpt-5"]
             )
+            statusLastUpdated = Date()
             isSignedIn = true
             hasCloudSession = true
             isLocalOnly = false
@@ -370,6 +428,7 @@ final class UserStore: ObservableObject {
         UserDefaults.standard.removeObject(forKey: Self.accountChoiceKey)
 #endif
         status = nil
+        statusLastUpdated = nil
         errorMessage = nil
         subscriptionErrorMessage = nil
         accountMessage = nil
@@ -474,6 +533,7 @@ final class UserStore: ObservableObject {
                 planID: status?.planID ?? "free",
                 allowedModelIDs: status?.allowedModelIDs ?? []
             )
+            statusLastUpdated = Date()
             markAccountChoiceCompleted()
             errorMessage = nil
             accountMessage = "You’re signed in with Apple."
@@ -523,6 +583,7 @@ final class UserStore: ObservableObject {
             try accountService.saveAccessToken(accessToken)
             apply(session: session)
             status = refreshedStatus
+            statusLastUpdated = Date()
 
             markAccountChoiceCompleted()
             errorMessage = nil

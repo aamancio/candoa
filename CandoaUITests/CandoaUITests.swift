@@ -2004,6 +2004,71 @@ final class CandoaUITests: XCTestCase {
         XCTAssertTrue(retryButton.exists)
     }
 
+    func testEliSettingsShowSubscriptionUsageAndBillingDetails() throws {
+        let app = launchApp(fixture: "subscription-usage")
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
+
+        openEliSettings(in: app)
+
+        XCTAssertTrue(app.staticTexts["Candoa Pro"].waitForExistence(timeout: 5))
+        XCTAssertTrue(
+            app.staticTexts["4,100 of 6,000 Candoa credits used"].waitForExistence(timeout: 5)
+        )
+        let usageDetail = element("subscription-usage-detail", in: app)
+        XCTAssertTrue(usageDetail.exists)
+        let usageDetailText = usageDetail.value as? String ?? usageDetail.label
+        XCTAssertTrue(
+            usageDetailText.contains("provider-neutral Candoa credits"),
+            usageDetailText
+        )
+
+        let billingRow = element("subscription-billing-row", in: app)
+        XCTAssertTrue(billingRow.waitForExistence(timeout: 5))
+        XCTAssertTrue(
+            app.staticTexts.matching(
+                NSPredicate(format: "label BEGINSWITH 'Next billing date:' OR value BEGINSWITH 'Next billing date:'")
+            ).firstMatch.exists
+        )
+
+        // A refresh keeps the honest freshness stamp visible.
+        XCTAssertTrue(
+            app.staticTexts.matching(
+                NSPredicate(format: "label BEGINSWITH 'Updated' OR value BEGINSWITH 'Updated'")
+            ).firstMatch.exists
+        )
+        let refreshButton = element("subscription-refresh-button", in: app)
+        XCTAssertTrue(refreshButton.waitForExistence(timeout: 5))
+        XCTAssertTrue(refreshButton.isEnabled)
+        refreshButton.click()
+        XCTAssertTrue(
+            app.staticTexts["4,100 of 6,000 Candoa credits used"].waitForExistence(timeout: 5)
+        )
+
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = "Eli subscription usage settings"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+
+    func testEliSettingsFlagPastDueAndExhaustedSubscription() throws {
+        let app = launchApp(fixture: "subscription-attention")
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
+
+        openEliSettings(in: app)
+
+        XCTAssertTrue(
+            app.staticTexts["6,000 of 6,000 Candoa credits used"].waitForExistence(timeout: 5)
+        )
+        let usageDetail = element("subscription-usage-detail", in: app)
+        XCTAssertTrue(usageDetail.exists)
+        let usageDetailText = usageDetail.value as? String ?? usageDetail.label
+        XCTAssertTrue(
+            usageDetailText.contains("used all of this period’s credits"),
+            usageDetailText
+        )
+        XCTAssertTrue(app.staticTexts["Payment is past due"].exists)
+    }
+
     func testEliSubscriptionGateShowsConfirmationAndDisappearsAfterCheckout() throws {
         let app = launchApp(
             fixture: "ask-streaming",

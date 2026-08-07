@@ -120,25 +120,104 @@ enum AccountKeychain {
     }
 }
 
+/// Parses the ISO 8601 timestamps Candoa Cloud serializes with
+/// `Date.toISOString()` (fractional seconds), tolerating plain ISO 8601 too.
+enum CloudTimestamp {
+    static func date(from string: String?) -> Date? {
+        guard let string else { return nil }
+        let fractional = Date.ISO8601FormatStyle(includingFractionalSeconds: true)
+        return (try? Date(string, strategy: fractional))
+            ?? (try? Date(string, strategy: .iso8601))
+    }
+}
+
+struct AccountCredits: Decodable, Sendable {
+    let monthlyAllowance: Int
+    let availableCredits: Int
+    let periodEnd: Date?
+
+    private enum CodingKeys: String, CodingKey {
+        case monthlyAllowance
+        case availableCredits
+        case periodEnd
+    }
+
+    init(monthlyAllowance: Int, availableCredits: Int, periodEnd: Date? = nil) {
+        self.monthlyAllowance = monthlyAllowance
+        self.availableCredits = availableCredits
+        self.periodEnd = periodEnd
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        monthlyAllowance = try container.decode(Int.self, forKey: .monthlyAllowance)
+        availableCredits = try container.decode(Int.self, forKey: .availableCredits)
+        periodEnd = CloudTimestamp.date(
+            from: try container.decodeIfPresent(String.self, forKey: .periodEnd)
+        )
+    }
+
+    var usedCredits: Int { max(0, monthlyAllowance - availableCredits) }
+    var isExhausted: Bool { monthlyAllowance > 0 && availableCredits <= 0 }
+}
+
+struct AccountSubscription: Decodable, Sendable {
+    let status: String
+    let currentPeriodEnd: Date?
+    let cancelAtPeriodEnd: Bool
+
+    private enum CodingKeys: String, CodingKey {
+        case status
+        case currentPeriodEnd
+        case cancelAtPeriodEnd
+    }
+
+    init(status: String, currentPeriodEnd: Date? = nil, cancelAtPeriodEnd: Bool = false) {
+        self.status = status
+        self.currentPeriodEnd = currentPeriodEnd
+        self.cancelAtPeriodEnd = cancelAtPeriodEnd
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        status = try container.decode(String.self, forKey: .status)
+        currentPeriodEnd = CloudTimestamp.date(
+            from: try container.decodeIfPresent(String.self, forKey: .currentPeriodEnd)
+        )
+        cancelAtPeriodEnd = try container.decodeIfPresent(
+            Bool.self,
+            forKey: .cancelAtPeriodEnd
+        ) ?? false
+    }
+}
+
 struct AccountStatus: Decodable, Sendable {
     let hasAppleAccount: Bool
     let planID: String
     let allowedModelIDs: [String]
+    let credits: AccountCredits?
+    let subscription: AccountSubscription?
 
     private enum CodingKeys: String, CodingKey {
         case hasAppleAccount
         case planID
         case allowedModelIDs
+        case credits
+        case subscription
     }
 
     init(
         hasAppleAccount: Bool = false,
         planID: String,
-        allowedModelIDs: [String]
+        allowedModelIDs: [String],
+        credits: AccountCredits? = nil,
+        subscription: AccountSubscription? = nil
     ) {
         self.hasAppleAccount = hasAppleAccount
         self.planID = planID
         self.allowedModelIDs = allowedModelIDs
+        self.credits = credits
+        self.subscription = subscription
     }
 
     init(from decoder: Decoder) throws {
@@ -151,6 +230,14 @@ struct AccountStatus: Decodable, Sendable {
         allowedModelIDs = try container.decode(
             [String].self,
             forKey: .allowedModelIDs
+        )
+        credits = try container.decodeIfPresent(
+            AccountCredits.self,
+            forKey: .credits
+        )
+        subscription = try container.decodeIfPresent(
+            AccountSubscription.self,
+            forKey: .subscription
         )
     }
 
