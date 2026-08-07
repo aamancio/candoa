@@ -96,10 +96,26 @@ enum AIModelCatalog {
     /// metadata the server catalog does not carry yet.
     static let directModels: [AIModel] = [
         AIModel(
+            id: "openai/gpt-5.6-sol",
+            provider: .openai,
+            displayName: "GPT-5.6 Sol",
+            contextWindowTokens: 1_050_000,
+            maxOutputTokens: 128_000,
+            supportedEfforts: [.low, .medium, .high]
+        ),
+        AIModel(
+            id: "openai/gpt-5.6-terra",
+            provider: .openai,
+            displayName: "GPT-5.6 Terra",
+            contextWindowTokens: 1_050_000,
+            maxOutputTokens: 128_000,
+            supportedEfforts: [.low, .medium, .high]
+        ),
+        AIModel(
             id: "openai/gpt-5.6-luna",
             provider: .openai,
             displayName: "GPT-5.6 Luna",
-            contextWindowTokens: 400_000,
+            contextWindowTokens: 1_050_000,
             maxOutputTokens: 128_000,
             supportedEfforts: [.low, .medium, .high]
         ),
@@ -149,8 +165,14 @@ enum AIModelCatalog {
         directModels.filter { $0.provider == provider }
     }
 
+    /// The default stays the affordable tier even though the flagship lists
+    /// first, so switching provider never silently lands on the priciest model.
     static func directDefaultModel(for provider: AIProvider) -> AIModel {
-        directModels(for: provider)[0]
+        if let preferred = model(forID: EliPreferences.defaultDirectModelID),
+           preferred.provider == provider {
+            return preferred
+        }
+        return directModels(for: provider)[0]
     }
 
     static func model(forID id: String) -> AIModel? {
