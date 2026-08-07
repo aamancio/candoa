@@ -66,6 +66,16 @@ jobs:
       - name: Show toolchain
         run: xcodebuild -version
 
+      - name: Cache Swift packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Caches/org.swift.swiftpm
+            build/DerivedData/SourcePackages
+          key: ${{ runner.os }}-spm-${{ hashFiles('Candoa.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
+          restore-keys: |
+            ${{ runner.os }}-spm-
+
       - name: Build app
         run: |
           xcodebuild \
@@ -73,6 +83,7 @@ jobs:
             -scheme Candoa \
             -configuration Debug \
             -destination platform=macOS \
+            -derivedDataPath build/DerivedData \
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY=- \
             DEVELOPMENT_TEAM= \
@@ -100,6 +111,16 @@ jobs:
 
       - name: Show toolchain
         run: xcodebuild -version
+
+      - name: Cache Swift packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Caches/org.swift.swiftpm
+            build/DerivedData/SourcePackages
+          key: ${{ runner.os }}-spm-${{ hashFiles('Candoa.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
+          restore-keys: |
+            ${{ runner.os }}-spm-
 
       - name: Run XCTest UI suite
         env:
