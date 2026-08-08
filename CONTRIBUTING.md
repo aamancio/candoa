@@ -26,6 +26,7 @@ Candoa is a native macOS, WebKit-based browser project. Keep changes small, scop
 - Do not add steady-state battery, memory, WebKit process, timer, observer, or cross-process messaging costs.
 - Preserve WKWebView lifecycle separation from SwiftUI view state.
 - Every user-facing string must go through a localization API (`Text`, `Label`, `String(localized:)`, and friends — never a plain `String` literal handed to the UI) and must have an entry in `Candoa/Resources/Localizable.xcstrings`. After adding or changing user-facing copy, run the Debug build and then `Scripts/check-localization.py --fix` to sync the catalog; CI fails on uncataloged strings.
+- The MVP ships localized in Spanish, French, German, Japanese, Simplified Chinese, and Brazilian Portuguese (English is the source language). New user-facing strings need translations for all six locales in the catalog before merging — CI fails on untranslated MVP-locale entries. Counts use catalog plural variations, never `count == 1` ternaries; brand names stay verbatim.
 
 ## Pull Request Expectations
 

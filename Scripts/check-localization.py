@@ -15,6 +15,10 @@ Debug build first; the check reads its .stringsdata output.
 --fix rewrites the catalog the way Xcode's editor sync would: extracted
 strings that are missing get new entries, and entries that no compiled
 source references and that carry no translations are removed.
+
+The check also fails when a cataloged string lacks a translation for an
+MVP locale, so shipping copy stays fully localized. New strings added via
+--fix start untranslated; add the translations before merging.
 """
 
 import json
@@ -24,6 +28,9 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 CATALOG = ROOT / "Candoa" / "Resources" / "Localizable.xcstrings"
 APP_BUILD_DIR_NAME = "Candoa.build"
+
+# The MVP ships these translations (issue #27); en is the source language.
+MVP_LOCALES = ["es", "fr", "de", "ja", "zh-Hans", "pt-BR"]
 
 
 def fail(message: str) -> None:
@@ -117,11 +124,32 @@ def main() -> int:
             file=sys.stderr,
         )
 
+    untranslated: dict[str, list[str]] = {}
+    for key in sorted(extracted_keys & catalog_keys):
+        if not key.strip():
+            continue
+        localizations = catalog["strings"][key].get("localizations", {})
+        missing_locales = [
+            locale
+            for locale in MVP_LOCALES
+            if not (
+                localizations.get(locale, {}).get("stringUnit", {}).get("value")
+                or localizations.get(locale, {}).get("variations")
+            )
+        ]
+        if missing_locales:
+            untranslated[key] = missing_locales
+    for key, locales in untranslated.items():
+        fail(
+            f"String has no translation for {', '.join(locales)}: {key!r}. "
+            "Add the missing MVP-locale translations to Localizable.xcstrings."
+        )
+
     print(
         f"Checked {len(extracted_keys)} extracted strings from "
         f"{len(stringsdata_files)} files against {len(catalog_keys)} catalog keys."
     )
-    if missing or unknown_tables:
+    if missing or unknown_tables or untranslated:
         return 1
     print("String-catalog coverage is complete.")
     return 0
