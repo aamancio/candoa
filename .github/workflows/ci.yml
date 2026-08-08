@@ -90,6 +90,11 @@ jobs:
             CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO \
             build
 
+      # Runs after the build because it reads the compiler-emitted
+      # .stringsdata from DerivedData.
+      - name: Check string-catalog coverage
+        run: Scripts/check-localization.py build/DerivedData
+
   e2e:
     name: Manual Native macOS E2E
     runs-on: macos-latest

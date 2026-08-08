@@ -604,19 +604,19 @@ enum ShortcutDefinition: String, CaseIterable, Identifiable {
     var category: String {
         switch self {
         case .captureFullPage:
-            return "Capture"
+            return String(localized: "Capture")
         case .toggleAISidebar:
-            return "AI"
+            return String(localized: "AI")
         case .addSplitView, .closeSplitView, .splitLayoutHorizontal, .splitLayoutVertical, .splitLayoutGrid:
-            return "Split View"
+            return String(localized: "Split View")
         case .goBack, .goForward, .nextRecentTab, .previousRecentTab, .nextTab, .previousTab, .nextSpace, .previousSpace:
-            return "Navigation"
+            return String(localized: "Navigation")
         case .findInPage, .findNext, .findPrevious:
-            return "Search & Find"
+            return String(localized: "Search & Find")
         case .zoomIn, .zoomOut, .resetZoom:
-            return "Media & Display"
+            return String(localized: "Media & Display")
         default:
-            return "Browser"
+            return String(localized: "Browser")
         }
     }
 
