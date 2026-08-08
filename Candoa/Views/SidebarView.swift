@@ -637,39 +637,53 @@ struct SidebarView: View {
         let url = displayedURL(for: spaceID)
         let developerModeEnabled = isDeveloperModeEnabled(for: url)
 
-        return Button {
-            store.focusSidebarAddressBar()
-        } label: {
-            HStack(spacing: 10) {
-                Image(systemName: developerModeEnabled ? "info.circle" : "magnifyingglass")
-                    .font(.system(size: 15, weight: .medium))
-                    .frame(width: 18)
-                    .foregroundStyle(InterfaceStyle.sidebarIcon)
-
-                Text(sidebarAddressText(for: url, developerModeEnabled: developerModeEnabled))
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                    .font(
-                        developerModeEnabled
-                            ? .system(size: 13, weight: .medium, design: .monospaced)
-                            : .system(size: 14, weight: .semibold)
-                    )
-                    .foregroundStyle(InterfaceStyle.sidebarTextSecondary)
-
-                Spacer(minLength: 0)
+        return HStack(spacing: 0) {
+            if let url {
+                siteInfoButton(for: url, spaceID: spaceID, developerModeEnabled: developerModeEnabled)
             }
-            .padding(.horizontal, 11)
-            .frame(height: 40)
-            .background(InterfaceStyle.sidebarControlFill)
-            .overlay {
-                RoundedRectangle(cornerRadius: 11, style: .continuous)
-                    .fill(Color.primary.opacity(isHoveringAddressPill ? 0.07 : 0))
+
+            Button {
+                store.focusSidebarAddressBar()
+            } label: {
+                HStack(spacing: 10) {
+                    if url == nil {
+                        Image(systemName: "magnifyingglass")
+                            .font(.system(size: 15, weight: .medium))
+                            .frame(width: 18)
+                            .foregroundStyle(InterfaceStyle.sidebarIcon)
+                    }
+
+                    Text(sidebarAddressText(for: url, developerModeEnabled: developerModeEnabled))
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        .font(
+                            developerModeEnabled
+                                ? .system(size: 13, weight: .medium, design: .monospaced)
+                                : .system(size: 14, weight: .semibold)
+                        )
+                        .foregroundStyle(InterfaceStyle.sidebarTextSecondary)
+
+                    Spacer(minLength: 0)
+                }
+                .padding(.leading, url == nil ? 11 : 10)
+                .padding(.trailing, 11)
+                .frame(height: 40)
+                .contentShape(Rectangle())
             }
-            .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
+            .buttonTreatment(.content)
+            .help(developerModeEnabled ? "Developer Mode" : BrowserDefaults.addressPlaceholder)
+            .accessibilityLabel("Address")
+            .accessibilityIdentifier("sidebar-address-button")
         }
-        .buttonTreatment(.content)
+        .frame(height: 40)
+        .background(InterfaceStyle.sidebarControlFill)
+        .overlay {
+            RoundedRectangle(cornerRadius: 11, style: .continuous)
+                .fill(Color.primary.opacity(isHoveringAddressPill ? 0.07 : 0))
+                .allowsHitTesting(false)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
         .onHover { isHoveringAddressPill = $0 }
-        .help(developerModeEnabled ? "Developer Mode" : BrowserDefaults.addressPlaceholder)
         .contextMenu {
             if let url,
                let host = DeveloperModeConfiguration.displayHost(for: url) {
@@ -689,8 +703,55 @@ struct SidebarView: View {
                 Text(host)
             }
         }
-        .accessibilityLabel("Address")
-        .accessibilityIdentifier("sidebar-address-button")
+    }
+
+    /// The pill's leading icon doubles as the Site Info trigger: the glyph
+    /// reflects what the URL alone can claim (the popover shows the verified
+    /// state), and the popover only binds on the active space so paged
+    /// sidebar copies can never co-present it.
+    private func siteInfoButton(
+        for url: URL,
+        spaceID: UUID,
+        developerModeEnabled: Bool
+    ) -> some View {
+        Button {
+            store.isSiteInfoPopoverPresented.toggle()
+        } label: {
+            Image(systemName: siteInfoSymbol(for: url, developerModeEnabled: developerModeEnabled))
+                .font(.system(size: 15, weight: .medium))
+                .frame(width: 18)
+                .foregroundStyle(InterfaceStyle.sidebarIcon)
+                .padding(.leading, 11)
+                .frame(height: 40)
+                .contentShape(Rectangle())
+        }
+        .buttonTreatment(.content)
+        .help("Site Info")
+        .accessibilityLabel("Site Info")
+        .accessibilityIdentifier("sidebar-site-info-button")
+        .popover(
+            isPresented: Binding(
+                get: { store.isSiteInfoPopoverPresented && spaceID == store.activeSpaceID },
+                set: { store.isSiteInfoPopoverPresented = $0 }
+            ),
+            arrowEdge: .bottom
+        ) {
+            SiteInfoPopoverView(
+                store: store,
+                url: url,
+                tabID: displayedActiveTabID(for: spaceID)
+            )
+        }
+    }
+
+    private func siteInfoSymbol(for url: URL, developerModeEnabled: Bool) -> String {
+        if developerModeEnabled {
+            return "info.circle"
+        }
+        if url.isFileURL {
+            return "doc"
+        }
+        return url.scheme?.lowercased() == "https" ? "lock" : "lock.slash"
     }
 
     // Arc's Developer Mode shows the full URL for local servers by default

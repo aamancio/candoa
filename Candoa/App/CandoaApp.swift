@@ -75,6 +75,14 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
     private let webAuthenticationHostService = WebAuthenticationSessionHostService()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // UI-test launches share the real defaults domain, so a prior run's
+        // per-site permission decisions would leak into the next one. Tests
+        // that need pre-set decisions seed them through launch arguments,
+        // which read from the argument domain and survive this reset.
+        if ProcessInfo.processInfo.environment["CANDOA_UI_TESTING"] == "1" {
+            UserDefaults.standard.removeObject(forKey: SitePermissionConfiguration.storageKey)
+        }
+
         updateDockIcon()
         webAuthenticationHostService.activate()
         DistributedNotificationCenter.default().addObserver(
@@ -297,6 +305,11 @@ private struct BrowserCommands: Commands {
             .keyboardShortcut("r", modifiers: [.command, .option])
             .disabled(actions?.canReloadActiveTab != true)
 
+            Button(BrowserCommandTitles.siteInfo) {
+                actions?.showSiteInfo()
+            }
+            .disabled(actions?.canShowSiteInfo != true)
+
             Divider()
 
             Button(BrowserCommandTitles.resetZoom) {
@@ -515,6 +528,8 @@ struct BrowserCommandActions {
     var canClearBrowsingData: Bool
     var showDownloads: () -> Void
     var isDownloadsVisible: Bool
+    var showSiteInfo: () -> Void
+    var canShowSiteInfo: Bool
     var showQuickTour: () -> Void
     var reloadTab: () -> Void
     var reloadTabFromOrigin: () -> Void

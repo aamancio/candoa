@@ -2535,6 +2535,92 @@ final class CandoaUITests: XCTestCase {
         XCTAssertEqual(app.state, .runningForeground)
     }
 
+    // MARK: - Site Info (issue #29)
+
+    /// The address pill's leading icon opens Site Info: the popover names the
+    /// effective origin, and its Pop-up Windows control persists a Block
+    /// decision that the create-web-view delegate then enforces.
+    func testSiteInfoBlocksPopupsForSite() {
+        let app = launchApp(fixture: "popup-open")
+
+        openFixtureTab(path: "popup", in: app)
+
+        let siteInfoButton = element("sidebar-site-info-button", in: app)
+        XCTAssertTrue(siteInfoButton.waitForExistence(timeout: 5), currentState(in: app))
+        siteInfoButton.click()
+
+        let popover = element("site-info-popover", in: app)
+        XCTAssertTrue(popover.waitForExistence(timeout: 5), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "siteInfoShown=true"), currentState(in: app))
+        XCTAssertTrue(
+            element("site-info-host", in: app).waitForExistence(timeout: 5),
+            currentState(in: app)
+        )
+
+        // Pop-up Windows is the only permission defaulting to Allow, so the
+        // value uniquely identifies its picker (SwiftUI menu pickers don't
+        // reliably expose accessibility identifiers — see the Ask settings
+        // tests).
+        let popupPicker = popUpButton(withValue: "Allow", in: app)
+        XCTAssertTrue(popupPicker.waitForExistence(timeout: 5), currentState(in: app))
+        popupPicker.click()
+        let blockItem = app.menuItems["Block"]
+        XCTAssertTrue(blockItem.waitForExistence(timeout: 5))
+        blockItem.click()
+        XCTAssertTrue(
+            popUpButton(withValue: "Block", in: app).waitForExistence(timeout: 5),
+            currentState(in: app)
+        )
+
+        // A stored decision surfaces the reset affordance.
+        XCTAssertTrue(
+            element("site-info-reset", in: app).waitForExistence(timeout: 5),
+            currentState(in: app)
+        )
+
+        app.typeKey(.escape, modifierFlags: [])
+        XCTAssertTrue(waitForState(in: app, containing: "siteInfoShown=false"), currentState(in: app))
+
+        // The page's window.open click must now be refused: the source tab
+        // stays put and the delegate records the block.
+        let webView = app.webViews.firstMatch
+        XCTAssertTrue(webView.waitForExistence(timeout: 10), currentState(in: app))
+        webView.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).click()
+
+        XCTAssertTrue(
+            waitForState(
+                in: app,
+                containing: "blocked href=https://fixture.candoa.test/popup-child",
+                timeout: 10
+            ),
+            currentState(in: app)
+        )
+        XCTAssertTrue(
+            stateValue("url", in: app)?.hasSuffix("/popup") == true,
+            "blocked popup must not navigate or open a tab — \(currentState(in: app))"
+        )
+    }
+
+    /// View ▸ Site Info presents the same popover from the menu bar.
+    func testSiteInfoMenuCommandOpensPopover() {
+        let app = launchApp(fixture: "popup-open")
+
+        openFixtureTab(path: "popup", in: app)
+
+        let viewMenu = app.menuBarItems["View"]
+        XCTAssertTrue(viewMenu.waitForExistence(timeout: 5))
+        viewMenu.click()
+        let siteInfoItem = app.menuItems["Site Info…"]
+        XCTAssertTrue(siteInfoItem.waitForExistence(timeout: 5))
+        siteInfoItem.click()
+
+        XCTAssertTrue(waitForState(in: app, containing: "siteInfoShown=true"), currentState(in: app))
+        XCTAssertTrue(
+            element("site-info-popover", in: app).waitForExistence(timeout: 5),
+            currentState(in: app)
+        )
+    }
+
     // MARK: - Hosted web-authentication sessions (issue #47)
 
     /// A hosted session completes only on the request's own callback match,

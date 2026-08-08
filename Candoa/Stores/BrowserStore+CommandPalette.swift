@@ -45,6 +45,23 @@ extension BrowserStore {
         DeveloperModeConfiguration.setEnabled(isEnabled, for: url)
     }
 
+    func setSitePermission(
+        _ decision: SitePermissionDecision,
+        for permission: SitePermission,
+        url: URL
+    ) {
+        SitePermissionConfiguration.setDecision(decision, for: permission, url: url)
+    }
+
+    func resetSitePermissions(for url: URL) {
+        SitePermissionConfiguration.resetDecisions(for: url)
+    }
+
+    func siteSecuritySummary(for tabID: UUID?) -> SiteSecuritySummary? {
+        guard let tabID else { return nil }
+        return webCoordinator.siteSecuritySummary(forTabID: tabID)
+    }
+
     func openCommandPalette() {
         guard !isInitialOnboardingBlockingBrowsing else { return }
 

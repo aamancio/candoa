@@ -121,6 +121,19 @@ extension WebViewCoordinator {
     ) -> WKWebView? {
         guard let store else { return nil }
 
+        // A Site Info "Block" decision for the source page's origin stops the
+        // pop-up before any tab or web view exists. Returning nil is the
+        // supported refusal; WebKit reports it to the page as a blocked open.
+        if let sourceURL = webView.url,
+           SitePermissionConfiguration.decision(for: .popupWindows, url: sourceURL) == .deny {
+            if BrowserStore.isUITesting {
+                store.uiTestingPopupDiagnostics.append(
+                    "blocked href=\(navigationAction.request.url?.absoluteString.prefix(80) ?? "nil")"
+                )
+            }
+            return nil
+        }
+
         let sourceSpaceID = tabID(for: webView)
             .flatMap { sourceTabID in store.tabs.first { $0.id == sourceTabID }?.spaceID }
             ?? store.activeSpaceID

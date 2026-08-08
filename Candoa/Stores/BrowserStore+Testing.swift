@@ -412,6 +412,7 @@ extension BrowserStore {
             "splitLayout=\(splitLayout.rawValue)",
             "downloads=\(downloadsStore.uiTestingDescription)",
             "downloadsShown=\(isDownloadsPopoverPresented)",
+            "siteInfoShown=\(isSiteInfoPopoverPresented)",
             "popover=\(uiTestingVisibleFolderPopoverDescription)",
             "query=\(uiTestingCommandPaletteQuery)",
             "command=\(uiTestingLastCommandDescription)",
