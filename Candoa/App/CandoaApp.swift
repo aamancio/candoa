@@ -187,29 +187,55 @@ private struct BrowserCommands: Commands {
         }
 
         CommandGroup(replacing: .newItem) {
-            Button("New Window") {
-                openWindow(id: AppConfiguration.browserWindowSceneID)
-            }
-            .keyboardShortcut("n", modifiers: .command)
+            // Grouped to stay inside the commands builder's ten-element limit.
+            Group {
+                Button("New Window") {
+                    openWindow(id: AppConfiguration.browserWindowSceneID)
+                }
+                .keyboardShortcut("n", modifiers: .command)
 
-            Button("New Private Window") {
-                openWindow(id: AppConfiguration.privateBrowserWindowSceneID)
-            }
-            .keyboardShortcut("n", modifiers: [.command, .shift])
+                Button("New Private Window") {
+                    openWindow(id: AppConfiguration.privateBrowserWindowSceneID)
+                }
+                .keyboardShortcut("n", modifiers: [.command, .shift])
 
-            Button(BrowserCommandTitles.newTab) {
-                actions?.newTab()
-            }
-            .keyboardShortcut("t", modifiers: .command)
-            .disabled(actions == nil)
+                Button(BrowserCommandTitles.newTab) {
+                    actions?.newTab()
+                }
+                .keyboardShortcut("t", modifiers: .command)
+                .disabled(actions == nil)
 
-            Divider()
-
-            Button(actions?.isHistoryVisible == true ? "Close History" : "Close Tab") {
-                actions?.closeCurrentTab()
+                Button(BrowserCommandTitles.openFile) {
+                    actions?.openLocalFile()
+                }
+                .keyboardShortcut("o", modifiers: .command)
+                .disabled(actions == nil)
             }
-            .keyboardShortcut("w", modifiers: .command)
-            .disabled(actions == nil)
+
+            Group {
+                Divider()
+
+                Button(actions?.isHistoryVisible == true ? "Close History" : "Close Tab") {
+                    actions?.closeCurrentTab()
+                }
+                .keyboardShortcut("w", modifiers: .command)
+                .disabled(actions == nil)
+
+                Divider()
+
+                // Command-S stays the sidebar toggle (Arc convention), so
+                // Save As takes the shifted variant.
+                Button(BrowserCommandTitles.saveAs) {
+                    actions?.saveActiveTabAs()
+                }
+                .keyboardShortcut("s", modifiers: [.command, .shift])
+                .disabled(actions?.canSaveActiveTab != true)
+
+                Button(BrowserCommandTitles.exportAsPDF) {
+                    actions?.exportActiveTabAsPDF()
+                }
+                .disabled(actions?.canSaveActiveTab != true)
+            }
         }
 
         // Grouped with the pasteboard commands to stay inside the commands
@@ -535,6 +561,10 @@ struct BrowserCommandActions {
     var reloadTabFromOrigin: () -> Void
     var printPage: () -> Void
     var canPrintActiveTab: Bool
+    var openLocalFile: () -> Void
+    var saveActiveTabAs: () -> Void
+    var exportActiveTabAsPDF: () -> Void
+    var canSaveActiveTab: Bool
     var stopLoading: () -> Void
     var isActiveTabLoading: Bool
     var canReloadActiveTab: Bool

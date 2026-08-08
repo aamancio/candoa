@@ -367,6 +367,15 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
             return
         }
 
+        if url.isFileURL {
+            // WebKit needs an explicit read grant for sandboxed local files.
+            // Grant only the chosen file, never its folder — a page's sibling
+            // subresources are the documented cost of the narrow grant.
+            pendingAppearanceNavigationTokens[tabID] = nil
+            targetWebView.loadFileURL(url, allowingReadAccessTo: url)
+            return
+        }
+
         let request = request(for: url)
         guard WebsiteAppearanceService.preparesServerTheme(for: url) else {
             pendingAppearanceNavigationTokens[tabID] = nil
@@ -387,6 +396,33 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
             self.pendingAppearanceNavigationTokens[tabID] = nil
             targetWebView.load(request)
         }
+    }
+
+    /// Produces the page's web-archive bytes from the live web view. No
+    /// snapshot or duplicate view is retained — WebKit serializes the loaded
+    /// page directly.
+    func createWebArchiveData(
+        for tabID: UUID,
+        completion: @escaping (Result<Data, any Error>) -> Void
+    ) {
+        guard let webView = webViews[tabID] else {
+            completion(.failure(CocoaError(.fileNoSuchFile)))
+            return
+        }
+        webView.createWebArchiveData(completionHandler: completion)
+    }
+
+    /// Produces a full-content PDF of the loaded page through WebKit's
+    /// supported single-pass renderer.
+    func createPDFData(
+        for tabID: UUID,
+        completion: @escaping (Result<Data, any Error>) -> Void
+    ) {
+        guard let webView = webViews[tabID] else {
+            completion(.failure(CocoaError(.fileNoSuchFile)))
+            return
+        }
+        webView.createPDF(completionHandler: completion)
     }
 
     func removeWebView(for tabID: UUID) {

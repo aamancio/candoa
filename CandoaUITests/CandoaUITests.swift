@@ -2715,6 +2715,116 @@ final class CandoaUITests: XCTestCase {
         )
     }
 
+    // MARK: - File menu document commands (issue #37)
+
+    func testFileMenuOffersDocumentCommands() {
+        let app = launchApp(fixture: "popup-open")
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
+
+        openFixtureTab(path: "saved-page", in: app)
+        XCTAssertTrue(waitForState(in: app, containing: "loading=false"), currentState(in: app))
+
+        let fileMenu = app.menuBarItems["File"]
+        XCTAssertTrue(fileMenu.waitForExistence(timeout: 5))
+        fileMenu.click()
+        let openFileItem = app.menuBars.menuItems["Open File…"]
+        XCTAssertTrue(openFileItem.waitForExistence(timeout: 5))
+        XCTAssertTrue(openFileItem.isEnabled)
+        let saveAsItem = app.menuBars.menuItems["Save As…"]
+        XCTAssertTrue(saveAsItem.exists)
+        XCTAssertTrue(saveAsItem.isEnabled)
+        let exportItem = app.menuBars.menuItems["Export as PDF…"]
+        XCTAssertTrue(exportItem.exists)
+        XCTAssertTrue(exportItem.isEnabled)
+        app.typeKey(.escape, modifierFlags: [])
+    }
+
+    func testOpenLocalFileCommandOpensChosenFile() throws {
+        // NSOpenPanel runs out of process, so the app's UI-testing seam
+        // writes a fixture file itself and opens it when the command fires.
+        let app = launchApp(extraLaunchEnvironment: [
+            "CANDOA_UI_TESTING_OPEN_FILE_FIXTURE": "1",
+        ])
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
+
+        let fileMenu = app.menuBarItems["File"]
+        XCTAssertTrue(fileMenu.waitForExistence(timeout: 5))
+        fileMenu.click()
+        let openFileItem = app.menuBars.menuItems["Open File…"]
+        XCTAssertTrue(openFileItem.waitForExistence(timeout: 5))
+        openFileItem.click()
+
+        XCTAssertTrue(
+            waitForState(in: app, containing: "url=file://", timeout: 15),
+            currentState(in: app)
+        )
+        let webView = app.webViews.firstMatch
+        XCTAssertTrue(webView.waitForExistence(timeout: 10), currentState(in: app))
+        XCTAssertTrue(
+            webView.staticTexts["Local file content"].waitForExistence(timeout: 10),
+            currentState(in: app)
+        )
+    }
+
+    func testSaveAsAndExportAsPDFWriteDocuments() throws {
+        let downloads = try XCTUnwrap(
+            FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first
+        )
+        let archiveURL = downloads.appendingPathComponent("saved-page.webarchive")
+        let pdfURL = downloads.appendingPathComponent("saved-page.pdf")
+        try? FileManager.default.removeItem(at: archiveURL)
+        try? FileManager.default.removeItem(at: pdfURL)
+        defer {
+            try? FileManager.default.removeItem(at: archiveURL)
+            try? FileManager.default.removeItem(at: pdfURL)
+        }
+
+        // NSSavePanel runs out of process, so the app's UI-testing seam
+        // writes straight into Downloads with the suggested name.
+        let app = launchApp(
+            fixture: "popup-open",
+            extraLaunchEnvironment: ["CANDOA_UI_TESTING_EXPORT_TO_DOWNLOADS": "1"]
+        )
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
+        openFixtureTab(path: "saved-page", in: app)
+        XCTAssertTrue(waitForState(in: app, containing: "loading=false"), currentState(in: app))
+
+        let fileMenu = app.menuBarItems["File"]
+        XCTAssertTrue(fileMenu.waitForExistence(timeout: 5))
+        fileMenu.click()
+        let saveAsItem = app.menuBars.menuItems["Save As…"]
+        XCTAssertTrue(saveAsItem.waitForExistence(timeout: 5))
+        saveAsItem.click()
+        XCTAssertTrue(
+            waitForFile(at: archiveURL, timeout: 15),
+            "Web archive was not written: \(currentState(in: app))"
+        )
+        XCTAssertTrue(
+            waitForState(in: app, containing: "saved-page.webarchive", timeout: 5),
+            currentState(in: app)
+        )
+
+        fileMenu.click()
+        let exportItem = app.menuBars.menuItems["Export as PDF…"]
+        XCTAssertTrue(exportItem.waitForExistence(timeout: 5))
+        exportItem.click()
+        XCTAssertTrue(
+            waitForFile(at: pdfURL, timeout: 15),
+            "PDF was not written: \(currentState(in: app))"
+        )
+        let pdfHeader = try XCTUnwrap(FileHandle(forReadingFrom: pdfURL).readData(ofLength: 4))
+        XCTAssertEqual(String(data: pdfHeader, encoding: .ascii), "%PDF")
+    }
+
+    private func waitForFile(at url: URL, timeout: TimeInterval) -> Bool {
+        let deadline = Date(timeIntervalSinceNow: timeout)
+        while Date() < deadline {
+            if FileManager.default.fileExists(atPath: url.path) { return true }
+            RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.25))
+        }
+        return FileManager.default.fileExists(atPath: url.path)
+    }
+
     // MARK: - Hosted web-authentication sessions (issue #47)
 
     /// A hosted session completes only on the request's own callback match,

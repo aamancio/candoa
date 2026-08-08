@@ -67,6 +67,7 @@
 		AA0000000000000000000105 /* BrowserStore+Spaces.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000005 /* BrowserStore+Spaces.swift */; };
 		AA0000000000000000000106 /* BrowserStore+TabsFolders.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000006 /* BrowserStore+TabsFolders.swift */; };
 		AA0000000000000000000107 /* BrowserStore+BrowserActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000007 /* BrowserStore+BrowserActions.swift */; };
+		AAFC00000000000000000101 /* BrowserStore+FileCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAFC00000000000000000001 /* BrowserStore+FileCommands.swift */; };
 		AA0000000000000000000108 /* BrowserStore+TabSwitching.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000008 /* BrowserStore+TabSwitching.swift */; };
 		AA0000000000000000000109 /* BrowserStore+SplitViewDragDrop.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000009 /* BrowserStore+SplitViewDragDrop.swift */; };
 		AA000000000000000000010A /* BrowserStore+NavigationHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000000A /* BrowserStore+NavigationHistory.swift */; };
@@ -206,6 +207,7 @@
 		AA0000000000000000000005 /* BrowserStore+Spaces.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+Spaces.swift"; sourceTree = "<group>"; };
 		AA0000000000000000000006 /* BrowserStore+TabsFolders.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+TabsFolders.swift"; sourceTree = "<group>"; };
 		AA0000000000000000000007 /* BrowserStore+BrowserActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+BrowserActions.swift"; sourceTree = "<group>"; };
+		AAFC00000000000000000001 /* BrowserStore+FileCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+FileCommands.swift"; sourceTree = "<group>"; };
 		AA0000000000000000000008 /* BrowserStore+TabSwitching.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+TabSwitching.swift"; sourceTree = "<group>"; };
 		AA0000000000000000000009 /* BrowserStore+SplitViewDragDrop.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+SplitViewDragDrop.swift"; sourceTree = "<group>"; };
 		AA000000000000000000000A /* BrowserStore+NavigationHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+NavigationHistory.swift"; sourceTree = "<group>"; };
@@ -488,6 +490,7 @@
 				AA0000000000000000000005 /* BrowserStore+Spaces.swift */,
 				AA0000000000000000000006 /* BrowserStore+TabsFolders.swift */,
 				AA0000000000000000000007 /* BrowserStore+BrowserActions.swift */,
+				AAFC00000000000000000001 /* BrowserStore+FileCommands.swift */,
 				AA0000000000000000000008 /* BrowserStore+TabSwitching.swift */,
 				AA0000000000000000000009 /* BrowserStore+SplitViewDragDrop.swift */,
 				AA000000000000000000000A /* BrowserStore+NavigationHistory.swift */,
@@ -709,6 +712,7 @@
 				AA0000000000000000000105 /* BrowserStore+Spaces.swift in Sources */,
 				AA0000000000000000000106 /* BrowserStore+TabsFolders.swift in Sources */,
 				AA0000000000000000000107 /* BrowserStore+BrowserActions.swift in Sources */,
+				AAFC00000000000000000101 /* BrowserStore+FileCommands.swift in Sources */,
 				AA0000000000000000000108 /* BrowserStore+TabSwitching.swift in Sources */,
 				AA0000000000000000000109 /* BrowserStore+SplitViewDragDrop.swift in Sources */,
 				AA000000000000000000010A /* BrowserStore+NavigationHistory.swift in Sources */,
