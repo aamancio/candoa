@@ -1,6 +1,8 @@
 return (() => {
+  const executed = (message) => JSON.stringify({ ok: true, message });
+  const failed = (message) => JSON.stringify({ ok: false, message });
   if (window.__candoaAgentSnapshotID !== snapshotID) {
-    return "Candoa stopped because the page changed after it was inspected.";
+    return failed("Candoa stopped because the page changed after it was inspected.");
   }
   const selectors = [
     "a[href]", "button", "label[for]", "input:not([type='hidden'])", "textarea", "select",
@@ -76,7 +78,7 @@ return (() => {
   const index = Number(String(ref).slice(1));
   const control = /^e\d{1,3}$/.test(ref) ? controls[index] : null;
   if (!control || control.label !== expectedLabel || control.kind !== expectedKind) {
-    return "Candoa stopped because the referenced control changed.";
+    return failed("Candoa stopped because the referenced control changed.");
   }
   const element = control.element;
   element.scrollIntoView({
@@ -96,14 +98,14 @@ return (() => {
       : element;
     activationElement.click();
     if (choiceInput && !choiceInput.checked) {
-      return `Candoa could not confirm that "${control.label}" was selected.`;
+      return failed(`Candoa could not confirm that "${control.label}" was selected.`);
     }
-    return `Selected "${control.label}".`;
+    return executed(`Selected "${control.label}".`);
   };
   if (kind === "click") {
     if (control.kind === "choice") return activateChoice();
     element.click();
-    return `Clicked "${control.label}".`;
+    return executed(`Clicked "${control.label}".`);
   }
   if (kind === "select") {
     if (element instanceof HTMLSelectElement) {
@@ -112,18 +114,18 @@ return (() => {
         clean(candidate.label).toLocaleLowerCase() === requested
           || clean(candidate.value).toLocaleLowerCase() === requested
       );
-      if (!option) return `Candoa could not find the requested option in "${control.label}".`;
+      if (!option) return failed(`Candoa could not find the requested option in "${control.label}".`);
       element.focus();
       element.value = option.value;
       element.dispatchEvent(new Event("input", { bubbles: true }));
       element.dispatchEvent(new Event("change", { bubbles: true }));
-      return `Selected "${clean(option.label)}" in "${control.label}".`;
+      return executed(`Selected "${clean(option.label)}" in "${control.label}".`);
     }
     return activateChoice();
   }
   if (kind === "fill") {
     if (element instanceof HTMLInputElement && element.type === "password") {
-      return "Candoa does not enter credentials.";
+      return failed("Candoa does not enter credentials.");
     }
     if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) {
       element.focus();
@@ -139,7 +141,7 @@ return (() => {
         data: value
       }));
     }
-    return `Filled "${control.label}".`;
+    return executed(`Filled "${control.label}".`);
   }
-  return "Candoa rejected an unsupported referenced action.";
+  return failed("Candoa rejected an unsupported referenced action.");
 })();

@@ -210,23 +210,23 @@ extension BrowserStore {
         )
     }
 
-    func performAIPageAction(_ action: PageActionProposal, in tabID: UUID?) async -> String {
+    func performAIPageAction(_ action: PageActionProposal, in tabID: UUID?) async -> PageActionResult {
         guard let tabID, tabs.contains(where: { $0.id == tabID }) else {
-            return "That page is no longer open."
+            return .failed("That page is no longer open.")
         }
         if let expectedURL = action.browserAgentPageURL,
            tabs.first(where: { $0.id == tabID })?.url?.absoluteString != expectedURL {
-            return "Candoa stopped because the page changed after it was inspected."
+            return .failed("Candoa stopped because the page changed after it was inspected.")
         }
 
         if action.kind == .navigate {
             guard let url = navigationService.explicitDestinationURL(for: action.target) else {
-                return "I could not understand that destination."
+                return .failed("I could not understand that destination.")
             }
 
             setURL(url, title: title(for: url), for: tabID)
             webCoordinator.load(url, in: tabID)
-            return "Navigated to \(url.absoluteString)."
+            return .executed("Navigated to \(url.absoluteString).")
         }
 
         return await webCoordinator.performAIPageAction(action, for: tabID)

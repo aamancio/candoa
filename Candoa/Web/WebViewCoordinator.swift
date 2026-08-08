@@ -572,18 +572,20 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         }
     }
 
-    func performAIPageAction(_ action: PageActionProposal, for tabID: UUID) async -> String {
-        guard let webView = webViews[tabID] else { return "That page is not ready for an action." }
+    func performAIPageAction(_ action: PageActionProposal, for tabID: UUID) async -> PageActionResult {
+        guard let webView = webViews[tabID] else {
+            return .failed("That page is not ready for an action.")
+        }
         if let expectedURL = action.browserAgentPageURL,
            webView.url?.absoluteString != expectedURL {
-            return "Candoa stopped because the page changed after it was inspected."
+            return .failed("Candoa stopped because the page changed after it was inspected.")
         }
         do {
             return try await browserAgentDriver.performAction(action, in: webView)
         } catch BrowserAgentDriver.DriverError.actionNotGrounded {
-            return "Candoa stopped because this action was not grounded in the latest page inspection."
+            return .failed("Candoa stopped because this action was not grounded in the latest page inspection.")
         } catch {
-            return "Candoa could not complete that referenced action."
+            return .failed("Candoa could not complete that referenced action.")
         }
     }
 
