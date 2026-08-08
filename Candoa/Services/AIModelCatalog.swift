@@ -63,6 +63,27 @@ struct AIModel: Identifiable, Equatable, Sendable, Codable {
     let contextWindowTokens: Int
     let maxOutputTokens: Int
     let supportedEfforts: [AIReasoningEffort]
+    /// Candoa credits per hosted request, server-supplied; nil for BYOK
+    /// models, which never consume credits.
+    let creditCost: Int?
+
+    init(
+        id: String,
+        provider: AIProvider,
+        displayName: String,
+        contextWindowTokens: Int,
+        maxOutputTokens: Int,
+        supportedEfforts: [AIReasoningEffort],
+        creditCost: Int? = nil
+    ) {
+        self.id = id
+        self.provider = provider
+        self.displayName = displayName
+        self.contextWindowTokens = contextWindowTokens
+        self.maxOutputTokens = maxOutputTokens
+        self.supportedEfforts = supportedEfforts
+        self.creditCost = creditCost
+    }
 
     var bareModelID: String {
         guard let separator = id.firstIndex(of: "/") else { return id }
@@ -210,7 +231,8 @@ enum AIModelCatalog {
         displayName: String,
         contextWindowTokens: Int? = nil,
         maxOutputTokens: Int? = nil,
-        supportedEfforts: [AIReasoningEffort]? = nil
+        supportedEfforts: [AIReasoningEffort]? = nil,
+        creditCost: Int? = nil
     ) -> AIModel {
         let known = model(forID: id)
         return AIModel(
@@ -219,7 +241,8 @@ enum AIModelCatalog {
             displayName: displayName,
             contextWindowTokens: contextWindowTokens ?? known?.contextWindowTokens ?? 128_000,
             maxOutputTokens: maxOutputTokens ?? known?.maxOutputTokens ?? 16_000,
-            supportedEfforts: supportedEfforts ?? known?.supportedEfforts ?? [.low, .medium, .high]
+            supportedEfforts: supportedEfforts ?? known?.supportedEfforts ?? [.low, .medium, .high],
+            creditCost: creditCost
         )
     }
 }

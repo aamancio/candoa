@@ -1462,6 +1462,41 @@ final class CandoaUITests: XCTestCase {
         XCTAssertFalse(popUpButton(withValue: "OpenAI", in: app).exists)
     }
 
+    func testEliSettingsShowHostedModelCreditCosts() throws {
+        let hostedModels = """
+        [{"id":"openai/gpt-5.6-sol","provider":"openai","displayName":"GPT-5.6 Sol",\
+        "contextWindowTokens":1050000,"maxOutputTokens":128000,\
+        "supportedEfforts":["low","medium","high"],"creditCost":5},\
+        {"id":"openai/gpt-5.6-luna","provider":"openai","displayName":"GPT-5.6 Luna",\
+        "contextWindowTokens":1050000,"maxOutputTokens":128000,\
+        "supportedEfforts":["low","medium","high"],"creditCost":1}]
+        """
+        let app = launchApp(
+            extraLaunchArguments: [
+                // The pane's initial state reads the real defaults domain, so
+                // neutralize any hosted selection made on this Mac.
+                "-Candoa.Settings.ZenOption.AskConnection", "candoaCloud",
+                "-Candoa.Settings.ZenOption.AskHostedModel", "",
+            ],
+            extraLaunchEnvironment: ["CANDOA_UI_TESTING_HOSTED_MODELS": hostedModels]
+        )
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
+
+        openEliSettings(in: app)
+
+        // Each hosted option names its server-priced credit cost.
+        let picker = popUpButton(withValue: "Automatic", in: app)
+        XCTAssertTrue(picker.waitForExistence(timeout: 5))
+        picker.click()
+        XCTAssertTrue(app.menuItems["GPT-5.6 Sol (5 credits)"].waitForExistence(timeout: 5))
+        let lunaItem = app.menuItems["GPT-5.6 Luna (1 credit)"]
+        XCTAssertTrue(lunaItem.exists)
+        lunaItem.click()
+        XCTAssertTrue(
+            popUpButton(withValue: "GPT-5.6 Luna (1 credit)", in: app).waitForExistence(timeout: 5)
+        )
+    }
+
     func testEliSettingsScopeModelsByProviderAndClampReasoning() throws {
         let app = launchApp(extraLaunchArguments: [
             "-Candoa.Settings.ZenOption.AskConnection", "personalKey",
