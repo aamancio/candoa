@@ -112,17 +112,17 @@ internal enum SpaceDataMode: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .isolated:
-            return "Default"
+            return String(localized: "Default")
         case .shareCurrent:
-            return "Current"
+            return String(localized: "Current")
         case .personal:
-            return "Personal"
+            return String(localized: "Personal")
         case .work:
-            return "Work"
+            return String(localized: "Work")
         case .banking:
-            return "Banking"
+            return String(localized: "Banking")
         case .shopping:
-            return "Shopping"
+            return String(localized: "Shopping")
         }
     }
 

@@ -298,7 +298,7 @@ private struct DownloadsPopoverView: View {
             Divider()
                 .padding(.vertical, 5)
 
-            DownloadsPopoverRow(title: "Show all downloads", action: onShowAllDownloads)
+            DownloadsPopoverRow(title: String(localized: "Show all downloads"), action: onShowAllDownloads)
         }
         .padding(10)
         .frame(width: 300)

@@ -17,13 +17,13 @@ internal struct GeneralSettingsPane: View {
                 SettingsCard {
                     SettingsRow(
                         systemImage: "app.badge",
-                        title: "Default browser",
+                        title: String(localized: "Default browser"),
                         subtitle: defaultBrowserService.isDefaultBrowser
-                            ? "Candoa is the default browser in macOS."
-                            : "Set Candoa as the default browser in macOS."
+                            ? String(localized: "Candoa is the default browser in macOS.")
+                            : String(localized: "Set Candoa as the default browser in macOS.")
                     ) {
                         if defaultBrowserService.isDefaultBrowser {
-                            SettingsStatusPill(text: "Default")
+                            SettingsStatusPill(text: String(localized: "Default"))
                         } else {
                             Button("Set as Default…") {
                                 Task {
@@ -39,8 +39,8 @@ internal struct GeneralSettingsPane: View {
 
                     SettingsToggleRow(
                         systemImage: "checkmark.seal",
-                        title: "Always check if Candoa is your default browser",
-                        subtitle: "Show a default-browser reminder at startup.",
+                        title: String(localized: "Always check if Candoa is your default browser"),
+                        subtitle: String(localized: "Show a default-browser reminder at startup."),
                         isOn: $checkDefaultBrowser
                     )
                 }
@@ -48,8 +48,8 @@ internal struct GeneralSettingsPane: View {
                 SettingsCard {
                     SettingsToggleRow(
                         systemImage: "command",
-                        title: "Ask before quitting with Command-Q",
-                        subtitle: "Confirm before quitting the app from the keyboard.",
+                        title: String(localized: "Ask before quitting with Command-Q"),
+                        subtitle: String(localized: "Confirm before quitting the app from the keyboard."),
                         isOn: $askBeforeQuitting
                     )
                 }
@@ -57,13 +57,13 @@ internal struct GeneralSettingsPane: View {
                 SettingsCard {
                     SettingsPickerRow(
                         systemImage: "macwindow",
-                        title: "Website appearance",
-                        subtitle: "Choose which color scheme sites should use.",
+                        title: String(localized: "Website appearance"),
+                        subtitle: String(localized: "Choose which color scheme sites should use."),
                         selection: $websiteAppearance,
                         options: [
-                            SettingsPickerOption(id: "automatic", title: "Automatic"),
-                            SettingsPickerOption(id: "light", title: "Light"),
-                            SettingsPickerOption(id: "dark", title: "Dark")
+                            SettingsPickerOption(id: "automatic", title: String(localized: "Automatic")),
+                            SettingsPickerOption(id: "light", title: String(localized: "Light")),
+                            SettingsPickerOption(id: "dark", title: String(localized: "Dark"))
                         ]
                     )
 
@@ -71,8 +71,8 @@ internal struct GeneralSettingsPane: View {
 
                     SettingsPickerRow(
                         systemImage: "magnifyingglass",
-                        title: "Search engine",
-                        subtitle: "Used by the command bar and address field.",
+                        title: String(localized: "Search engine"),
+                        subtitle: String(localized: "Used by the command bar and address field."),
                         selection: $defaultSearchProvider,
                         options: NavigationService.defaultSearchProviders.map {
                             SettingsPickerOption(id: $0.id, title: defaultSearchEngineTitle(for: $0))
@@ -83,8 +83,8 @@ internal struct GeneralSettingsPane: View {
 
                     SettingsToggleRow(
                         systemImage: "lightbulb",
-                        title: "Include search suggestions",
-                        subtitle: "Show search completions in the command surface.",
+                        title: String(localized: "Include search suggestions"),
+                        subtitle: String(localized: "Show search completions in the command surface."),
                         isOn: $showSearchSuggestions
                     )
                 }
@@ -92,10 +92,10 @@ internal struct GeneralSettingsPane: View {
                 SettingsCard {
                     SettingsToggleRow(
                         systemImage: "square.grid.2x2",
-                        title: "Sync Spaces and tabs with iCloud",
+                        title: String(localized: "Sync Spaces and tabs with iCloud"),
                         subtitle: CloudKitEntitlements.hasConfiguredContainer
-                            ? "Keep them available on Macs using this Apple Account."
-                            : "This build is missing the CloudKit entitlement.",
+                            ? String(localized: "Keep them available on Macs using this Apple Account.")
+                            : String(localized: "This build is missing the CloudKit entitlement."),
                         isOn: workspaceSyncBinding
                     )
                     .disabled(!CloudKitEntitlements.hasConfiguredContainer)
@@ -104,8 +104,8 @@ internal struct GeneralSettingsPane: View {
 
                     SettingsToggleRow(
                         systemImage: "clock.arrow.circlepath",
-                        title: "Sync history",
-                        subtitle: "Requires Spaces sync.",
+                        title: String(localized: "Sync history"),
+                        subtitle: String(localized: "Requires Spaces sync."),
                         isOn: historySyncBinding
                     )
                     .disabled(!CloudKitEntitlements.hasConfiguredContainer || !syncsWorkspaceWithICloud)
@@ -179,8 +179,8 @@ internal struct SpacesSettingsPane: View {
                 SettingsCard {
                     SettingsToggleRow(
                         systemImage: "clock.badge.xmark",
-                        title: "Ignore pending tabs when cycling",
-                        subtitle: "Skip unloaded tabs with Ctrl-Tab.",
+                        title: String(localized: "Ignore pending tabs when cycling"),
+                        subtitle: String(localized: "Skip unloaded tabs with Ctrl-Tab."),
                         isOn: $ignorePendingTabsWhenCycling
                     )
 
@@ -188,8 +188,8 @@ internal struct SpacesSettingsPane: View {
 
                     SettingsToggleRow(
                         systemImage: "rectangle.3.group",
-                        title: "Cycle within the current scope",
-                        subtitle: "Keep Ctrl-Tab inside the current tab group.",
+                        title: String(localized: "Cycle within the current scope"),
+                        subtitle: String(localized: "Keep Ctrl-Tab inside the current tab group."),
                         isOn: $ctrlTabCyclesWithinScope
                     )
 
@@ -197,8 +197,8 @@ internal struct SpacesSettingsPane: View {
 
                     SettingsToggleRow(
                         systemImage: "arrow.left.arrow.right",
-                        title: "Select recently used tab on close",
-                        subtitle: "Return to the tab you used most recently.",
+                        title: String(localized: "Select recently used tab on close"),
+                        subtitle: String(localized: "Return to the tab you used most recently."),
                         isOn: $selectRecentlyUsedOnClose
                     )
                 }
@@ -206,16 +206,16 @@ internal struct SpacesSettingsPane: View {
                 SettingsCard {
                     SettingsPickerRow(
                         systemImage: "keyboard",
-                        title: "Pinned tab close shortcut",
-                        subtitle: "Choose what Command-W does on pinned tabs.",
+                        title: String(localized: "Pinned tab close shortcut"),
+                        subtitle: String(localized: "Choose what Command-W does on pinned tabs."),
                         selection: $pinnedCloseShortcutBehavior,
                         options: [
-                            SettingsPickerOption(id: "reset-unload-switch", title: "Reset, unload, switch"),
-                            SettingsPickerOption(id: "unload-switch", title: "Unload and switch"),
-                            SettingsPickerOption(id: "reset-switch", title: "Reset and switch"),
-                            SettingsPickerOption(id: "switch", title: "Switch"),
-                            SettingsPickerOption(id: "reset", title: "Reset"),
-                            SettingsPickerOption(id: "close", title: "Close")
+                            SettingsPickerOption(id: "reset-unload-switch", title: String(localized: "Reset, unload, switch")),
+                            SettingsPickerOption(id: "unload-switch", title: String(localized: "Unload and switch")),
+                            SettingsPickerOption(id: "reset-switch", title: String(localized: "Reset and switch")),
+                            SettingsPickerOption(id: "switch", title: String(localized: "Switch")),
+                            SettingsPickerOption(id: "reset", title: String(localized: "Reset")),
+                            SettingsPickerOption(id: "close", title: String(localized: "Close"))
                         ]
                     )
                 }
@@ -264,8 +264,8 @@ internal struct SearchSettingsPane: View {
                 SettingsCard {
                     SettingsPickerRow(
                         systemImage: "magnifyingglass",
-                        title: "Default Search Engine",
-                        subtitle: "Choose the search provider shown first in the command surface.",
+                        title: String(localized: "Default Search Engine"),
+                        subtitle: String(localized: "Choose the search provider shown first in the command surface."),
                         selection: $defaultSearchProvider,
                         options: defaultSearchProviders.map {
                             SettingsPickerOption(id: $0.id, title: defaultSearchEngineTitle(for: $0))
@@ -276,8 +276,8 @@ internal struct SearchSettingsPane: View {
 
                     SettingsToggleRow(
                         systemImage: "lightbulb",
-                        title: "Show search suggestions",
-                        subtitle: "Allow the command surface to suggest search completions.",
+                        title: String(localized: "Show search suggestions"),
+                        subtitle: String(localized: "Allow the command surface to suggest search completions."),
                         isOn: $showSearchSuggestions
                     )
                 }
@@ -328,8 +328,8 @@ internal struct PrivacySettingsPane: View {
                 SettingsCard {
                     SettingsToggleRow(
                         systemImage: "hand.raised",
-                        title: "Strict tracking protection",
-                        subtitle: "Block trackers and ads with WebKit content rules. Pages already open apply the change when they reload.",
+                        title: String(localized: "Strict tracking protection"),
+                        subtitle: String(localized: "Block trackers and ads with WebKit content rules. Pages already open apply the change when they reload."),
                         isOn: $strictTrackingProtection
                     )
 
@@ -337,8 +337,8 @@ internal struct PrivacySettingsPane: View {
 
                     SettingsRow(
                         systemImage: "trash",
-                        title: "Browsing data",
-                        subtitle: "Clear history, cookies, caches, and other website data across all Spaces. Private windows keep nothing to clear."
+                        title: String(localized: "Browsing data"),
+                        subtitle: String(localized: "Clear history, cookies, caches, and other website data across all Spaces. Private windows keep nothing to clear.")
                     ) {
                         Button("Clear Browsing Data…") {
                             ClearBrowsingDataPrompt.present(currentSpace: nil)
@@ -364,10 +364,10 @@ internal struct SyncSettingsPane: View {
                 SettingsCard {
                     SettingsToggleRow(
                         systemImage: "square.grid.2x2",
-                        title: "Workspace recovery",
+                        title: String(localized: "Workspace recovery"),
                         subtitle: CloudKitEntitlements.hasConfiguredContainer
-                            ? "Keep Spaces, tabs, pinned sites, and bookmarks available on your Macs."
-                            : "This build is missing the CloudKit entitlement.",
+                            ? String(localized: "Keep Spaces, tabs, pinned sites, and bookmarks available on your Macs.")
+                            : String(localized: "This build is missing the CloudKit entitlement."),
                         isOn: workspaceSyncBinding
                     )
                     .disabled(!CloudKitEntitlements.hasConfiguredContainer)
@@ -376,8 +376,8 @@ internal struct SyncSettingsPane: View {
 
                     SettingsToggleRow(
                         systemImage: "clock.arrow.circlepath",
-                        title: "History",
-                        subtitle: "History sync depends on workspace sync.",
+                        title: String(localized: "History"),
+                        subtitle: String(localized: "History sync depends on workspace sync."),
                         isOn: historySyncBinding
                     )
                     .disabled(!CloudKitEntitlements.hasConfiguredContainer || !syncsWorkspaceWithICloud)
@@ -386,8 +386,8 @@ internal struct SyncSettingsPane: View {
 
                     SettingsRow(
                         systemImage: "person.crop.circle",
-                        title: "Uses this Mac’s Apple Account",
-                        subtitle: "Candoa subscription sign-in does not control or delete your browser workspace."
+                        title: String(localized: "Uses this Mac’s Apple Account"),
+                        subtitle: String(localized: "Candoa subscription sign-in does not control or delete your browser workspace.")
                     ) {
                         EmptyView()
                     }
@@ -417,8 +417,8 @@ internal struct SyncSettingsPane: View {
                 syncsHistoryWithICloud = false
             }
             syncMessage = newValue
-                ? "Candoa will sync your workspace through the private iCloud database for this Apple Account after relaunch."
-                : "Candoa will keep Spaces and tabs local-only after relaunch."
+                ? String(localized: "Candoa will sync your workspace through the private iCloud database for this Apple Account after relaunch.")
+                : String(localized: "Candoa will keep Spaces and tabs local-only after relaunch.")
         }
     }
 
@@ -433,8 +433,8 @@ internal struct SyncSettingsPane: View {
             syncsHistoryWithICloud = newValue
             SyncPreferences.syncsHistoryWithICloud = newValue
             syncMessage = newValue
-                ? "Candoa will sync history through your private iCloud database after relaunch."
-                : "Candoa will keep history local-only after relaunch."
+                ? String(localized: "Candoa will sync history through your private iCloud database after relaunch.")
+                : String(localized: "Candoa will keep history local-only after relaunch.")
         }
     }
 }
@@ -448,8 +448,8 @@ internal struct AdvancedSettingsPane: View {
                 SettingsCard {
                     SettingsToggleRow(
                         systemImage: "ladybug",
-                        title: "Web Inspector",
-                        subtitle: "In Debug builds this is always available; Release builds read this preference.",
+                        title: String(localized: "Web Inspector"),
+                        subtitle: String(localized: "In Debug builds this is always available; Release builds read this preference."),
                         isOn: $isWebInspectorEnabled
                     )
 
@@ -457,20 +457,20 @@ internal struct AdvancedSettingsPane: View {
 
                     SettingsRow(
                         systemImage: "snowflake",
-                        title: "Tab Hibernation",
-                        subtitle: "Idle background tabs release their web view after \(Int(TabHibernationConfiguration.idleInterval / 60)) minutes."
+                        title: String(localized: "Tab Hibernation"),
+                        subtitle: String(localized: "Idle background tabs release their web view after \(Int(TabHibernationConfiguration.idleInterval / 60)) minutes.")
                     ) {
-                        SettingsStatusPill(text: "On")
+                        SettingsStatusPill(text: String(localized: "On"))
                     }
 
                     SettingsDivider()
 
                     SettingsRow(
                         systemImage: "arrow.triangle.2.circlepath",
-                        title: "Update Checks",
-                        subtitle: "Sparkle manages update checks using the app bundle configuration."
+                        title: String(localized: "Update Checks"),
+                        subtitle: String(localized: "Sparkle manages update checks using the app bundle configuration.")
                     ) {
-                        SettingsStatusPill(text: "Automatic")
+                        SettingsStatusPill(text: String(localized: "Automatic"))
                     }
                 }
             }

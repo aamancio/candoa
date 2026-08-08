@@ -1496,7 +1496,7 @@ private struct DeveloperSiteInfoPopover: View {
     }
 
     private var portText: String {
-        guard let port = url?.port else { return "Default" }
+        guard let port = url?.port else { return String(localized: "Default") }
         return String(port)
     }
 
@@ -1507,9 +1507,9 @@ private struct DeveloperSiteInfoPopover: View {
 
             Divider()
 
-            DeveloperSiteInfoRow(title: "Address", value: urlText)
-            DeveloperSiteInfoRow(title: "Scheme", value: schemeText)
-            DeveloperSiteInfoRow(title: "Port", value: portText)
+            DeveloperSiteInfoRow(title: String(localized: "Address"), value: urlText)
+            DeveloperSiteInfoRow(title: String(localized: "Scheme"), value: schemeText)
+            DeveloperSiteInfoRow(title: String(localized: "Port"), value: portText)
 
             Toggle("Developer Mode", isOn: Binding(
                 get: { true },

@@ -85,7 +85,7 @@ internal struct EliSettingsPane: View {
     }
 
     private var hostedModelOptions: [SettingsPickerOption] {
-        [SettingsPickerOption(id: "", title: "Automatic")]
+        [SettingsPickerOption(id: "", title: String(localized: "Automatic"))]
             + userStore.hostedModels.map {
                 SettingsPickerOption(id: $0.id, title: Self.hostedOptionTitle(for: $0))
             }
@@ -114,10 +114,10 @@ internal struct EliSettingsPane: View {
                 SettingsCard {
                     SettingsPickerRow(
                         systemImage: "point.3.connected.trianglepath.dotted",
-                        title: "Connection",
+                        title: String(localized: "Connection"),
                         subtitle: connection == .candoaCloud
-                            ? "Use your Candoa subscription with server-managed credentials."
-                            : "Send requests directly from this Mac to the selected provider.",
+                            ? String(localized: "Use your Candoa subscription with server-managed credentials.")
+                            : String(localized: "Send requests directly from this Mac to the selected provider."),
                         selection: connectionBinding,
                         options: connectionOptions
                     )
@@ -127,18 +127,18 @@ internal struct EliSettingsPane: View {
                     if connection == .candoaCloud {
                         SettingsPickerRow(
                             systemImage: "cpu",
-                            title: "Model",
+                            title: String(localized: "Model"),
                             subtitle: userStore.hostedModels.isEmpty
-                                ? "Automatic uses your plan's default model. Sign in to choose from your plan's models."
-                                : "Models available on your Candoa plan.",
+                                ? String(localized: "Automatic uses your plan's default model. Sign in to choose from your plan's models.")
+                                : String(localized: "Models available on your Candoa plan."),
                             selection: hostedModelBinding,
                             options: hostedModelOptions
                         )
                     } else {
                         SettingsPickerRow(
                             systemImage: "building.2",
-                            title: "Provider",
-                            subtitle: "Direct requests use this provider's API with your own credentials.",
+                            title: String(localized: "Provider"),
+                            subtitle: String(localized: "Direct requests use this provider's API with your own credentials."),
                             selection: providerBinding,
                             options: providerOptions
                         )
@@ -147,10 +147,10 @@ internal struct EliSettingsPane: View {
 
                         SettingsPickerRow(
                             systemImage: "cpu",
-                            title: "Model",
+                            title: String(localized: "Model"),
                             subtitle: dynamicDirectModels[selectedProvider] != nil
-                                ? "Current \(selectedProvider.displayName) models available to your key."
-                                : "Curated current models for \(selectedProvider.displayName).",
+                                ? String(localized: "Current \(selectedProvider.displayName) models available to your key.")
+                                : String(localized: "Curated current models for \(selectedProvider.displayName)."),
                             selection: directModelBinding,
                             options: directModelOptions
                         )
@@ -160,8 +160,8 @@ internal struct EliSettingsPane: View {
 
                     SettingsPickerRow(
                         systemImage: "brain",
-                        title: "Reasoning",
-                        subtitle: "How much the model thinks before answering. Low is fastest.",
+                        title: String(localized: "Reasoning"),
+                        subtitle: String(localized: "How much the model thinks before answering. Low is fastest."),
                         selection: reasoningBinding,
                         options: reasoningOptions
                     )
@@ -198,9 +198,9 @@ internal struct EliSettingsPane: View {
                 SettingsRow(
                     systemImage: "lock",
                     title: savedKeyProviders.contains(selectedProvider)
-                        ? "Replace your \(selectedProvider.displayName) key"
-                        : "Save a \(selectedProvider.displayName) API key",
-                    subtitle: "Candoa stores one key per provider in this Mac's Keychain. Keys are never sent to Candoa."
+                        ? String(localized: "Replace your \(selectedProvider.displayName) key")
+                        : String(localized: "Save a \(selectedProvider.displayName) API key"),
+                    subtitle: String(localized: "Candoa stores one key per provider in this Mac's Keychain. Keys are never sent to Candoa.")
                 ) {
                     HStack(spacing: 8) {
                         SecureField(selectedProvider.keyPlaceholder, text: $apiKey)
@@ -222,8 +222,8 @@ internal struct EliSettingsPane: View {
 
                     SettingsRow(
                         systemImage: "checkmark.shield",
-                        title: "\(selectedProvider.displayName) key saved",
-                        subtitle: "Eli sends direct requests with this key while \(selectedProvider.displayName) is selected."
+                        title: String(localized: "\(selectedProvider.displayName) key saved"),
+                        subtitle: String(localized: "Eli sends direct requests with this key while \(selectedProvider.displayName) is selected.")
                     ) {
                         Button("Remove", role: .destructive, action: removeAPIKey)
                             .buttonTreatment(.secondary)
@@ -234,8 +234,8 @@ internal struct EliSettingsPane: View {
 
                     SettingsRow(
                         systemImage: "exclamationmark.triangle",
-                        title: "No \(selectedProvider.displayName) key on this Mac",
-                        subtitle: "Eli can't use the direct \(selectedProvider.displayName) connection until you save a key."
+                        title: String(localized: "No \(selectedProvider.displayName) key on this Mac"),
+                        subtitle: String(localized: "Eli can't use the direct \(selectedProvider.displayName) connection until you save a key.")
                     ) {
                         EmptyView()
                     }
@@ -266,9 +266,9 @@ internal struct EliSettingsPane: View {
                         ? "checkmark.shield"
                         : "exclamationmark.triangle",
                     title: EliPreferences.environmentAPIKey(for: selectedProvider) != nil
-                        ? "\(selectedProvider.environmentVariable) is set"
-                        : "\(selectedProvider.environmentVariable) is not set",
-                    subtitle: "Debug builds only: reads the provider key from this process's environment."
+                        ? String(localized: "\(selectedProvider.environmentVariable) is set")
+                        : String(localized: "\(selectedProvider.environmentVariable) is not set"),
+                    subtitle: String(localized: "Debug builds only: reads the provider key from this process's environment.")
                 ) {
                     EmptyView()
                 }
@@ -288,10 +288,10 @@ internal struct EliSettingsPane: View {
                         : "person.crop.circle",
                     title: userStore.hasActiveSubscription
                         ? "Candoa \(userStore.status?.planID.capitalized ?? "")"
-                        : "No active Candoa subscription",
+                        : String(localized: "No active Candoa subscription"),
                     subtitle: userStore.hasActiveSubscription
-                        ? "Manage payment details, invoices, or your plan in Stripe."
-                        : "Open Eli to subscribe to Candoa Pro."
+                        ? String(localized: "Manage payment details, invoices, or your plan in Stripe.")
+                        : String(localized: "Open Eli to subscribe to Candoa Pro.")
                 ) {
                     if userStore.hasActiveSubscription {
                         Button("Manage", action: openBillingPortal)
@@ -316,7 +316,7 @@ internal struct EliSettingsPane: View {
 
                     SettingsRow(
                         systemImage: "arrow.clockwise",
-                        title: "Refresh subscription details",
+                        title: String(localized: "Refresh subscription details"),
                         subtitle: lastUpdatedDescription
                     ) {
                         Button("Refresh") {
@@ -338,17 +338,17 @@ internal struct EliSettingsPane: View {
                         ? "checkmark.circle.fill"
                         : "apple.logo",
                     title: userStore.status?.hasAppleAccount == true
-                        ? "Signed in with Apple"
-                        : "Restore your Candoa account",
+                        ? String(localized: "Signed in with Apple")
+                        : String(localized: "Restore your Candoa account"),
                     subtitle: userStore.status?.hasAppleAccount == true
-                        ? "Subscriptions and hosted services follow your Apple-linked Candoa account."
-                        : "Sign in with Apple to use your subscription on this or another Mac."
+                        ? String(localized: "Subscriptions and hosted services follow your Apple-linked Candoa account.")
+                        : String(localized: "Sign in with Apple to use your subscription on this or another Mac.")
                 ) {
                     if userStore.status?.hasAppleAccount != true {
                         Button(
                             userStore.isSigningInWithApple
-                                ? "Signing In…"
-                                : "Sign In with Apple"
+                                ? String(localized: "Signing In…")
+                                : String(localized: "Sign In with Apple")
                         ) {
                             userStore.signInWithApple()
                         }
@@ -445,7 +445,7 @@ internal struct EliSettingsPane: View {
         let explanation = String(localized: "Usage is measured in provider-neutral Candoa credits, not raw tokens.")
         return credits.isExhausted
             ? String(localized: "You’ve used all of this period’s credits. \(reset) \(explanation)")
-            : "\(reset) \(explanation)"
+            : String(localized: "\(reset) \(explanation)")
     }
 
     private func billingRow(_ subscription: AccountSubscription) -> some View {

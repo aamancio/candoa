@@ -252,7 +252,7 @@ internal struct FavoriteDropZone: View {
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(InterfaceStyle.sidebarTextSecondary)
                 .multilineTextAlignment(.center)
-                .lineLimit(2)
+                .lineLimit(3)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity)
