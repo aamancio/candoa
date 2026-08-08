@@ -144,7 +144,7 @@ extension CommandPaletteView {
             )
         } else {
             navigateCommand = PaletteCommand(
-                title: "Search or Go to \"\(trimmedQuery)\"",
+                title: String(localized: "Search or Go to \"\(trimmedQuery)\""),
                 detail: store.commandPaletteOpensNewTab ? "Open in new tab" : "Open in current tab",
                 symbolName: "globe",
                 searchText: trimmedQuery,
@@ -378,7 +378,7 @@ extension CommandPaletteView {
     internal var spaceCommands: [PaletteCommand] {
         store.spaces.map {
             PaletteCommand(
-                title: "Switch Space",
+                title: String(localized: "Switch Space"),
                 detail: $0.name,
                 symbolName: $0.symbolName,
                 searchText: $0.name,
@@ -399,7 +399,7 @@ extension CommandPaletteView {
         if let selectedSearchProvider, !trimmedQuery.isEmpty {
             run(
                 PaletteCommand(
-                    title: "Search \(selectedSearchProvider.name)",
+                    title: String(localized: "Search \(selectedSearchProvider.name)"),
                     symbolName: selectedSearchProvider.symbolName,
                     action: .searchProvider(selectedSearchProvider, trimmedQuery)
                 )

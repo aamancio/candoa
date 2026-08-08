@@ -128,15 +128,15 @@ internal enum SettingsTab: Hashable {
 
     var title: String {
         switch self {
-        case .general: return "General"
-        case .spaces: return "Spaces"
-        case .search: return "Search"
-        case .privacy: return "Privacy"
-        case .sync: return "Sync"
+        case .general: return String(localized: "General")
+        case .spaces: return String(localized: "Spaces")
+        case .search: return String(localized: "Search")
+        case .privacy: return String(localized: "Privacy")
+        case .sync: return String(localized: "Sync")
         case .ask: return "Eli"
-        case .shortcuts: return "Shortcuts"
-        case .icon: return "Icon"
-        case .advanced: return "Advanced"
+        case .shortcuts: return String(localized: "Shortcuts")
+        case .icon: return String(localized: "Icon")
+        case .advanced: return String(localized: "Advanced")
         }
     }
 

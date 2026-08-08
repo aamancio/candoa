@@ -55,7 +55,7 @@ extension BrowserStore {
     }
 
     func copyURL(_ url: URL) {
-        copyURL(url.absoluteString, url: url, title: "Copied address")
+        copyURL(url.absoluteString, url: url, title: String(localized: "Copied address"))
     }
 
     private func copyURL(_ value: String, url: URL, title: String) {
@@ -86,7 +86,7 @@ extension BrowserStore {
 
             do {
                 try pngData.write(to: fileURL, options: .atomic)
-                presentCopiedURLToast(title: "Captured Page", url: fileURL)
+                presentCopiedURLToast(title: String(localized: "Captured Page"), url: fileURL)
             } catch {
                 NSSound.beep()
             }

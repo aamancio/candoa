@@ -559,8 +559,8 @@ private struct ImportOnboardingStep: View {
             VStack(alignment: .leading, spacing: 18) {
                 OnboardingPageHeader(
                     symbolName: "arrow.down.doc",
-                    title: "Start with what matters",
-                    detail: "Bring your bookmarks from Safari, Chrome, Arc, or Firefox so your essential sites are ready on day one."
+                    title: String(localized: "Start with what matters"),
+                    detail: String(localized: "Bring your bookmarks from Safari, Chrome, Arc, or Firefox so your essential sites are ready on day one.")
                 )
 
                 VStack(alignment: .leading, spacing: 8) {
@@ -726,8 +726,8 @@ private struct SpaceOnboardingStep: View {
             VStack(alignment: .leading, spacing: 18) {
                 OnboardingPageHeader(
                     symbolName: "square.stack.3d.up",
-                    title: "Give everything its place",
-                    detail: "Keep work, personal browsing, and projects separate so you can switch context without losing your place."
+                    title: String(localized: "Give everything its place"),
+                    detail: String(localized: "Keep work, personal browsing, and projects separate so you can switch context without losing your place.")
                 )
 
                 Spacer(minLength: 28)
@@ -760,20 +760,20 @@ private struct OnboardingSpacePreview: View {
 
     private let spaces = [
         ExampleSpace(
-            name: "Personal",
-            detail: "Everyday browsing",
+            name: String(localized: "Personal"),
+            detail: String(localized: "Everyday browsing"),
             symbolName: "person.crop.circle",
             isActive: true
         ),
         ExampleSpace(
-            name: "Work",
-            detail: "Projects and planning",
+            name: String(localized: "Work"),
+            detail: String(localized: "Projects and planning"),
             symbolName: "briefcase",
             isActive: false
         ),
         ExampleSpace(
-            name: "Research",
-            detail: "Ideas worth returning to",
+            name: String(localized: "Research"),
+            detail: String(localized: "Ideas worth returning to"),
             symbolName: "book.closed",
             isActive: false
         )

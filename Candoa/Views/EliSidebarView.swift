@@ -364,7 +364,7 @@ struct EliSidebarView: View {
 
             VStack(spacing: 6) {
                 AISidebarExamplePromptButton(
-                    title: "Summarize this page",
+                    title: String(localized: "Summarize this page"),
                     symbolName: "text.alignleft"
                 ) {
                     submitPrompt("Summarize this page")
@@ -372,7 +372,7 @@ struct EliSidebarView: View {
                 .accessibilityIdentifier("agent-example-summarize")
 
                 AISidebarExamplePromptButton(
-                    title: "Explain the key points",
+                    title: String(localized: "Explain the key points"),
                     symbolName: "list.bullet"
                 ) {
                     submitPrompt("Explain the key points")
@@ -380,7 +380,7 @@ struct EliSidebarView: View {
                 .accessibilityIdentifier("agent-example-explain")
 
                 AISidebarExamplePromptButton(
-                    title: "Compare with another tab",
+                    title: String(localized: "Compare with another tab"),
                     symbolName: "square.on.square"
                 ) {
                     beginComparisonPrompt()
@@ -1289,7 +1289,7 @@ struct EliSidebarView: View {
             return AISidebarContextChip(
                 id: "file-\(fileContext.id.uuidString)",
                 title: fileContext.name,
-                subtitle: "Uploaded file",
+                subtitle: String(localized: "Uploaded file"),
                 symbolName: fileContext.previewImageData == nil ? "doc.text" : "photo",
                 faviconData: nil,
                 previewImageData: fileContext.previewImageData,
@@ -1355,7 +1355,7 @@ struct EliSidebarView: View {
             .first
 
         guard let pastedImage else { return }
-        addImageAttachment(pastedImage, name: "Pasted Image")
+        addImageAttachment(pastedImage, name: String(localized: "Pasted Image"))
     }
 
     private var canPasteImage: Bool {
