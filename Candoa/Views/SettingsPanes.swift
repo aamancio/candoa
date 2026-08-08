@@ -245,16 +245,6 @@ internal struct IconSettingsPane: View {
                     .padding(18)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
-
-                SettingsCard {
-                    SettingsRow(
-                        systemImage: "paintbrush",
-                        title: "Website appearance",
-                        subtitle: "Website theme controls are in General."
-                    ) {
-                        SettingsStatusPill(text: "General")
-                    }
-                }
             }
         }
     }
