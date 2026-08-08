@@ -1888,25 +1888,53 @@ final class CandoaUITests: XCTestCase {
         // While Control stays held, each Tab press only moves the switcher
         // selection through the frozen recency order (three, two, one) —
         // the page itself must stay on "three" until Control is released.
-        XCUIElement.perform(withKeyModifiers: .control) {
-            app.typeKey(.tab, modifierFlags: [])
-            XCTAssertTrue(
-                waitForState(in: app, containing: "switcher=true:two"),
-                currentState(in: app)
-            )
-            XCTAssertTrue(currentState(in: app).contains("active=three"), currentState(in: app))
+        // XCTest's typeKey releases its modifiers after every key, which
+        // would end the interaction, so the hold is synthesized with raw
+        // CGEvents from the runner instead.
+        app.activate()
+        postSyntheticControl(isDown: true)
+        defer { postSyntheticControl(isDown: false) }
 
-            app.typeKey(.tab, modifierFlags: [])
-            XCTAssertTrue(
-                waitForState(in: app, containing: "switcher=true:one"),
-                currentState(in: app)
-            )
-            XCTAssertTrue(currentState(in: app).contains("active=three"), currentState(in: app))
-        }
+        postSyntheticControlTab()
+        XCTAssertTrue(
+            waitForState(in: app, containing: "switcher=true:two"),
+            currentState(in: app)
+        )
+        XCTAssertTrue(currentState(in: app).contains("active=three"), currentState(in: app))
+
+        postSyntheticControlTab()
+        XCTAssertTrue(
+            waitForState(in: app, containing: "switcher=true:one"),
+            currentState(in: app)
+        )
+        XCTAssertTrue(currentState(in: app).contains("active=three"), currentState(in: app))
 
         // Releasing Control commits the highlighted tab and drops the overlay.
+        postSyntheticControl(isDown: false)
         XCTAssertTrue(waitForState(in: app, containing: "active=one"), currentState(in: app))
         XCTAssertTrue(waitForState(in: app, containing: "switcher=false"), currentState(in: app))
+    }
+
+    /// Presses or releases the left Control key system-wide. XCUIElement's
+    /// perform(withKeyModifiers:) cannot express "keep holding across
+    /// several keys and assertions", so the switcher-hold tests post the
+    /// modifier transitions themselves.
+    private func postSyntheticControl(isDown: Bool) {
+        let source = CGEventSource(stateID: .hidSystemState)
+        let event = CGEvent(keyboardEventSource: source, virtualKey: 0x3B, keyDown: isDown)
+        event?.flags = isDown ? .maskControl : []
+        event?.post(tap: .cghidEventTap)
+    }
+
+    /// Taps the Tab key with the Control flag set, without touching the
+    /// modifier's own key state — pair with postSyntheticControl.
+    private func postSyntheticControlTab() {
+        let source = CGEventSource(stateID: .hidSystemState)
+        for isDown in [true, false] {
+            let event = CGEvent(keyboardEventSource: source, virtualKey: 0x30, keyDown: isDown)
+            event?.flags = .maskControl
+            event?.post(tap: .cghidEventTap)
+        }
     }
 
     func testCommandPaletteDoesNotSwitchToMatchingTabInAnotherSpace() throws {
