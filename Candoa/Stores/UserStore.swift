@@ -187,7 +187,7 @@ final class UserStore: ObservableObject {
             isSignedIn = false
             hasCloudSession = true
             isLocalOnly = false
-            errorMessage = "Could not connect to the local Candoa Cloud."
+            errorMessage = String(localized: "Could not connect to the local Candoa Cloud.")
             return
         }
 
@@ -290,7 +290,7 @@ final class UserStore: ObservableObject {
             isWorking = true
             await Task.yield()
             isWorking = false
-            subscriptionErrorMessage = "Candoa checkout is temporarily unavailable."
+            subscriptionErrorMessage = String(localized: "Candoa checkout is temporarily unavailable.")
             return
         }
         if Self.uiTestingFlag("CANDOA_UI_TESTING_CHECKOUT_SUCCESS") {
@@ -309,7 +309,7 @@ final class UserStore: ObservableObject {
             isLocalOnly = false
             isAwaitingSubscriptionActivation = false
             isReconcilingSubscription = false
-            accountMessage = "Your Candoa subscription is active."
+            accountMessage = String(localized: "Your Candoa subscription is active.")
             return
         }
 
@@ -318,24 +318,24 @@ final class UserStore: ObservableObject {
         }
         guard isSignedIn, status?.hasAppleAccount == true else {
             subscriptionErrorMessage = errorMessage
-                ?? "Sign in with Apple before subscribing."
+                ?? String(localized: "Sign in with Apple before subscribing.")
             return
         }
 
         await refresh()
         guard isSignedIn, status?.hasAppleAccount == true else {
             subscriptionErrorMessage = errorMessage
-                ?? "Candoa couldn’t verify your account before checkout."
+                ?? String(localized: "Candoa couldn’t verify your account before checkout.")
             return
         }
         if hasActiveSubscription {
             isAwaitingSubscriptionActivation = false
-            accountMessage = "Your Candoa subscription is active."
+            accountMessage = String(localized: "Your Candoa subscription is active.")
             return
         }
 
         let didOpenCheckout = await openBillingURL(
-            failureMessage: "Candoa couldn’t open checkout. Please try again."
+            failureMessage: String(localized: "Candoa couldn’t open checkout. Please try again.")
         ) { accessToken in
             try await accountService.proCheckoutURL(accessToken: accessToken)
         }
@@ -351,7 +351,7 @@ final class UserStore: ObservableObject {
         if hasActiveSubscription {
             isAwaitingSubscriptionActivation = false
             subscriptionErrorMessage = nil
-            accountMessage = "Your Candoa subscription is active."
+            accountMessage = String(localized: "Your Candoa subscription is active.")
         }
     }
 
@@ -381,7 +381,7 @@ final class UserStore: ObservableObject {
             await refresh()
             if hasActiveSubscription {
                 isAwaitingSubscriptionActivation = false
-                accountMessage = "Your Candoa subscription is active."
+                accountMessage = String(localized: "Your Candoa subscription is active.")
             } else {
                 isAwaitingSubscriptionActivation = false
             }
@@ -411,13 +411,13 @@ final class UserStore: ObservableObject {
             if hasActiveSubscription {
                 isAwaitingSubscriptionActivation = false
                 subscriptionErrorMessage = nil
-                accountMessage = "Your Candoa subscription is active."
+                accountMessage = String(localized: "Your Candoa subscription is active.")
                 return
             }
         }
 
         subscriptionErrorMessage =
-            "Candoa is still confirming your subscription. Try again in a moment."
+            String(localized: "Candoa is still confirming your subscription. Try again in a moment.")
     }
 
     func signOut() {
@@ -456,7 +456,7 @@ final class UserStore: ObservableObject {
         _ operation: (String) async throws -> URL
     ) async -> Bool {
         guard hasCloudSession, let accessToken = accountService.accessToken else {
-            errorMessage = "Candoa couldn’t find your account on this Mac."
+            errorMessage = String(localized: "Candoa couldn’t find your account on this Mac.")
             subscriptionErrorMessage = failureMessage ?? errorMessage
             return false
         }
@@ -547,7 +547,7 @@ final class UserStore: ObservableObject {
             statusLastUpdated = Date()
             markAccountChoiceCompleted()
             errorMessage = nil
-            accountMessage = "You’re signed in with Apple."
+            accountMessage = String(localized: "You’re signed in with Apple.")
             return
         }
 
@@ -599,8 +599,8 @@ final class UserStore: ObservableObject {
             markAccountChoiceCompleted()
             errorMessage = nil
             accountMessage = hasActiveSubscription
-                ? "Your Candoa subscription has been restored."
-                : "You’re signed in with Apple."
+                ? String(localized: "Your Candoa subscription has been restored.")
+                : String(localized: "You’re signed in with Apple.")
         } catch {
             if Self.isAppleSignInCancellation(error) {
                 errorMessage = nil

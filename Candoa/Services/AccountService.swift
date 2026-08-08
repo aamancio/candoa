@@ -516,7 +516,7 @@ enum CloudAPI {
         guard (200...299).contains(httpResponse.statusCode) else {
             let error = try? JSONDecoder().decode(CloudErrorResponse.self, from: data)
             let message = error?.error ?? error?.message
-                ?? "Candoa could not complete that request."
+                ?? String(localized: "Candoa could not complete that request.")
             if httpResponse.statusCode == 401 {
                 throw AccountError.unauthorized(message)
             }
@@ -626,13 +626,13 @@ enum AccountError: LocalizedError, Sendable {
     var errorDescription: String? {
         switch self {
         case .appleAccountAlreadyLinked:
-            return "This Apple account is already connected to another Candoa account."
+            return String(localized: "This Apple account is already connected to another Candoa account.")
         case .invalidResponse:
-            return "Candoa returned an invalid response."
+            return String(localized: "Candoa returned an invalid response.")
         case .keychainUnavailable:
-            return "Candoa could not save your session in Keychain."
+            return String(localized: "Candoa could not save your session in Keychain.")
         case .sessionExpired:
-            return "Your Candoa session has expired."
+            return String(localized: "Your Candoa session has expired.")
         case .unauthorized(let message), .server(let message):
             return message
         }

@@ -440,11 +440,11 @@ internal struct EliSettingsPane: View {
 
     private func creditsSubtitle(_ credits: AccountCredits) -> String {
         let reset = credits.periodEnd.map {
-            "They reset on \($0.formatted(date: .abbreviated, time: .omitted))."
-        } ?? "The reset date isn’t available yet."
-        let explanation = "Usage is measured in provider-neutral Candoa credits, not raw tokens."
+            String(localized: "They reset on \($0.formatted(date: .abbreviated, time: .omitted)).")
+        } ?? String(localized: "The reset date isn’t available yet.")
+        let explanation = String(localized: "Usage is measured in provider-neutral Candoa credits, not raw tokens.")
         return credits.isExhausted
-            ? "You’ve used all of this period’s credits. \(reset) \(explanation)"
+            ? String(localized: "You’ve used all of this period’s credits. \(reset) \(explanation)")
             : "\(reset) \(explanation)"
     }
 
@@ -471,48 +471,48 @@ internal struct EliSettingsPane: View {
         case "trialing":
             return (
                 "clock",
-                periodEnd.map { "Trial ends \($0)" } ?? "Trial in progress",
-                "Your paid subscription starts when the trial ends. The exact charge appears in the billing portal."
+                periodEnd.map { String(localized: "Trial ends \($0)") } ?? String(localized: "Trial in progress"),
+                String(localized: "Your paid subscription starts when the trial ends. The exact charge appears in the billing portal.")
             )
         case "active" where subscription.cancelAtPeriodEnd:
             return (
                 "calendar.badge.minus",
-                periodEnd.map { "Subscription ends \($0)" } ?? "Subscription is scheduled to end",
-                "Your plan stays active until then, and credits won’t renew afterward. Use Manage to resume it."
+                periodEnd.map { String(localized: "Subscription ends \($0)") } ?? String(localized: "Subscription is scheduled to end"),
+                String(localized: "Your plan stays active until then, and credits won’t renew afterward. Use Manage to resume it.")
             )
         case "active":
             return (
                 "calendar",
-                periodEnd.map { "Next billing date: \($0)" } ?? "Next billing date isn’t available yet",
-                "The exact charge amount appears in the billing portal via Manage."
+                periodEnd.map { String(localized: "Next billing date: \($0)") } ?? String(localized: "Next billing date isn’t available yet"),
+                String(localized: "The exact charge amount appears in the billing portal via Manage.")
             )
         case "past_due", "unpaid":
             return (
                 "exclamationmark.triangle",
-                "Payment is past due",
-                "Update your payment method in the billing portal to keep your plan and credits."
+                String(localized: "Payment is past due"),
+                String(localized: "Update your payment method in the billing portal to keep your plan and credits.")
             )
         case "canceled", "incomplete_expired":
             return (
                 "calendar.badge.minus",
-                periodEnd.map { "Subscription ended \($0)" } ?? "Subscription ended",
-                "Open Eli to subscribe again and restore hosted models."
+                periodEnd.map { String(localized: "Subscription ended \($0)") } ?? String(localized: "Subscription ended"),
+                String(localized: "Open Eli to subscribe again and restore hosted models.")
             )
         default:
             return (
                 "calendar",
-                "Subscription status: \(subscription.status.replacingOccurrences(of: "_", with: " "))",
-                "Check the billing portal via Manage for details."
+                String(localized: "Subscription status: \(subscription.status.replacingOccurrences(of: "_", with: " "))"),
+                String(localized: "Check the billing portal via Manage for details.")
             )
         }
     }
 
     private var lastUpdatedDescription: String {
         guard let updated = userStore.statusLastUpdated else {
-            return "Waiting for the first update from Candoa Cloud."
+            return String(localized: "Waiting for the first update from Candoa Cloud.")
         }
         let relative = updated.formatted(.relative(presentation: .named))
-        return "Updated \(relative)."
+        return String(localized: "Updated \(relative).")
     }
 
     private var connectionBinding: Binding<String> {

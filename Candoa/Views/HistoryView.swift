@@ -215,7 +215,7 @@ struct HistoryView: View {
     private func addressCell(for node: HistoryTableNode) -> some View {
         switch node.content {
         case .day(_, _, let count):
-            Text(count == 1 ? "1 item" : "\(count) items")
+            Text("\(count) items")
                 .font(.system(size: 13))
         case .visit(let visit):
             Text(visit.url.absoluteString)
@@ -245,7 +245,7 @@ struct HistoryView: View {
             Divider()
         }
 
-        Button(visits.count == 1 ? "Delete" : "Delete \(visits.count) Items", role: .destructive) {
+        Button("Delete \(visits.count) Items", role: .destructive) {
             store.selection = Set(visits.map(\.id))
             store.deleteSelection()
         }

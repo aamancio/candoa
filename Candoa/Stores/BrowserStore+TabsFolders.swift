@@ -465,7 +465,7 @@ extension BrowserStore {
     }
 
     @discardableResult
-    func createFolder(named name: String = "New Folder", parentFolderID: UUID? = nil) -> BrowserFolder {
+    func createFolder(named name: String = String(localized: "New Folder"), parentFolderID: UUID? = nil) -> BrowserFolder {
         let resolvedParentID = parentFolderID.flatMap { parentID in
             folders.contains { $0.id == parentID && $0.spaceID == activeSpaceID } ? parentID : nil
         }

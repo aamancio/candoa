@@ -179,7 +179,7 @@ final class AppleSignInService: NSObject {
         } else {
             let message = values["error"]
                 .map(Self.readableError)
-                ?? "Candoa could not complete Sign in with Apple."
+                ?? String(localized: "Candoa could not complete Sign in with Apple.")
             finish(with: .failure(AccountError.server(message)))
         }
     }
@@ -323,11 +323,11 @@ final class AppleSignInService: NSObject {
     private static func readableError(_ value: String) -> String {
         switch value {
         case "access_denied":
-            return "Sign in with Apple was canceled."
+            return String(localized: "Sign in with Apple was canceled.")
         case "apple_account_not_linked":
-            return "Apple could not be connected to this Candoa account."
+            return String(localized: "Apple could not be connected to this Candoa account.")
         default:
-            return "Candoa could not complete Sign in with Apple."
+            return String(localized: "Candoa could not complete Sign in with Apple.")
         }
     }
 }

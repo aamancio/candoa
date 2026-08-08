@@ -12,9 +12,9 @@ enum DockIconPreference: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .system: return "Follow System"
-        case .light: return "Light"
-        case .dark: return "Dark"
+        case .system: return String(localized: "Follow System")
+        case .light: return String(localized: "Light")
+        case .dark: return String(localized: "Dark")
         }
     }
 

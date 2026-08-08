@@ -37,7 +37,7 @@ struct EliSidebarView: View {
 
     private var activePageTitle: String {
         let title = store.activeTab?.title.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        return title.isEmpty ? "Current Page" : title
+        return title.isEmpty ? String(localized: "Current Page") : title
     }
 
     private var activePageSubtitle: String {
@@ -102,7 +102,7 @@ struct EliSidebarView: View {
                 return AISidebarMentionOption(
                     id: "history-\(visit.id.uuidString)",
                     title: title.isEmpty ? host : title,
-                    detail: "\(host) - History",
+                    detail: String(localized: "\(host) - History"),
                     symbolName: FaviconService.shared.placeholderSymbol(for: visit.url),
                     faviconData: nil,
                     action: .mention(
@@ -123,8 +123,8 @@ struct EliSidebarView: View {
         return [
             AISidebarMentionOption(
                 id: "upload-file",
-                title: "Upload file from computer",
-                detail: "Text files",
+                title: String(localized: "Upload file from computer"),
+                detail: String(localized: "Text files"),
                 symbolName: "doc.badge.plus",
                 faviconData: nil,
                 action: .uploadFile
@@ -825,7 +825,7 @@ struct EliSidebarView: View {
         browserAgentTask = Task {
             do {
                 guard let page = await store.browserAgentPage(for: state.tabID) else {
-                    finishBrowserAgent(state, message: "That browser tab is no longer available.")
+                    finishBrowserAgent(state, message: String(localized: "That browser tab is no longer available."))
                     return
                 }
                 let response = try await store.startBrowserAgentRun(
@@ -850,7 +850,7 @@ struct EliSidebarView: View {
     ) async throws {
         try Task.checkCancellation()
         guard store.activeTabID == state.tabID else {
-            finishBrowserAgent(state, message: "I stopped because you switched to another tab.")
+            finishBrowserAgent(state, message: String(localized: "I stopped because you switched to another tab."))
             return
         }
 
@@ -867,7 +867,7 @@ struct EliSidebarView: View {
         case .action:
             guard let pendingAction = response.action,
                   let action = pendingAction.validatedAction(on: page) else {
-                updateBrowserAgentStatus(state, text: "Refreshing the page controls…")
+                updateBrowserAgentStatus(state, text: String(localized: "Refreshing the page controls…"))
                 let outcome = BrowserAgentActionOutcome(
                     status: .failed,
                     result: "Candoa rejected the action because its page reference was stale or unverified.",
@@ -903,10 +903,10 @@ struct EliSidebarView: View {
         state: BrowserAgentRunState
     ) async throws {
         let result = await store.performAIPageAction(action, in: state.tabID)
-        updateBrowserAgentStatus(state, text: "Checking the result…")
+        updateBrowserAgentStatus(state, text: String(localized: "Checking the result…"))
         await store.waitForBrowserAgentPageSettled(in: state.tabID, previousURL: previousURL)
         guard let page = await store.browserAgentPage(for: state.tabID) else {
-            finishBrowserAgent(state, message: "That browser tab is no longer available.")
+            finishBrowserAgent(state, message: String(localized: "That browser tab is no longer available."))
             return
         }
         let normalizedResult = result.folding(
@@ -962,7 +962,7 @@ struct EliSidebarView: View {
                 )
                 finishBrowserAgent(pending.state, message: response.message)
             } catch {
-                finishBrowserAgent(pending.state, message: "I stopped before making that change.")
+                finishBrowserAgent(pending.state, message: String(localized: "I stopped before making that change."))
             }
         }
     }
@@ -991,18 +991,18 @@ struct EliSidebarView: View {
 
         switch action.kind {
         case .navigate:
-            return "Opening \(action.label)…"
+            return String(localized: "Opening \(action.label)…")
         case .click:
-            return "Using \(action.label)…"
+            return String(localized: "Using \(action.label)…")
         case .select:
             let choice = action.value.trimmingCharacters(in: .whitespacesAndNewlines)
             return choice.isEmpty
-                ? "Selecting \(action.label)…"
-                : "Selecting \(choice)…"
+                ? String(localized: "Selecting \(action.label)…")
+                : String(localized: "Selecting \(choice)…")
         case .fill:
-            return "Entering information in \(action.label)…"
+            return String(localized: "Entering information in \(action.label)…")
         case .scroll:
-            return "Scrolling the page…"
+            return String(localized: "Scrolling the page…")
         }
     }
 
@@ -1079,17 +1079,21 @@ struct EliSidebarView: View {
         let message: String
 
         if case .missingPersonalKey(let provider)? = error as? RemoteEliError {
-            message = "Add \(provider == .openai ? "an" : "a") \(provider.displayName) API key in Settings before using your own key."
+            // The English article depends on the provider name, so the OpenAI
+            // wording is its own localizable string.
+            message = provider == .openai
+                ? String(localized: "Add an OpenAI API key in Settings before using your own key.")
+                : String(localized: "Add a \(provider.displayName) API key in Settings before using your own key.")
         } else if errorDescription.contains("model is unavailable") {
-            message = "This model isn't available on your current plan. Choose another model in Candoa Settings."
+            message = String(localized: "This model isn't available on your current plan. Choose another model in Candoa Settings.")
         } else if errorDescription.contains("api key") {
-            message = "Add an API key in Settings before using your own key."
+            message = String(localized: "Add an API key in Settings before using your own key.")
         } else if errorDescription.contains("authentication")
             || errorDescription.contains("session")
             || errorDescription.contains("current plan") {
-            message = "Eli requires an active Candoa subscription. Subscribe or restore your plan to continue."
+            message = String(localized: "Eli requires an active Candoa subscription. Subscribe or restore your plan to continue.")
         } else {
-            message = "Eli is temporarily unavailable. Please try again later."
+            message = String(localized: "Eli is temporarily unavailable. Please try again later.")
         }
 
         guard let index = messages.firstIndex(where: { $0.id == responseID }) else { return }

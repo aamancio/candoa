@@ -118,7 +118,7 @@ enum RemoteEliService {
                     let budgetModel = AIModelCatalog.hostedModel(
                         id: modelID ?? "",
                         providerID: "",
-                        displayName: modelID ?? "Automatic"
+                        displayName: modelID ?? String(localized: "Automatic")
                     )
                     let fittedContext = try EliContextBudget.fittedContext(
                         context,
@@ -253,7 +253,7 @@ enum RemoteEliService {
                 continuation.yield(.browserControl(goal: request.goal))
             } else if event.type == "error" {
                 throw RemoteEliError.server(
-                    event.error?.message ?? event.message ?? "OpenAI could not complete this request."
+                    event.error?.message ?? event.message ?? String(localized: "OpenAI could not complete this request.")
                 )
             }
         }
@@ -330,7 +330,7 @@ enum RemoteEliService {
                 }
             case "error":
                 throw RemoteEliError.server(
-                    event.error?.message ?? "Anthropic could not complete this request."
+                    event.error?.message ?? String(localized: "Anthropic could not complete this request.")
                 )
             default:
                 break
@@ -407,7 +407,7 @@ enum RemoteEliService {
             }
             let serverError = try? JSONDecoder().decode(ServerErrorPayload.self, from: data)
             throw RemoteEliError.server(
-                serverError?.resolvedMessage ?? "Eli is temporarily unavailable."
+                serverError?.resolvedMessage ?? String(localized: "Eli is temporarily unavailable.")
             )
         }
     }
@@ -836,11 +836,16 @@ enum RemoteEliError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .invalidResponse:
-            return "Eli returned an invalid response."
+            return String(localized: "Eli returned an invalid response.")
         case .missingAccountSession:
-            return "Subscribe to Candoa to use Eli."
+            return String(localized: "Subscribe to Candoa to use Eli.")
         case .missingPersonalKey(let provider):
-            return "Add \(provider == .openai ? "an" : "a") \(provider.displayName) API key in Candoa Settings before using your own key."
+            // The English article depends on the provider name, so the OpenAI
+            // wording is its own localizable string.
+            if provider == .openai {
+                return String(localized: "Add an OpenAI API key in Candoa Settings before using your own key.")
+            }
+            return String(localized: "Add a \(provider.displayName) API key in Candoa Settings before using your own key.")
         case .server(let message):
             return message
         }
