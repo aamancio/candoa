@@ -42,6 +42,19 @@ if rg -n '\b(try!|as!)\b|fatalError\s*\(' Candoa --glob '*.swift'; then
   report_failure "Unsafe Swift shortcut found in app sources."
 fi
 
+echo "Checking entitlement policy..."
+# Sign in with Apple ships via the web flow (ASWebAuthenticationSession);
+# the native capability must never enter any signing path. The browser
+# passkey entitlement stays out until Apple assigns the managed capability
+# (#14 flips it to required after assignment).
+for forbidden in \
+  com.apple.developer.applesignin \
+  com.apple.developer.web-browser.public-key-credential; do
+  if rg -n --fixed-strings "$forbidden" Candoa/Resources/*.entitlements; then
+    report_failure "Forbidden entitlement $forbidden found in an entitlements file."
+  fi
+done
+
 echo "Checking SwiftLint rules when available..."
 if command -v swiftlint >/dev/null 2>&1; then
   swiftlint lint --config .swiftlint.yml --strict
