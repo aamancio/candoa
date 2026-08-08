@@ -674,6 +674,27 @@ struct SidebarView: View {
             .help(developerModeEnabled ? "Developer Mode" : BrowserDefaults.addressPlaceholder)
             .accessibilityLabel("Address")
             .accessibilityIdentifier("sidebar-address-button")
+
+            if let url {
+                Button {
+                    store.copyURL(url)
+                } label: {
+                    Image(systemName: "link")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(InterfaceStyle.sidebarIcon)
+                        .frame(width: 30, height: 40)
+                        .contentShape(Rectangle())
+                }
+                .buttonTreatment(.content)
+                .help("Copy URL")
+                .accessibilityLabel("Copy URL")
+                .accessibilityIdentifier("sidebar-copy-url-button")
+                // Not 0: fully transparent views stop hit-testing, and the
+                // button must keep its click footprint while visually absent.
+                .opacity(isHoveringAddressPill ? 1 : 0.02)
+                .animation(.easeOut(duration: 0.10), value: isHoveringAddressPill)
+                .padding(.trailing, 3)
+            }
         }
         .frame(height: 40)
         .background(InterfaceStyle.sidebarControlFill)

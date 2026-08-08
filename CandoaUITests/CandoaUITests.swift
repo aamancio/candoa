@@ -2601,6 +2601,33 @@ final class CandoaUITests: XCTestCase {
         )
     }
 
+    /// The address pill's trailing link button copies the displayed page's
+    /// URL. The button is hover-revealed but keeps a trace-opacity click
+    /// footprint, so the test can address it without winning a hover race.
+    func testAddressPillCopyButtonCopiesURL() {
+        let app = launchApp(fixture: "popup-open")
+
+        openFixtureTab(path: "popup", in: app)
+
+        NSPasteboard.general.clearContents()
+
+        let copyButton = element("sidebar-copy-url-button", in: app)
+        XCTAssertTrue(copyButton.waitForExistence(timeout: 5), currentState(in: app))
+        copyButton.click()
+
+        let expectation = XCTNSPredicateExpectation(
+            predicate: NSPredicate { _, _ in
+                NSPasteboard.general.string(forType: .string) == "https://fixture.candoa.test/popup"
+            },
+            object: nil
+        )
+        XCTAssertEqual(
+            XCTWaiter().wait(for: [expectation], timeout: 5),
+            .completed,
+            "pasteboard holds \(NSPasteboard.general.string(forType: .string) ?? "nil")"
+        )
+    }
+
     /// View ▸ Site Info presents the same popover from the menu bar.
     func testSiteInfoMenuCommandOpensPopover() {
         let app = launchApp(fixture: "popup-open")
