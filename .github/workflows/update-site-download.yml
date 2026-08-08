@@ -232,6 +232,23 @@ jobs:
           codesign --verify --deep --strict --verbose=2 "$APP_BUNDLE"
           codesign --display --verbose=4 "$APP_BUNDLE"
 
+      - name: Verify entitlement policy
+        run: |
+          SIGNED_ENTITLEMENTS="$(codesign -d --entitlements - --xml "$APP_BUNDLE")"
+          printf '%s' "$SIGNED_ENTITLEMENTS" | plutil -p -
+          # Sign in with Apple ships via the web flow only, so the native
+          # capability must never reach the public artifact. The browser
+          # passkey entitlement stays out until Apple assigns the managed
+          # capability (#14 flips it to required after assignment).
+          for FORBIDDEN in \
+            "com.apple.developer.applesignin" \
+            "com.apple.developer.web-browser.public-key-credential"; do
+            if printf '%s' "$SIGNED_ENTITLEMENTS" | grep -F -q "$FORBIDDEN"; then
+              echo "Forbidden entitlement $FORBIDDEN present in the signed app." >&2
+              exit 1
+            fi
+          done
+
       - name: Package DMG
         run: |
           mkdir -p artifacts

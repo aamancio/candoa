@@ -1,7 +1,7 @@
 # Sign in with Apple and Developer ID Distribution
 
 Status: accepted  
-Last verified: July 22, 2026
+Last verified: August 8, 2026
 
 ## Decision
 
@@ -30,15 +30,20 @@ Do not treat any of these as release verification:
 
 ## Required public-DMG architecture
 
-1. Candoa creates a PKCE verifier and starts `ASWebAuthenticationSession` against
-   `GET https://www.candoa.app/api/auth/apple/web/start`.
-2. Candoa Cloud redirects to Apple using the configured Apple Services ID.
-3. Apple returns to the registered HTTPS callback at
-   `POST https://www.candoa.app/api/auth/apple/web/callback`.
-4. Candoa Cloud sends a short-lived, PKCE-bound handoff to
-   `candoa-auth://apple/callback`.
-5. Candoa Browser exchanges it through `POST /api/auth/apple/web/exchange` and stores only the
-   resulting Candoa session in Keychain.
+1. Candoa requests an intent from Candoa Cloud —
+   `POST /api/auth/native-apple/sign-in-intent` for a fresh sign-in, or
+   `POST /api/auth/native-apple/link-intent` (with the current session token) to link Apple
+   to an existing anonymous account — and receives an HTTPS authorization URL on the Cloud
+   origin.
+2. Candoa starts `ASWebAuthenticationSession` at that URL. Candoa Cloud's page hands the
+   flow to Better Auth (`sign-in/social` or `link-social`), which redirects to Apple using
+   the configured Apple Services ID.
+3. Apple returns to Better Auth's registered HTTPS callback on the Cloud origin.
+4. Candoa Cloud completes the flow (`/api/auth/native-apple/complete`) and hands off to the
+   app via `candoa://auth/apple` (Debug builds use `candoa-dev://`) carrying a short-lived,
+   hashed one-time code — never the session token itself.
+5. Candoa Browser exchanges the code through `POST /api/auth/native-apple/exchange` and
+   stores only the resulting Candoa session token in Keychain.
 
 The system dialog saying that Candoa wants to use the Cloud domain to sign in is expected
 `ASWebAuthenticationSession` security UI. Do not attempt to suppress it, imitate it, or move
@@ -64,13 +69,18 @@ valid production substitutes.
 
 Before shipping or closing an authentication issue:
 
-1. Confirm the deployed web start route redirects to `appleid.apple.com`.
-2. Complete a real Apple authorization, HTTPS callback, app handoff, and PKCE exchange.
+1. Confirm the deployed sign-in-intent route returns an authorization URL that reaches
+   `appleid.apple.com`.
+2. Complete a real Apple authorization, HTTPS callback, `candoa://auth/apple` handoff, and
+   one-time-code exchange.
 3. Confirm account restoration works after relaunch and cancellation returns without an error.
 4. Inspect the actual public app with `codesign` and confirm the signing identity is
    `Developer ID Application`.
 5. Inspect the same artifact's entitlements and confirm
-   `com.apple.developer.applesignin` is absent.
+   `com.apple.developer.applesignin` is absent. CI enforces this: the Static Quality Gate
+   fails on any entitlements file containing a forbidden entitlement, and the release
+   workflow's "Verify entitlement policy" step fails the build if the signed app carries
+   one.
 6. Notarize, staple, and test the packaged DMG on a clean macOS account.
 
 ## When this decision may change
