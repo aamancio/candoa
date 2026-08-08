@@ -15,7 +15,7 @@ extension BrowserStore {
         for index in folders.indices {
             folders[index].name = normalizedFolderName(folders[index].name)
             if folders[index].name.isEmpty {
-                folders[index].name = "New Folder"
+                folders[index].name = String(localized: "New Folder")
             }
         }
 

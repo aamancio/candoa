@@ -84,13 +84,13 @@ enum BrowserImportError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .unreadableFile:
-            return "Candoa couldn’t read that bookmarks file."
+            return String(localized: "Candoa couldn’t read that bookmarks file.")
         case .profileAccessRequired(let sourceName):
-            return "macOS requires permission before Candoa can read \(sourceName)’s bookmarks."
+            return String(localized: "macOS requires permission before Candoa can read \(sourceName)’s bookmarks.")
         case .profileDataNotFound(let sourceName):
-            return "Candoa couldn’t find \(sourceName) bookmark data in that folder."
+            return String(localized: "Candoa couldn’t find \(sourceName) bookmark data in that folder.")
         case .noBookmarks:
-            return "No web bookmarks were found there."
+            return String(localized: "No web bookmarks were found there.")
         }
     }
 }
@@ -589,10 +589,10 @@ struct BrowserImportService {
                 let folderID = sqlite3_column_int64(rootStatement, 0)
                 let rootName = sqliteString(rootStatement, column: 1)
                 switch rootName {
-                case "toolbar": rootNames[folderID] = "Favorites"
-                case "menu": rootNames[folderID] = "Bookmarks Menu"
-                case "unfiled": rootNames[folderID] = "Other Bookmarks"
-                case "mobile": rootNames[folderID] = "Mobile Bookmarks"
+                case "toolbar": rootNames[folderID] = String(localized: "Favorites")
+                case "menu": rootNames[folderID] = String(localized: "Bookmarks Menu")
+                case "unfiled": rootNames[folderID] = String(localized: "Other Bookmarks")
+                case "mobile": rootNames[folderID] = String(localized: "Mobile Bookmarks")
                 case "tags", "placesRoot": excludedRootIDs.insert(folderID)
                 default: break
                 }

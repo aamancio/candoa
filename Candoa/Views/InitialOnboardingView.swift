@@ -634,7 +634,7 @@ private struct ImportOnboardingStep: View {
             }
             Button("OK", role: .cancel) {}
         } message: {
-            Text(errorMessage ?? "Candoa couldn’t access \(selectedSource.name)’s default profile. You can choose another profile manually.")
+            Text(errorMessage ?? String(localized: "Candoa couldn’t access \(selectedSource.name)’s default profile. You can choose another profile manually."))
         }
     }
 
@@ -703,7 +703,7 @@ private struct ImportOnboardingStep: View {
     }
 
     private func announceImportedBookmarks(_ count: Int) {
-        let message = "Imported \(count) bookmark\(count == 1 ? "" : "s")."
+        let message = String(localized: "Imported \(count) bookmarks.")
         NSAccessibility.post(
             element: NSApp as Any,
             notification: .announcementRequested,

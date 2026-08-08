@@ -50,9 +50,9 @@ internal enum SpaceIconPickerMode: String, CaseIterable, Identifiable {
     var searchPlaceholder: String {
         switch self {
         case .emojis:
-            return "Search emojis"
+            return String(localized: "Search emojis")
         case .symbols, .icons:
-            return "Search icons"
+            return String(localized: "Search icons")
         }
     }
 }
@@ -65,7 +65,7 @@ internal enum SpaceComposerMode: Equatable {
     var defaultName: String {
         switch self {
         case .initial:
-            return "Personal"
+            return String(localized: "Personal")
         case .create, .edit:
             return ""
         }
@@ -74,18 +74,18 @@ internal enum SpaceComposerMode: Equatable {
     var title: String {
         switch self {
         case .create, .initial:
-            return "Create a Space"
+            return String(localized: "Create a Space")
         case .edit:
-            return "Edit Space"
+            return String(localized: "Edit Space")
         }
     }
 
     var subtitle: String {
         switch self {
         case .create, .initial:
-            return "Spaces organize your tabs and sessions."
+            return String(localized: "Spaces organize your tabs and sessions.")
         case .edit:
-            return "Update this Space's name, icon, and theme."
+            return String(localized: "Update this Space's name, icon, and theme.")
         }
     }
 
@@ -94,7 +94,7 @@ internal enum SpaceComposerMode: Equatable {
         case .create, .initial:
             return BrowserCommandTitles.createSpace
         case .edit:
-            return "Save Changes"
+            return String(localized: "Save Changes")
         }
     }
 }
@@ -129,17 +129,17 @@ internal enum SpaceDataMode: String, CaseIterable, Identifiable {
     var detail: String {
         switch self {
         case .isolated:
-            return "Separate browsing session"
+            return String(localized: "Separate browsing session")
         case .shareCurrent:
-            return "Share active Space session"
+            return String(localized: "Share active Space session")
         case .personal:
-            return "Shared personal profile"
+            return String(localized: "Shared personal profile")
         case .work:
-            return "Shared work profile"
+            return String(localized: "Shared work profile")
         case .banking:
-            return "Shared finance profile"
+            return String(localized: "Shared finance profile")
         case .shopping:
-            return "Shared shopping profile"
+            return String(localized: "Shared shopping profile")
         }
     }
 

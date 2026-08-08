@@ -571,15 +571,15 @@ enum ShortcutDefinition: String, CaseIterable, Identifiable {
         case .focusAddressBar: return BrowserCommandTitles.focusAddressBar
         case .copyURL: return BrowserCommandTitles.copyURL
         case .copyURLAsMarkdown: return BrowserCommandTitles.copyURLAsMarkdown
-        case .captureFullPage: return "Capture Page"
+        case .captureFullPage: return String(localized: "Capture Page")
         case .pinOrUnpinTab: return BrowserCommandTitles.pinOrUnpinTab
         case .toggleSidebar: return BrowserCommandTitles.toggleSidebar
         case .toggleAISidebar: return BrowserCommandTitles.toggleAISidebar
         case .clearUnpinnedTabs: return BrowserCommandTitles.clearUnpinnedTabs
         case .goBack: return BrowserCommandTitles.back
         case .goForward: return BrowserCommandTitles.forward
-        case .nextRecentTab: return "Next Recent Tab"
-        case .previousRecentTab: return "Previous Recent Tab"
+        case .nextRecentTab: return String(localized: "Next Recent Tab")
+        case .previousRecentTab: return String(localized: "Previous Recent Tab")
         case .nextTab: return BrowserCommandTitles.nextTab
         case .previousTab: return BrowserCommandTitles.previousTab
         case .nextSpace: return BrowserCommandTitles.nextSpace

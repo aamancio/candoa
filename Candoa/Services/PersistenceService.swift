@@ -710,7 +710,7 @@ struct PersistenceService: @unchecked Sendable {
 
         return BrowserSpace(
             id: id,
-            name: object.string(for: Key.name) ?? "Space",
+            name: object.string(for: Key.name) ?? String(localized: "Space"),
             symbolName: object.string(for: Key.symbolName) ?? "sparkle",
             themeColorHex: object.string(for: Key.themeColorHex),
             themeAuxiliaryColorHexes: object.string(for: Key.themeAuxiliaryColorHexes)?
@@ -735,7 +735,7 @@ struct PersistenceService: @unchecked Sendable {
 
         return BrowserFolder(
             id: id,
-            name: object.string(for: Key.name) ?? "New Folder",
+            name: object.string(for: Key.name) ?? String(localized: "New Folder"),
             spaceID: spaceID,
             parentFolderID: object.uuid(for: Key.parentFolderID),
             sortOrder: object.double(for: Key.sortOrder),

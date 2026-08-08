@@ -137,9 +137,14 @@ private enum EliKeychainError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .emptyKey(let provider):
-            return "Enter \(provider.displayName == "OpenAI" ? "an" : "a") \(provider.displayName) API key before saving."
+            // The English article depends on the provider name, so the OpenAI
+            // wording is its own localizable string.
+            if provider.displayName == "OpenAI" {
+                return String(localized: "Enter an OpenAI API key before saving.")
+            }
+            return String(localized: "Enter a \(provider.displayName) API key before saving.")
         case .unavailable:
-            return "Candoa could not save the API key in Keychain."
+            return String(localized: "Candoa could not save the API key in Keychain.")
         }
     }
 }
