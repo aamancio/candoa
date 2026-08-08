@@ -191,15 +191,15 @@ enum BrowserAgentPolicy {
     static func sensitiveConfirmationMessage(for action: PageActionProposal) -> String {
         switch action.kind {
         case .click:
-            return "Eli is ready to activate \"\(action.target)\". This may make a consequential change to your account."
+            return String(localized: "Eli is ready to activate \"\(action.target)\". This may make a consequential change to your account.")
         case .select:
-            return "Eli is ready to select \"\(action.value ?? action.target)\". Review this choice before continuing."
+            return String(localized: "Eli is ready to select \"\(action.value ?? action.target)\". Review this choice before continuing.")
         case .fill:
-            return "Eli is ready to enter information in \"\(action.target)\". Review it before continuing."
+            return String(localized: "Eli is ready to enter information in \"\(action.target)\". Review it before continuing.")
         case .navigate:
-            return "Eli is ready to open \"\(action.target)\". Review the destination before continuing."
+            return String(localized: "Eli is ready to open \"\(action.target)\". Review the destination before continuing.")
         case .scroll:
-            return "Eli is ready to continue this task."
+            return String(localized: "Eli is ready to continue this task.")
         }
     }
 }
@@ -242,7 +242,7 @@ enum BrowserAgentRemoteService {
         }
         guard (200...299).contains(response.statusCode) else {
             let message = (try? JSONDecoder().decode(ServerError.self, from: data))?.error
-                ?? "Eli could not continue the browser task."
+                ?? String(localized: "Eli could not continue the browser task.")
             throw RemoteEliError.server(message)
         }
     }

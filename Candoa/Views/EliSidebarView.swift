@@ -37,7 +37,7 @@ struct EliSidebarView: View {
 
     private var activePageTitle: String {
         let title = store.activeTab?.title.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        return title.isEmpty ? "Current Page" : title
+        return title.isEmpty ? String(localized: "Current Page") : title
     }
 
     private var activePageSubtitle: String {
@@ -102,7 +102,7 @@ struct EliSidebarView: View {
                 return AISidebarMentionOption(
                     id: "history-\(visit.id.uuidString)",
                     title: title.isEmpty ? host : title,
-                    detail: "\(host) - History",
+                    detail: String(localized: "\(host) - History"),
                     symbolName: FaviconService.shared.placeholderSymbol(for: visit.url),
                     faviconData: nil,
                     action: .mention(
@@ -123,8 +123,8 @@ struct EliSidebarView: View {
         return [
             AISidebarMentionOption(
                 id: "upload-file",
-                title: "Upload file from computer",
-                detail: "Text files",
+                title: String(localized: "Upload file from computer"),
+                detail: String(localized: "Text files"),
                 symbolName: "doc.badge.plus",
                 faviconData: nil,
                 action: .uploadFile
@@ -1073,17 +1073,21 @@ struct EliSidebarView: View {
         let message: String
 
         if case .missingPersonalKey(let provider)? = error as? RemoteEliError {
-            message = "Add \(provider == .openai ? "an" : "a") \(provider.displayName) API key in Settings before using your own key."
+            // The English article depends on the provider name, so the OpenAI
+            // wording is its own localizable string.
+            message = provider == .openai
+                ? String(localized: "Add an OpenAI API key in Settings before using your own key.")
+                : String(localized: "Add a \(provider.displayName) API key in Settings before using your own key.")
         } else if errorDescription.contains("model is unavailable") {
-            message = "This model isn't available on your current plan. Choose another model in Candoa Settings."
+            message = String(localized: "This model isn't available on your current plan. Choose another model in Candoa Settings.")
         } else if errorDescription.contains("api key") {
-            message = "Add an API key in Settings before using your own key."
+            message = String(localized: "Add an API key in Settings before using your own key.")
         } else if errorDescription.contains("authentication")
             || errorDescription.contains("session")
             || errorDescription.contains("current plan") {
-            message = "Eli requires an active Candoa subscription. Subscribe or restore your plan to continue."
+            message = String(localized: "Eli requires an active Candoa subscription. Subscribe or restore your plan to continue.")
         } else {
-            message = "Eli is temporarily unavailable. Please try again later."
+            message = String(localized: "Eli is temporarily unavailable. Please try again later.")
         }
 
         guard let index = messages.firstIndex(where: { $0.id == responseID }) else { return }

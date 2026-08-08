@@ -562,28 +562,28 @@ final class AISidebarSpeechController: ObservableObject {
         if !transcript.isEmpty {
             return transcript
         }
-        return statusMessage ?? "Listening..."
+        return statusMessage ?? String(localized: "Listening...")
     }
 
     func startListening() async {
         guard !isListening else { return }
 
         transcript = ""
-        statusMessage = "Listening..."
+        statusMessage = String(localized: "Listening...")
         elapsedText = "00:00"
 
         guard await requestSpeechAuthorization() else {
-            statusMessage = "Speech recognition is not allowed."
+            statusMessage = String(localized: "Speech recognition is not allowed.")
             return
         }
 
         guard await requestMicrophoneAuthorization() else {
-            statusMessage = "Microphone access is not allowed."
+            statusMessage = String(localized: "Microphone access is not allowed.")
             return
         }
 
         guard let recognizer = SFSpeechRecognizer(locale: Locale.current), recognizer.isAvailable else {
-            statusMessage = "Speech recognition is unavailable."
+            statusMessage = String(localized: "Speech recognition is unavailable.")
             return
         }
 
@@ -591,7 +591,7 @@ final class AISidebarSpeechController: ObservableObject {
             try startAudioRecognition(with: recognizer)
         } catch {
             stopAudioRecognition()
-            statusMessage = "Could not start dictation."
+            statusMessage = String(localized: "Could not start dictation.")
         }
     }
 

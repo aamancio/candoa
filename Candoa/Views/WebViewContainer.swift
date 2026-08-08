@@ -1597,19 +1597,19 @@ private enum DeveloperToolbarControlKind: String, CaseIterable, Identifiable {
     func title(isSplitViewEnabled: Bool) -> String {
         switch self {
         case .copyURL:
-            return "Copy Link"
+            return String(localized: "Copy Link")
         case .easel:
-            return "Capture to Easel"
+            return String(localized: "Capture to Easel")
         case .capturePage:
-            return "Capture Page"
+            return String(localized: "Capture Page")
         case .developerTools:
-            return "Developer Tools"
+            return String(localized: "Developer Tools")
         case .siteInfo:
-            return "Site Info"
+            return String(localized: "Site Info")
         case .inspectElement:
-            return "Inspect Element"
+            return String(localized: "Inspect Element")
         case .extensions:
-            return "Extensions"
+            return String(localized: "Extensions")
         case .splitView:
             return isSplitViewEnabled ? BrowserCommandTitles.closeSplitView : BrowserCommandTitles.addSplitView
         }
@@ -1641,15 +1641,15 @@ private enum DeveloperToolbarControlKind: String, CaseIterable, Identifiable {
         case .copyURL:
             return "⇧⌘C"
         case .capturePage:
-            return "Set in Settings > Shortcuts"
+            return String(localized: "Set in Settings > Shortcuts")
         case .splitView:
             // Reflect the person's configured shortcuts, not the defaults.
             let addCaps = ShortcutKeyCaps.current(for: .addSplitView).joined()
             let closeCaps = ShortcutKeyCaps.current(for: .closeSplitView).joined()
             let parts = [addCaps, closeCaps].filter { !$0.isEmpty }
-            return parts.isEmpty ? "Set in Settings > Shortcuts" : parts.joined(separator: " / ")
+            return parts.isEmpty ? String(localized: "Set in Settings > Shortcuts") : parts.joined(separator: " / ")
         case .easel, .developerTools, .siteInfo, .inspectElement, .extensions:
-            return "Not implemented in Candoa yet"
+            return String(localized: "Not implemented in Candoa yet")
         }
     }
 

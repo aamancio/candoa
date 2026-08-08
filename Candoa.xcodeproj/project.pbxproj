@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A1B2C3D4E5F60718293A4B5E /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B5D /* Localizable.xcstrings */; };
 		010000000000000000000101 /* CandoaApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000001 /* CandoaApp.swift */; };
 		010000000000000000000102 /* BrowserTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000002 /* BrowserTab.swift */; };
 		010000000000000000000103 /* BrowserSpace.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000003 /* BrowserSpace.swift */; };
@@ -645,6 +646,7 @@
 			files = (
 				010000000000000000000150 /* Assets.xcassets in Resources */,
 				BA0000000000000000000102 /* BrowserAgent in Resources */,
+				A1B2C3D4E5F60718293A4B5E /* Localizable.xcstrings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

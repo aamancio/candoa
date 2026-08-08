@@ -104,9 +104,9 @@ enum EliConnection: String, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
-        case .candoaCloud: return "Candoa Cloud"
-        case .personalKey: return "Personal API key"
-        case .environment: return "Environment (Debug)"
+        case .candoaCloud: return String(localized: "Candoa Cloud")
+        case .personalKey: return String(localized: "Personal API key")
+        case .environment: return String(localized: "Environment (Debug)")
         }
     }
 }

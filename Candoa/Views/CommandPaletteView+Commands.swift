@@ -516,7 +516,7 @@ extension CommandPaletteView {
     }
 
     internal func spaceName(for id: UUID) -> String {
-        store.spaces.first { $0.id == id }?.name ?? "Unknown Space"
+        store.spaces.first { $0.id == id }?.name ?? String(localized: "Unknown Space")
     }
 
     internal func hostDisplayText(for url: URL?) -> String {

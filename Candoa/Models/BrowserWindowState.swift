@@ -10,7 +10,7 @@ struct BrowserFolder: Identifiable, Codable, Hashable {
 
     init(
         id: UUID = UUID(),
-        name: String = "New Folder",
+        name: String = String(localized: "New Folder"),
         spaceID: UUID,
         parentFolderID: UUID? = nil,
         sortOrder: Double = 0,
@@ -36,7 +36,7 @@ struct BrowserFolder: Identifiable, Codable, Hashable {
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
-        name = try container.decodeIfPresent(String.self, forKey: .name) ?? "New Folder"
+        name = try container.decodeIfPresent(String.self, forKey: .name) ?? String(localized: "New Folder")
         spaceID = try container.decode(UUID.self, forKey: .spaceID)
         parentFolderID = try container.decodeIfPresent(UUID.self, forKey: .parentFolderID)
         sortOrder = try container.decodeIfPresent(Double.self, forKey: .sortOrder) ?? 0
