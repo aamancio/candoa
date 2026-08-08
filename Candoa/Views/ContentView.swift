@@ -574,6 +574,8 @@ struct ContentView: View {
             canClearBrowsingData: !store.isPrivate,
             showDownloads: showDownloads,
             isDownloadsVisible: store.isDownloadsPopoverPresented,
+            showSiteInfo: showSiteInfo,
+            canShowSiteInfo: store.activeTab?.url != nil,
             showQuickTour: showQuickTour,
             reloadTab: store.reloadActiveTab,
             reloadTabFromOrigin: store.reloadActiveTabFromOrigin,
@@ -786,6 +788,23 @@ struct ContentView: View {
             return
         }
         store.isDownloadsPopoverPresented = true
+    }
+
+    private func showSiteInfo() {
+        if store.isSiteInfoPopoverPresented {
+            store.isSiteInfoPopoverPresented = false
+            return
+        }
+        guard isSidebarVisible else {
+            // Anchored to the sidebar address pill, so a hidden sidebar must
+            // be revealed first — same two-beat handoff as showDownloads.
+            toggleSidebar()
+            CATransaction.setCompletionBlock { [weak store] in
+                store?.isSiteInfoPopoverPresented = true
+            }
+            return
+        }
+        store.isSiteInfoPopoverPresented = true
     }
 
     private func showFind() {

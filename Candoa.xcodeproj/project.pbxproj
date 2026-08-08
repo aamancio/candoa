@@ -34,6 +34,8 @@
 		TF00000000000000000000B1 /* TabLoadFailure.swift in Sources */ = {isa = PBXBuildFile; fileRef = TF00000000000000000000A1 /* TabLoadFailure.swift */; };
 		010000000000000000000120 /* AppUpdateService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01000000000000000000001D /* AppUpdateService.swift */; };
 		AB1200000000000000000102 /* WhatsNewService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB1200000000000000000002 /* WhatsNewService.swift */; };
+		SI00000000000000000000B1 /* SitePermissions.swift in Sources */ = {isa = PBXBuildFile; fileRef = SI00000000000000000000A1 /* SitePermissions.swift */; };
+		SI00000000000000000000B2 /* SiteInfoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = SI00000000000000000000A2 /* SiteInfoView.swift */; };
 		AB1300000000000000000102 /* ProviderModelDirectory.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB1300000000000000000002 /* ProviderModelDirectory.swift */; };
 		010000000000000000000121 /* KeyboardShortcutMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000031 /* KeyboardShortcutMonitor.swift */; };
 		010000000000000000000122 /* SidebarRevealMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000032 /* SidebarRevealMonitor.swift */; };
@@ -163,6 +165,8 @@
 		TF00000000000000000000A1 /* TabLoadFailure.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabLoadFailure.swift; sourceTree = "<group>"; };
 		01000000000000000000001D /* AppUpdateService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppUpdateService.swift; sourceTree = "<group>"; };
 		AB1200000000000000000002 /* WhatsNewService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhatsNewService.swift; sourceTree = "<group>"; };
+		SI00000000000000000000A1 /* SitePermissions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SitePermissions.swift; sourceTree = "<group>"; };
+		SI00000000000000000000A2 /* SiteInfoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SiteInfoView.swift; sourceTree = "<group>"; };
 		AB1300000000000000000002 /* ProviderModelDirectory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderModelDirectory.swift; sourceTree = "<group>"; };
 		010000000000000000000031 /* KeyboardShortcutMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardShortcutMonitor.swift; sourceTree = "<group>"; };
 		010000000000000000000032 /* SidebarRevealMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarRevealMonitor.swift; sourceTree = "<group>"; };
@@ -312,6 +316,7 @@
 				010000000000000000000004 /* BrowserWindowState.swift */,
 				01000000000000000000001C /* AppConfiguration.swift */,
 				TF00000000000000000000A1 /* TabLoadFailure.swift */,
+				SI00000000000000000000A1 /* SitePermissions.swift */,
 				010000000000000000000051 /* HistoryVisit.swift */,
 			);
 			path = Models;
@@ -329,6 +334,7 @@
 				EF0000000000000000000006 /* EliSidebarSupportingViews.swift */,
 				010000000000000000000047 /* EliSidebarComponents.swift */,
 				010000000000000000000012 /* SidebarView.swift */,
+				SI00000000000000000000A2 /* SiteInfoView.swift */,
 				E50000000000000000000001 /* AppUpdateBanner.swift */,
 				AB1200000000000000000001 /* WhatsNewBanner.swift */,
 				D1A2B3C4E5F60718293A4B5C /* SidebarSpaceComposer.swift */,
@@ -694,6 +700,8 @@
 				TF00000000000000000000B1 /* TabLoadFailure.swift in Sources */,
 				010000000000000000000120 /* AppUpdateService.swift in Sources */,
 				AB1200000000000000000102 /* WhatsNewService.swift in Sources */,
+				SI00000000000000000000B1 /* SitePermissions.swift in Sources */,
+				SI00000000000000000000B2 /* SiteInfoView.swift in Sources */,
 				AB1300000000000000000102 /* ProviderModelDirectory.swift in Sources */,
 				010000000000000000000121 /* KeyboardShortcutMonitor.swift in Sources */,
 				010000000000000000000122 /* SidebarRevealMonitor.swift in Sources */,
