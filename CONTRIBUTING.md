@@ -25,6 +25,7 @@ Candoa is a native macOS, WebKit-based browser project. Keep changes small, scop
 - Keep motion restrained. Native feel comes from geometry, responsiveness, and quiet state changes.
 - Do not add steady-state battery, memory, WebKit process, timer, observer, or cross-process messaging costs.
 - Preserve WKWebView lifecycle separation from SwiftUI view state.
+- Every user-facing string must go through a localization API (`Text`, `Label`, `String(localized:)`, and friends — never a plain `String` literal handed to the UI) and must have an entry in `Candoa/Resources/Localizable.xcstrings`. After adding or changing user-facing copy, run the Debug build and then `Scripts/check-localization.py --fix` to sync the catalog; CI fails on uncataloged strings.
 
 ## Pull Request Expectations
 
