@@ -120,6 +120,34 @@ extension BrowserStore {
             }
     }
 
+    /// Test-runner seam for the Ctrl-Tab switcher: neither XCTest's
+    /// perform(withKeyModifiers:) nor runner-posted CGEvents can hold
+    /// Control across several presses and assertions on CI (typeKey resets
+    /// modifier state per key; raw event posting needs an Accessibility
+    /// grant the runner doesn't have). The actions map 1:1 onto the store
+    /// entry points ContentView's KeyboardShortcutMonitor callbacks invoke.
+    static let uiTestingTabSwitcherNotification =
+        Notification.Name("app.candoa.uitesting.tab-switcher")
+
+    func configureUITestingTabSwitcherTrigger() {
+        guard Self.isUITesting, !isPrivate else { return }
+
+        uiTestingTabSwitcherCancellable = DistributedNotificationCenter.default()
+            .publisher(for: Self.uiTestingTabSwitcherNotification)
+            .sink { [weak self] notification in
+                guard let action = notification.object as? String else { return }
+                Task { @MainActor [weak self] in
+                    guard let self else { return }
+                    switch action {
+                    case "next": self.switchToNextRecentTab(keepsPreviewOpen: true)
+                    case "previous": self.switchToPreviousRecentTab(keepsPreviewOpen: true)
+                    case "release": self.finishTabSwitcherInteraction()
+                    default: break
+                    }
+                }
+            }
+    }
+
     static var uiTestingOnboardingStep: InitialOnboardingStep? {
         guard isUITesting else { return nil }
         return ProcessInfo.processInfo.environment["CANDOA_UI_TESTING_ONBOARDING_STEP"]
