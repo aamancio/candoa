@@ -26515,6 +26515,8 @@
         }
       }
     },
+    "Your Candoa session has expired. Sign in again to continue." : {},
+    "Your Candoa session has expired. Sign in with Apple to restore your account." : {},
     "Your Candoa subscription has been restored." : {
       "localizations" : {
         "es" : {

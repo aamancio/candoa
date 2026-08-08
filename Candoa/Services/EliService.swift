@@ -142,7 +142,7 @@ enum RemoteEliService {
                     request.httpBody = try JSONEncoder().encode(payload)
 
                     let (bytes, response) = try await URLSession.shared.bytes(for: request)
-                    try await validate(response: response, bytes: bytes)
+                    try await validate(response: response, bytes: bytes, sessionBacked: true)
                     try await yieldCandoaEvents(bytes, to: continuation)
                     continuation.finish()
                 } catch {
@@ -395,12 +395,20 @@ enum RemoteEliService {
 
     private static func validate(
         response: URLResponse,
-        bytes: URLSession.AsyncBytes
+        bytes: URLSession.AsyncBytes,
+        sessionBacked: Bool = false
     ) async throws {
         guard let httpResponse = response as? HTTPURLResponse else {
             throw RemoteEliError.invalidResponse
         }
         guard (200...299).contains(httpResponse.statusCode) else {
+            // 401 means an expired or revoked Candoa session only on Cloud
+            // requests; on a direct provider request it means a bad API key
+            // and must not touch the account session.
+            if sessionBacked, httpResponse.statusCode == 401 {
+                NotificationCenter.default.post(name: .cloudSessionUnauthorized, object: nil)
+                throw RemoteEliError.sessionExpired
+            }
             var data = Data()
             for try await byte in bytes {
                 data.append(byte)
@@ -832,6 +840,7 @@ enum RemoteEliError: LocalizedError {
     case missingAccountSession
     case missingPersonalKey(AIProvider)
     case server(String)
+    case sessionExpired
 
     var errorDescription: String? {
         switch self {
@@ -839,6 +848,8 @@ enum RemoteEliError: LocalizedError {
             return String(localized: "Eli returned an invalid response.")
         case .missingAccountSession:
             return String(localized: "Subscribe to Candoa to use Eli.")
+        case .sessionExpired:
+            return String(localized: "Your Candoa session has expired. Sign in again to continue.")
         case .missingPersonalKey(let provider):
             // The English article depends on the provider name, so the OpenAI
             // wording is its own localizable string.

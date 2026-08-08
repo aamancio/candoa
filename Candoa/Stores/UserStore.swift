@@ -28,7 +28,23 @@ final class UserStore: ObservableObject {
 
     private let accountService: AccountService
     private let appleSignInService: AppleSignInService
+    private var unauthorizedObserver: NotificationToken?
     var hasActiveSubscription: Bool { status?.hasActiveSubscription == true }
+
+    /// Owns a block-based NotificationCenter registration and unregisters it
+    /// when released, so a MainActor class can drop the observation from its
+    /// nonisolated deinit via plain ARC.
+    private final class NotificationToken {
+        private let token: any NSObjectProtocol
+
+        init(_ token: any NSObjectProtocol) {
+            self.token = token
+        }
+
+        deinit {
+            NotificationCenter.default.removeObserver(token)
+        }
+    }
 
     static var hasStoredAccountChoice: Bool {
 #if DEBUG
@@ -45,6 +61,12 @@ final class UserStore: ObservableObject {
     }
 
     private static let accountChoiceKey = "Candoa.HasCompletedAccountChoice"
+    /// Whether the stored Cloud session belonged to an Apple-linked account.
+    /// The token itself cannot answer that after the server rejects it, and
+    /// the distinction decides how an expired session recovers: an anonymous
+    /// session is quietly re-minted, an Apple-linked one must ask the person
+    /// to sign back in.
+    private static let appleLinkedSessionKey = "Candoa.HasAppleLinkedSession"
 
 #if DEBUG
     // UI tests must not read or write the real defaults domain: a choice made
@@ -137,6 +159,26 @@ final class UserStore: ObservableObject {
             ? false
             : hasStoredToken || Self.hasStoredAccountChoice
         isWorking = Self.isUITesting ? false : hasStoredToken
+
+        // Eli chat and the browser agent talk to Cloud without a reference to
+        // this store; a 401 there posts this signal. Re-validate the stored
+        // session against the server rather than trusting the post, so a
+        // spurious notification cannot sign anyone out. Cloud can answer off
+        // the main thread, so the observation marshals onto the main queue.
+        unauthorizedObserver = NotificationToken(
+            NotificationCenter.default.addObserver(
+                forName: .cloudSessionUnauthorized,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                MainActor.assumeIsolated {
+                    guard let self, !self.isWorking else { return }
+                    Task {
+                        await self.refresh()
+                    }
+                }
+            }
+        )
     }
 
     func restoreSessionIfNeeded() async {
@@ -145,6 +187,19 @@ final class UserStore: ObservableObject {
             isWorking = false
             isSignedIn = false
             hasCloudSession = false
+            if Self.hadAppleLinkedSession {
+                // The Apple-linked token is gone (keychain reset or an expiry
+                // handled without persisting the choice reset). Ask the
+                // person to sign back in rather than silently replacing
+                // their account with a fresh anonymous one.
+                Self.setAppleLinkedSession(false)
+                clearAccountChoice()
+                isLocalOnly = false
+                errorMessage = String(
+                    localized: "Your Candoa session has expired. Sign in with Apple to restore your account."
+                )
+                return
+            }
             isLocalOnly = hasCompletedAccountChoice
             if hasCompletedAccountChoice {
                 await createAnonymousSession()
@@ -179,6 +234,22 @@ final class UserStore: ObservableObject {
             hasCloudSession = true
             isLocalOnly = false
             errorMessage = nil
+            return
+        }
+        if Self.uiTestingFixture == "account-session-expired" {
+            // Deterministic expired-Apple-session state: the server rejected
+            // the stored token, so the account gate is owed a return visit
+            // and settings must offer sign-in rather than a doomed retry.
+            status = nil
+            statusLastUpdated = nil
+            isWorking = false
+            isSignedIn = false
+            hasCloudSession = false
+            isLocalOnly = false
+            clearAccountChoice()
+            errorMessage = String(
+                localized: "Your Candoa session has expired. Sign in with Apple to restore your account."
+            )
             return
         }
         if Self.uiTestingFixture == "ask-cloud-unavailable" {
@@ -227,12 +298,8 @@ final class UserStore: ObservableObject {
                 return
             }
             if (error as? AccountError)?.isAuthenticationFailure == true {
-                status = nil
-                statusLastUpdated = nil
-                try? accountService.removeAccessToken()
-                isSignedIn = false
-                hasCloudSession = false
-                isLocalOnly = hasCompletedAccountChoice
+                handleAuthenticationFailure()
+                return
             }
             // A network or server blip is not a sign-out: keep the last known
             // account status so the session stays usable, and surface a
@@ -241,11 +308,48 @@ final class UserStore: ObservableObject {
         }
     }
 
+    /// The server rejected the stored token, so the session is expired or
+    /// revoked — not a blip. What recovery looks like depends on whose
+    /// session it was: an anonymous session is re-minted quietly (it carries
+    /// no identity worth interrupting anyone over), while an Apple-linked
+    /// account mirrors sign-out so the person is told and the next launch
+    /// returns to the account gate instead of silently downgrading them to a
+    /// fresh anonymous user with no subscription.
+    private func handleAuthenticationFailure() {
+        status = nil
+        statusLastUpdated = nil
+        try? accountService.removeAccessToken()
+        isSignedIn = false
+        hasCloudSession = false
+
+        if Self.hadAppleLinkedSession {
+            Self.setAppleLinkedSession(false)
+            clearAccountChoice()
+            isLocalOnly = false
+            errorMessage = String(
+                localized: "Your Candoa session has expired. Sign in with Apple to restore your account."
+            )
+            return
+        }
+
+        isLocalOnly = hasCompletedAccountChoice
+        errorMessage = nil
+        if hasCompletedAccountChoice {
+            // Deferred so createAnonymousSession's isWorking guard sees the
+            // refresh that called us fully unwound.
+            Task {
+                await self.createAnonymousSession()
+            }
+        }
+    }
+
     /// Retries a session refresh that previously failed without touching a
     /// healthy session. Called from user-visible activation points (app
-    /// becoming active, settings retry) — never from a timer.
+    /// becoming active, settings retry) — never from a timer. Keyed on the
+    /// stored token, not `hasCloudSession`: a failed refresh may already have
+    /// dropped the published flag while the token is still worth retrying.
     func recoverSessionIfNeeded() async {
-        guard hasCloudSession, status == nil, !isWorking,
+        guard status == nil, !isWorking,
               accountService.accessToken != nil else {
             return
         }
@@ -426,18 +530,10 @@ final class UserStore: ObservableObject {
         isSignedIn = false
         hasCloudSession = false
         isLocalOnly = false
-        hasCompletedAccountChoice = false
         isAwaitingSubscriptionActivation = false
         isReconcilingSubscription = false
-#if DEBUG
-        if Self.isUITesting {
-            Self.uiTestingAccountChoice = false
-        } else {
-            UserDefaults.standard.removeObject(forKey: Self.accountChoiceKey)
-        }
-#else
-        UserDefaults.standard.removeObject(forKey: Self.accountChoiceKey)
-#endif
+        Self.setAppleLinkedSession(false)
+        clearAccountChoice()
         status = nil
         statusLastUpdated = nil
         errorMessage = nil
@@ -539,6 +635,7 @@ final class UserStore: ObservableObject {
             isSignedIn = true
             isLocalOnly = false
             hasCloudSession = true
+            Self.setAppleLinkedSession(true)
             status = AccountStatus(
                 hasAppleAccount: true,
                 planID: status?.planID ?? "free",
@@ -637,6 +734,7 @@ final class UserStore: ObservableObject {
         hasCloudSession = true
         isLocalOnly = session.user.isAnonymous
         isSignedIn = !session.user.isAnonymous
+        Self.setAppleLinkedSession(!session.user.isAnonymous)
     }
 
     private func refreshAccountStatus(accessToken: String) async throws {
@@ -654,6 +752,42 @@ final class UserStore: ObservableObject {
         UserDefaults.standard.set(true, forKey: Self.accountChoiceKey)
         hasCompletedAccountChoice = true
     }
+
+    private func clearAccountChoice() {
+        hasCompletedAccountChoice = false
+#if DEBUG
+        if Self.isUITesting {
+            Self.uiTestingAccountChoice = false
+            return
+        }
+#endif
+        UserDefaults.standard.removeObject(forKey: Self.accountChoiceKey)
+    }
+
+    private static var hadAppleLinkedSession: Bool {
+#if DEBUG
+        if isUITesting { return uiTestingAppleLinkedSession }
+#endif
+        return UserDefaults.standard.bool(forKey: appleLinkedSessionKey)
+    }
+
+    private static func setAppleLinkedSession(_ isAppleLinked: Bool) {
+#if DEBUG
+        if isUITesting {
+            uiTestingAppleLinkedSession = isAppleLinked
+            return
+        }
+#endif
+        if isAppleLinked {
+            UserDefaults.standard.set(true, forKey: appleLinkedSessionKey)
+        } else {
+            UserDefaults.standard.removeObject(forKey: appleLinkedSessionKey)
+        }
+    }
+
+#if DEBUG
+    private static var uiTestingAppleLinkedSession = false
+#endif
 
     private static func isBillingSuccessURL(_ url: URL) -> Bool {
         guard url.path == "/billing/success" else { return false }

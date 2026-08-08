@@ -2141,6 +2141,24 @@ final class CandoaUITests: XCTestCase {
         XCTAssertTrue(retryButton.exists)
     }
 
+    func testEliSettingsOfferAppleSignInAfterSessionExpiry() throws {
+        let app = launchApp(fixture: "account-session-expired")
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
+
+        openEliSettings(in: app)
+
+        // An expired session is not retryable: the stored token is gone, so
+        // settings must explain what happened and offer Apple sign-in
+        // instead of a doomed Try Again.
+        XCTAssertTrue(
+            app.staticTexts[
+                "Your Candoa session has expired. Sign in with Apple to restore your account."
+            ].waitForExistence(timeout: 5)
+        )
+        XCTAssertTrue(app.buttons["Sign In with Apple"].waitForExistence(timeout: 5))
+        XCTAssertFalse(element("account-refresh-retry-button", in: app).exists)
+    }
+
     func testEliSettingsShowSubscriptionUsageAndBillingDetails() throws {
         let app = launchApp(fixture: "subscription-usage")
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))

@@ -241,6 +241,10 @@ enum BrowserAgentRemoteService {
             throw RemoteEliError.invalidResponse
         }
         guard (200...299).contains(response.statusCode) else {
+            if response.statusCode == 401 {
+                NotificationCenter.default.post(name: .cloudSessionUnauthorized, object: nil)
+                throw RemoteEliError.sessionExpired
+            }
             let message = (try? JSONDecoder().decode(ServerError.self, from: data))?.error
                 ?? String(localized: "Eli could not continue the browser task.")
             throw RemoteEliError.server(message)
