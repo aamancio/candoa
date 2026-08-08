@@ -1878,6 +1878,37 @@ final class CandoaUITests: XCTestCase {
         )
     }
 
+    func testControlTabHoldCyclesPreviewWithoutSwitchingUntilRelease() throws {
+        let app = launchApp(fixture: "split-view")
+
+        openFixtureTab(path: "one", in: app)
+        openFixtureTab(path: "two", in: app)
+        openFixtureTab(path: "three", in: app)
+
+        // While Control stays held, each Tab press only moves the switcher
+        // selection through the frozen recency order (three, two, one) —
+        // the page itself must stay on "three" until Control is released.
+        XCUIElement.perform(withKeyModifiers: .control) {
+            app.typeKey(.tab, modifierFlags: [])
+            XCTAssertTrue(
+                waitForState(in: app, containing: "switcher=true:two"),
+                currentState(in: app)
+            )
+            XCTAssertTrue(currentState(in: app).contains("active=three"), currentState(in: app))
+
+            app.typeKey(.tab, modifierFlags: [])
+            XCTAssertTrue(
+                waitForState(in: app, containing: "switcher=true:one"),
+                currentState(in: app)
+            )
+            XCTAssertTrue(currentState(in: app).contains("active=three"), currentState(in: app))
+        }
+
+        // Releasing Control commits the highlighted tab and drops the overlay.
+        XCTAssertTrue(waitForState(in: app, containing: "active=one"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "switcher=false"), currentState(in: app))
+    }
+
     func testCommandPaletteDoesNotSwitchToMatchingTabInAnotherSpace() throws {
         let app = launchApp(fixture: "cross-space-duplicate-url")
 

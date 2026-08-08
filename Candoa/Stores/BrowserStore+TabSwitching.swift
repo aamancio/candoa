@@ -11,9 +11,9 @@ extension BrowserStore {
 
         // Switching to the floating player's own tab morphs the player back
         // into the page instead of swapping abruptly; the real switch lands
-        // in finishMiniPlayerReturn once the morph completes. Ctrl-Tab
-        // preview cycling keeps the instant swap — a morph per cycle step
-        // would fight the switcher.
+        // in finishMiniPlayerReturn once the morph completes. The Ctrl-Tab
+        // switcher's release commit keeps the instant swap — a morph landing
+        // under the dismissing overlay would fight the switcher.
         if miniPlayerReturn == nil, floatingMiniPlayerTab?.id == id, !isTabSwitcherPresented {
             beginMiniPlayerReturn(tabID: id, updatesAccessTime: updatesAccessTime)
             return
@@ -105,10 +105,8 @@ extension BrowserStore {
     }
 
     func finishTabSwitcherInteraction() {
-        // Cycling already switched the page live on each press; releasing
-        // Control normally just ends the interaction. The switch here is a
-        // fallback for the one case where the live switch was deferred
-        // behind the mini player's return morph.
+        // Cycling only moved the preview selection; releasing Control is the
+        // commit point where the selected tab actually becomes the page.
         let landedTabID = tabSwitcherSelectedTabID ?? activeTabID
         if let selectedTabID = tabSwitcherSelectedTabID, selectedTabID != activeTabID {
             switchTab(to: selectedTabID, updatesAccessTime: false)
@@ -138,9 +136,9 @@ extension BrowserStore {
 
         guard isTabSwitcherPresented else { return }
 
-        // The page already switched during cycling, so there is nothing to
-        // wait for on release — dropping the overlay immediately keeps the
-        // whole interaction feeling instant.
+        // The commit above already landed the page, so there is nothing to
+        // wait for — dropping the overlay immediately keeps the release
+        // feeling instant.
         hideTabSwitcher()
     }
 
@@ -199,11 +197,10 @@ extension BrowserStore {
             nextIndex = offset > 0 ? 0 : recentTabs.count - 1
         }
         let selectedTabID = recentTabs[nextIndex].id
-        // Arc-style live cycling: the page swaps on the press itself, so a
-        // quick Control-Tab lands instantly instead of waiting for the key
-        // release. Access-time stamping still waits for the end of the
-        // interaction so the frozen recency order holds while cycling.
-        switchTab(to: selectedTabID, updatesAccessTime: false)
+        // Arc-style deferred commit: while Control is held, cycling only
+        // moves the selection in the preview — the page itself switches when
+        // the interaction ends (Control release, or the auto-hide), so
+        // holding to browse previews never churns through intermediate tabs.
         presentTabSwitcher(
             candidates: recentTabs,
             selectedTabID: selectedTabID,
@@ -327,19 +324,27 @@ extension BrowserStore {
         tabSwitcherHideWorkItem = nil
         tabSwitcherShowWorkItem?.cancel()
         tabSwitcherShowWorkItem = nil
+
+        // Flows without a Control-release event (auto-hide) end their
+        // interaction here: land the still-uncommitted selection, then
+        // commit the access time the cycling deferred. Control-release
+        // flows already did both in finishTabSwitcherInteraction — that
+        // path clears isTabSwitcherCycling before hiding, so this cannot
+        // double-commit or stamp the old tab while a switch is deferred
+        // behind the return morph.
+        if isTabSwitcherCycling {
+            if let selectedTabID = tabSwitcherSelectedTabID, selectedTabID != activeTabID {
+                switchTab(to: selectedTabID, updatesAccessTime: false)
+            }
+            if let activeTabID, let index = tabs.firstIndex(where: { $0.id == activeTabID }) {
+                tabs[index].lastAccessedAt = Date()
+            }
+        }
+        isTabSwitcherCycling = false
+
         isTabSwitcherPresented = false
         tabSwitcherCandidates = []
         tabSwitcherSelectedTabID = nil
-
-        // Flows without a Control-release event (auto-hide) end their
-        // interaction here: commit the access time the cycling deferred.
-        // Control-release flows already stamped the landed tab in
-        // finishTabSwitcherInteraction — stamping again here would hit the
-        // old tab when the switch is deferred behind the return morph.
-        if isTabSwitcherCycling, let activeTabID, let index = tabs.firstIndex(where: { $0.id == activeTabID }) {
-            tabs[index].lastAccessedAt = Date()
-        }
-        isTabSwitcherCycling = false
     }
 
     func recentTabsForActiveSpace() -> [BrowserTab] {

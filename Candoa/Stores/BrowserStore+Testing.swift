@@ -404,6 +404,7 @@ extension BrowserStore {
             "tabs=\(tabTitles)",
             "folders=\(folderNames)",
             "favorites=\(favoriteTitles)",
+            "switcher=\(isTabSwitcherPresented):\(tabSwitcherSelectedTitle)",
             "split=\(isSplitViewEnabled)",
             "splitDisplayed=\(isSplitViewDisplayed)",
             "splitTabs=\(splitTabTitles)",
@@ -420,6 +421,12 @@ extension BrowserStore {
             "popupDiag=\(uiTestingPopupDiagnostics.joined(separator: "|"))",
             "webAuth=\(uiTestingWebAuthEvents.joined(separator: "|"))"
         ].joined(separator: ";")
+    }
+
+    private var tabSwitcherSelectedTitle: String {
+        tabSwitcherSelectedTabID
+            .flatMap { id in tabs.first(where: { $0.id == id })?.title }
+            ?? "none"
     }
 
     func setUITestingCommandPaletteQuery(_ query: String) {
