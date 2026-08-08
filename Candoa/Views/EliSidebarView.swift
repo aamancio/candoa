@@ -801,7 +801,7 @@ struct EliSidebarView: View {
         guard let tabID else {
             messages.append(AISidebarMessage(
                 role: .assistant,
-                text: "That browser tab is no longer open.",
+                text: String(localized: "That browser tab is no longer open."),
                 isStreaming: false
             ))
             return
@@ -812,7 +812,7 @@ struct EliSidebarView: View {
             role: .assistant,
             text: "",
             isStreaming: true,
-            transientStatus: "Looking at this page…"
+            transientStatus: String(localized: "Looking at this page…")
         ))
         isResolvingPageAction = true
         let state = BrowserAgentRunState(
@@ -825,7 +825,7 @@ struct EliSidebarView: View {
         browserAgentTask = Task {
             do {
                 guard let page = await store.browserAgentPage(for: state.tabID) else {
-                    finishBrowserAgent(state, message: "That browser tab is no longer available.")
+                    finishBrowserAgent(state, message: String(localized: "That browser tab is no longer available."))
                     return
                 }
                 let response = try await store.startBrowserAgentRun(
@@ -850,24 +850,24 @@ struct EliSidebarView: View {
     ) async throws {
         try Task.checkCancellation()
         guard store.activeTabID == state.tabID else {
-            finishBrowserAgent(state, message: "I stopped because you switched to another tab.")
+            finishBrowserAgent(state, message: String(localized: "I stopped because you switched to another tab."))
             return
         }
 
         switch response.status {
         case .complete:
-            finishBrowserAgent(state, message: response.message.isEmpty ? "Done." : response.message)
+            finishBrowserAgent(state, message: response.message.isEmpty ? String(localized: "Done.") : response.message)
         case .blocked:
             finishBrowserAgent(
                 state,
                 message: response.message.isEmpty
-                    ? "I need your help before I can continue."
+                    ? String(localized: "I need your help before I can continue.")
                     : response.message
             )
         case .action:
             guard let pendingAction = response.action,
                   let action = pendingAction.validatedAction(on: page) else {
-                updateBrowserAgentStatus(state, text: "Refreshing the page controls…")
+                updateBrowserAgentStatus(state, text: String(localized: "Refreshing the page controls…"))
                 let outcome = BrowserAgentActionOutcome(
                     status: .failed,
                     result: "Candoa rejected the action because its page reference was stale or unverified.",
@@ -903,24 +903,18 @@ struct EliSidebarView: View {
         state: BrowserAgentRunState
     ) async throws {
         let result = await store.performAIPageAction(action, in: state.tabID)
-        updateBrowserAgentStatus(state, text: "Checking the result…")
+        updateBrowserAgentStatus(state, text: String(localized: "Checking the result…"))
         await store.waitForBrowserAgentPageSettled(in: state.tabID, previousURL: previousURL)
         guard let page = await store.browserAgentPage(for: state.tabID) else {
-            finishBrowserAgent(state, message: "That browser tab is no longer available.")
+            finishBrowserAgent(state, message: String(localized: "That browser tab is no longer available."))
             return
         }
-        let normalizedResult = result.folding(
-            options: [.caseInsensitive, .diacriticInsensitive],
-            locale: .current
-        ).lowercased()
-        let failed = ["could not", "stopped because", "not ready", "no longer"]
-            .contains(where: normalizedResult.contains)
         let response = try await store.resumeBrowserAgentRun(
             runID: state.runID,
             goal: state.goal,
             outcome: BrowserAgentActionOutcome(
-                status: failed ? .failed : .executed,
-                result: result,
+                status: result.status == .executed ? .executed : .failed,
+                result: result.message,
                 page: page
             )
         )
@@ -962,7 +956,7 @@ struct EliSidebarView: View {
                 )
                 finishBrowserAgent(pending.state, message: response.message)
             } catch {
-                finishBrowserAgent(pending.state, message: "I stopped before making that change.")
+                finishBrowserAgent(pending.state, message: String(localized: "I stopped before making that change."))
             }
         }
     }
@@ -991,18 +985,18 @@ struct EliSidebarView: View {
 
         switch action.kind {
         case .navigate:
-            return "Opening \(action.label)…"
+            return String(localized: "Opening \(action.label)…")
         case .click:
-            return "Using \(action.label)…"
+            return String(localized: "Using \(action.label)…")
         case .select:
             let choice = action.value.trimmingCharacters(in: .whitespacesAndNewlines)
             return choice.isEmpty
-                ? "Selecting \(action.label)…"
-                : "Selecting \(choice)…"
+                ? String(localized: "Selecting \(action.label)…")
+                : String(localized: "Selecting \(choice)…")
         case .fill:
-            return "Entering information in \(action.label)…"
+            return String(localized: "Entering information in \(action.label)…")
         case .scroll:
-            return "Scrolling the page…"
+            return String(localized: "Scrolling the page…")
         }
     }
 
