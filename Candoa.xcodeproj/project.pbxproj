@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		A1B2C3D4E5F60718293A4B5E /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B5D /* Localizable.xcstrings */; };
 		010000000000000000000101 /* CandoaApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000001 /* CandoaApp.swift */; };
 		010000000000000000000102 /* BrowserTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000002 /* BrowserTab.swift */; };
 		010000000000000000000103 /* BrowserSpace.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000003 /* BrowserSpace.swift */; };
@@ -16,8 +15,6 @@
 		010000000000000000000106 /* NavigationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000006 /* NavigationService.swift */; };
 		010000000000000000000107 /* PersistenceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000007 /* PersistenceService.swift */; };
 		010000000000000000000108 /* FaviconService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000008 /* FaviconService.swift */; };
-		DB00000000000000000000B1 /* DefaultBrowserService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB00000000000000000000A1 /* DefaultBrowserService.swift */; };
-		TS00000000000000000000B1 /* TabSnapshotStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = TS00000000000000000000A1 /* TabSnapshotStore.swift */; };
 		010000000000000000000109 /* WKWebViewRepresentable.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000009 /* WKWebViewRepresentable.swift */; };
 		010000000000000000000110 /* WebViewCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000010 /* WebViewCoordinator.swift */; };
 		010000000000000000000111 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000011 /* ContentView.swift */; };
@@ -27,17 +24,9 @@
 		010000000000000000000115 /* CommandPaletteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000015 /* CommandPaletteView.swift */; };
 		010000000000000000000116 /* TabRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000016 /* TabRowView.swift */; };
 		010000000000000000000117 /* SpaceSwitcherView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000017 /* SpaceSwitcherView.swift */; };
-		E60000000000000000000101 /* SpaceSwipeTransition.swift in Sources */ = {isa = PBXBuildFile; fileRef = E60000000000000000000001 /* SpaceSwipeTransition.swift */; };
 		010000000000000000000118 /* TabSwitcherOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01000000000000000000001B /* TabSwitcherOverlay.swift */; };
-		TR00000000000000000000B1 /* TabRecoveryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = TR00000000000000000000A1 /* TabRecoveryView.swift */; };
-		LH00000000000000000000B1 /* LinkHoverPreviewPill.swift in Sources */ = {isa = PBXBuildFile; fileRef = LH00000000000000000000A1 /* LinkHoverPreviewPill.swift */; };
 		010000000000000000000119 /* AppConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01000000000000000000001C /* AppConfiguration.swift */; };
-		TF00000000000000000000B1 /* TabLoadFailure.swift in Sources */ = {isa = PBXBuildFile; fileRef = TF00000000000000000000A1 /* TabLoadFailure.swift */; };
 		010000000000000000000120 /* AppUpdateService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01000000000000000000001D /* AppUpdateService.swift */; };
-		AB1200000000000000000102 /* WhatsNewService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB1200000000000000000002 /* WhatsNewService.swift */; };
-		SI00000000000000000000B1 /* SitePermissions.swift in Sources */ = {isa = PBXBuildFile; fileRef = SI00000000000000000000A1 /* SitePermissions.swift */; };
-		SI00000000000000000000B2 /* SiteInfoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = SI00000000000000000000A2 /* SiteInfoView.swift */; };
-		AB1300000000000000000102 /* ProviderModelDirectory.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB1300000000000000000002 /* ProviderModelDirectory.swift */; };
 		010000000000000000000121 /* KeyboardShortcutMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000031 /* KeyboardShortcutMonitor.swift */; };
 		010000000000000000000122 /* SidebarRevealMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000032 /* SidebarRevealMonitor.swift */; };
 		010000000000000000000123 /* WindowInteractionConfigurator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000033 /* WindowInteractionConfigurator.swift */; };
@@ -60,7 +49,6 @@
 		010000000000000000000155 /* BrowserStore+Media.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000055 /* BrowserStore+Media.swift */; };
 		010000000000000000000160 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 010000000000000000000161 /* Sparkle */; };
 		010000000000000000000170 /* CandoaUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000060 /* CandoaUITests.swift */; };
-		UT00000000000000000000B1 /* CandoaTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = UT00000000000000000000A1 /* CandoaTests.swift */; };
 		010000000000000000000171 /* CommandPaletteView+Layout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000061 /* CommandPaletteView+Layout.swift */; };
 		010000000000000000000172 /* CommandPaletteView+Commands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000062 /* CommandPaletteView+Commands.swift */; };
 		010000000000000000000174 /* CommandPaletteComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000064 /* CommandPaletteComponents.swift */; };
@@ -69,13 +57,13 @@
 		010000000000000000000177 /* InitialOnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000067 /* InitialOnboardingView.swift */; };
 		010000000000000000000178 /* BrowserImportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000068 /* BrowserImportService.swift */; };
 		A1B2C3D4E5F60718293A4B5C /* CommandPaletteSearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E4F5A60718293A4B5C /* CommandPaletteSearch.swift */; };
+		A1B2C3D4E5F60718293A4B5E /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B5D /* Localizable.xcstrings */; };
 		A90000000000000000000101 /* HistoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A90000000000000000000001 /* HistoryStore.swift */; };
 		A90000000000000000000102 /* HistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A90000000000000000000002 /* HistoryView.swift */; };
 		AA0000000000000000000101 /* UserStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000001 /* UserStore.swift */; };
 		AA0000000000000000000102 /* BrowserStore+Testing.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000002 /* BrowserStore+Testing.swift */; };
 		AA0000000000000000000103 /* BrowserStore+CommandPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000003 /* BrowserStore+CommandPalette.swift */; };
 		AA0000000000000000000104 /* BrowserStore+Onboarding.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000004 /* BrowserStore+Onboarding.swift */; };
-		CD0000000000000000000002 /* DownloadsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD0000000000000000000001 /* DownloadsStore.swift */; };
 		AA0000000000000000000105 /* BrowserStore+Spaces.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000005 /* BrowserStore+Spaces.swift */; };
 		AA0000000000000000000106 /* BrowserStore+TabsFolders.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000006 /* BrowserStore+TabsFolders.swift */; };
 		AA0000000000000000000107 /* BrowserStore+BrowserActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000007 /* BrowserStore+BrowserActions.swift */; };
@@ -87,6 +75,10 @@
 		AA000000000000000000010D /* ImageTextRecognizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000000D /* ImageTextRecognizer.swift */; };
 		AB1000000000000000000101 /* WebsiteAppearanceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB1000000000000000000001 /* WebsiteAppearanceService.swift */; };
 		AB10000000000000000BD101 /* BrowsingDataService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB10000000000000000BD001 /* BrowsingDataService.swift */; };
+		AB1200000000000000000101 /* WhatsNewBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB1200000000000000000001 /* WhatsNewBanner.swift */; };
+		AB1200000000000000000102 /* WhatsNewService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB1200000000000000000002 /* WhatsNewService.swift */; };
+		AB1300000000000000000102 /* ProviderModelDirectory.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB1300000000000000000002 /* ProviderModelDirectory.swift */; };
+		AB7700000000000000000101 /* WebAuthenticationSessionHostService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB7700000000000000000001 /* WebAuthenticationSessionHostService.swift */; };
 		BA0000000000000000000101 /* BrowserAgentDriver.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA0000000000000000000001 /* BrowserAgentDriver.swift */; };
 		BA0000000000000000000102 /* BrowserAgent in Resources */ = {isa = PBXBuildFile; fileRef = BA0000000000000000000002 /* BrowserAgent */; };
 		BB0000000000000000000101 /* BrowserPasskeyAuthorizationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000000001 /* BrowserPasskeyAuthorizationService.swift */; };
@@ -94,13 +86,13 @@
 		C2A2B3D4E5F60718293A4B5C /* SidebarTabSections.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A2B3C4E5F60718293A4B5C /* SidebarTabSections.swift */; };
 		C3A2B3D4E5F60718293A4B5C /* SidebarWindowControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3A2B3C4E5F60718293A4B5C /* SidebarWindowControls.swift */; };
 		C4A2B3D4E5F60718293A4B5C /* SidebarDragDrop.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4A2B3C4E5F60718293A4B5C /* SidebarDragDrop.swift */; };
+		CD0000000000000000000002 /* DownloadsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD0000000000000000000001 /* DownloadsStore.swift */; };
+		DB00000000000000000000B1 /* DefaultBrowserService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB00000000000000000000A1 /* DefaultBrowserService.swift */; };
 		DD0000000000000000000101 /* AppleSignInService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD0000000000000000000001 /* AppleSignInService.swift */; };
-		AB7700000000000000000101 /* WebAuthenticationSessionHostService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB7700000000000000000001 /* WebAuthenticationSessionHostService.swift */; };
 		E1A2B3D4F5C60718293A4B5C /* SettingsPanes.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A2B3C4D5E60718293A4B5C /* SettingsPanes.swift */; };
 		E2A2B3D4F5C60718293A4B5C /* EliSettingsPane.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2A2B3C4D5E60718293A4B5C /* EliSettingsPane.swift */; };
 		E3A2B3D4F5C60718293A4B5C /* ShortcutSettingsComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3A2B3C4D5E60718293A4B5C /* ShortcutSettingsComponents.swift */; };
 		E50000000000000000000101 /* AppUpdateBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = E50000000000000000000001 /* AppUpdateBanner.swift */; };
-		AB1200000000000000000101 /* WhatsNewBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB1200000000000000000001 /* WhatsNewBanner.swift */; };
 		E50000000000000000000102 /* InterfaceStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = E50000000000000000000002 /* InterfaceStyle.swift */; };
 		E50000000000000000000103 /* SpaceThemeBackdrop.swift in Sources */ = {isa = PBXBuildFile; fileRef = E50000000000000000000003 /* SpaceThemeBackdrop.swift */; };
 		E50000000000000000000104 /* SidebarDropIndicators.swift in Sources */ = {isa = PBXBuildFile; fileRef = E50000000000000000000004 /* SidebarDropIndicators.swift */; };
@@ -108,9 +100,9 @@
 		E50000000000000000000106 /* SpaceThemePanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E50000000000000000000006 /* SpaceThemePanel.swift */; };
 		E50000000000000000000107 /* SpaceThemeControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = E50000000000000000000007 /* SpaceThemeControls.swift */; };
 		E50000000000000000000108 /* SpaceComposerModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = E50000000000000000000008 /* SpaceComposerModels.swift */; };
+		E60000000000000000000101 /* SpaceSwipeTransition.swift in Sources */ = {isa = PBXBuildFile; fileRef = E60000000000000000000001 /* SpaceSwipeTransition.swift */; };
 		EF0000000000000000000101 /* EliModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000000000000001 /* EliModels.swift */; };
 		EF0000000000000000000102 /* EliCredentials.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000000000000002 /* EliCredentials.swift */; };
-		EF0000000000000000000110 /* AIModelCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000000000000010 /* AIModelCatalog.swift */; };
 		EF0000000000000000000103 /* BrowserAgent.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000000000000003 /* BrowserAgent.swift */; };
 		EF0000000000000000000104 /* PageActionProposal.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000000000000004 /* PageActionProposal.swift */; };
 		EF0000000000000000000105 /* WebPageScripts.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000000000000005 /* WebPageScripts.swift */; };
@@ -122,8 +114,16 @@
 		EF000000000000000000010B /* WebViewCoordinator+Delegates.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF000000000000000000000B /* WebViewCoordinator+Delegates.swift */; };
 		EF000000000000000000010C /* WebViewCoordinator+Downloads.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF000000000000000000000C /* WebViewCoordinator+Downloads.swift */; };
 		EF000000000000000000010D /* WebViewCoordinator+PageIntegration.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF000000000000000000000D /* WebViewCoordinator+PageIntegration.swift */; };
+		EF0000000000000000000110 /* AIModelCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000000000000010 /* AIModelCatalog.swift */; };
 		F60000000000000000000101 /* ButtonTreatment.swift in Sources */ = {isa = PBXBuildFile; fileRef = F60000000000000000000001 /* ButtonTreatment.swift */; };
 		F60000000000000000000102 /* ShortcutTooltip.swift in Sources */ = {isa = PBXBuildFile; fileRef = F60000000000000000000002 /* ShortcutTooltip.swift */; };
+		LH00000000000000000000B1 /* LinkHoverPreviewPill.swift in Sources */ = {isa = PBXBuildFile; fileRef = LH00000000000000000000A1 /* LinkHoverPreviewPill.swift */; };
+		SI00000000000000000000B1 /* SitePermissions.swift in Sources */ = {isa = PBXBuildFile; fileRef = SI00000000000000000000A1 /* SitePermissions.swift */; };
+		SI00000000000000000000B2 /* SiteInfoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = SI00000000000000000000A2 /* SiteInfoView.swift */; };
+		TF00000000000000000000B1 /* TabLoadFailure.swift in Sources */ = {isa = PBXBuildFile; fileRef = TF00000000000000000000A1 /* TabLoadFailure.swift */; };
+		TR00000000000000000000B1 /* TabRecoveryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = TR00000000000000000000A1 /* TabRecoveryView.swift */; };
+		TS00000000000000000000B1 /* TabSnapshotStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = TS00000000000000000000A1 /* TabSnapshotStore.swift */; };
+		UT00000000000000000000B1 /* CandoaTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = UT00000000000000000000A1 /* CandoaTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -152,8 +152,6 @@
 		010000000000000000000006 /* NavigationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavigationService.swift; sourceTree = "<group>"; };
 		010000000000000000000007 /* PersistenceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceService.swift; sourceTree = "<group>"; };
 		010000000000000000000008 /* FaviconService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FaviconService.swift; sourceTree = "<group>"; };
-		DB00000000000000000000A1 /* DefaultBrowserService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DefaultBrowserService.swift; sourceTree = "<group>"; };
-		TS00000000000000000000A1 /* TabSnapshotStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabSnapshotStore.swift; sourceTree = "<group>"; };
 		010000000000000000000009 /* WKWebViewRepresentable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WKWebViewRepresentable.swift; sourceTree = "<group>"; };
 		010000000000000000000010 /* WebViewCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebViewCoordinator.swift; sourceTree = "<group>"; };
 		010000000000000000000011 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -163,20 +161,12 @@
 		010000000000000000000015 /* CommandPaletteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandPaletteView.swift; sourceTree = "<group>"; };
 		010000000000000000000016 /* TabRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabRowView.swift; sourceTree = "<group>"; };
 		010000000000000000000017 /* SpaceSwitcherView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpaceSwitcherView.swift; sourceTree = "<group>"; };
-		E60000000000000000000001 /* SpaceSwipeTransition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpaceSwipeTransition.swift; sourceTree = "<group>"; };
 		010000000000000000000018 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		010000000000000000000019 /* Candoa.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Candoa.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		01000000000000000000001A /* Candoa.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Candoa.entitlements; sourceTree = "<group>"; };
 		01000000000000000000001B /* TabSwitcherOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabSwitcherOverlay.swift; sourceTree = "<group>"; };
-		TR00000000000000000000A1 /* TabRecoveryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabRecoveryView.swift; sourceTree = "<group>"; };
-		LH00000000000000000000A1 /* LinkHoverPreviewPill.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinkHoverPreviewPill.swift; sourceTree = "<group>"; };
 		01000000000000000000001C /* AppConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfiguration.swift; sourceTree = "<group>"; };
-		TF00000000000000000000A1 /* TabLoadFailure.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabLoadFailure.swift; sourceTree = "<group>"; };
 		01000000000000000000001D /* AppUpdateService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppUpdateService.swift; sourceTree = "<group>"; };
-		AB1200000000000000000002 /* WhatsNewService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhatsNewService.swift; sourceTree = "<group>"; };
-		SI00000000000000000000A1 /* SitePermissions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SitePermissions.swift; sourceTree = "<group>"; };
-		SI00000000000000000000A2 /* SiteInfoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SiteInfoView.swift; sourceTree = "<group>"; };
-		AB1300000000000000000002 /* ProviderModelDirectory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderModelDirectory.swift; sourceTree = "<group>"; };
 		010000000000000000000031 /* KeyboardShortcutMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardShortcutMonitor.swift; sourceTree = "<group>"; };
 		010000000000000000000032 /* SidebarRevealMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarRevealMonitor.swift; sourceTree = "<group>"; };
 		010000000000000000000033 /* WindowInteractionConfigurator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowInteractionConfigurator.swift; sourceTree = "<group>"; };
@@ -198,11 +188,9 @@
 		010000000000000000000054 /* BrowserStore+Eli.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+Eli.swift"; sourceTree = "<group>"; };
 		010000000000000000000055 /* BrowserStore+Media.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+Media.swift"; sourceTree = "<group>"; };
 		010000000000000000000060 /* CandoaUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CandoaUITests.swift; sourceTree = "<group>"; };
-		UT00000000000000000000A1 /* CandoaTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CandoaTests.swift; sourceTree = "<group>"; };
 		010000000000000000000061 /* CommandPaletteView+Layout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CommandPaletteView+Layout.swift"; sourceTree = "<group>"; };
 		010000000000000000000062 /* CommandPaletteView+Commands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CommandPaletteView+Commands.swift"; sourceTree = "<group>"; };
 		010000000000000000000063 /* CandoaUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CandoaUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		UT00000000000000000000A2 /* CandoaTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CandoaTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		010000000000000000000064 /* CommandPaletteComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandPaletteComponents.swift; sourceTree = "<group>"; };
 		010000000000000000000065 /* CommandPaletteModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandPaletteModels.swift; sourceTree = "<group>"; };
 		010000000000000000000066 /* AccountService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountService.swift; sourceTree = "<group>"; };
@@ -215,7 +203,6 @@
 		AA0000000000000000000002 /* BrowserStore+Testing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+Testing.swift"; sourceTree = "<group>"; };
 		AA0000000000000000000003 /* BrowserStore+CommandPalette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+CommandPalette.swift"; sourceTree = "<group>"; };
 		AA0000000000000000000004 /* BrowserStore+Onboarding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+Onboarding.swift"; sourceTree = "<group>"; };
-		CD0000000000000000000001 /* DownloadsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadsStore.swift; sourceTree = "<group>"; };
 		AA0000000000000000000005 /* BrowserStore+Spaces.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+Spaces.swift"; sourceTree = "<group>"; };
 		AA0000000000000000000006 /* BrowserStore+TabsFolders.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+TabsFolders.swift"; sourceTree = "<group>"; };
 		AA0000000000000000000007 /* BrowserStore+BrowserActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+BrowserActions.swift"; sourceTree = "<group>"; };
@@ -227,18 +214,22 @@
 		AA000000000000000000000D /* ImageTextRecognizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageTextRecognizer.swift; sourceTree = "<group>"; };
 		AB1000000000000000000001 /* WebsiteAppearanceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebsiteAppearanceService.swift; sourceTree = "<group>"; };
 		AB10000000000000000BD001 /* BrowsingDataService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowsingDataService.swift; sourceTree = "<group>"; };
+		AB1200000000000000000001 /* WhatsNewBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhatsNewBanner.swift; sourceTree = "<group>"; };
+		AB1200000000000000000002 /* WhatsNewService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhatsNewService.swift; sourceTree = "<group>"; };
+		AB1300000000000000000002 /* ProviderModelDirectory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderModelDirectory.swift; sourceTree = "<group>"; };
+		AB7700000000000000000001 /* WebAuthenticationSessionHostService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebAuthenticationSessionHostService.swift; sourceTree = "<group>"; };
 		B1C2D3E4F5A60718293A4B5C /* CommandPaletteSearch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandPaletteSearch.swift; sourceTree = "<group>"; };
 		BA0000000000000000000001 /* BrowserAgentDriver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserAgentDriver.swift; sourceTree = "<group>"; };
 		BA0000000000000000000002 /* BrowserAgent */ = {isa = PBXFileReference; lastKnownFileType = folder; path = BrowserAgent; sourceTree = "<group>"; };
 		BB0000000000000000000001 /* BrowserPasskeyAuthorizationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserPasskeyAuthorizationService.swift; sourceTree = "<group>"; };
-		DD0000000000000000000001 /* AppleSignInService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleSignInService.swift; sourceTree = "<group>"; };
-		AB7700000000000000000001 /* WebAuthenticationSessionHostService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebAuthenticationSessionHostService.swift; sourceTree = "<group>"; };
+		CD0000000000000000000001 /* DownloadsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadsStore.swift; sourceTree = "<group>"; };
 		D1A2B3C4E5F60718293A4B5C /* SidebarSpaceComposer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarSpaceComposer.swift; sourceTree = "<group>"; };
 		D2A2B3C4E5F60718293A4B5C /* SidebarTabSections.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarTabSections.swift; sourceTree = "<group>"; };
 		D3A2B3C4E5F60718293A4B5C /* SidebarWindowControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarWindowControls.swift; sourceTree = "<group>"; };
 		D4A2B3C4E5F60718293A4B5C /* SidebarDragDrop.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarDragDrop.swift; sourceTree = "<group>"; };
+		DB00000000000000000000A1 /* DefaultBrowserService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DefaultBrowserService.swift; sourceTree = "<group>"; };
+		DD0000000000000000000001 /* AppleSignInService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleSignInService.swift; sourceTree = "<group>"; };
 		E50000000000000000000001 /* AppUpdateBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppUpdateBanner.swift; sourceTree = "<group>"; };
-		AB1200000000000000000001 /* WhatsNewBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhatsNewBanner.swift; sourceTree = "<group>"; };
 		E50000000000000000000002 /* InterfaceStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InterfaceStyle.swift; sourceTree = "<group>"; };
 		E50000000000000000000003 /* SpaceThemeBackdrop.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpaceThemeBackdrop.swift; sourceTree = "<group>"; };
 		E50000000000000000000004 /* SidebarDropIndicators.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarDropIndicators.swift; sourceTree = "<group>"; };
@@ -246,9 +237,9 @@
 		E50000000000000000000006 /* SpaceThemePanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpaceThemePanel.swift; sourceTree = "<group>"; };
 		E50000000000000000000007 /* SpaceThemeControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpaceThemeControls.swift; sourceTree = "<group>"; };
 		E50000000000000000000008 /* SpaceComposerModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpaceComposerModels.swift; sourceTree = "<group>"; };
+		E60000000000000000000001 /* SpaceSwipeTransition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpaceSwipeTransition.swift; sourceTree = "<group>"; };
 		EF0000000000000000000001 /* EliModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EliModels.swift; sourceTree = "<group>"; };
 		EF0000000000000000000002 /* EliCredentials.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EliCredentials.swift; sourceTree = "<group>"; };
-		EF0000000000000000000010 /* AIModelCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIModelCatalog.swift; sourceTree = "<group>"; };
 		EF0000000000000000000003 /* BrowserAgent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserAgent.swift; sourceTree = "<group>"; };
 		EF0000000000000000000004 /* PageActionProposal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PageActionProposal.swift; sourceTree = "<group>"; };
 		EF0000000000000000000005 /* WebPageScripts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebPageScripts.swift; sourceTree = "<group>"; };
@@ -260,11 +251,20 @@
 		EF000000000000000000000B /* WebViewCoordinator+Delegates.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WebViewCoordinator+Delegates.swift"; sourceTree = "<group>"; };
 		EF000000000000000000000C /* WebViewCoordinator+Downloads.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WebViewCoordinator+Downloads.swift"; sourceTree = "<group>"; };
 		EF000000000000000000000D /* WebViewCoordinator+PageIntegration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WebViewCoordinator+PageIntegration.swift"; sourceTree = "<group>"; };
+		EF0000000000000000000010 /* AIModelCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIModelCatalog.swift; sourceTree = "<group>"; };
 		F1A2B3C4D5E60718293A4B5C /* SettingsPanes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsPanes.swift; sourceTree = "<group>"; };
 		F2A2B3C4D5E60718293A4B5C /* EliSettingsPane.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EliSettingsPane.swift; sourceTree = "<group>"; };
 		F3A2B3C4D5E60718293A4B5C /* ShortcutSettingsComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutSettingsComponents.swift; sourceTree = "<group>"; };
 		F60000000000000000000001 /* ButtonTreatment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ButtonTreatment.swift; sourceTree = "<group>"; };
 		F60000000000000000000002 /* ShortcutTooltip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutTooltip.swift; sourceTree = "<group>"; };
+		LH00000000000000000000A1 /* LinkHoverPreviewPill.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinkHoverPreviewPill.swift; sourceTree = "<group>"; };
+		SI00000000000000000000A1 /* SitePermissions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SitePermissions.swift; sourceTree = "<group>"; };
+		SI00000000000000000000A2 /* SiteInfoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SiteInfoView.swift; sourceTree = "<group>"; };
+		TF00000000000000000000A1 /* TabLoadFailure.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabLoadFailure.swift; sourceTree = "<group>"; };
+		TR00000000000000000000A1 /* TabRecoveryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabRecoveryView.swift; sourceTree = "<group>"; };
+		TS00000000000000000000A1 /* TabSnapshotStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabSnapshotStore.swift; sourceTree = "<group>"; };
+		UT00000000000000000000A1 /* CandoaTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CandoaTests.swift; sourceTree = "<group>"; };
+		UT00000000000000000000A2 /* CandoaTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CandoaTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -456,14 +456,6 @@
 			path = Resources;
 			sourceTree = "<group>";
 		};
-		UT00000000000000000000C1 /* CandoaTests */ = {
-			isa = PBXGroup;
-			children = (
-				UT00000000000000000000A1 /* CandoaTests.swift */,
-			);
-			path = CandoaTests;
-			sourceTree = "<group>";
-		};
 		010000000000000000000028 /* CandoaUITests */ = {
 			isa = PBXGroup;
 			children = (
@@ -522,6 +514,14 @@
 				F60000000000000000000002 /* ShortcutTooltip.swift */,
 			);
 			path = UI;
+			sourceTree = "<group>";
+		};
+		UT00000000000000000000C1 /* CandoaTests */ = {
+			isa = PBXGroup;
+			children = (
+				UT00000000000000000000A1 /* CandoaTests.swift */,
+			);
+			path = CandoaTests;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -596,7 +596,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 2650;
-				LastUpgradeCheck = 2650;
+				LastUpgradeCheck = 2660;
 				TargetAttributes = {
 					010000000000000000000200 = {
 						CreatedOnToolsVersion = 26.5;
@@ -656,14 +656,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		UT00000000000000000000D3 /* Resources */ = {
+		010000000000000000000260 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		010000000000000000000260 /* Resources */ = {
+		UT00000000000000000000D3 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -874,6 +874,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
@@ -897,6 +898,7 @@
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
@@ -935,6 +937,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -951,6 +954,7 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				VALIDATE_PRODUCT = YES;
@@ -961,7 +965,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				CANDOA_APP_ENTITLEMENTS = Candoa/Resources/Candoa.entitlements;
 				CODE_SIGN_ENTITLEMENTS = "$(CANDOA_APP_ENTITLEMENTS)";
 				CODE_SIGN_IDENTITY = "Apple Development";
@@ -969,10 +972,12 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 5;
+				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_ASSET_PATHS = "";
 				DEVELOPMENT_TEAM = "";
 				"DEVELOPMENT_TEAM[sdk=macosx*]" = CHFBL6P6U7;
 				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Candoa/Resources/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -999,6 +1004,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 5;
+				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_ASSET_PATHS = "";
 				DEVELOPMENT_TEAM = "";
 				"DEVELOPMENT_TEAM[sdk=macosx*]" = CHFBL6P6U7;
@@ -1024,6 +1030,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Manual;
+				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = "";
 				"DEVELOPMENT_TEAM[sdk=macosx*]" = CHFBL6P6U7;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -1042,6 +1049,7 @@
 				CODE_SIGN_IDENTITY = "-";
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Manual;
+				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = "";
 				"DEVELOPMENT_TEAM[sdk=macosx*]" = CHFBL6P6U7;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -1061,6 +1069,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Manual;
+				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = "";
 				"DEVELOPMENT_TEAM[sdk=macosx*]" = CHFBL6P6U7;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -1080,6 +1089,7 @@
 				CODE_SIGN_IDENTITY = "-";
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Manual;
+				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = "";
 				"DEVELOPMENT_TEAM[sdk=macosx*]" = CHFBL6P6U7;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -1113,20 +1123,20 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		UT00000000000000000000F1 /* Build configuration list for PBXNativeTarget "CandoaTests" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				UT00000000000000000000F2 /* Debug */,
-				UT00000000000000000000F3 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
 		010000000000000000000410 /* Build configuration list for PBXNativeTarget "CandoaUITests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				010000000000000000000411 /* Debug */,
 				010000000000000000000412 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		UT00000000000000000000F1 /* Build configuration list for PBXNativeTarget "CandoaTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				UT00000000000000000000F2 /* Debug */,
+				UT00000000000000000000F3 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
