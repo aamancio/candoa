@@ -141,9 +141,13 @@ struct SidebarView: View {
         // of the swiping pages so it stays put while Spaces slide beneath it.
         spaceSwipeContent
             .overlay(alignment: .top) {
-                hoistedFavoritesSection
-                    .padding(.horizontal, leadingInset)
-                    .padding(.top, spaceSwipeTopInset + 1)
+                // Private tabs never join the workspace, so the shared
+                // favorites grid (and its drag-here hint) has no place here.
+                if !store.isPrivate {
+                    hoistedFavoritesSection
+                        .padding(.horizontal, leadingInset)
+                        .padding(.top, spaceSwipeTopInset + 1)
+                }
             }
             .overlay(alignment: .bottom) {
                 if showsSpaceSwitcher {

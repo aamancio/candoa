@@ -630,6 +630,13 @@ final class CandoaUITests: XCTestCase {
         submitCommandPaletteText("https://fixture.candoa.test/history", in: app)
         XCTAssertTrue(app.staticTexts["Candoa History Fixture"].firstMatch.waitForExistence(timeout: 10))
 
+        // Positive control for the private-window absence check below: the
+        // same query must find the empty-favorites hint in an ordinary window.
+        XCTAssertTrue(
+            element("favorites-drop-zone", in: app).waitForExistence(timeout: 5),
+            "An ordinary window with no favorites should show the drop-zone hint"
+        )
+
         app.typeKey("n", modifierFlags: [.command, .shift])
         let privateWindow = app.windows["Private Browsing"]
         XCTAssertTrue(privateWindow.waitForExistence(timeout: 10))
@@ -643,6 +650,10 @@ final class CandoaUITests: XCTestCase {
         XCTAssertTrue(
             element("private-browsing-explainer", in: privateWindow).waitForExistence(timeout: 5),
             "An empty private window should present the Private Browsing explainer"
+        )
+        XCTAssertFalse(
+            element("favorites-drop-zone", in: privateWindow).exists,
+            "Private windows must not advertise workspace favorites"
         )
 
         // Force key status onto the private window before typing: window
