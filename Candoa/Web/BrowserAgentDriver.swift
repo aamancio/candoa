@@ -47,7 +47,7 @@ struct BrowserAgentDriver {
     func performAction(
         _ action: PageActionProposal,
         in webView: WKWebView
-    ) async throws -> String {
+    ) async throws -> PageActionResult {
         if action.kind == .scroll {
             guard let snapshotID = action.browserAgentSnapshotID else {
                 throw DriverError.actionNotGrounded
@@ -61,7 +61,7 @@ struct BrowserAgentDriver {
                 in: webView,
                 contentWorld: contentWorld
             )
-            return try stringResult(from: value)
+            return try actionResult(from: value)
         }
 
         guard let reference = action.browserAgentReference,
@@ -83,7 +83,7 @@ struct BrowserAgentDriver {
             in: webView,
             contentWorld: contentWorld
         )
-        return try stringResult(from: value)
+        return try actionResult(from: value)
     }
 
     private func execute(
@@ -116,5 +116,20 @@ struct BrowserAgentDriver {
             throw DriverError.invalidStringResult
         }
         return value
+    }
+
+    /// The action scripts report `{ ok, message }` so the outcome status is
+    /// explicit instead of inferred from the message wording.
+    private struct ActionResultPayload: Decodable {
+        let ok: Bool
+        let message: String
+    }
+
+    private func actionResult(from value: Any?) throws -> PageActionResult {
+        let payload = try JSONDecoder().decode(
+            ActionResultPayload.self,
+            from: Data(stringResult(from: value).utf8)
+        )
+        return payload.ok ? .executed(payload.message) : .failed(payload.message)
     }
 }

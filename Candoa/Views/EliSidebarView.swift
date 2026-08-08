@@ -801,7 +801,7 @@ struct EliSidebarView: View {
         guard let tabID else {
             messages.append(AISidebarMessage(
                 role: .assistant,
-                text: "That browser tab is no longer open.",
+                text: String(localized: "That browser tab is no longer open."),
                 isStreaming: false
             ))
             return
@@ -812,7 +812,7 @@ struct EliSidebarView: View {
             role: .assistant,
             text: "",
             isStreaming: true,
-            transientStatus: "Looking at this page…"
+            transientStatus: String(localized: "Looking at this page…")
         ))
         isResolvingPageAction = true
         let state = BrowserAgentRunState(
@@ -856,12 +856,12 @@ struct EliSidebarView: View {
 
         switch response.status {
         case .complete:
-            finishBrowserAgent(state, message: response.message.isEmpty ? "Done." : response.message)
+            finishBrowserAgent(state, message: response.message.isEmpty ? String(localized: "Done.") : response.message)
         case .blocked:
             finishBrowserAgent(
                 state,
                 message: response.message.isEmpty
-                    ? "I need your help before I can continue."
+                    ? String(localized: "I need your help before I can continue.")
                     : response.message
             )
         case .action:
@@ -909,18 +909,12 @@ struct EliSidebarView: View {
             finishBrowserAgent(state, message: String(localized: "That browser tab is no longer available."))
             return
         }
-        let normalizedResult = result.folding(
-            options: [.caseInsensitive, .diacriticInsensitive],
-            locale: .current
-        ).lowercased()
-        let failed = ["could not", "stopped because", "not ready", "no longer"]
-            .contains(where: normalizedResult.contains)
         let response = try await store.resumeBrowserAgentRun(
             runID: state.runID,
             goal: state.goal,
             outcome: BrowserAgentActionOutcome(
-                status: failed ? .failed : .executed,
-                result: result,
+                status: result.status == .executed ? .executed : .failed,
+                result: result.message,
                 page: page
             )
         )
