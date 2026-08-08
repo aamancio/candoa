@@ -336,6 +336,7 @@ final class BrowserStore: ObservableObject {
     var uiTestingWebAuthEventCancellable: AnyCancellable?
     var downloadsChangeCancellable: AnyCancellable?
     var uiTestingDownloadFixtureCancellable: AnyCancellable?
+    var uiTestingTabSwitcherCancellable: AnyCancellable?
     var tabSwitcherHideWorkItem: DispatchWorkItem?
     var tabSwitcherShowWorkItem: DispatchWorkItem?
     var copiedURLToastHideWorkItem: DispatchWorkItem?
@@ -537,6 +538,7 @@ final class BrowserStore: ObservableObject {
         downloadsChangeCancellable = downloadsStore.objectWillChange
             .sink { [weak self] _ in self?.objectWillChange.send() }
         configureUITestingDownloadFixtureTrigger()
+        configureUITestingTabSwitcherTrigger()
     }
 
 }

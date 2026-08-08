@@ -1878,6 +1878,52 @@ final class CandoaUITests: XCTestCase {
         )
     }
 
+    func testControlTabHoldCyclesPreviewWithoutSwitchingUntilRelease() throws {
+        let app = launchApp(fixture: "split-view")
+
+        openFixtureTab(path: "one", in: app)
+        openFixtureTab(path: "two", in: app)
+        openFixtureTab(path: "three", in: app)
+
+        // While Control stays held, each Tab press only moves the switcher
+        // selection through the frozen recency order (three, two, one) —
+        // the page itself must stay on "three" until Control is released.
+        // The hold is driven through the app's UI-testing seam: neither
+        // typeKey (resets modifier state per key) nor runner-posted
+        // CGEvents (need an Accessibility grant CI lacks) can keep Control
+        // down across several presses and assertions.
+        postTabSwitcherAction("next")
+        XCTAssertTrue(
+            waitForState(in: app, containing: "switcher=true:two"),
+            currentState(in: app)
+        )
+        XCTAssertTrue(currentState(in: app).contains("active=three"), currentState(in: app))
+
+        postTabSwitcherAction("next")
+        XCTAssertTrue(
+            waitForState(in: app, containing: "switcher=true:one"),
+            currentState(in: app)
+        )
+        XCTAssertTrue(currentState(in: app).contains("active=three"), currentState(in: app))
+
+        // Releasing Control commits the highlighted tab and drops the overlay.
+        postTabSwitcherAction("release")
+        XCTAssertTrue(waitForState(in: app, containing: "active=one"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "switcher=false"), currentState(in: app))
+    }
+
+    /// Drives the Ctrl-Tab switcher through the app's distributed-
+    /// notification seam; the actions invoke the same store entry points
+    /// as the real key monitor's press/release callbacks.
+    private func postTabSwitcherAction(_ action: String) {
+        DistributedNotificationCenter.default().postNotificationName(
+            Notification.Name("app.candoa.uitesting.tab-switcher"),
+            object: action,
+            userInfo: nil,
+            deliverImmediately: true
+        )
+    }
+
     func testCommandPaletteDoesNotSwitchToMatchingTabInAnotherSpace() throws {
         let app = launchApp(fixture: "cross-space-duplicate-url")
 
