@@ -15,6 +15,7 @@ struct SiteInfoPopoverView: View {
     // Captured once when the popover opens — a deliberate snapshot, not an
     // observation, so showing Site Info never adds steady-state work.
     @State private var securitySummary: SiteSecuritySummary?
+    @State private var isCertificateExpanded = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -58,8 +59,8 @@ struct SiteInfoPopoverView: View {
                 .textSelection(.enabled)
                 .accessibilityIdentifier("site-info-host")
 
-            if let originKey {
-                Text(originKey)
+            if let displayOrigin {
+                Text(displayOrigin)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -67,6 +68,23 @@ struct SiteInfoPopoverView: View {
                     .textSelection(.enabled)
             }
         }
+    }
+
+    /// The origin as people read it: scheme and host, with the port shown
+    /// only when it isn't the scheme's default. The stored decision key keeps
+    /// the explicit port; this is display only.
+    private var displayOrigin: String? {
+        guard
+            let scheme = url.scheme?.lowercased(),
+            scheme == "http" || scheme == "https",
+            let host = url.host(percentEncoded: false)?.lowercased()
+        else {
+            return nil
+        }
+        if let port = url.port, port != (scheme == "https" ? 443 : 80) {
+            return "\(scheme)://\(host):\(port)"
+        }
+        return "\(scheme)://\(host)"
     }
 
     private var displayName: String {
@@ -96,12 +114,22 @@ struct SiteInfoPopoverView: View {
             .accessibilityElement(children: .combine)
             .accessibilityIdentifier("site-info-connection")
 
+            // Certificate specifics stay one click away: the headline speaks
+            // plainly, and the technical detail never leads.
             if let certificateLine {
-                Text(certificateLine)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .textSelection(.enabled)
-                    .fixedSize(horizontal: false, vertical: true)
+                DisclosureGroup(isExpanded: $isCertificateExpanded) {
+                    Text(certificateLine)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.top, 2)
+                } label: {
+                    Text("Details")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.leading, 26)
             }
         }
     }
@@ -109,11 +137,11 @@ struct SiteInfoPopoverView: View {
     private var connectionTitle: LocalizedStringKey {
         switch securitySummary?.connection {
         case .secure:
-            return "Encrypted connection"
+            return "Secure Connection"
         case .mixedContent:
-            return "Partially encrypted"
+            return "Partially Secure"
         case .insecure:
-            return "Not encrypted"
+            return "Not Secure"
         case .localDevelopment:
             return "Local development server"
         case .localFile:
@@ -128,11 +156,11 @@ struct SiteInfoPopoverView: View {
     private var connectionDetail: LocalizedStringKey {
         switch securitySummary?.connection {
         case .secure:
-            return "Information you exchange with this site is encrypted in transit."
+            return "Your connection to this site is private."
         case .mixedContent:
-            return "This page loaded some content over an unencrypted connection."
+            return "Parts of this page are not private."
         case .insecure:
-            return "Information you send to this site can be read by others."
+            return "Anything you enter on this site could be seen by others."
         case .localDevelopment:
             return "This page is served from a local address on this Mac."
         case .localFile:

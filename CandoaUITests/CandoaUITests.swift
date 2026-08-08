@@ -2578,13 +2578,16 @@ final class CandoaUITests: XCTestCase {
             currentState(in: app)
         )
 
-        app.typeKey(.escape, modifierFlags: [])
+        // Dismiss by clicking the page: the transient popover consumes that
+        // click, so it deterministically closes without reaching the page
+        // (synthesized Escape can lose races when the machine is in use).
+        let webView = app.webViews.firstMatch
+        XCTAssertTrue(webView.waitForExistence(timeout: 10), currentState(in: app))
+        webView.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).click()
         XCTAssertTrue(waitForState(in: app, containing: "siteInfoShown=false"), currentState(in: app))
 
         // The page's window.open click must now be refused: the source tab
         // stays put and the delegate records the block.
-        let webView = app.webViews.firstMatch
-        XCTAssertTrue(webView.waitForExistence(timeout: 10), currentState(in: app))
         webView.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).click()
 
         XCTAssertTrue(
