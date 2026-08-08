@@ -59,6 +59,7 @@
 		010000000000000000000155 /* BrowserStore+Media.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000055 /* BrowserStore+Media.swift */; };
 		010000000000000000000160 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 010000000000000000000161 /* Sparkle */; };
 		010000000000000000000170 /* CandoaUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000060 /* CandoaUITests.swift */; };
+		UT00000000000000000000B1 /* CandoaTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = UT00000000000000000000A1 /* CandoaTests.swift */; };
 		010000000000000000000171 /* CommandPaletteView+Layout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000061 /* CommandPaletteView+Layout.swift */; };
 		010000000000000000000172 /* CommandPaletteView+Commands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000062 /* CommandPaletteView+Commands.swift */; };
 		010000000000000000000174 /* CommandPaletteComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000064 /* CommandPaletteComponents.swift */; };
@@ -132,6 +133,13 @@
 			remoteGlobalIDString = 010000000000000000000200;
 			remoteInfo = Candoa;
 		};
+		UT00000000000000000000E2 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 010000000000000000000300 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 010000000000000000000200;
+			remoteInfo = Candoa;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
@@ -189,9 +197,11 @@
 		010000000000000000000054 /* BrowserStore+Eli.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+Eli.swift"; sourceTree = "<group>"; };
 		010000000000000000000055 /* BrowserStore+Media.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+Media.swift"; sourceTree = "<group>"; };
 		010000000000000000000060 /* CandoaUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CandoaUITests.swift; sourceTree = "<group>"; };
+		UT00000000000000000000A1 /* CandoaTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CandoaTests.swift; sourceTree = "<group>"; };
 		010000000000000000000061 /* CommandPaletteView+Layout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CommandPaletteView+Layout.swift"; sourceTree = "<group>"; };
 		010000000000000000000062 /* CommandPaletteView+Commands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CommandPaletteView+Commands.swift"; sourceTree = "<group>"; };
 		010000000000000000000063 /* CandoaUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CandoaUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		UT00000000000000000000A2 /* CandoaTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CandoaTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		010000000000000000000064 /* CommandPaletteComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandPaletteComponents.swift; sourceTree = "<group>"; };
 		010000000000000000000065 /* CommandPaletteModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandPaletteModels.swift; sourceTree = "<group>"; };
 		010000000000000000000066 /* AccountService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountService.swift; sourceTree = "<group>"; };
@@ -272,6 +282,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		UT00000000000000000000D2 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -280,6 +297,7 @@
 			children = (
 				010000000000000000000021 /* Candoa */,
 				010000000000000000000028 /* CandoaUITests */,
+				UT00000000000000000000C1 /* CandoaTests */,
 				010000000000000000000030 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -437,6 +455,14 @@
 			path = Resources;
 			sourceTree = "<group>";
 		};
+		UT00000000000000000000C1 /* CandoaTests */ = {
+			isa = PBXGroup;
+			children = (
+				UT00000000000000000000A1 /* CandoaTests.swift */,
+			);
+			path = CandoaTests;
+			sourceTree = "<group>";
+		};
 		010000000000000000000028 /* CandoaUITests */ = {
 			isa = PBXGroup;
 			children = (
@@ -483,6 +509,7 @@
 			children = (
 				010000000000000000000019 /* Candoa.app */,
 				010000000000000000000063 /* CandoaUITests.xctest */,
+				UT00000000000000000000A2 /* CandoaTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -540,6 +567,26 @@
 			productReference = 010000000000000000000063 /* CandoaUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		UT00000000000000000000E1 /* CandoaTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = UT00000000000000000000F1 /* Build configuration list for PBXNativeTarget "CandoaTests" */;
+			buildPhases = (
+				UT00000000000000000000D1 /* Sources */,
+				UT00000000000000000000D2 /* Frameworks */,
+				UT00000000000000000000D3 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				UT00000000000000000000E3 /* PBXTargetDependency */,
+			);
+			name = CandoaTests;
+			packageProductDependencies = (
+			);
+			productName = CandoaTests;
+			productReference = UT00000000000000000000A2 /* CandoaTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -559,6 +606,10 @@
 						};
 					};
 					010000000000000000000201 = {
+						CreatedOnToolsVersion = 26.5;
+						TestTargetID = 010000000000000000000200;
+					};
+					UT00000000000000000000E1 = {
 						CreatedOnToolsVersion = 26.5;
 						TestTargetID = 010000000000000000000200;
 					};
@@ -582,6 +633,7 @@
 			targets = (
 				010000000000000000000200 /* Candoa */,
 				010000000000000000000201 /* CandoaUITests */,
+				UT00000000000000000000E1 /* CandoaTests */,
 			);
 		};
 /* End PBXProject section */
@@ -593,6 +645,13 @@
 			files = (
 				010000000000000000000150 /* Assets.xcassets in Resources */,
 				BA0000000000000000000102 /* BrowserAgent in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		UT00000000000000000000D3 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -750,6 +809,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		UT00000000000000000000D1 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				UT00000000000000000000B1 /* CandoaTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -757,6 +824,11 @@
 			isa = PBXTargetDependency;
 			target = 010000000000000000000200 /* Candoa */;
 			targetProxy = 010000000000000000000270 /* PBXContainerItemProxy */;
+		};
+		UT00000000000000000000E3 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 010000000000000000000200 /* Candoa */;
+			targetProxy = UT00000000000000000000E2 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -974,6 +1046,44 @@
 			};
 			name = Release;
 		};
+		UT00000000000000000000F2 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
+				CODE_SIGN_STYLE = Manual;
+				DEVELOPMENT_TEAM = "";
+				"DEVELOPMENT_TEAM[sdk=macosx*]" = CHFBL6P6U7;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = app.candoa.browser.Tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 6.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Candoa.app/Contents/MacOS/Candoa";
+			};
+			name = Debug;
+		};
+		UT00000000000000000000F3 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_IDENTITY = "-";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
+				CODE_SIGN_STYLE = Manual;
+				DEVELOPMENT_TEAM = "";
+				"DEVELOPMENT_TEAM[sdk=macosx*]" = CHFBL6P6U7;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = app.candoa.browser.Tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 6.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Candoa.app/Contents/MacOS/Candoa";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -991,6 +1101,15 @@
 			buildConfigurations = (
 				010000000000000000000401 /* Debug */,
 				010000000000000000000402 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		UT00000000000000000000F1 /* Build configuration list for PBXNativeTarget "CandoaTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				UT00000000000000000000F2 /* Debug */,
+				UT00000000000000000000F3 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

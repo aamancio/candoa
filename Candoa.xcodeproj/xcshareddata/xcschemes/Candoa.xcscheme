@@ -43,6 +43,16 @@
             skipped = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
+               BlueprintIdentifier = "UT00000000000000000000E1"
+               BuildableName = "CandoaTests.xctest"
+               BlueprintName = "CandoaTests"
+               ReferencedContainer = "container:Candoa.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
                BlueprintIdentifier = "010000000000000000000201"
                BuildableName = "CandoaUITests.xctest"
                BlueprintName = "CandoaUITests"
