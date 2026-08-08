@@ -1072,7 +1072,9 @@ struct EliSidebarView: View {
         let errorDescription = error?.localizedDescription.lowercased() ?? ""
         let message: String
 
-        if case .missingPersonalKey(let provider)? = error as? RemoteEliError {
+        if case .sessionExpired? = error as? RemoteEliError {
+            message = String(localized: "Your Candoa session has expired. Sign in again to continue.")
+        } else if case .missingPersonalKey(let provider)? = error as? RemoteEliError {
             // The English article depends on the provider name, so the OpenAI
             // wording is its own localizable string.
             message = provider == .openai

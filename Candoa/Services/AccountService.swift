@@ -606,6 +606,15 @@ struct AccountService {
     }
 }
 
+extension Notification.Name {
+    /// Posted when any Candoa Cloud request is rejected as unauthorized, so
+    /// the account store can re-validate the stored session even when the
+    /// failing request came from a surface (Eli chat, the browser agent) that
+    /// has no reference to it. The store re-checks with the server before
+    /// dropping the session, so a spurious post cannot sign anyone out.
+    static let cloudSessionUnauthorized = Notification.Name("CandoaCloudSessionUnauthorized")
+}
+
 enum AccountError: LocalizedError, Sendable {
     case appleAccountAlreadyLinked
     case invalidResponse
