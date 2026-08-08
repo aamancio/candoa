@@ -285,6 +285,8 @@ internal struct FavoriteDropZone: View {
                 )
         }
         .animation(.easeOut(duration: 0.10), value: isHoveringCloseButton)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("favorites-drop-zone")
     }
 }
 
