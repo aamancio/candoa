@@ -87,8 +87,16 @@ internal struct EliSettingsPane: View {
     private var hostedModelOptions: [SettingsPickerOption] {
         [SettingsPickerOption(id: "", title: "Automatic")]
             + userStore.hostedModels.map {
-                SettingsPickerOption(id: $0.id, title: $0.displayName)
+                SettingsPickerOption(id: $0.id, title: Self.hostedOptionTitle(for: $0))
             }
+    }
+
+    /// Hosted options carry their server-priced credit cost so the tradeoff
+    /// is visible at the moment of choosing, not after the bill.
+    private static func hostedOptionTitle(for model: AIModel) -> String {
+        guard let cost = model.creditCost else { return model.displayName }
+        let unit = cost == 1 ? "credit" : "credits"
+        return "\(model.displayName) (\(cost) \(unit))"
     }
 
     private var reasoningOptions: [SettingsPickerOption] {

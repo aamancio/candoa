@@ -254,6 +254,17 @@ final class UserStore: ObservableObject {
 
     func refreshHostedModels() async {
         if Self.isUITesting {
+#if DEBUG
+            // Deterministic hosted catalog (with credit costs) for UI tests,
+            // mirroring CANDOA_UI_TESTING_DIRECT_MODELS for the BYOK picker.
+            if let json = ProcessInfo.processInfo
+                .environment["CANDOA_UI_TESTING_HOSTED_MODELS"],
+               let data = json.data(using: .utf8),
+               let models = try? JSONDecoder().decode([AIModel].self, from: data) {
+                hostedModels = models
+                return
+            }
+#endif
             hostedModels = (status?.allowedModelIDs ?? []).map {
                 AIModelCatalog.hostedModel(id: $0, providerID: "", displayName: $0)
             }

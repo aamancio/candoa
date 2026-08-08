@@ -313,7 +313,8 @@ enum CloudAPI {
                 displayName: model.displayName,
                 contextWindowTokens: model.contextWindowTokens.flatMap { $0 > 0 ? $0 : nil },
                 maxOutputTokens: model.maxOutputTokens.flatMap { $0 > 0 ? $0 : nil },
-                supportedEfforts: (efforts?.isEmpty ?? true) ? nil : efforts
+                supportedEfforts: (efforts?.isEmpty ?? true) ? nil : efforts,
+                creditCost: model.creditCost.flatMap { $0 > 0 ? $0 : nil }
             )
         }
     }
@@ -329,6 +330,7 @@ enum CloudAPI {
         let contextWindowTokens: Int?
         let maxOutputTokens: Int?
         let supportedReasoningEfforts: [String]?
+        let creditCost: Int?
     }
 
     static var aiAgentRunURL: URL {
