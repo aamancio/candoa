@@ -162,12 +162,20 @@ final class ShortcutTooltipController {
             return anchor.bounds.contains(anchor.convert(locationInWindow, from: nil))
         }
 
-        guard target !== hoveredAnchor else { return }
-        if let hoveredAnchor {
-            dismiss(for: hoveredAnchor)
-        }
-        hoveredAnchor = target
-        if let target {
+        if target !== hoveredAnchor {
+            if let hoveredAnchor {
+                dismiss(for: hoveredAnchor)
+            }
+            hoveredAnchor = target
+            if let target {
+                schedule(anchor: target, content: target.content)
+            }
+        } else if let target, pendingShow != nil {
+            // Arc-style timing: the delay counts from when the pointer comes
+            // to REST, not from when it enters the icon — every move restarts
+            // the countdown, so a hand still in motion never pops the
+            // tooltip. Once shown (pendingShow is nil), moves inside the
+            // icon leave it up, matching system tooltips.
             schedule(anchor: target, content: target.content)
         }
     }
