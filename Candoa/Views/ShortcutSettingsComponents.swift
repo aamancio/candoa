@@ -549,7 +549,6 @@ enum ShortcutDefinition: String, CaseIterable, Identifiable {
     case closeSplitView
     case splitLayoutHorizontal
     case splitLayoutVertical
-    case splitLayoutGrid
     case findInPage
     case findNext
     case findPrevious
@@ -588,7 +587,6 @@ enum ShortcutDefinition: String, CaseIterable, Identifiable {
         case .closeSplitView: return BrowserCommandTitles.closeSplitView
         case .splitLayoutHorizontal: return BrowserCommandTitles.splitLayoutHorizontal
         case .splitLayoutVertical: return BrowserCommandTitles.splitLayoutVertical
-        case .splitLayoutGrid: return BrowserCommandTitles.splitLayoutGrid
         case .findInPage: return BrowserCommandTitles.findInPage
         case .findNext: return BrowserCommandTitles.findNext
         case .findPrevious: return BrowserCommandTitles.findPrevious
@@ -607,7 +605,7 @@ enum ShortcutDefinition: String, CaseIterable, Identifiable {
             return String(localized: "Capture")
         case .toggleAISidebar:
             return String(localized: "AI")
-        case .addSplitView, .closeSplitView, .splitLayoutHorizontal, .splitLayoutVertical, .splitLayoutGrid:
+        case .addSplitView, .closeSplitView, .splitLayoutHorizontal, .splitLayoutVertical:
             return String(localized: "Split View")
         case .goBack, .goForward, .nextRecentTab, .previousRecentTab, .nextTab, .previousTab, .nextSpace, .previousSpace:
             return String(localized: "Navigation")
@@ -645,7 +643,6 @@ enum ShortcutDefinition: String, CaseIterable, Identifiable {
         case .closeSplitView: return "Control-Shift--"
         case .splitLayoutHorizontal: return "Control-Option-H"
         case .splitLayoutVertical: return "Control-Option-V"
-        case .splitLayoutGrid: return "Control-Option-G"
         case .findInPage: return "Command-F"
         case .findNext: return "Command-G"
         case .findPrevious: return "Shift-Command-G"
@@ -678,7 +675,6 @@ enum ShortcutDefinition: String, CaseIterable, Identifiable {
         case .captureFullPage: return "camera"
         case .addSplitView, .closeSplitView, .splitLayoutHorizontal: return "rectangle.split.2x1"
         case .splitLayoutVertical: return "rectangle.split.1x2"
-        case .splitLayoutGrid: return "rectangle.split.2x2"
         case .copyURL, .copyURLAsMarkdown: return "link"
         case .findInPage, .findNext, .findPrevious: return "magnifyingglass"
         case .reloadTab: return "arrow.clockwise"

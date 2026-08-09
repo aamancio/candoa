@@ -1,14 +1,15 @@
 import AppKit
 import Foundation
 
-/// How a split group arranges its panes (Zen-style layouts).
+/// How a split group arranges its panes. Two arrangements only: a row of
+/// side-by-side panes or a column of stacked ones. (A grid layout existed
+/// once; persisted or synced "grid" values fall back to horizontal via the
+/// failable rawValue decode.)
 enum SplitViewLayout: String, Codable {
     /// Side-by-side columns — the default.
     case horizontal
     /// Stacked rows.
     case vertical
-    /// Two columns, row-major; an odd last pane spans the full width.
-    case grid
 }
 
 /// A Space's split group, stashed while another Space is frontmost so the
@@ -118,10 +119,9 @@ extension BrowserStore {
         splitLayout = .horizontal
     }
 
-    /// Switches the displayed split between side-by-side, stacked, and grid
+    /// Switches the displayed split between side-by-side and stacked
     /// arrangements. Pane order and membership are untouched; the linear
-    /// ratios carry over between horizontal and vertical (grid cells are
-    /// always equal).
+    /// ratios carry over between horizontal and vertical.
     func setSplitLayout(_ layout: SplitViewLayout) {
         guard splitTabIDs.count >= 2, splitLayout != layout else { return }
         splitLayout = layout

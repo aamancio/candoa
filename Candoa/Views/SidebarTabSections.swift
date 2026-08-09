@@ -129,7 +129,6 @@ internal struct SidebarSplitGroupView: View {
             Menu("Split Layout") {
                 Button(BrowserCommandTitles.splitLayoutHorizontal) { store.setSplitLayout(.horizontal) }
                 Button(BrowserCommandTitles.splitLayoutVertical) { store.setSplitLayout(.vertical) }
-                Button(BrowserCommandTitles.splitLayoutGrid) { store.setSplitLayout(.grid) }
             }
             Button(BrowserCommandTitles.closeSplitView, action: store.closeSplitView)
         }

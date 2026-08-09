@@ -311,11 +311,6 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
                 return nil
             }
 
-            if Self.matchesConfiguredShortcut(.splitLayoutGrid, event) {
-                onSplitLayout(.grid)
-                return nil
-            }
-
             if Self.matchesConfiguredShortcut(.zoomIn, event) {
                 onZoomIn()
                 return nil
