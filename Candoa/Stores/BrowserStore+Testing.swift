@@ -423,6 +423,7 @@ extension BrowserStore {
             "palette=\(isCommandPalettePresented)",
             "newTabPalette=\(isNewTabPaletteActive)",
             "find=\(isFindBarPresented)",
+            "webFocus=\(webCoordinator.activeWebViewHasKeyboardFocus)",
             "sidebar=\(sidebarVisible)",
             "space=\(activeSpaceName)",
             "spaceTheme=\(activeSpace.map { $0.themePaletteHexes.joined(separator: "|") } ?? "none")",
