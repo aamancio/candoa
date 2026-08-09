@@ -310,6 +310,12 @@ private struct BrowserCommands: Commands {
             }
             .disabled(actions?.canShowSiteInfo != true)
 
+            // The report describes global protection, so it needs no page.
+            Button(BrowserCommandTitles.privacyReport) {
+                actions?.showPrivacyReport()
+            }
+            .disabled(actions == nil)
+
             Divider()
 
             Button(BrowserCommandTitles.resetZoom) {
@@ -530,6 +536,7 @@ struct BrowserCommandActions {
     var isDownloadsVisible: Bool
     var showSiteInfo: () -> Void
     var canShowSiteInfo: Bool
+    var showPrivacyReport: () -> Void
     var showQuickTour: () -> Void
     var reloadTab: () -> Void
     var reloadTabFromOrigin: () -> Void

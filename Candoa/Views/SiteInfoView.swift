@@ -8,9 +8,13 @@ struct SiteInfoPopoverView: View {
     @ObservedObject var store: BrowserStore
     let url: URL
     let tabID: UUID?
+    let onShowPrivacyReport: () -> Void
 
     @AppStorage(SitePermissionConfiguration.storageKey)
     private var permissionOverrides = ""
+
+    @AppStorage(SettingsOption.strictTrackingProtection)
+    private var strictTrackingProtection = true
 
     // Captured once when the popover opens — a deliberate snapshot, not an
     // observation, so showing Site Info never adds steady-state work.
@@ -24,6 +28,10 @@ struct SiteInfoPopoverView: View {
             Divider()
 
             connectionSection
+
+            Divider()
+
+            trackingProtectionSection
 
             if originKey != nil {
                 Divider()
@@ -196,6 +204,45 @@ struct SiteInfoPopoverView: View {
             return String(localized: "Certificate: \(subject), expires \(formatted)")
         }
         return String(localized: "Certificate: \(subject)")
+    }
+
+    // MARK: - Tracking protection
+
+    /// Blocking is global, so this row truthfully reports the state that
+    /// applies to the displayed site. Nothing per-site is measured — the
+    /// Privacy Report explains what the protection list covers.
+    private var trackingProtectionSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Label {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(
+                        strictTrackingProtection
+                            ? "Tracking protection is on"
+                            : "Tracking protection is off"
+                    )
+                    .font(.system(size: 12, weight: .medium))
+
+                    Text(
+                        strictTrackingProtection
+                            ? "Known trackers never load on this or any site."
+                            : "You can turn it back on in Candoa's Privacy settings."
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                }
+            } icon: {
+                Image(systemName: strictTrackingProtection ? "shield.fill" : "shield.slash")
+                    .font(.system(size: 13, weight: .medium))
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("site-info-tracking")
+
+            Button("Privacy Report…", action: onShowPrivacyReport)
+                .font(.caption)
+                .padding(.leading, 26)
+                .accessibilityIdentifier("site-info-privacy-report")
+        }
     }
 
     // MARK: - Permissions

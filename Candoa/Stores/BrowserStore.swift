@@ -229,6 +229,7 @@ final class BrowserStore: ObservableObject {
     @Published var isCreateSpacePresented = false
     @Published var isDownloadsPopoverPresented = false
     @Published var isSiteInfoPopoverPresented = false
+    @Published var isPrivacyReportPresented = false
     @Published var editingSpaceID: UUID?
     @Published var editingFolderID: UUID?
     @Published var initialOnboardingStep: InitialOnboardingStep?

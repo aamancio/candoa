@@ -764,7 +764,16 @@ struct SidebarView: View {
             SiteInfoPopoverView(
                 store: store,
                 url: url,
-                tabID: displayedActiveTabID(for: spaceID)
+                tabID: displayedActiveTabID(for: spaceID),
+                onShowPrivacyReport: {
+                    // Popover teardown and sheet presentation must not share
+                    // a transaction (two-beat handoff): presenting while the
+                    // popover is still dismissing detaches the sheet.
+                    store.isSiteInfoPopoverPresented = false
+                    CATransaction.setCompletionBlock { [weak store] in
+                        store?.isPrivacyReportPresented = true
+                    }
+                }
             )
         }
     }
