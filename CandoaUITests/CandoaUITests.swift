@@ -1726,11 +1726,11 @@ final class CandoaUITests: XCTestCase {
         XCTAssertTrue(waitForState(in: app, containing: "find=true"), currentState(in: app))
         app.typeKey(.escape, modifierFlags: [])
 
-        app.typeKey("s", modifierFlags: .command)
+        app.typeKey("l", modifierFlags: [.command, .shift])
         XCTAssertTrue(waitForState(in: app, containing: "sidebar=false"), currentState(in: app))
         assertEqualFrame(webViewHost.frame, expandedSidebarHostFrame)
 
-        app.typeKey("s", modifierFlags: .command)
+        app.typeKey("l", modifierFlags: [.command, .shift])
         XCTAssertTrue(waitForState(in: app, containing: "sidebar=true"), currentState(in: app))
         assertEqualFrame(webViewHost.frame, expandedSidebarHostFrame)
     }
