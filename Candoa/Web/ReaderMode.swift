@@ -14,13 +14,17 @@ import Foundation
 /// way it blocks inline style markup.
 enum ReaderMode {
     /// Article-like sections that never belong in extracted reading content.
-    /// `.noprint` is the long-standing convention (MediaWiki and elsewhere)
-    /// for on-screen chrome excluded from print — reader is the same
-    /// context. `.mw-editsection` is MediaWiki's "[edit]" heading link,
-    /// worth naming outright for how much of the readable web runs on it.
+    /// Reader is text-only, matching Safari: figures leave with their
+    /// captions (never orphaning caption text the way Safari does), and
+    /// images, video, and audio go with them. `.noprint` is the
+    /// long-standing convention (MediaWiki and elsewhere) for on-screen
+    /// chrome excluded from print — reader is the same context.
+    /// `.mw-editsection` is MediaWiki's "[edit]" heading link, worth naming
+    /// outright for how much of the readable web runs on it.
     private static let strippedSelectors = """
     script, style, link, noscript, template, iframe, object, embed, form, \
     button, input, select, textarea, nav, aside, footer, header, dialog, \
+    figure, figcaption, picture, img, svg, video, audio, \
     [role=navigation], [role=banner], [role=complementary], [role=search], \
     [role=form], [aria-hidden=true], [hidden], .noprint, .mw-editsection, \
     .catlinks, .side-box
@@ -99,18 +103,7 @@ enum ReaderMode {
         const hidden = [];
         const count = Math.min(liveElements.length, cloneElements.length);
         for (let index = 0; index < count; index += 1) {
-          const live = liveElements[index];
-          if (!live.checkVisibility()) {
-            hidden.push(cloneElements[index]);
-          } else if (
-            // Icon-sized as actually rendered — catches decorations whose
-            // markup carries no width/height attributes.
-            (live.tagName === "IMG" || live.tagName === "svg")
-              && live.clientWidth > 0 && live.clientWidth <= 32
-              && live.clientHeight > 0 && live.clientHeight <= 32
-          ) {
-            hidden.push(cloneElements[index]);
-          }
+          if (!liveElements[index].checkVisibility()) { hidden.push(cloneElements[index]); }
         }
         hidden.forEach((el) => el.remove());
       }
@@ -173,24 +166,12 @@ enum ReaderMode {
         }
       });
 
-      clone.querySelectorAll("img").forEach((image) => {
-        const source = image.currentSrc || image.src || "";
-        if (!/^https?:/.test(source)) { image.remove(); return; }
-        // Icon-sized images are decoration (padlocks, badges, bullets).
-        const width = parseInt(image.getAttribute("width") || "", 10);
-        const height = parseInt(image.getAttribute("height") || "", 10);
-        if ((width && width <= 32) || (height && height <= 32)) { image.remove(); return; }
-        image.setAttribute("src", source);
-        image.setAttribute("loading", "lazy");
-        image.setAttribute("decoding", "async");
-      });
-
-      // Removals leave husks behind; drop blocks with no text and no media,
+      // Removals leave husks behind; drop blocks with no text left,
       // leaves first so newly emptied parents follow.
-      [...clone.querySelectorAll("p, div, section, ul, ol, dl, figure, span")]
+      [...clone.querySelectorAll("p, div, section, ul, ol, dl, span")]
         .reverse()
         .forEach((el) => {
-          if (!el.textContent.trim() && !el.querySelector("img, video, svg")) { el.remove(); }
+          if (!el.textContent.trim()) { el.remove(); }
         });
 
       // The page's own heading beats document.title and og:title, which
@@ -366,15 +347,6 @@ enum ReaderMode {
     h1, h2, h3, h4, h5, h6 { line-height: 1.25; }
     h2 { font-size: 1.4em; margin: 2.2rem 0 0.9rem; }
     h3 { font-size: 1.15em; margin: 1.8rem 0 0.7rem; }
-    img, video, svg { max-width: 100%; height: auto; }
-    figure { margin: 2rem auto; text-align: center; }
-    figure img { display: block; margin: 0 auto; border-radius: 4px; }
-    figcaption {
-      color: light-dark(#6e6e73, #98989d);
-      font-size: 0.8em;
-      margin-top: 0.55rem;
-      text-align: center;
-    }
     a, a:visited {
       color: light-dark(#0a68d8, #539df8);
       text-decoration: none;
@@ -422,7 +394,7 @@ enum ReaderMode {
         color: CanvasText;
         box-shadow: none;
       }
-      .candoa-reader-meta, figcaption { color: CanvasText; }
+      .candoa-reader-meta { color: CanvasText; }
       a, a:visited { color: LinkText; text-decoration: underline; }
     }
     """
