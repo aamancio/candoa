@@ -223,12 +223,10 @@ private struct BrowserCommands: Commands {
 
                 Divider()
 
-                // Command-S stays the sidebar toggle (Arc convention), so
-                // Save As takes the shifted variant.
                 Button(BrowserCommandTitles.saveAs) {
                     actions?.saveActiveTabAs()
                 }
-                .keyboardShortcut("s", modifiers: [.command, .shift])
+                .keyboardShortcut("s", modifiers: .command)
                 .disabled(actions?.canSaveActiveTab != true)
 
                 Button(BrowserCommandTitles.exportAsPDF) {
@@ -285,13 +283,13 @@ private struct BrowserCommands: Commands {
             Button(actions?.isSidebarVisible == true ? "Hide Sidebar" : "Show Sidebar") {
                 actions?.toggleSidebar()
             }
-            .keyboardShortcut("s", modifiers: .command)
+            .keyboardShortcut(ShortcutDefinition.toggleSidebar.currentKeyboardShortcut)
             .disabled(actions == nil)
 
             Button(actions?.isAISidebarVisible == true ? "Hide Eli Sidebar" : "Show Eli Sidebar") {
                 actions?.toggleAISidebar()
             }
-            .keyboardShortcut("e", modifiers: .command)
+            .keyboardShortcut(ShortcutDefinition.toggleAISidebar.currentKeyboardShortcut)
             .disabled(actions == nil)
 
             Button(actions?.isDownloadsVisible == true ? "Hide Downloads" : "Show Downloads") {
