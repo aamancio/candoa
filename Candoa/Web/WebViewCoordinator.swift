@@ -403,29 +403,36 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
 
     /// Produces the page's web-archive bytes from the live web view. No
     /// snapshot or duplicate view is retained — WebKit serializes the loaded
-    /// page directly.
+    /// page directly. The completion is main-actor-isolated (and therefore
+    /// Sendable across WebKit's @Sendable handler); WebKit already calls
+    /// back on the main thread, so the hop only makes that provable.
     func createWebArchiveData(
         for tabID: UUID,
-        completion: @escaping (Result<Data, any Error>) -> Void
+        completion: @escaping @MainActor (Result<Data, any Error>) -> Void
     ) {
         guard let webView = webViews[tabID] else {
             completion(.failure(CocoaError(.fileNoSuchFile)))
             return
         }
-        webView.createWebArchiveData(completionHandler: completion)
+        webView.createWebArchiveData { result in
+            MainActor.assumeIsolated { completion(result) }
+        }
     }
 
     /// Produces a full-content PDF of the loaded page through WebKit's
-    /// supported single-pass renderer.
+    /// supported single-pass renderer. Same isolation contract as
+    /// `createWebArchiveData`.
     func createPDFData(
         for tabID: UUID,
-        completion: @escaping (Result<Data, any Error>) -> Void
+        completion: @escaping @MainActor (Result<Data, any Error>) -> Void
     ) {
         guard let webView = webViews[tabID] else {
             completion(.failure(CocoaError(.fileNoSuchFile)))
             return
         }
-        webView.createPDF(completionHandler: completion)
+        webView.createPDF { result in
+            MainActor.assumeIsolated { completion(result) }
+        }
     }
 
     func removeWebView(for tabID: UUID) {
