@@ -230,6 +230,11 @@ final class BrowserStore: ObservableObject {
     @Published var isDownloadsPopoverPresented = false
     @Published var isSiteInfoPopoverPresented = false
     @Published var isPrivacyReportPresented = false
+    /// Transient reader-mode mirrors, written by the web coordinator: which
+    /// tabs' pages qualify for Reader, and which are showing it right now.
+    /// Never persisted — reader state belongs to the live web view.
+    @Published var readerAvailableTabIDs: Set<UUID> = []
+    @Published var readerActiveTabIDs: Set<UUID> = []
     @Published var editingSpaceID: UUID?
     @Published var editingFolderID: UUID?
     @Published var initialOnboardingStep: InitialOnboardingStep?

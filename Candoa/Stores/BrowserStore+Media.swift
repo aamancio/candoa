@@ -124,5 +124,8 @@ extension BrowserStore {
             webCoordinator.refreshMediaState(tabID: previousID)
         }
         if let activeTabID { webCoordinator.refreshMediaState(tabID: activeTabID) }
+        // Reader availability is established lazily for whichever tab is
+        // frontmost; a finished page probes at most once.
+        if let activeTabID { webCoordinator.probeReaderAvailabilityIfNeeded(for: activeTabID) }
     }
 }

@@ -4,9 +4,11 @@ import WebKit
 
 extension WebViewCoordinator {
     func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
-        // The page is going away; its hovered-link pill must not outlive it.
+        // The page is going away; its hovered-link pill must not outlive it,
+        // and neither may its reader overlay or probe verdict.
         if let tabID = tabID(for: webView) {
             store?.updateHoveredLink(tabID: tabID, href: nil)
+            clearReaderState(for: tabID)
         }
         updateStore(from: webView, isLoading: true)
     }
@@ -25,6 +27,9 @@ extension WebViewCoordinator {
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         updateStore(from: webView, isLoading: false)
+        if let tabID = tabID(for: webView) {
+            probeReaderAvailabilityIfNeeded(for: tabID)
+        }
         recordHistoryVisit(for: webView)
         refreshFavicon(for: webView)
         forwardWebAppPromptIfNeeded(for: webView)

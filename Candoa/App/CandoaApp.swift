@@ -331,6 +331,18 @@ private struct BrowserCommands: Commands {
             .keyboardShortcut("r", modifiers: [.command, .option])
             .disabled(actions?.canReloadActiveTab != true)
 
+            // Safari's reader shortcut. Enabled while the active page
+            // qualifies or reader is already showing (so it always exits).
+            Button(
+                actions?.isReaderActive == true
+                    ? BrowserCommandTitles.hideReader
+                    : BrowserCommandTitles.showReader
+            ) {
+                actions?.toggleReader()
+            }
+            .keyboardShortcut("r", modifiers: [.command, .shift])
+            .disabled(actions?.canToggleReader != true)
+
             Button(BrowserCommandTitles.siteInfo) {
                 actions?.showSiteInfo()
             }
@@ -563,6 +575,9 @@ struct BrowserCommandActions {
     var showSiteInfo: () -> Void
     var canShowSiteInfo: Bool
     var showPrivacyReport: () -> Void
+    var toggleReader: () -> Void
+    var canToggleReader: Bool
+    var isReaderActive: Bool
     var showQuickTour: () -> Void
     var reloadTab: () -> Void
     var reloadTabFromOrigin: () -> Void

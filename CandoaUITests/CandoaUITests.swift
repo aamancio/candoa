@@ -2906,6 +2906,80 @@ final class CandoaUITests: XCTestCase {
         return FileManager.default.fileExists(atPath: url.path)
     }
 
+    // MARK: - Reader mode (issue #34)
+
+    /// An article page enables View ▸ Show Reader: entering swaps the same
+    /// web view to the reader document (article text kept, page chrome
+    /// stripped), and exiting restores the original live page.
+    func testReaderEntersAndExitsForArticlePage() {
+        let app = launchApp(fixture: "reader-article")
+
+        openFixtureTab(path: "reader-article", in: app)
+        XCTAssertTrue(
+            waitForState(in: app, containing: "reader=available:inactive", timeout: 10),
+            currentState(in: app)
+        )
+
+        let webView = app.webViews.firstMatch
+        XCTAssertTrue(webView.waitForExistence(timeout: 10), currentState(in: app))
+        XCTAssertTrue(
+            webView.links["Fixture Nav Link"].waitForExistence(timeout: 5),
+            currentState(in: app)
+        )
+
+        let viewMenu = app.menuBarItems["View"]
+        XCTAssertTrue(viewMenu.waitForExistence(timeout: 5))
+        viewMenu.click()
+        let showReaderItem = app.menuItems["Show Reader"]
+        XCTAssertTrue(showReaderItem.waitForExistence(timeout: 5))
+        XCTAssertTrue(showReaderItem.isEnabled, currentState(in: app))
+        showReaderItem.click()
+
+        XCTAssertTrue(
+            waitForState(in: app, containing: "reader=available:active", timeout: 10),
+            currentState(in: app)
+        )
+        // The article body survives; the page's navigation chrome does not.
+        XCTAssertTrue(
+            webView.staticTexts["Reader fixture marker sentence."].waitForExistence(timeout: 10),
+            currentState(in: app)
+        )
+        XCTAssertFalse(webView.links["Fixture Nav Link"].exists, currentState(in: app))
+
+        viewMenu.click()
+        let hideReaderItem = app.menuItems["Hide Reader"]
+        XCTAssertTrue(hideReaderItem.waitForExistence(timeout: 5))
+        hideReaderItem.click()
+
+        XCTAssertTrue(
+            waitForState(in: app, containing: "reader=available:inactive", timeout: 10),
+            currentState(in: app)
+        )
+        XCTAssertTrue(
+            webView.links["Fixture Nav Link"].waitForExistence(timeout: 10),
+            currentState(in: app)
+        )
+    }
+
+    /// A page without article-grade text keeps the reader command disabled.
+    func testReaderStaysUnavailableForNonArticlePage() {
+        let app = launchApp(fixture: "popup-open")
+
+        openFixtureTab(path: "popup", in: app)
+        XCTAssertTrue(
+            waitForState(in: app, containing: "reader=unavailable:inactive", timeout: 10),
+            currentState(in: app)
+        )
+
+        let viewMenu = app.menuBarItems["View"]
+        XCTAssertTrue(viewMenu.waitForExistence(timeout: 5))
+        viewMenu.click()
+        let showReaderItem = app.menuItems["Show Reader"]
+        XCTAssertTrue(showReaderItem.waitForExistence(timeout: 5))
+        XCTAssertFalse(showReaderItem.isEnabled, currentState(in: app))
+        app.typeKey(.escape, modifierFlags: [])
+    }
+
     // MARK: - Hosted web-authentication sessions (issue #47)
 
     /// A hosted session completes only on the request's own callback match,
@@ -3286,6 +3360,26 @@ final class CandoaUITests: XCTestCase {
                 window.open("https://fixture.candoa.test/popup-child");
               });
             </script>
+          </body>
+        </html>
+        """,
+        "reader-article": """
+        <!doctype html>
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <meta name="author" content="Fixture Author">
+            <script>document.title = location.pathname.slice(1)</script>
+          </head>
+          <body>
+            <nav><a href="https://fixture.candoa.test/elsewhere">Fixture Nav Link</a></nav>
+            <article>
+              <h1>Reader Fixture Article</h1>
+              <p>Reader fixture marker sentence.</p>
+              <p>The availability probe needs sustained paragraph text before it will call a page an article, so this fixture carries several sentences of steady filler that read like the body of a feature story and push the character count well past the threshold.</p>
+              <p>A second long paragraph keeps the scoring honest by adding more genuine sentence text, the kind that live articles have in abundance and navigation pages never do, which is exactly the distinction the reader probe is built to draw.</p>
+              <p>The third paragraph exists so that trimming any single block in extraction cannot drop the fixture below the availability threshold, keeping this test focused on the reader flow instead of the scoring boundary.</p>
+            </article>
           </body>
         </html>
         """,
