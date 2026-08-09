@@ -59,7 +59,7 @@ extension BrowserStore {
     private func exportActiveTab(
         as contentType: UTType,
         pathExtension: String,
-        produce: @escaping (UUID, @escaping (Result<Data, any Error>) -> Void) -> Void
+        produce: @escaping (UUID, @escaping @MainActor (Result<Data, any Error>) -> Void) -> Void
     ) {
         guard canPrintActiveTab, let tab = activeTab, let url = tab.url else { return }
         let suggestedName = Self.exportFileName(for: tab.title, url: url)
@@ -71,10 +71,9 @@ extension BrowserStore {
             contentType: contentType
         ) { [weak self] destination in
             guard let self, let destination else { return }
-            produce(tab.id) { result in
-                Task { @MainActor [weak self] in
-                    self?.finishExport(of: result, to: destination)
-                }
+            // The completion is @MainActor by type, so no re-dispatch hop.
+            produce(tab.id) { [weak self] result in
+                self?.finishExport(of: result, to: destination)
             }
         }
     }
