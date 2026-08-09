@@ -14,11 +14,15 @@ import Foundation
 /// way it blocks inline style markup.
 enum ReaderMode {
     /// Article-like sections that never belong in extracted reading content.
+    /// `.noprint` is the long-standing convention (MediaWiki and elsewhere)
+    /// for on-screen chrome excluded from print — reader is the same
+    /// context. `.mw-editsection` is MediaWiki's "[edit]" heading link,
+    /// worth naming outright for how much of the readable web runs on it.
     private static let strippedSelectors = """
     script, style, link, noscript, template, iframe, object, embed, form, \
     button, input, select, textarea, nav, aside, footer, header, dialog, \
     [role=navigation], [role=banner], [role=complementary], [role=search], \
-    [role=form], [aria-hidden=true], [hidden]
+    [role=form], [aria-hidden=true], [hidden], .noprint, .mw-editsection
     """
 
     /// Paragraph text that sits inside chrome-like containers is ignored
@@ -82,7 +86,44 @@ enum ReaderMode {
       if (bestScore < 600) { return false; }
 
       const clone = best.cloneNode(true);
+
+      // The clone loses the page's stylesheets, which would resurrect
+      // everything the page keeps hidden (consent banners, share sheets,
+      // MediaWiki's short-description line). The fresh clone's elements
+      // correspond index-for-index with the live container's, so the live
+      // side answers what is actually rendered.
+      if (best.checkVisibility) {
+        const liveElements = best.querySelectorAll("*");
+        const cloneElements = clone.querySelectorAll("*");
+        const hidden = [];
+        const count = Math.min(liveElements.length, cloneElements.length);
+        for (let index = 0; index < count; index += 1) {
+          if (!liveElements[index].checkVisibility()) { hidden.push(cloneElements[index]); }
+        }
+        hidden.forEach((el) => el.remove());
+      }
+
       clone.querySelectorAll("\(strippedSelectors)").forEach((el) => el.remove());
+
+      // Boxes of links are page furniture, not prose: infobox-style tables
+      // by their widespread class names, and any table whose text is mostly
+      // link text (navigation grids, related-article rails).
+      const linkDensity = (el) => {
+        const total = el.textContent.trim().length;
+        if (!total) { return 1; }
+        let linked = 0;
+        for (const link of el.querySelectorAll("a")) {
+          linked += link.textContent.trim().length;
+        }
+        return linked / total;
+      };
+      clone.querySelectorAll("table").forEach((table) => {
+        const className = typeof table.className === "string" ? table.className : "";
+        if (/(^|\\s)(infobox|navbox|sidebar|vcard|metadata|ambox)/i.test(className)
+            || linkDensity(table) > 0.5) {
+          table.remove();
+        }
+      });
 
       for (const el of clone.querySelectorAll("*")) {
         for (const attribute of [...el.attributes]) {
@@ -109,14 +150,28 @@ enum ReaderMode {
       clone.querySelectorAll("img").forEach((image) => {
         const source = image.currentSrc || image.src || "";
         if (!/^https?:/.test(source)) { image.remove(); return; }
+        // Icon-sized images are decoration (padlocks, badges, bullets).
+        const width = parseInt(image.getAttribute("width") || "", 10);
+        const height = parseInt(image.getAttribute("height") || "", 10);
+        if ((width && width <= 32) || (height && height <= 32)) { image.remove(); return; }
         image.setAttribute("src", source);
         image.setAttribute("loading", "lazy");
         image.setAttribute("decoding", "async");
       });
 
-      const metaTitle = document.querySelector("meta[property='og:title']")?.content?.trim();
+      // Removals leave husks behind; drop blocks with no text and no media,
+      // leaves first so newly emptied parents follow.
+      [...clone.querySelectorAll("p, div, section, ul, ol, dl, figure, span")]
+        .reverse()
+        .forEach((el) => {
+          if (!el.textContent.trim() && !el.querySelector("img, video, svg")) { el.remove(); }
+        });
+
+      // The page's own heading beats document.title and og:title, which
+      // routinely carry " - Site Name" suffixes.
       const heading = document.querySelector("article h1, main h1, h1")?.textContent?.trim();
-      const title = metaTitle || heading || document.title.trim();
+      const metaTitle = document.querySelector("meta[property='og:title']")?.content?.trim();
+      const title = heading || metaTitle || document.title.trim();
 
       const byline = (
         document.querySelector("meta[name=author]")?.content
@@ -202,10 +257,13 @@ enum ReaderMode {
     })()
     """
 
-    /// Reader typography: system font tracking the system text size, system
-    /// colors tracking appearance and increased contrast, and the regular
-    /// page-zoom commands scale the whole overlay. Backslash-escaped
-    /// template characters survive the outer JS template literal.
+    /// Reader typography, Safari-calibrated: the article sits on an elevated
+    /// card over a dimmed backdrop, body text at 1.5× the system body size
+    /// (still tracking the accessibility text-size setting through
+    /// `-apple-system-body`), and the regular page-zoom commands scale the
+    /// whole overlay. Colors are `light-dark()` pairs resolved by the
+    /// `color-scheme` on the host; increased contrast falls back to pure
+    /// system colors.
     private static let overlayCSS = """
     :host { color-scheme: light dark; }
     .candoa-reader-scroller {
@@ -213,57 +271,96 @@ enum ReaderMode {
       inset: 0;
       overflow-y: auto;
       overscroll-behavior: contain;
-      background: Canvas;
-      color: CanvasText;
-    }
-    article {
+      background: light-dark(#e6e6e9, #1b1b1d);
       font: -apple-system-body;
       font-family: -apple-system, system-ui, sans-serif;
+    }
+    article {
+      background: light-dark(#ffffff, #2a2a2c);
+      color: light-dark(#1d1d1f, #e3e3e7);
+      font-size: 1.5em;
       line-height: 1.6;
-      max-width: 42em;
-      margin: 0 auto;
-      padding: 3.5rem 1.75rem 6rem;
+      max-width: 46em;
+      margin: 2.75rem auto 5rem;
+      padding: 3.25rem 4.25rem 4.25rem;
+      border-radius: 12px;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
       overflow-wrap: break-word;
     }
-    header { margin-bottom: 2.25rem; }
-    header h1 { font-size: 1.75em; line-height: 1.25; margin: 0 0 0.4rem; }
+    header { margin-bottom: 2rem; }
+    header h1 {
+      font-size: 2em;
+      font-weight: 700;
+      letter-spacing: -0.015em;
+      line-height: 1.2;
+      margin: 0 0 0.45rem;
+    }
     .candoa-reader-meta {
-      color: color-mix(in srgb, CanvasText 55%, Canvas);
-      font-size: 0.85em;
+      color: light-dark(#6e6e73, #98989d);
+      font-size: 0.8em;
       margin: 0;
     }
-    h1, h2, h3, h4, h5, h6 { line-height: 1.3; }
+    h1, h2, h3, h4, h5, h6 { line-height: 1.25; }
+    h2 { font-size: 1.4em; margin: 2.2rem 0 0.9rem; }
+    h3 { font-size: 1.15em; margin: 1.8rem 0 0.7rem; }
     img, video, svg { max-width: 100%; height: auto; }
-    figure { margin: 1.5rem 0; }
+    figure { margin: 2rem auto; text-align: center; }
+    figure img { display: block; margin: 0 auto; border-radius: 4px; }
     figcaption {
-      color: color-mix(in srgb, CanvasText 55%, Canvas);
-      font-size: 0.85em;
-      margin-top: 0.4rem;
+      color: light-dark(#6e6e73, #98989d);
+      font-size: 0.8em;
+      margin-top: 0.55rem;
+      text-align: center;
     }
-    a { color: LinkText; }
-    pre, code { font-family: ui-monospace, monospace; font-size: 0.9em; }
+    a, a:visited {
+      color: light-dark(#0a68d8, #539df8);
+      text-decoration: none;
+    }
+    a:hover { text-decoration: underline; }
+    sup, sub { font-size: 0.7em; line-height: 1; }
+    pre, code { font-family: ui-monospace, monospace; font-size: 0.88em; }
     pre {
       overflow-x: auto;
       padding: 0.75rem 1rem;
-      background: color-mix(in srgb, CanvasText 6%, Canvas);
-      border-radius: 6px;
+      background: light-dark(#f2f2f4, #1f1f21);
+      border-radius: 8px;
     }
     blockquote {
       margin: 1.5rem 0;
       padding-left: 1rem;
-      border-left: 3px solid color-mix(in srgb, CanvasText 25%, Canvas);
-      color: color-mix(in srgb, CanvasText 75%, Canvas);
+      border-left: 3px solid light-dark(#d1d1d6, #48484a);
+      color: light-dark(#48484a, #b9b9be);
     }
     table { border-collapse: collapse; display: block; overflow-x: auto; }
     td, th {
-      border: 1px solid color-mix(in srgb, CanvasText 20%, Canvas);
+      border: 1px solid light-dark(#d1d1d6, #48484a);
       padding: 0.35rem 0.6rem;
       text-align: left;
     }
     hr {
       border: none;
-      border-top: 1px solid color-mix(in srgb, CanvasText 20%, Canvas);
+      border-top: 1px solid light-dark(#d1d1d6, #48484a);
       margin: 2rem 0;
+    }
+    @media (max-width: 760px) {
+      .candoa-reader-scroller { background: light-dark(#ffffff, #2a2a2c); }
+      article {
+        margin: 0;
+        max-width: none;
+        padding: 2rem 1.5rem 3rem;
+        border-radius: 0;
+        box-shadow: none;
+      }
+    }
+    @media (prefers-contrast: more) {
+      .candoa-reader-scroller { background: Canvas; }
+      article {
+        background: Canvas;
+        color: CanvasText;
+        box-shadow: none;
+      }
+      .candoa-reader-meta, figcaption { color: CanvasText; }
+      a, a:visited { color: LinkText; text-decoration: underline; }
     }
     """
 }
