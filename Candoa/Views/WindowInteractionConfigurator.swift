@@ -48,6 +48,12 @@ struct WindowInteractionConfigurator: NSViewRepresentable {
 
         private weak var configuredWindow: NSWindow?
         private var configuredAutosaveName: String?
+        private weak var fullScreenObservedWindow: NSWindow?
+        private nonisolated(unsafe) var fullScreenObservers: [NSObjectProtocol] = []
+
+        deinit {
+            fullScreenObservers.forEach { NotificationCenter.default.removeObserver($0) }
+        }
 
         func configure(window: NSWindow?, autosaveName: String, isPrivate: Bool = false) {
             guard let window else { return }
@@ -102,11 +108,48 @@ struct WindowInteractionConfigurator: NSViewRepresentable {
             // header. The buttons stay AppKit-owned and AppKit-placed; the
             // sidebar only reserves space under them.
             window.toolbarStyle = .unified
-            if window.toolbar == nil {
+            if window.toolbar == nil, !window.styleMask.contains(.fullScreen) {
                 window.toolbar = NSToolbar(
                     identifier: "CandoaWindowControlsAlignment"
                 )
             }
+            installFullScreenToolbarHandling(for: window)
+        }
+
+        /// The alignment toolbar exists only to place the traffic lights; in
+        /// full screen those are hidden, and the empty toolbar would render
+        /// as a dead strip above the content. Drop it for the duration and
+        /// restore it on the way out so the buttons land aligned again.
+        private func installFullScreenToolbarHandling(for window: NSWindow) {
+            guard fullScreenObservedWindow !== window else { return }
+            fullScreenObservers.forEach { NotificationCenter.default.removeObserver($0) }
+            fullScreenObservedWindow = window
+
+            let center = NotificationCenter.default
+            fullScreenObservers = [
+                center.addObserver(
+                    forName: NSWindow.willEnterFullScreenNotification,
+                    object: window,
+                    queue: .main
+                ) { [weak window] _ in
+                    // Window notifications on .main always run on the main thread.
+                    MainActor.assumeIsolated {
+                        window?.toolbar = nil
+                    }
+                },
+                center.addObserver(
+                    forName: NSWindow.willExitFullScreenNotification,
+                    object: window,
+                    queue: .main
+                ) { [weak window] _ in
+                    MainActor.assumeIsolated {
+                        guard let window, window.toolbar == nil else { return }
+                        window.toolbar = NSToolbar(
+                            identifier: "CandoaWindowControlsAlignment"
+                        )
+                    }
+                }
+            ]
         }
 
         private static func initialWindowFrame(for window: NSWindow) -> NSRect {
