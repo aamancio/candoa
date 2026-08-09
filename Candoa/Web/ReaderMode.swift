@@ -22,7 +22,8 @@ enum ReaderMode {
     script, style, link, noscript, template, iframe, object, embed, form, \
     button, input, select, textarea, nav, aside, footer, header, dialog, \
     [role=navigation], [role=banner], [role=complementary], [role=search], \
-    [role=form], [aria-hidden=true], [hidden], .noprint, .mw-editsection
+    [role=form], [aria-hidden=true], [hidden], .noprint, .mw-editsection, \
+    .catlinks, .side-box
     """
 
     /// Paragraph text that sits inside chrome-like containers is ignored
@@ -98,7 +99,18 @@ enum ReaderMode {
         const hidden = [];
         const count = Math.min(liveElements.length, cloneElements.length);
         for (let index = 0; index < count; index += 1) {
-          if (!liveElements[index].checkVisibility()) { hidden.push(cloneElements[index]); }
+          const live = liveElements[index];
+          if (!live.checkVisibility()) {
+            hidden.push(cloneElements[index]);
+          } else if (
+            // Icon-sized as actually rendered — catches decorations whose
+            // markup carries no width/height attributes.
+            (live.tagName === "IMG" || live.tagName === "svg")
+              && live.clientWidth > 0 && live.clientWidth <= 32
+              && live.clientHeight > 0 && live.clientHeight <= 32
+          ) {
+            hidden.push(cloneElements[index]);
+          }
         }
         hidden.forEach((el) => el.remove());
       }
@@ -123,6 +135,20 @@ enum ReaderMode {
             || linkDensity(table) > 0.5) {
           table.remove();
         }
+      });
+
+      // Lists whose items are essentially bare links are link rails
+      // (category strips, "see also" stacks), not prose. References and
+      // bibliographies survive: their items carry real text around the
+      // links.
+      clone.querySelectorAll("ul, ol").forEach((list) => {
+        const items = [...list.children].filter((child) => child.tagName === "LI");
+        if (items.length < 4) { return; }
+        const bareLinkItems = items.filter((item) => {
+          const text = item.textContent.trim().length;
+          return !text || linkDensity(item) > 0.9;
+        });
+        if (bareLinkItems.length / items.length >= 0.8) { list.remove(); }
       });
 
       for (const el of clone.querySelectorAll("*")) {
@@ -201,6 +227,8 @@ enum ReaderMode {
       sheet.replaceSync(`\(overlayCSS)`);
       shadow.adoptedStyleSheets = [sheet];
 
+      const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
       const scroller = document.createElement("div");
       scroller.className = "candoa-reader-scroller";
 
@@ -239,20 +267,55 @@ enum ReaderMode {
       document.documentElement.style.overflow = "hidden";
       document.body.inert = true;
       window.__candoaReader = { host, previousOverflow, previousInert };
+
+      // Safari-style entrance: the backdrop fades in while the card rises
+      // into place. Web Animations API — a page CSP cannot block it, and it
+      // leaves no styles behind. Reduce Motion gets a plain quick fade.
+      if (reduceMotion) {
+        host.animate(
+          { opacity: [0, 1] },
+          { duration: 120, easing: "ease-out" }
+        );
+      } else {
+        host.animate(
+          { opacity: [0, 1] },
+          { duration: 220, easing: "ease-out" }
+        );
+        article.animate(
+          {
+            opacity: [0, 1],
+            transform: ["translateY(14px) scale(0.985)", "translateY(0) scale(1)"]
+          },
+          { duration: 300, easing: "cubic-bezier(0.2, 0.8, 0.2, 1)" }
+        );
+      }
       return true;
     })()
     """
 
-    /// Removes the overlay and restores the page exactly as it was.
-    /// Returns `true` when an overlay was actually open.
+    /// Restores the page immediately (scroll, interactivity, accessibility),
+    /// then fades the overlay away and removes it. Returns `true` when an
+    /// overlay was actually open.
     static let exitReaderScript = """
     (() => {
       const state = window.__candoaReader;
       if (!state) { return false; }
+      delete window.__candoaReader;
       document.documentElement.style.overflow = state.previousOverflow || "";
       document.body.inert = state.previousInert || false;
-      state.host.remove();
-      delete window.__candoaReader;
+
+      // The page is already live underneath; the departing card must not
+      // swallow clicks while it fades.
+      state.host.style.pointerEvents = "none";
+      const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const exit = state.host.animate(
+        reduceMotion
+          ? { opacity: [1, 0] }
+          : { opacity: [1, 0], transform: ["scale(1)", "scale(0.99)"] },
+        { duration: reduceMotion ? 100 : 180, easing: "ease-in" }
+      );
+      exit.onfinish = () => state.host.remove();
+      exit.oncancel = () => state.host.remove();
       return true;
     })()
     """
