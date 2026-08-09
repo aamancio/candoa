@@ -510,14 +510,173 @@ private final class NativeWindowControlsCoordinator {
 
 // MARK: - Toolbar icon button
 
+/// Tracks pointer presence over chrome icon buttons via a local `.mouseMoved`
+/// monitor. The title-bar strip these icons live in gets no tracking-area
+/// enter/exit events from AppKit, so SwiftUI's `.onHover` and the system
+/// button styles' hover backgrounds never fire there — the same reason
+/// `ShortcutTooltipController` rides a monitor. Pressed state needs no help:
+/// mouse-down delivery works normally in the strip. Main thread only.
+@MainActor
+internal final class ChromeIconHoverController {
+    static let shared = ChromeIconHoverController()
+
+    private let anchors = NSHashTable<ChromeIconHoverAnchorView>.weakObjects()
+    private weak var hoveredAnchor: ChromeIconHoverAnchorView?
+    private var moveMonitor: Any?
+    private var deactivateObserver: NSObjectProtocol?
+
+    private init() {}
+
+    func register(_ anchor: ChromeIconHoverAnchorView) {
+        anchors.add(anchor)
+        guard moveMonitor == nil else { return }
+        moveMonitor = NSEvent.addLocalMonitorForEvents(matching: [.mouseMoved]) { event in
+            // Local event monitors always run on the main thread.
+            MainActor.assumeIsolated {
+                ChromeIconHoverController.shared.handleMouseMoved(event)
+            }
+            return event
+        }
+        // Moves stop arriving once the pointer leaves the app, so a hover
+        // that exits through the window edge would stick lit without this.
+        deactivateObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.didResignActiveNotification,
+            object: nil,
+            queue: .main
+        ) { _ in
+            MainActor.assumeIsolated {
+                ChromeIconHoverController.shared.setHovered(nil)
+            }
+        }
+    }
+
+    func unregister(_ anchor: ChromeIconHoverAnchorView) {
+        anchors.remove(anchor)
+        if hoveredAnchor === anchor {
+            hoveredAnchor = nil
+        }
+        guard anchors.count == 0 else { return }
+        if let moveMonitor {
+            NSEvent.removeMonitor(moveMonitor)
+            self.moveMonitor = nil
+        }
+        if let deactivateObserver {
+            NotificationCenter.default.removeObserver(deactivateObserver)
+            self.deactivateObserver = nil
+        }
+    }
+
+    private func handleMouseMoved(_ event: NSEvent) {
+        setHovered(
+            anchors.allObjects.first { anchor in
+                guard let window = anchor.window, !anchor.isHiddenOrHasHiddenAncestor else {
+                    return false
+                }
+
+                // Moves over parts of the title-bar strip arrive windowless
+                // and carry screen coordinates (see MouseMoveMonitor);
+                // convert those into the anchor's window before hit-testing.
+                let locationInWindow: NSPoint
+                if let eventWindow = event.window {
+                    guard eventWindow === window else { return false }
+                    locationInWindow = event.locationInWindow
+                } else {
+                    guard window.isKeyWindow else { return false }
+                    locationInWindow = window.convertPoint(fromScreen: event.locationInWindow)
+                }
+                return anchor.bounds.contains(anchor.convert(locationInWindow, from: nil))
+            }
+        )
+    }
+
+    private func setHovered(_ target: ChromeIconHoverAnchorView?) {
+        guard target !== hoveredAnchor else { return }
+        hoveredAnchor?.onHoverChange(false)
+        hoveredAnchor = target
+        target?.onHoverChange(true)
+    }
+}
+
+/// The invisible measurement view the hover controller hit-tests.
+internal final class ChromeIconHoverAnchorView: NSView {
+    var onHoverChange: (Bool) -> Void = { _ in }
+
+    // Purely a measurement view; opting out of hit-testing ensures it can
+    // never swallow the button's clicks.
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        if window == nil {
+            ChromeIconHoverController.shared.unregister(self)
+        } else {
+            ChromeIconHoverController.shared.register(self)
+        }
+    }
+}
+
+private struct ChromeIconHoverAnchor: NSViewRepresentable {
+    let onHoverChange: (Bool) -> Void
+
+    func makeNSView(context: Context) -> ChromeIconHoverAnchorView {
+        let view = ChromeIconHoverAnchorView(frame: .zero)
+        view.onHoverChange = onHoverChange
+        return view
+    }
+
+    func updateNSView(_ nsView: ChromeIconHoverAnchorView, context: Context) {
+        nsView.onHoverChange = onHoverChange
+    }
+}
+
+/// Safari-style feedback for chrome icons: a rounded highlight on hover that
+/// deepens while pressed. Hand-rolled rather than `.accessoryBar` because the
+/// system style's hover background depends on tracking areas the title-bar
+/// strip never receives (pressed worked, hover silently didn't).
+internal struct ToolbarIconButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        ToolbarIconButtonBody(configuration: configuration)
+    }
+
+    private struct ToolbarIconButtonBody: View {
+        let configuration: Configuration
+        @Environment(\.isEnabled) private var isEnabled
+        @State private var isHovered = false
+
+        var body: some View {
+            configuration.label
+                .font(.system(size: 15, weight: .medium))
+                .symbolRenderingMode(.hierarchical)
+                .frame(width: 25, height: 25)
+                .background(
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .fill(highlight)
+                )
+                .background(
+                    ChromeIconHoverAnchor { hovering in
+                        isHovered = hovering
+                    }
+                )
+                .contentShape(Rectangle())
+                .animation(.easeOut(duration: 0.12), value: isHovered)
+        }
+
+        private var highlight: Color {
+            if configuration.isPressed {
+                return .primary.opacity(0.16)
+            }
+            if isHovered && isEnabled {
+                return .primary.opacity(0.08)
+            }
+            return .clear
+        }
+    }
+}
+
 internal struct ToolbarIconButtonModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
-            .buttonTreatment(.content)
-            .font(.system(size: 15, weight: .medium))
-            .symbolRenderingMode(.hierarchical)
-            .frame(width: 25, height: 25)
-            .contentShape(Rectangle())
+            .buttonStyle(ToolbarIconButtonStyle())
     }
 }
 
