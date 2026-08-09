@@ -51,6 +51,8 @@ extension WebViewCoordinator {
             presentRestoreOverlay(snapshot, for: tabID, in: container)
         }
 
+        focusActiveWebViewIfIdle()
+
         // The outgoing web view stays visible (covered by the new active one)
         // for a beat so media keeps rendering while the mini player attaches.
         guard let previousActiveTabID, previousActiveTabID != tabID else { return }
@@ -69,6 +71,57 @@ extension WebViewCoordinator {
             }
             webView.isHidden = true
         }
+    }
+
+    /// Hands keyboard focus to the active page so a freshly opened tab scrolls,
+    /// selects, and copies without needing a click first. AppKit only promotes a
+    /// web view to first responder on mouse-down, and the palette hands focus
+    /// back to the window on dismiss, so without this the window itself stays
+    /// first responder and every Edit command validates as disabled.
+    ///
+    /// Focus is claimed from anything except an active text editor, so the
+    /// command palette, address bar, find bar, Eli, and the sidebar's rename
+    /// fields are never interrupted mid-keystroke.
+    func focusActiveWebViewIfIdle() {
+        guard
+            let tabID = hostedActiveTabID,
+            let webView = webViews[tabID],
+            let window = webView.window,
+            !webView.isHidden
+        else {
+            return
+        }
+
+        let responder = window.firstResponder
+        if let focusedView = responder as? NSView,
+           focusedView === webView || focusedView.isDescendant(of: webView) {
+            // WebKit parks focus on its own content subview; re-setting it here
+            // would knock out the page's internal focus (and any focused field).
+            return
+        }
+
+        // Someone is typing. The command palette, address bar, find bar, Eli, and
+        // the sidebar's rename fields all edit through the window's field editor,
+        // so never pull focus out from under them. Everything else is ours to
+        // claim — including the outgoing tab's web view, which stays first
+        // responder until it is unparented and otherwise strands the new page.
+        guard !(responder is NSText) else { return }
+
+        window.makeFirstResponder(webView)
+    }
+
+    /// Whether the active page currently holds keyboard focus. Surfaced in the
+    /// UI-testing state string because focus is invisible to element queries and
+    /// screenshots alike.
+    var activeWebViewHasKeyboardFocus: Bool {
+        guard
+            let tabID = hostedActiveTabID,
+            let webView = webViews[tabID],
+            let focusedView = webView.window?.firstResponder as? NSView
+        else {
+            return false
+        }
+        return focusedView === webView || focusedView.isDescendant(of: webView)
     }
 
     func hostSplitWebView(

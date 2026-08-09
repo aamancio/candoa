@@ -1735,6 +1735,26 @@ final class CandoaUITests: XCTestCase {
         assertEqualFrame(webViewHost.frame, expandedSidebarHostFrame)
     }
 
+    func testFreshTabGivesThePageKeyboardFocusWithoutAClick() throws {
+        let app = launchApp()
+
+        XCTAssertTrue(waitForState(in: app, containing: "setup=false"), currentState(in: app))
+
+        app.typeKey("t", modifierFlags: .command)
+        XCTAssertTrue(waitForState(in: app, containing: "newTabPalette=true"), currentState(in: app))
+        let realURL = "https://example.com"
+        submitCommandPaletteText(realURL, in: app)
+        XCTAssertTrue(waitForState(in: app, containing: "url=\(realURL)"), currentState(in: app))
+
+        let webViewHost = element("active-webview-host", in: app)
+        XCTAssertTrue(webViewHost.waitForExistence(timeout: 5))
+
+        // Nothing clicks into the content area: the page has to claim keyboard
+        // focus on its own, or scrolling and every Edit command stay dead until
+        // the person clicks.
+        XCTAssertTrue(waitForState(in: app, containing: "webFocus=true"), currentState(in: app))
+    }
+
     func testUpdateBannerOneClickInstallShowsInstallingState() throws {
         let app = launchApp(updateVersion: "9.9.9")
 

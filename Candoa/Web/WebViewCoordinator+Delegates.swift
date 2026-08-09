@@ -15,6 +15,10 @@ extension WebViewCoordinator {
 
     func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
         finishRestoreIfNeeded(for: webView)
+        // A committing page is the last beat of the open-a-tab flow, after the
+        // command palette has unmounted and released the window's focus — the
+        // earlier attempt during hosting gets clobbered by that unmount.
+        focusActiveWebViewIfIdle()
         // Real content is arriving; any recovery cover comes down now, not
         // at load start, so the error stays readable through a failed retry.
         if let tabID = tabID(for: webView) {

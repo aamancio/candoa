@@ -112,6 +112,12 @@ extension BrowserStore {
             window.endEditing(for: nil)
             window.makeFirstResponder(nil)
         }
+
+        // Hand the page keyboard focus once the palette's TextField has actually
+        // unmounted — claiming it here would be undone by that unmount.
+        DispatchQueue.main.async { [weak self] in
+            self?.webCoordinator.focusActiveWebViewIfIdle()
+        }
     }
 
     /// Arc-style ⌘T: no tab exists yet — the sidebar's New Tab button takes
