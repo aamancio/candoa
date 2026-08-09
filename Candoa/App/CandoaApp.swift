@@ -6,6 +6,15 @@ struct CandoaApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var userStore = UserStore()
 
+    init() {
+        // AppKit appends its own "Enter Full Screen" item to the View menu;
+        // the menu is Candoa's curated command set, so opt out. AppKit reads
+        // the key while the menu bar is assembled — before the app-delegate
+        // launch callbacks — so this must happen here in the App initializer.
+        // Full screen itself still works via the zoom button and fn-F.
+        UserDefaults.standard.register(defaults: ["NSFullScreenMenuItemEverywhere": false])
+    }
+
     var body: some Scene {
         WindowGroup(id: AppConfiguration.browserWindowSceneID) {
             ContentView()
