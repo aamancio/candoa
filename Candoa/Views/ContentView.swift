@@ -308,6 +308,9 @@ struct ContentView: View {
                 }
             }
         }
+        .sheet(isPresented: $store.isPrivacyReportPresented) {
+            PrivacyReportView(onDismiss: { store.isPrivacyReportPresented = false })
+        }
         .animation(.spring(duration: 0.5, bounce: 0.2), value: store.copiedURLToast)
         .onChange(of: userStore.signOutGeneration) { _, generation in
             guard generation > 0 else { return }
@@ -576,6 +579,7 @@ struct ContentView: View {
             isDownloadsVisible: store.isDownloadsPopoverPresented,
             showSiteInfo: showSiteInfo,
             canShowSiteInfo: store.activeTab?.url != nil,
+            showPrivacyReport: { store.isPrivacyReportPresented.toggle() },
             showQuickTour: showQuickTour,
             reloadTab: store.reloadActiveTab,
             reloadTabFromOrigin: store.reloadActiveTabFromOrigin,

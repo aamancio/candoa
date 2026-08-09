@@ -442,6 +442,7 @@ extension BrowserStore {
             "downloads=\(downloadsStore.uiTestingDescription)",
             "downloadsShown=\(isDownloadsPopoverPresented)",
             "siteInfoShown=\(isSiteInfoPopoverPresented)",
+            "privacyReportShown=\(isPrivacyReportPresented)",
             "popover=\(uiTestingVisibleFolderPopoverDescription)",
             "query=\(uiTestingCommandPaletteQuery)",
             "command=\(uiTestingLastCommandDescription)",

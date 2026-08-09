@@ -2726,6 +2726,76 @@ final class CandoaUITests: XCTestCase {
         )
     }
 
+    // MARK: - Privacy Report (issue #33)
+
+    /// View ▸ Privacy Report presents the report sheet: the status row
+    /// reflects the default-on protection, every category of the compiled
+    /// blocklist is listed, and the retention statement is present. Done
+    /// dismisses it.
+    func testPrivacyReportMenuCommandShowsReport() {
+        let app = launchApp()
+
+        let viewMenu = app.menuBarItems["View"]
+        XCTAssertTrue(viewMenu.waitForExistence(timeout: 5))
+        viewMenu.click()
+        let reportItem = app.menuItems["Privacy Report…"]
+        XCTAssertTrue(reportItem.waitForExistence(timeout: 5))
+        reportItem.click()
+
+        XCTAssertTrue(waitForState(in: app, containing: "privacyReportShown=true"), currentState(in: app))
+        XCTAssertTrue(
+            element("privacy-report", in: app).waitForExistence(timeout: 5),
+            currentState(in: app)
+        )
+        XCTAssertTrue(
+            element("privacy-report-status", in: app).waitForExistence(timeout: 5),
+            currentState(in: app)
+        )
+        for categoryID in ["ad-delivery", "ad-verification", "analytics", "session-recording"] {
+            XCTAssertTrue(
+                element("privacy-report-category-\(categoryID)", in: app).waitForExistence(timeout: 5),
+                "missing category \(categoryID) — \(currentState(in: app))"
+            )
+        }
+        XCTAssertTrue(
+            element("privacy-report-retention", in: app).waitForExistence(timeout: 5),
+            currentState(in: app)
+        )
+
+        element("privacy-report-done", in: app).click()
+        XCTAssertTrue(waitForState(in: app, containing: "privacyReportShown=false"), currentState(in: app))
+    }
+
+    /// Site Info hands off to the Privacy Report: its Tracking Protection
+    /// section names the global state, and its button closes the popover
+    /// before the sheet appears.
+    func testSiteInfoOpensPrivacyReport() {
+        let app = launchApp(fixture: "popup-open")
+
+        openFixtureTab(path: "popup", in: app)
+
+        let siteInfoButton = element("sidebar-site-info-button", in: app)
+        XCTAssertTrue(siteInfoButton.waitForExistence(timeout: 5), currentState(in: app))
+        siteInfoButton.click()
+
+        XCTAssertTrue(waitForState(in: app, containing: "siteInfoShown=true"), currentState(in: app))
+        XCTAssertTrue(
+            element("site-info-tracking", in: app).waitForExistence(timeout: 5),
+            currentState(in: app)
+        )
+
+        let reportButton = element("site-info-privacy-report", in: app)
+        XCTAssertTrue(reportButton.waitForExistence(timeout: 5), currentState(in: app))
+        reportButton.click()
+
+        XCTAssertTrue(waitForState(in: app, containing: "siteInfoShown=false"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "privacyReportShown=true"), currentState(in: app))
+        XCTAssertTrue(
+            element("privacy-report", in: app).waitForExistence(timeout: 5),
+            currentState(in: app)
+        )
+    }
+
     // MARK: - File menu document commands (issue #37)
 
     func testFileMenuOffersDocumentCommands() {

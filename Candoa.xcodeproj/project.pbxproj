@@ -121,6 +121,7 @@
 		LH00000000000000000000B1 /* LinkHoverPreviewPill.swift in Sources */ = {isa = PBXBuildFile; fileRef = LH00000000000000000000A1 /* LinkHoverPreviewPill.swift */; };
 		SI00000000000000000000B1 /* SitePermissions.swift in Sources */ = {isa = PBXBuildFile; fileRef = SI00000000000000000000A1 /* SitePermissions.swift */; };
 		SI00000000000000000000B2 /* SiteInfoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = SI00000000000000000000A2 /* SiteInfoView.swift */; };
+		PV00000000000000000000B1 /* PrivacyReportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = PV00000000000000000000A1 /* PrivacyReportView.swift */; };
 		TF00000000000000000000B1 /* TabLoadFailure.swift in Sources */ = {isa = PBXBuildFile; fileRef = TF00000000000000000000A1 /* TabLoadFailure.swift */; };
 		TR00000000000000000000B1 /* TabRecoveryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = TR00000000000000000000A1 /* TabRecoveryView.swift */; };
 		TS00000000000000000000B1 /* TabSnapshotStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = TS00000000000000000000A1 /* TabSnapshotStore.swift */; };
@@ -262,6 +263,7 @@
 		LH00000000000000000000A1 /* LinkHoverPreviewPill.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinkHoverPreviewPill.swift; sourceTree = "<group>"; };
 		SI00000000000000000000A1 /* SitePermissions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SitePermissions.swift; sourceTree = "<group>"; };
 		SI00000000000000000000A2 /* SiteInfoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SiteInfoView.swift; sourceTree = "<group>"; };
+		PV00000000000000000000A1 /* PrivacyReportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivacyReportView.swift; sourceTree = "<group>"; };
 		TF00000000000000000000A1 /* TabLoadFailure.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabLoadFailure.swift; sourceTree = "<group>"; };
 		TR00000000000000000000A1 /* TabRecoveryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabRecoveryView.swift; sourceTree = "<group>"; };
 		TS00000000000000000000A1 /* TabSnapshotStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabSnapshotStore.swift; sourceTree = "<group>"; };
@@ -356,6 +358,7 @@
 				010000000000000000000047 /* EliSidebarComponents.swift */,
 				010000000000000000000012 /* SidebarView.swift */,
 				SI00000000000000000000A2 /* SiteInfoView.swift */,
+				PV00000000000000000000A1 /* PrivacyReportView.swift */,
 				E50000000000000000000001 /* AppUpdateBanner.swift */,
 				AB1200000000000000000001 /* WhatsNewBanner.swift */,
 				D1A2B3C4E5F60718293A4B5C /* SidebarSpaceComposer.swift */,
@@ -773,6 +776,7 @@
 				AB1200000000000000000102 /* WhatsNewService.swift in Sources */,
 				SI00000000000000000000B1 /* SitePermissions.swift in Sources */,
 				SI00000000000000000000B2 /* SiteInfoView.swift in Sources */,
+				PV00000000000000000000B1 /* PrivacyReportView.swift in Sources */,
 				AB1300000000000000000102 /* ProviderModelDirectory.swift in Sources */,
 				010000000000000000000121 /* KeyboardShortcutMonitor.swift in Sources */,
 				010000000000000000000122 /* SidebarRevealMonitor.swift in Sources */,

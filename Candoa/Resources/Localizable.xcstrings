@@ -690,6 +690,88 @@
         }
       }
     },
+    "Ad delivery and exchanges" : {
+      "comment" : "Tracker category name: ad-serving networks and ad exchanges.",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anzeigenauslieferung und Werbebörsen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Distribución e intercambio de anuncios"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diffusion d'annonces et places de marché publicitaires"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "広告配信と広告取引"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Veiculação e intercâmbio de anúncios"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "广告投放与广告交易"
+          }
+        }
+      }
+    },
+    "Ad verification" : {
+      "comment" : "Tracker category name: services that verify ad impressions were actually seen.",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anzeigenverifizierung"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verificación de anuncios"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vérification des annonces"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "広告検証"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verificação de anúncios"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "广告验证"
+          }
+        }
+      }
+    },
     "Add Bookmark…" : {
       "localizations" : {
         "es" : {
@@ -1456,6 +1538,47 @@
         }
       },
       "comment" : "Space icon picker: label for the 'chart.pie' symbol."
+    },
+    "Analytics and audience tracking" : {
+      "comment" : "Tracker category name: web analytics and cross-site audience profiling.",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Analyse und Zielgruppen-Tracking"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Analítica y seguimiento de audiencias"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Analyse et suivi d'audience"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "アナリティクスとオーディエンス追跡"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Análise e rastreamento de audiência"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "分析与受众跟踪"
+          }
+        }
+      }
     },
     "Anthropic could not complete this request." : {
       "localizations" : {
@@ -3948,6 +4071,46 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "O Candoa sincronizará seu espaço de trabalho pelo banco de dados privado do iCloud desta Conta Apple após o reinício."
+          }
+        }
+      }
+    },
+    "Candoa's protection list is compiled into WebKit content rules once. A blocked request simply never happens — no script watches the pages you visit, and no extra work runs while you browse." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Candoas Schutzliste wird einmalig in WebKit-Inhaltsregeln kompiliert. Eine blockierte Anfrage findet schlicht nie statt – kein Skript beobachtet die von Ihnen besuchten Seiten, und beim Surfen fällt keine zusätzliche Arbeit an."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La lista de protección de Candoa se compila una sola vez en reglas de contenido de WebKit. Una solicitud bloqueada simplemente nunca ocurre: ningún script observa las páginas que visitas y no se ejecuta trabajo adicional mientras navegas."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La liste de protection de Candoa est compilée une seule fois en règles de contenu WebKit. Une requête bloquée n'a tout simplement jamais lieu : aucun script ne surveille les pages que vous visitez et aucun travail supplémentaire ne s'exécute pendant votre navigation."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Candoaの保護リストは一度だけWebKitのコンテンツルールにコンパイルされます。ブロックされたリクエストはそもそも発生しません。訪問したページを監視するスクリプトはなく、ブラウズ中に余分な処理も実行されません。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A lista de proteção do Candoa é compilada uma única vez em regras de conteúdo do WebKit. Uma solicitação bloqueada simplesmente nunca acontece — nenhum script observa as páginas que você visita e nenhum trabalho extra é executado enquanto você navega."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Candoa 的保护列表只会编译一次为 WebKit 内容规则。被拦截的请求根本不会发生——没有脚本监视您访问的页面，浏览时也不会产生额外的工作。"
           }
         }
       }
@@ -12614,6 +12777,46 @@
         }
       }
     },
+    "Known trackers never load on this or any site." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bekannte Tracker werden weder auf dieser noch auf einer anderen Website geladen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Los rastreadores conocidos nunca se cargan en este ni en ningún otro sitio."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les traqueurs connus ne se chargent jamais, ni sur ce site ni sur aucun autre."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "既知のトラッカーは、このサイトでも他のサイトでも読み込まれません。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rastreadores conhecidos nunca são carregados neste nem em nenhum outro site."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已知跟踪器在此网站和任何其他网站上都不会加载。"
+          }
+        }
+      }
+    },
     "Laptop" : {
       "localizations" : {
         "es" : {
@@ -14071,6 +14274,46 @@
       },
       "comment" : "Space icon picker: label for the 'circle.hexagongrid' symbol."
     },
+    "Networks that auction and serve ads, and follow what you read to target them." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Netzwerke, die Anzeigen versteigern und ausliefern und dabei verfolgen, was Sie lesen, um sie gezielt auszuspielen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Redes que subastan y muestran anuncios, y siguen lo que lees para personalizarlos."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Réseaux qui vendent aux enchères et diffusent des annonces, et suivent ce que vous lisez pour les cibler."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "広告をオークションにかけて配信し、ターゲティングのために閲覧内容を追跡するネットワーク。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Redes que leiloam e exibem anúncios e acompanham o que você lê para direcioná-los."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拍卖并投放广告、并跟踪您的阅读内容以定向投放的网络。"
+          }
+        }
+      }
+    },
     "New Candoa Version Available" : {
       "localizations" : {
         "es" : {
@@ -15277,6 +15520,46 @@
         }
       }
     },
+    "Nothing. Candoa doesn't record which requests were blocked or keep a per-site tally, so this report never contains your browsing history and there is no report data to clear." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nichts. Candoa zeichnet nicht auf, welche Anfragen blockiert wurden, und führt keine Zählung pro Website. Dieser Bericht enthält daher nie Ihren Browserverlauf, und es gibt keine Berichtsdaten zu löschen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nada. Candoa no registra qué solicitudes se bloquearon ni lleva un recuento por sitio, así que este informe nunca contiene tu historial de navegación y no hay datos del informe que borrar."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rien. Candoa n'enregistre pas quelles requêtes ont été bloquées et ne tient aucun décompte par site : ce rapport ne contient donc jamais votre historique de navigation, et il n'y a aucune donnée de rapport à effacer."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "何も保存しません。Candoaはどのリクエストがブロックされたかを記録せず、サイトごとの集計も行いません。そのため、このレポートに閲覧履歴が含まれることはなく、消去すべきレポートデータも存在しません。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nada. O Candoa não registra quais solicitações foram bloqueadas nem mantém uma contagem por site, então este relatório nunca contém seu histórico de navegação e não há dados de relatório para apagar."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "什么都不保留。Candoa 不会记录哪些请求被拦截，也不会按网站计数，因此本报告绝不包含您的浏览历史，也没有任何报告数据需要清除。"
+          }
+        }
+      }
+    },
     "OK" : {
       "localizations" : {
         "es" : {
@@ -15999,6 +16282,46 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Falha ao Carregar a Página"
+          }
+        }
+      }
+    },
+    "Pages load without tracker blocking. You can turn it back on in Candoa's Privacy settings." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Seiten werden ohne Tracker-Blockierung geladen. In Candoas Einstellungen unter „Datenschutz“ können Sie sie wieder aktivieren."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Las páginas se cargan sin bloqueo de rastreadores. Puedes reactivarlo en los ajustes de Privacidad de Candoa."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les pages se chargent sans blocage des traqueurs. Vous pouvez le réactiver dans les réglages Confidentialité de Candoa."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ページはトラッカーをブロックせずに読み込まれます。Candoaの「プライバシー」設定から再度オンにできます。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "As páginas carregam sem bloqueio de rastreadores. Você pode reativá-lo nos ajustes de Privacidade do Candoa."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "页面加载时不会拦截跟踪器。您可以在 Candoa 的“隐私”设置中重新开启。"
           }
         }
       }
@@ -17252,6 +17575,88 @@
         }
       }
     },
+    "Privacy Report" : {
+      "comment" : "Title of the report window that explains tracker blocking.",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Datenschutzbericht"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Informe de privacidad"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rapport de confidentialité"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "プライバシーレポート"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Relatório de Privacidade"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "隐私报告"
+          }
+        }
+      }
+    },
+    "Privacy Report…" : {
+      "comment" : "View menu item and Site Info button that opens the Privacy Report.",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Datenschutzbericht…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Informe de privacidad…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rapport de confidentialité…"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "プライバシーレポート…"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Relatório de Privacidade…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "隐私报告…"
+          }
+        }
+      }
+    },
     "Private" : {
       "localizations" : {
         "es" : {
@@ -18458,6 +18863,46 @@
       },
       "comment" : "Placeholder is an AI provider name."
     },
+    "Requests to known trackers are stopped inside WebKit's network process, before they ever leave this Mac." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anfragen an bekannte Tracker werden im Netzwerkprozess von WebKit gestoppt, bevor sie diesen Mac überhaupt verlassen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Las solicitudes a rastreadores conocidos se detienen en el proceso de red de WebKit, antes de que lleguen a salir de este Mac."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les requêtes vers les traqueurs connus sont arrêtées dans le processus réseau de WebKit, avant même de quitter ce Mac."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "既知のトラッカーへのリクエストは、このMacから出る前にWebKitのネットワークプロセス内で止められます。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "As solicitações a rastreadores conhecidos são interrompidas no processo de rede do WebKit, antes mesmo de saírem deste Mac."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "对已知跟踪器的请求会在 WebKit 的网络进程中被拦截，绝不会离开这台 Mac。"
+          }
+        }
+      }
+    },
     "Requires Spaces sync." : {
       "localizations" : {
         "es" : {
@@ -19463,6 +19908,46 @@
       },
       "comment" : "Which Spaces the Clear Browsing Data action applies to."
     },
+    "Scripts that capture scrolling, typing, and mouse movement while a page is open." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skripte, die Scrollen, Tastatureingaben und Mausbewegungen aufzeichnen, solange eine Seite geöffnet ist."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scripts que capturan el desplazamiento, la escritura y el movimiento del ratón mientras una página está abierta."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scripts qui capturent le défilement, la saisie et les mouvements de la souris tant qu'une page est ouverte."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ページを開いている間、スクロール、入力、マウスの動きを記録するスクリプト。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scripts que capturam rolagem, digitação e movimento do mouse enquanto uma página está aberta."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在页面打开期间记录滚动、输入和鼠标移动的脚本。"
+          }
+        }
+      }
+    },
     "Scrolling the page…" : {
       "localizations" : {
         "es" : {
@@ -20264,6 +20749,127 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Servidor Não Encontrado"
+          }
+        }
+      }
+    },
+    "Services that measure audiences and build interest profiles across sites." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dienste, die Zielgruppen vermessen und über Websites hinweg Interessenprofile erstellen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Servicios que miden audiencias y crean perfiles de intereses entre sitios."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Services qui mesurent les audiences et établissent des profils d'intérêts d'un site à l'autre."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "サイトをまたいでオーディエンスを測定し、興味関心プロフィールを作成するサービス。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Serviços que medem audiências e criam perfis de interesse entre sites."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "跨网站测量受众并建立兴趣画像的服务。"
+          }
+        }
+      }
+    },
+    "Services that re-check every ad impression with heavy scripts." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dienste, die jede Anzeigeneinblendung mit aufwendigen Skripten nachprüfen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Servicios que reverifican cada impresión de anuncio con scripts pesados."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Services qui revérifient chaque impression publicitaire avec des scripts lourds."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重いスクリプトで広告表示を毎回チェックし直すサービス。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Serviços que reverificam cada impressão de anúncio com scripts pesados."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用大量脚本反复核查每次广告展示的服务。"
+          }
+        }
+      }
+    },
+    "Session recording" : {
+      "comment" : "Tracker category name: scripts that record user sessions (scrolling, typing, mouse movement).",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sitzungsaufzeichnung"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grabación de sesiones"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enregistrement de session"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "セッション記録"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gravação de sessões"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "会话录制"
           }
         }
       }
@@ -24374,6 +24980,46 @@
         }
       }
     },
+    "Third-party requests to every domain below are blocked on all sites. First-party requests are left alone, so the sites you visit keep working — including sign-ins." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Drittanbieter-Anfragen an alle unten aufgeführten Domains werden auf sämtlichen Websites blockiert. Erstanbieter-Anfragen bleiben unangetastet, damit die von Ihnen besuchten Websites weiter funktionieren – einschließlich Anmeldungen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Las solicitudes de terceros a todos los dominios siguientes se bloquean en todos los sitios. Las solicitudes de origen propio no se tocan, de modo que los sitios que visitas siguen funcionando, incluidos los inicios de sesión."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les requêtes tierces vers chacun des domaines ci-dessous sont bloquées sur tous les sites. Les requêtes du site lui-même ne sont pas touchées, si bien que les sites que vous visitez continuent de fonctionner, y compris les connexions."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "以下のすべてのドメインへのサードパーティリクエストは、すべてのサイトでブロックされます。ファーストパーティのリクエストには手を加えないため、訪問するサイトはサインインを含めて正常に動作します。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "As solicitações de terceiros a todos os domínios abaixo são bloqueadas em todos os sites. As solicitações primárias não são alteradas, então os sites que você visita continuam funcionando — inclusive os logins."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "针对下列所有域名的第三方请求会在所有网站上被拦截。第一方请求不受影响，因此您访问的网站（包括登录功能）仍可正常使用。"
+          }
+        }
+      }
+    },
     "This Apple account is already connected to another Candoa account." : {
       "localizations" : {
         "es" : {
@@ -24936,6 +25582,88 @@
         }
       },
       "comment" : "Space icon picker: label for the 'wrench.and.screwdriver' symbol."
+    },
+    "Tracking protection is off" : {
+      "comment" : "Status headline in the Privacy Report and Site Info when tracker blocking is disabled.",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tracking-Schutz ist deaktiviert"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La protección contra rastreo está desactivada"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La protection contre le suivi est désactivée"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "トラッキング防止はオフです"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A proteção contra rastreamento está desativada"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "跟踪保护已关闭"
+          }
+        }
+      }
+    },
+    "Tracking protection is on" : {
+      "comment" : "Status headline in the Privacy Report and Site Info when tracker blocking is enabled.",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tracking-Schutz ist aktiviert"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La protección contra rastreo está activada"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La protection contre le suivi est activée"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "トラッキング防止はオンです"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A proteção contra rastreamento está ativada"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "跟踪保护已开启"
+          }
+        }
+      }
     },
     "Travel" : {
       "localizations" : {
@@ -26632,6 +27360,88 @@
         }
       }
     },
+    "What Candoa keeps" : {
+      "comment" : "Section heading in the Privacy Report about data retention; the answer is 'Nothing'.",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Was Candoa speichert"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Qué guarda Candoa"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ce que Candoa conserve"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Candoaが保存するもの"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O que o Candoa guarda"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Candoa 保留的内容"
+          }
+        }
+      }
+    },
+    "What's blocked" : {
+      "comment" : "Section heading in the Privacy Report above the list of blocked tracker categories.",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Was blockiert wird"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Qué se bloquea"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ce qui est bloqué"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ブロックされるもの"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O que é bloqueado"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拦截内容"
+          }
+        }
+      }
+    },
     "Work" : {
       "localizations" : {
         "es" : {
@@ -26793,6 +27603,46 @@
         }
       },
       "comment" : "Space icon picker: label for the 'pencil' symbol."
+    },
+    "You can turn it back on in Candoa's Privacy settings." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In Candoas Einstellungen unter „Datenschutz“ können Sie ihn wieder aktivieren."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Puedes reactivarla en los ajustes de Privacidad de Candoa."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vous pouvez la réactiver dans les réglages Confidentialité de Candoa."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Candoaの「プライバシー」設定から再度オンにできます。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Você pode reativá-la nos ajustes de Privacidade do Candoa."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "您可以在 Candoa 的“隐私”设置中重新开启。"
+          }
+        }
+      }
     },
     "You're Offline" : {
       "localizations" : {
