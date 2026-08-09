@@ -204,12 +204,6 @@ struct WebViewContainer: View {
         case .vertical:
             // Stacked rows all span the full width, touching both edges.
             return webContentInsets
-        case .grid:
-            let spansFullWidth = index == paneCount - 1 && paneCount % 2 == 1
-            return BrowserInterfaceInsets(
-                leading: index % 2 == 0 ? webContentInsets.leading : 0,
-                trailing: index % 2 == 1 || spansFullWidth ? webContentInsets.trailing : 0
-            )
         }
     }
 
@@ -536,9 +530,8 @@ struct WebViewContainer: View {
         .allowsHitTesting(false)
     }
 
-    /// Pane rectangles for the current layout. Horizontal and vertical
-    /// distribute the panes' shared ratios along their axis; the grid packs
-    /// two equal columns row-major, the odd last pane spanning full width.
+    /// Pane rectangles for the current layout, distributing the panes'
+    /// shared ratios along the layout's axis.
     ///
     /// laneInsets are the masked interface lanes (sidebar/Eli) at the row's
     /// leading/trailing edges, in row coordinates. Ratios divide the
@@ -579,26 +572,6 @@ struct WebViewContainer: View {
                 let height = available * CGFloat(ratio)
                 defer { y += height + spacing }
                 return CGRect(x: 0, y: y, width: size.width, height: height)
-            }
-        case .grid:
-            let rowCount = (paneCount + 1) / 2
-            let rowHeight = max(1, (size.height - spacing * CGFloat(rowCount - 1)) / CGFloat(rowCount))
-            let visibleColumnWidth = max(
-                1,
-                (size.width - laneInsets.leading - laneInsets.trailing - spacing) / 2
-            )
-            return (0..<paneCount).map { index in
-                let row = index / 2
-                let column = index % 2
-                let spansFullWidth = index == paneCount - 1 && paneCount % 2 == 1
-                return CGRect(
-                    x: column == 0 ? 0 : laneInsets.leading + visibleColumnWidth + spacing,
-                    y: CGFloat(row) * (rowHeight + spacing),
-                    width: spansFullWidth
-                        ? size.width
-                        : (column == 0 ? laneInsets.leading : laneInsets.trailing) + visibleColumnWidth,
-                    height: rowHeight
-                )
             }
         }
     }
@@ -683,8 +656,7 @@ struct WebViewContainer: View {
         }
     }
 
-    /// Divider handles between adjacent panes. Only the linear layouts
-    /// resize — grid cells stay equal, so the grid draws no dividers.
+    /// Divider handles between adjacent panes.
     @ViewBuilder
     private func splitDividers(
         layout: SplitViewLayout,
@@ -692,66 +664,64 @@ struct WebViewContainer: View {
         spacing: CGFloat,
         in size: CGSize
     ) -> some View {
-        if layout != .grid {
-            // Visible lengths, not frame lengths: the edge frames extend
-            // under the interface lanes, and the ratios the drag commits
-            // divide the visible page (see splitPaneFrames), so clamping and
-            // normalizing must strip the lanes back off or an open sidebar
-            // skews every committed ratio toward the edge panes.
-            let rowLaneInsets = splitRowLaneInsets
-            let lengths = frames.enumerated().map { index, frame in
-                layout == .vertical
-                    ? frame.height
-                    : frame.width
-                        - (index == 0 ? rowLaneInsets.leading : 0)
-                        - (index == frames.count - 1 ? rowLaneInsets.trailing : 0)
-            }
-            let minimumPaneLength = min(
-                Self.splitPaneMinimumWidth,
-                lengths.reduce(0, +) / CGFloat(max(1, lengths.count))
+        // Visible lengths, not frame lengths: the edge frames extend
+        // under the interface lanes, and the ratios the drag commits
+        // divide the visible page (see splitPaneFrames), so clamping and
+        // normalizing must strip the lanes back off or an open sidebar
+        // skews every committed ratio toward the edge panes.
+        let rowLaneInsets = splitRowLaneInsets
+        let lengths = frames.enumerated().map { index, frame in
+            layout == .vertical
+                ? frame.height
+                : frame.width
+                    - (index == 0 ? rowLaneInsets.leading : 0)
+                    - (index == frames.count - 1 ? rowLaneInsets.trailing : 0)
+        }
+        let minimumPaneLength = min(
+            Self.splitPaneMinimumWidth,
+            lengths.reduce(0, +) / CGFloat(max(1, lengths.count))
+        )
+
+        ForEach(0..<max(0, frames.count - 1), id: \.self) { index in
+            let dividerCenter = (layout == .vertical ? frames[index].maxY : frames[index].maxX) + spacing / 2
+            let clampedTranslation = clampedDividerTranslation(
+                splitDividerDrag?.dividerIndex == index ? splitDividerDrag?.translation ?? 0 : 0,
+                at: index,
+                lengths: lengths,
+                minimumPaneLength: minimumPaneLength
             )
 
-            ForEach(0..<max(0, frames.count - 1), id: \.self) { index in
-                let dividerCenter = (layout == .vertical ? frames[index].maxY : frames[index].maxX) + spacing / 2
-                let clampedTranslation = clampedDividerTranslation(
-                    splitDividerDrag?.dividerIndex == index ? splitDividerDrag?.translation ?? 0 : 0,
-                    at: index,
-                    lengths: lengths,
-                    minimumPaneLength: minimumPaneLength
-                )
-
-                SplitPaneDivider(
-                    axis: layout == .vertical ? .vertical : .horizontal,
-                    isDragging: splitDividerDrag?.dividerIndex == index,
-                    onDragChanged: { translation in
-                        splitDividerDrag = SplitDividerDragState(dividerIndex: index, translation: translation)
-                    },
-                    onDragEnded: { translation in
-                        splitDividerDrag = nil
-                        commitDividerDrag(
-                            translation,
-                            at: index,
-                            lengths: lengths,
-                            minimumPaneLength: minimumPaneLength
-                        )
-                    },
-                    onReset: {
-                        splitDividerDrag = nil
-                        store.resetSplitPaneRatios()
-                    }
-                )
-                .frame(
-                    width: layout == .vertical ? size.width : 14,
-                    height: layout == .vertical ? 14 : size.height
-                )
-                .offset(
-                    x: layout == .vertical ? 0 : dividerCenter - 7 + clampedTranslation,
-                    y: layout == .vertical ? dividerCenter - 7 + clampedTranslation : 0
-                )
-                .accessibilityElement()
-                .accessibilityLabel("Resize Split Panes")
-                .accessibilityIdentifier("split-divider-\(index)")
-            }
+            SplitPaneDivider(
+                axis: layout == .vertical ? .vertical : .horizontal,
+                isDragging: splitDividerDrag?.dividerIndex == index,
+                onDragChanged: { translation in
+                    splitDividerDrag = SplitDividerDragState(dividerIndex: index, translation: translation)
+                },
+                onDragEnded: { translation in
+                    splitDividerDrag = nil
+                    commitDividerDrag(
+                        translation,
+                        at: index,
+                        lengths: lengths,
+                        minimumPaneLength: minimumPaneLength
+                    )
+                },
+                onReset: {
+                    splitDividerDrag = nil
+                    store.resetSplitPaneRatios()
+                }
+            )
+            .frame(
+                width: layout == .vertical ? size.width : 14,
+                height: layout == .vertical ? 14 : size.height
+            )
+            .offset(
+                x: layout == .vertical ? 0 : dividerCenter - 7 + clampedTranslation,
+                y: layout == .vertical ? dividerCenter - 7 + clampedTranslation : 0
+            )
+            .accessibilityElement()
+            .accessibilityLabel("Resize Split Panes")
+            .accessibilityIdentifier("split-divider-\(index)")
         }
     }
 

@@ -395,29 +395,26 @@ private struct BrowserCommands: Commands {
             .keyboardShortcut(ShortcutDefinition.addSplitView.currentKeyboardShortcut)
             .disabled(actions == nil)
 
+            // Closing and rearranging only mean something while a split is
+            // on screen, so they grey out otherwise instead of silently
+            // doing nothing.
             Button(BrowserCommandTitles.closeSplitView) {
                 actions?.closeSplitView()
             }
             .keyboardShortcut(ShortcutDefinition.closeSplitView.currentKeyboardShortcut)
-            .disabled(actions == nil)
+            .disabled(actions?.isSplitDisplayed != true)
 
             Button(BrowserCommandTitles.splitLayoutHorizontal) {
                 actions?.setSplitLayout(.horizontal)
             }
             .keyboardShortcut(ShortcutDefinition.splitLayoutHorizontal.currentKeyboardShortcut)
-            .disabled(actions == nil)
+            .disabled(actions?.isSplitDisplayed != true)
 
             Button(BrowserCommandTitles.splitLayoutVertical) {
                 actions?.setSplitLayout(.vertical)
             }
             .keyboardShortcut(ShortcutDefinition.splitLayoutVertical.currentKeyboardShortcut)
-            .disabled(actions == nil)
-
-            Button(BrowserCommandTitles.splitLayoutGrid) {
-                actions?.setSplitLayout(.grid)
-            }
-            .keyboardShortcut(ShortcutDefinition.splitLayoutGrid.currentKeyboardShortcut)
-            .disabled(actions == nil)
+            .disabled(actions?.isSplitDisplayed != true)
 
             Divider()
 
@@ -622,6 +619,7 @@ struct BrowserCommandActions {
     var addSplitView: () -> Void
     var closeSplitView: () -> Void
     var setSplitLayout: (SplitViewLayout) -> Void
+    var isSplitDisplayed: Bool
     var isWorkspaceICloudSyncEnabled: Bool
     var isHistoryICloudSyncEnabled: Bool
     var setWorkspaceICloudSyncEnabled: (Bool) -> Void

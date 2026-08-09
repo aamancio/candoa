@@ -618,6 +618,7 @@ struct ContentView: View {
             addSplitView: addSplitView,
             closeSplitView: store.closeSplitView,
             setSplitLayout: store.setSplitLayout,
+            isSplitDisplayed: store.isSplitViewDisplayed,
             isWorkspaceICloudSyncEnabled: store.iCloudWorkspaceSyncEnabled,
             isHistoryICloudSyncEnabled: store.iCloudHistorySyncEnabled,
             setWorkspaceICloudSyncEnabled: store.setWorkspaceICloudSyncEnabled,

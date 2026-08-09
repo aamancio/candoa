@@ -54,7 +54,6 @@ enum BrowserCommandTitles {
     static let closeSplitView = String(localized: "Close Split View")
     static let splitLayoutHorizontal = String(localized: "Horizontal Split Layout")
     static let splitLayoutVertical = String(localized: "Vertical Split Layout")
-    static let splitLayoutGrid = String(localized: "Grid Split Layout")
     static let enableWorkspaceICloudSync = String(localized: "Enable iCloud Sync for Spaces and Tabs")
     static let disableWorkspaceICloudSync = String(localized: "Disable iCloud Sync for Spaces and Tabs")
     static let enableHistoryICloudSync = String(localized: "Enable iCloud Sync for History")

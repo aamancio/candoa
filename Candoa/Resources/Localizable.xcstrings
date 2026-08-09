@@ -10809,46 +10809,6 @@
       },
       "comment" : "Space icon picker: label for the 'circle.grid.2x2' symbol."
     },
-    "Grid Split Layout" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Disposición dividida en cuadrícula"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Disposition fractionnée en grille"
-          }
-        },
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Raster-Split-Layout"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "グリッド分割レイアウト"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "网格分屏布局"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Layout de Divisão em Grade"
-          }
-        }
-      }
-    },
     "Growth" : {
       "localizations" : {
         "es" : {
