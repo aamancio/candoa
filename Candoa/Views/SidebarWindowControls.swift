@@ -225,7 +225,12 @@ private final class NativeWindowControlsHost: NSView {
     }
 
     /// The real buttons grey out when the window resigns key; refresh the
-    /// swipe snapshots so faux and native never disagree.
+    /// swipe snapshots so faux and native never disagree. Full-screen
+    /// transitions additionally re-attach: AppKit re-parents and un-hides
+    /// the buttons for the full-screen titlebar reveal, and the order of
+    /// its restore versus this host's last layout pass is a race — the
+    /// end-of-transition notification is the one moment the suppression
+    /// state can be re-asserted deterministically.
     private func observeWindowKeyState() {
         windowStateObservers.forEach { NotificationCenter.default.removeObserver($0) }
         windowStateObservers = []
@@ -233,7 +238,9 @@ private final class NativeWindowControlsHost: NSView {
         guard let window else { return }
         let notifications: [Notification.Name] = [
             NSWindow.didBecomeKeyNotification,
-            NSWindow.didResignKeyNotification
+            NSWindow.didResignKeyNotification,
+            NSWindow.didEnterFullScreenNotification,
+            NSWindow.didExitFullScreenNotification
         ]
         windowStateObservers = notifications.map { name in
             NotificationCenter.default.addObserver(
@@ -242,6 +249,7 @@ private final class NativeWindowControlsHost: NSView {
                 queue: .main
             ) { [weak self] _ in
                 Task { @MainActor in
+                    self?.attachWindowControlsIfPossible()
                     self?.needsImageRecapture = true
                     self?.needsLayout = true
                 }
@@ -360,11 +368,17 @@ private final class NativeWindowControlsCoordinator {
         guard let window else { return }
         activeHost = host
 
+        // In full screen AppKit re-parents the buttons into its titlebar
+        // reveal and system-hides them; recording that as their "original"
+        // state would bake isHidden=true in and restore invisible buttons
+        // after exit. Placements only ever describe the windowed titlebar.
+        let isFullScreen = window.styleMask.contains(.fullScreen)
         for buttonType in Self.buttonTypes {
             guard let button = window.standardWindowButton(buttonType) else { continue }
             let key = Int(buttonType.rawValue)
 
-            if originalPlacements[key] == nil ||
+            if !isFullScreen,
+               originalPlacements[key] == nil ||
                originalPlacements[key]?.superview !== button.superview {
                 originalPlacements[key] = OriginalPlacement(button: button)
             }
@@ -398,13 +412,20 @@ private final class NativeWindowControlsCoordinator {
             // snapshots in WindowControlsView carry their appearance instead.
             // Fading them by partial progress here would leave them ghosting
             // at their absolute window position, detached from the sidebar.
-            let shouldShow = effectiveProgress >= 0.9999
+            // Full screen bypasses suppression entirely: the buttons live in
+            // the system's top-edge reveal strip there, and hiding them
+            // leaves no way to exit with the green button.
+            let isFullScreen = window.styleMask.contains(.fullScreen)
+            let shouldShow = isFullScreen || effectiveProgress >= 0.9999
 
             // Keep the native buttons participating in title-bar layout.
             // Transparency avoids AppKit's per-button hidden-state relayout
-            // when the whole sidebar is hidden.
-            button.isHidden = placement?.isHidden ?? false
-            button.alphaValue = shouldShow ? (placement?.alphaValue ?? 1) : 0
+            // when the whole sidebar is hidden. Absolute values, not the
+            // recorded placement's: full-screen transitions can catch a
+            // placement mid-restore (hidden, transparent), and echoing that
+            // back would keep the buttons invisible forever.
+            button.isHidden = false
+            button.alphaValue = shouldShow ? 1 : 0
             button.isEnabled = shouldShow && (placement?.isEnabled ?? true)
             button.setAccessibilityElement(
                 shouldShow && (placement?.isAccessibilityElement ?? true)
