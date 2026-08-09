@@ -83,6 +83,9 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
     /// A visible tab's first WebContent crash reloads silently; a repeat
     /// within this window surfaces recovery UI instead of crash-looping.
     var webContentTerminationDates: [UUID: Date] = [:]
+    /// Tabs whose finished page has already answered the reader-availability
+    /// probe, so switching back to a tab never re-runs it.
+    var readerProbedTabIDs = Set<UUID>()
     var hibernationScanTask: Task<Void, Never>?
     private var userDefaultsObserver: NotificationToken?
     var websiteAppearance = WebsiteAppearance.dark
@@ -457,6 +460,7 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         removeRestoreOverlay(for: tabID)
 
         guard let webView = webViews.removeValue(forKey: tabID) else { return }
+        clearReaderState(for: tabID)
         pendingWebAppPrompts[tabID] = nil
         observations[tabID] = nil
         pendingAppearanceNavigationTokens[tabID] = nil

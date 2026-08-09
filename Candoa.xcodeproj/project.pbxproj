@@ -122,6 +122,9 @@
 		SI00000000000000000000B1 /* SitePermissions.swift in Sources */ = {isa = PBXBuildFile; fileRef = SI00000000000000000000A1 /* SitePermissions.swift */; };
 		SI00000000000000000000B2 /* SiteInfoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = SI00000000000000000000A2 /* SiteInfoView.swift */; };
 		PV00000000000000000000B1 /* PrivacyReportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = PV00000000000000000000A1 /* PrivacyReportView.swift */; };
+		RD00000000000000000000B1 /* ReaderMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = RD00000000000000000000A1 /* ReaderMode.swift */; };
+		RD00000000000000000000B2 /* WebViewCoordinator+Reader.swift in Sources */ = {isa = PBXBuildFile; fileRef = RD00000000000000000000A2 /* WebViewCoordinator+Reader.swift */; };
+		RD00000000000000000000B3 /* BrowserStore+Reader.swift in Sources */ = {isa = PBXBuildFile; fileRef = RD00000000000000000000A3 /* BrowserStore+Reader.swift */; };
 		TF00000000000000000000B1 /* TabLoadFailure.swift in Sources */ = {isa = PBXBuildFile; fileRef = TF00000000000000000000A1 /* TabLoadFailure.swift */; };
 		TR00000000000000000000B1 /* TabRecoveryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = TR00000000000000000000A1 /* TabRecoveryView.swift */; };
 		TS00000000000000000000B1 /* TabSnapshotStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = TS00000000000000000000A1 /* TabSnapshotStore.swift */; };
@@ -264,6 +267,9 @@
 		SI00000000000000000000A1 /* SitePermissions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SitePermissions.swift; sourceTree = "<group>"; };
 		SI00000000000000000000A2 /* SiteInfoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SiteInfoView.swift; sourceTree = "<group>"; };
 		PV00000000000000000000A1 /* PrivacyReportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivacyReportView.swift; sourceTree = "<group>"; };
+		RD00000000000000000000A1 /* ReaderMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderMode.swift; sourceTree = "<group>"; };
+		RD00000000000000000000A2 /* WebViewCoordinator+Reader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WebViewCoordinator+Reader.swift"; sourceTree = "<group>"; };
+		RD00000000000000000000A3 /* BrowserStore+Reader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+Reader.swift"; sourceTree = "<group>"; };
 		TF00000000000000000000A1 /* TabLoadFailure.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabLoadFailure.swift; sourceTree = "<group>"; };
 		TR00000000000000000000A1 /* TabRecoveryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabRecoveryView.swift; sourceTree = "<group>"; };
 		TS00000000000000000000A1 /* TabSnapshotStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabSnapshotStore.swift; sourceTree = "<group>"; };
@@ -443,6 +449,8 @@
 				EF0000000000000000000008 /* WebViewCoordinator+Hosting.swift */,
 				EF0000000000000000000009 /* WebViewCoordinator+Hibernation.swift */,
 				EF000000000000000000000A /* WebViewCoordinator+Media.swift */,
+				RD00000000000000000000A1 /* ReaderMode.swift */,
+				RD00000000000000000000A2 /* WebViewCoordinator+Reader.swift */,
 				EF000000000000000000000B /* WebViewCoordinator+Delegates.swift */,
 				EF000000000000000000000C /* WebViewCoordinator+Downloads.swift */,
 				EF000000000000000000000D /* WebViewCoordinator+PageIntegration.swift */,
@@ -485,6 +493,7 @@
 				A90000000000000000000001 /* HistoryStore.swift */,
 				010000000000000000000054 /* BrowserStore+Eli.swift */,
 				010000000000000000000055 /* BrowserStore+Media.swift */,
+				RD00000000000000000000A3 /* BrowserStore+Reader.swift */,
 				AA0000000000000000000001 /* UserStore.swift */,
 				AA0000000000000000000002 /* BrowserStore+Testing.swift */,
 				AA0000000000000000000003 /* BrowserStore+CommandPalette.swift */,
@@ -777,6 +786,9 @@
 				SI00000000000000000000B1 /* SitePermissions.swift in Sources */,
 				SI00000000000000000000B2 /* SiteInfoView.swift in Sources */,
 				PV00000000000000000000B1 /* PrivacyReportView.swift in Sources */,
+				RD00000000000000000000B1 /* ReaderMode.swift in Sources */,
+				RD00000000000000000000B2 /* WebViewCoordinator+Reader.swift in Sources */,
+				RD00000000000000000000B3 /* BrowserStore+Reader.swift in Sources */,
 				AB1300000000000000000102 /* ProviderModelDirectory.swift in Sources */,
 				010000000000000000000121 /* KeyboardShortcutMonitor.swift in Sources */,
 				010000000000000000000122 /* SidebarRevealMonitor.swift in Sources */,

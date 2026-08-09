@@ -34,6 +34,8 @@ enum BrowserCommandTitles {
     static let clearUnpinnedTabs = String(localized: "Clear Unpinned Tabs")
     static let siteInfo = String(localized: "Site Info…")
     static let privacyReport = String(localized: "Privacy Report…")
+    static let showReader = String(localized: "Show Reader")
+    static let hideReader = String(localized: "Hide Reader")
     static let copyURL = String(localized: "Copy URL")
     static let copyURLAsMarkdown = String(localized: "Copy URL as Markdown")
     static let turnOnDeveloperMode = String(localized: "Turn On Developer Mode")

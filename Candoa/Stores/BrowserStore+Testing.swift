@@ -443,6 +443,8 @@ extension BrowserStore {
             "downloadsShown=\(isDownloadsPopoverPresented)",
             "siteInfoShown=\(isSiteInfoPopoverPresented)",
             "privacyReportShown=\(isPrivacyReportPresented)",
+            "reader=\(uiTestingReaderDescription)",
+            "nav=\(uiTestingNavigationDescription)",
             "popover=\(uiTestingVisibleFolderPopoverDescription)",
             "query=\(uiTestingCommandPaletteQuery)",
             "command=\(uiTestingLastCommandDescription)",
@@ -450,6 +452,18 @@ extension BrowserStore {
             "popupDiag=\(uiTestingPopupDiagnostics.joined(separator: "|"))",
             "webAuth=\(uiTestingWebAuthEvents.joined(separator: "|"))"
         ].joined(separator: ";")
+    }
+
+    private var uiTestingNavigationDescription: String {
+        guard let activeTabID else { return "none" }
+        let state = webCoordinator.navigationState(for: activeTabID)
+        return "\(state.canGoBack ? "back" : "noback"):\(state.canGoForward ? "fwd" : "nofwd")"
+    }
+
+    private var uiTestingReaderDescription: String {
+        guard let activeTabID else { return "none" }
+        let availability = readerAvailableTabIDs.contains(activeTabID) ? "available" : "unavailable"
+        return "\(availability):\(readerActiveTabIDs.contains(activeTabID) ? "active" : "inactive")"
     }
 
     private var tabSwitcherSelectedTitle: String {
