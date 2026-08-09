@@ -7,6 +7,15 @@ final class CandoaUITests: XCTestCase {
         continueAfterFailure = false
     }
 
+    /// XCUITest leaves the app under test running (and frontmost) when a
+    /// test ends, so local runs would strand a fixture-workspace browser on
+    /// the developer's screen. Every test launches its own instance, so
+    /// tearing the app down between tests costs nothing.
+    override func tearDown() {
+        XCUIApplication().terminate()
+        super.tearDown()
+    }
+
     func testAppLaunchesMainWindow() throws {
         let app = launchApp()
 
@@ -3707,6 +3716,12 @@ final class EliLiveUITests: XCTestCase {
         guard FileManager.default.fileExists(atPath: liveE2EMarkerPath) else {
             throw XCTSkip("Run Scripts/e2e-ask-test.sh to enable live Eli website smoke tests.")
         }
+    }
+
+    /// Same as CandoaUITests: never strand the app under test on screen.
+    override func tearDown() {
+        XCUIApplication().terminate()
+        super.tearDown()
     }
 
     func testAskReadsLiveGoogleAmazonAndEbayPages() throws {
