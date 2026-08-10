@@ -43,7 +43,7 @@ final class CandoaUITests: XCTestCase {
         let leadingPane = element("split-pane-0", in: app)
         XCTAssertTrue(leadingPane.waitForExistence(timeout: 5), currentState(in: app))
         leadingPane.click()
-        XCTAssertTrue(waitForState(in: app, containing: "splitActive=one"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "splitActive=two"), currentState(in: app))
 
         let trailingPane = element("split-pane-1", in: app)
         XCTAssertTrue(trailingPane.waitForExistence(timeout: 5), currentState(in: app))
@@ -70,6 +70,10 @@ final class CandoaUITests: XCTestCase {
 
         let leadingPane = element("split-pane-0", in: app)
         XCTAssertTrue(leadingPane.waitForExistence(timeout: 5), currentState(in: app))
+        // Opening a split hands focus to the new pane, so the pane this test
+        // samples has to be lit on purpose before the "focused" capture.
+        leadingPane.click()
+        XCTAssertTrue(waitForState(in: app, containing: "splitActive=two"), currentState(in: app))
         let paneFrame = leadingPane.frame
 
         // The ring is a 1pt strokeBorder on the visible card's edge; a short
@@ -259,9 +263,9 @@ final class CandoaUITests: XCTestCase {
         XCTAssertTrue(spacesApp.wait(for: .runningForeground, timeout: 10))
         XCTAssertTrue(waitForState(in: spacesApp, containing: "space=SplitOne"), currentState(in: spacesApp))
 
-        openSplitPane(with: "a-two", in: spacesApp)
+        openSplitPane(with: "a-split", in: spacesApp)
         XCTAssertTrue(
-            waitForState(in: spacesApp, containing: "splitTabs=a-one|a-two"),
+            waitForState(in: spacesApp, containing: "splitTabs=a-one|a-split"),
             currentState(in: spacesApp)
         )
         XCTAssertTrue(
@@ -280,7 +284,7 @@ final class CandoaUITests: XCTestCase {
             currentState(in: spacesApp)
         )
         XCTAssertTrue(
-            waitForState(in: spacesApp, containing: "splitTabs=a-one|a-two"),
+            waitForState(in: spacesApp, containing: "splitTabs=a-one|a-split"),
             currentState(in: spacesApp)
         )
     }
@@ -318,10 +322,10 @@ final class CandoaUITests: XCTestCase {
 
         // Layout shortcuts switch between stacked rows and side-by-side
         // columns — the only two arrangements.
-        app.typeKey("v", modifierFlags: [.control, .option])
+        app.typeKey("v", modifierFlags: [.control, .command])
         XCTAssertTrue(waitForState(in: app, containing: "splitLayout=vertical"), currentState(in: app))
 
-        app.typeKey("h", modifierFlags: [.control, .option])
+        app.typeKey("h", modifierFlags: [.control, .command])
         XCTAssertTrue(waitForState(in: app, containing: "splitLayout=horizontal"), currentState(in: app))
 
         // The layout is split state: closing the split resets it.
@@ -349,7 +353,7 @@ final class CandoaUITests: XCTestCase {
         unsplitButton.click()
         XCTAssertTrue(waitForState(in: app, containing: "split=false"), currentState(in: app))
         XCTAssertTrue(waitForState(in: app, containing: "active=one"), currentState(in: app))
-        XCTAssertTrue(waitForState(in: app, containing: "tabs=two|one"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "tabs=one|two"), currentState(in: app))
         XCTAssertTrue(element("tab-row-one", in: app).waitForExistence(timeout: 5), currentState(in: app))
         XCTAssertTrue(element("tab-row-two", in: app).waitForExistence(timeout: 5), currentState(in: app))
     }
