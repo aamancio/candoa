@@ -431,7 +431,6 @@ struct WebViewContainer: View {
                                 }
                             },
                             onUnsplit: { store.removeTabFromSplit(splitTab.id, focusRemovedTab: true) },
-                            onClose: { store.closeTab(splitTab.id) }
                         )
                         // Below the row dividers' 7pt overhang so the pill
                         // and a divider strip never contend for the pointer.
@@ -890,7 +889,6 @@ private struct SplitPaneControlPill: View {
     let onDragChanged: (CGPoint) -> Void
     let onDragEnded: (CGPoint) -> Void
     let onUnsplit: () -> Void
-    let onClose: () -> Void
 
     @State private var isHovering = false
 
@@ -938,18 +936,6 @@ private struct SplitPaneControlPill: View {
             .help("Unsplit — Move Back to Tab List")
             .accessibilityLabel("Unsplit")
             .accessibilityIdentifier("split-pane-unsplit-\(paneIndex)")
-
-            Button(action: onClose) {
-                Image(systemName: "xmark")
-                    .font(.system(size: 10, weight: .semibold))
-                    .frame(width: 26, height: 20)
-                    .contentShape(Rectangle())
-            }
-            .buttonTreatment(.content)
-            .foregroundStyle(.secondary)
-            .help("Close Tab")
-            .accessibilityLabel("Close Tab")
-            .accessibilityIdentifier("split-pane-close-\(paneIndex)")
         }
         .padding(.horizontal, 4)
         .padding(.vertical, 2)
@@ -1613,11 +1599,9 @@ private enum DeveloperToolbarControlKind: String, CaseIterable, Identifiable {
         case .capturePage:
             return String(localized: "Set in Settings > Shortcuts")
         case .splitView:
-            // Reflect the person's configured shortcuts, not the defaults.
-            let addCaps = ShortcutKeyCaps.current(for: .addSplitView).joined()
-            let closeCaps = ShortcutKeyCaps.current(for: .closeSplitView).joined()
-            let parts = [addCaps, closeCaps].filter { !$0.isEmpty }
-            return parts.isEmpty ? String(localized: "Set in Settings > Shortcuts") : parts.joined(separator: " / ")
+            // Reflect the person's configured shortcut, not the default.
+            let caps = ShortcutKeyCaps.current(for: .toggleSplitView).joined()
+            return caps.isEmpty ? String(localized: "Set in Settings > Shortcuts") : caps
         case .easel, .developerTools, .siteInfo, .inspectElement, .extensions:
             return String(localized: "Not implemented in Candoa yet")
         }

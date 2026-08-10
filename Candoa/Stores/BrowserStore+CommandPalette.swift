@@ -22,6 +22,22 @@ extension BrowserStore {
         addressFocusRequestID = UUID()
     }
 
+    /// The palette for a freshly opened split pane: empty, and committed to
+    /// the active pane rather than a new tab, so the pick lands in the pane
+    /// that was just made instead of replacing what the person was reading.
+    func openCommandPaletteForActivePane() {
+        guard !isInitialOnboardingBlockingBrowsing else { return }
+
+        commandPaletteInitialText = ""
+        commandPaletteResumeQuery = ""
+        commandPaletteSessionID = UUID()
+        commandPalettePrefersCurrentTabNavigation = true
+        commandPaletteWasOpenedFromSidebarAddress = false
+        commandPaletteOpensNewTab = false
+        presentCommandPalette()
+        addressFocusRequestID = UUID()
+    }
+
     func focusSidebarAddressBar() {
         guard !isInitialOnboardingBlockingBrowsing else { return }
 

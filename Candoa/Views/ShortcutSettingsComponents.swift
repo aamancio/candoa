@@ -546,8 +546,7 @@ enum ShortcutDefinition: String, CaseIterable, Identifiable {
     case previousTab
     case nextSpace
     case previousSpace
-    case addSplitView
-    case closeSplitView
+    case toggleSplitView
     case splitLayoutHorizontal
     case splitLayoutVertical
     case findInPage
@@ -585,8 +584,7 @@ enum ShortcutDefinition: String, CaseIterable, Identifiable {
         case .previousTab: return BrowserCommandTitles.previousTab
         case .nextSpace: return BrowserCommandTitles.nextSpace
         case .previousSpace: return BrowserCommandTitles.previousSpace
-        case .addSplitView: return BrowserCommandTitles.addSplitView
-        case .closeSplitView: return BrowserCommandTitles.closeSplitView
+        case .toggleSplitView: return BrowserCommandTitles.splitViewMenu
         case .splitLayoutHorizontal: return BrowserCommandTitles.splitLayoutHorizontal
         case .splitLayoutVertical: return BrowserCommandTitles.splitLayoutVertical
         case .findInPage: return BrowserCommandTitles.findInPage
@@ -607,7 +605,7 @@ enum ShortcutDefinition: String, CaseIterable, Identifiable {
             return String(localized: "Capture")
         case .toggleAISidebar:
             return String(localized: "AI")
-        case .addSplitView, .closeSplitView, .splitLayoutHorizontal, .splitLayoutVertical:
+        case .toggleSplitView, .splitLayoutHorizontal, .splitLayoutVertical:
             return String(localized: "Split View")
         case .goBack, .goForward, .nextRecentTab, .previousRecentTab, .nextTab, .previousTab, .nextSpace, .previousSpace:
             return String(localized: "Navigation")
@@ -642,10 +640,9 @@ enum ShortcutDefinition: String, CaseIterable, Identifiable {
         case .previousTab: return "Option-Command-Up"
         case .nextSpace: return "Option-Command-Right"
         case .previousSpace: return "Option-Command-Left"
-        case .addSplitView: return "Control-Shift-="
-        case .closeSplitView: return "Control-Shift--"
-        case .splitLayoutHorizontal: return "Control-Option-H"
-        case .splitLayoutVertical: return "Control-Option-V"
+        case .toggleSplitView: return "Command-\\"
+        case .splitLayoutHorizontal: return "Control-Command-H"
+        case .splitLayoutVertical: return "Control-Command-V"
         case .findInPage: return "Command-F"
         case .findNext: return "Command-G"
         case .findPrevious: return "Shift-Command-G"
@@ -676,7 +673,7 @@ enum ShortcutDefinition: String, CaseIterable, Identifiable {
         case .closeCurrentTab: return "xmark"
         case .reopenClosedTab: return "arrow.uturn.backward"
         case .captureFullPage: return "camera"
-        case .addSplitView, .closeSplitView, .splitLayoutHorizontal: return "rectangle.split.2x1"
+        case .toggleSplitView, .splitLayoutHorizontal: return "rectangle.split.2x1"
         case .splitLayoutVertical: return "rectangle.split.1x2"
         case .copyURL, .copyURLAsMarkdown: return "link"
         case .findInPage, .findNext, .findPrevious: return "magnifyingglass"

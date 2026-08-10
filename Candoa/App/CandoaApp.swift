@@ -467,21 +467,23 @@ private struct BrowserCommands: Commands {
                 // equivalents here surfaces them in the menu instead of
                 // leaving the items looking shortcut-less.
                 Menu(BrowserCommandTitles.splitViewMenu) {
-                    Button(BrowserCommandTitles.addSplitView) {
-                        actions?.addSplitView()
+                    // One item, not an add/close pair: the keyboard could only
+                    // ever open or close the split anyway (a third pane comes
+                    // from a drag), so the second command bought a second key
+                    // for nothing. Title flips the way the sidebar items do.
+                    Button(
+                        actions?.isSplitDisplayed == true
+                            ? BrowserCommandTitles.closeSplitView
+                            : BrowserCommandTitles.addSplitView
+                    ) {
+                        actions?.toggleSplitView()
                     }
-                    .keyboardShortcut(ShortcutDefinition.addSplitView.currentKeyboardShortcut)
+                    .keyboardShortcut(ShortcutDefinition.toggleSplitView.currentKeyboardShortcut)
                     .disabled(actions == nil)
 
-                    // Closing and rearranging only mean something while a
-                    // split is on screen, so they grey out otherwise instead
-                    // of silently doing nothing.
-                    Button(BrowserCommandTitles.closeSplitView) {
-                        actions?.closeSplitView()
-                    }
-                    .keyboardShortcut(ShortcutDefinition.closeSplitView.currentKeyboardShortcut)
-                    .disabled(actions?.isSplitDisplayed != true)
-
+                    // Rearranging only means something while a split is on
+                    // screen, so these grey out instead of silently doing
+                    // nothing.
                     Button(BrowserCommandTitles.splitLayoutHorizontal) {
                         actions?.setSplitLayout(.horizontal)
                     }
@@ -702,8 +704,7 @@ struct BrowserCommandActions {
     var zoomIn: () -> Void
     var zoomOut: () -> Void
     var resetZoom: () -> Void
-    var addSplitView: () -> Void
-    var closeSplitView: () -> Void
+    var toggleSplitView: () -> Void
     var setSplitLayout: (SplitViewLayout) -> Void
     var isSplitDisplayed: Bool
     var isWorkspaceICloudSyncEnabled: Bool
