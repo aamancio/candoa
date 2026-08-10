@@ -263,19 +263,21 @@ final class CandoaUITests: XCTestCase {
         XCTAssertTrue(spacesApp.wait(for: .runningForeground, timeout: 10))
         XCTAssertTrue(waitForState(in: spacesApp, containing: "space=SplitOne"), currentState(in: spacesApp))
 
-        openSplitPane(with: "a-split", in: spacesApp)
+        // Built by dragging rather than Cmd-\\: this half is about Space
+        // switching, and coming back restores the tab the Space remembers.
+        // A pane named through the command bar is a tab the Space never knew
+        // about, so the group would revive around a non-member and stay
+        // suspended -- a different behaviour than the one under test.
+        let rowATwo = element("tab-row-a-two", in: spacesApp)
+        XCTAssertTrue(rowATwo.waitForExistence(timeout: 5), currentState(in: spacesApp))
+        let spacesTarget = spacesApp.windows.firstMatch
+            .coordinate(withNormalizedOffset: CGVector(dx: 0.96, dy: 0.5))
+        rowATwo.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            .press(forDuration: 0.3, thenDragTo: spacesTarget)
         XCTAssertTrue(
-            waitForState(in: spacesApp, containing: "splitTabs=a-one|a-split"),
+            waitForState(in: spacesApp, containing: "splitTabs=a-one|a-two"),
             currentState(in: spacesApp)
         )
-
-        // Leave a tab the Space already knew about focused: coming back
-        // restores the Space's remembered tab, and the split only revives
-        // when that tab is one of the group's own.
-        let chipAOne = element("split-chip-a-one", in: spacesApp)
-        XCTAssertTrue(chipAOne.waitForExistence(timeout: 5), currentState(in: spacesApp))
-        chipAOne.click()
-        XCTAssertTrue(waitForState(in: spacesApp, containing: "splitActive=a-one"), currentState(in: spacesApp))
         XCTAssertTrue(
             waitForState(in: spacesApp, containing: "splitDisplayed=true"),
             currentState(in: spacesApp)
@@ -292,7 +294,7 @@ final class CandoaUITests: XCTestCase {
             currentState(in: spacesApp)
         )
         XCTAssertTrue(
-            waitForState(in: spacesApp, containing: "splitTabs=a-one|a-split"),
+            waitForState(in: spacesApp, containing: "splitTabs=a-one|a-two"),
             currentState(in: spacesApp)
         )
     }
