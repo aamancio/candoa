@@ -60,8 +60,12 @@ enum BrowserCommandTitles {
     static let resetZoom = String(localized: "Reset Zoom")
     static let addSplitView = String(localized: "Add Split View")
     static let closeSplitView = String(localized: "Close Split View")
-    static let splitLayoutHorizontal = String(localized: "Horizontal Split Layout")
-    static let splitLayoutVertical = String(localized: "Vertical Split Layout")
+    // "Horizontal"/"Vertical" read backwards to half of everyone: the panes
+    // sit horizontally, but the divider between them is vertical, and
+    // terminals name the split after the divider. Name the arrangement
+    // instead -- neither word can be read the other way round.
+    static let splitLayoutHorizontal = String(localized: "Side by Side")
+    static let splitLayoutVertical = String(localized: "Stacked")
     static let enableWorkspaceICloudSync = String(localized: "Enable iCloud Sync for Spaces and Tabs")
     static let disableWorkspaceICloudSync = String(localized: "Disable iCloud Sync for Spaces and Tabs")
     static let enableHistoryICloudSync = String(localized: "Enable iCloud Sync for History")

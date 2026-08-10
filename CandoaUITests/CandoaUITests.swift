@@ -329,7 +329,7 @@ final class CandoaUITests: XCTestCase {
         XCTAssertTrue(waitForState(in: app, containing: "splitLayout=horizontal"), currentState(in: app))
 
         // The layout is split state: closing the split resets it.
-        app.typeKey("-", modifierFlags: [.control, .shift])
+        app.typeKey("\\", modifierFlags: [.command])
         XCTAssertTrue(waitForState(in: app, containing: "split=false"), currentState(in: app))
         XCTAssertTrue(waitForState(in: app, containing: "splitLayout=horizontal"), currentState(in: app))
     }
