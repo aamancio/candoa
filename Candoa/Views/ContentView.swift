@@ -414,10 +414,8 @@ struct ContentView: View {
                 store.switchToNextSpace()
             } onPreviousSpace: {
                 store.switchToPreviousSpace()
-            } onAddSplit: {
-                addSplitView()
-            } onCloseSplit: {
-                store.closeSplitView()
+            } onToggleSplit: {
+                toggleSplitView()
             } onSplitLayout: { layout in
                 store.setSplitLayout(layout)
             }
@@ -615,8 +613,7 @@ struct ContentView: View {
             zoomIn: store.zoomInActiveTab,
             zoomOut: store.zoomOutActiveTab,
             resetZoom: store.resetZoomForActiveTab,
-            addSplitView: addSplitView,
-            closeSplitView: store.closeSplitView,
+            toggleSplitView: toggleSplitView,
             setSplitLayout: store.setSplitLayout,
             isSplitDisplayed: store.isSplitViewDisplayed,
             isWorkspaceICloudSyncEnabled: store.iCloudWorkspaceSyncEnabled,
@@ -880,8 +877,7 @@ struct ContentView: View {
         store.openNewTabCommandPalette()
     }
 
-    private func addSplitView() {
-        guard !store.isSplitViewDisplayed else { return }
+    private func toggleSplitView() {
         store.toggleSplitView()
     }
 

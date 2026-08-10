@@ -1613,11 +1613,9 @@ private enum DeveloperToolbarControlKind: String, CaseIterable, Identifiable {
         case .capturePage:
             return String(localized: "Set in Settings > Shortcuts")
         case .splitView:
-            // Reflect the person's configured shortcuts, not the defaults.
-            let addCaps = ShortcutKeyCaps.current(for: .addSplitView).joined()
-            let closeCaps = ShortcutKeyCaps.current(for: .closeSplitView).joined()
-            let parts = [addCaps, closeCaps].filter { !$0.isEmpty }
-            return parts.isEmpty ? String(localized: "Set in Settings > Shortcuts") : parts.joined(separator: " / ")
+            // Reflect the person's configured shortcut, not the default.
+            let caps = ShortcutKeyCaps.current(for: .toggleSplitView).joined()
+            return caps.isEmpty ? String(localized: "Set in Settings > Shortcuts") : caps
         case .easel, .developerTools, .siteInfo, .inspectElement, .extensions:
             return String(localized: "Not implemented in Candoa yet")
         }
