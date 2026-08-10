@@ -530,6 +530,7 @@ enum ShortcutDefinition: String, CaseIterable, Identifiable {
     case closeCurrentTab
     case reopenClosedTab
     case focusAddressBar
+    case commandBar
     case copyURL
     case copyURLAsMarkdown
     case captureFullPage
@@ -568,6 +569,7 @@ enum ShortcutDefinition: String, CaseIterable, Identifiable {
         case .closeCurrentTab: return BrowserCommandTitles.closeCurrentTab
         case .reopenClosedTab: return BrowserCommandTitles.reopenClosedTab
         case .focusAddressBar: return BrowserCommandTitles.focusAddressBar
+        case .commandBar: return BrowserCommandTitles.commandBar
         case .copyURL: return BrowserCommandTitles.copyURL
         case .copyURLAsMarkdown: return BrowserCommandTitles.copyURLAsMarkdown
         case .captureFullPage: return String(localized: "Capture Page")
@@ -624,6 +626,7 @@ enum ShortcutDefinition: String, CaseIterable, Identifiable {
         case .closeCurrentTab: return "Command-W"
         case .reopenClosedTab: return "Shift-Command-T"
         case .focusAddressBar: return "Command-L"
+        case .commandBar: return "Option-Command-K"
         case .copyURL: return "Shift-Command-C"
         case .copyURLAsMarkdown: return "Option-Shift-Command-C"
         case .captureFullPage: return "None"
@@ -684,6 +687,7 @@ enum ShortcutDefinition: String, CaseIterable, Identifiable {
         case .toggleSidebar: return "sidebar.left"
         case .toggleAISidebar: return "sidebar.right"
         case .focusAddressBar: return "text.cursor"
+        case .commandBar: return "command"
         case .newTab: return "plus"
         case .clearUnpinnedTabs: return "clear"
         case .goBack: return "chevron.left"

@@ -360,6 +360,8 @@ struct ContentView: View {
                 store.reopenLastClosedTab()
             } onFocusAddressBar: {
                 store.focusAddressBar()
+            } onOpenCommandBar: {
+                store.openCommandPalette()
             } onCopyURL: {
                 store.copyActiveTabURL()
             } onCopyURLAsMarkdown: {

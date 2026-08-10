@@ -403,9 +403,14 @@ private struct BrowserCommands: Commands {
                 .keyboardShortcut("l", modifiers: [.command, .option])
                 .disabled(actions == nil)
 
+                // Option-Command-K, not Command-K: web apps bind Command-K for
+                // their own palettes (Slack, Linear, GitHub) and chrome would
+                // swallow it before the page ever saw it. Option-Command is
+                // where browsers keep their own commands, so nothing collides.
                 Button(BrowserCommandTitles.commandBar) {
                     actions?.openCommandPalette()
                 }
+                .keyboardShortcut(ShortcutDefinition.commandBar.currentKeyboardShortcut)
                 .disabled(actions == nil)
 
                 Divider()

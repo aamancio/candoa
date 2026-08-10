@@ -65,6 +65,13 @@ extension BrowserStore {
     func openCommandPalette() {
         guard !isInitialOnboardingBlockingBrowsing else { return }
 
+        // Same toggle the address-bar shortcut uses: the key that opened the
+        // palette closes it again.
+        if isCommandPalettePresented {
+            dismissCommandPalette()
+            return
+        }
+
         commandPaletteInitialText = ""
         commandPaletteResumeQuery = ""
         commandPaletteSessionID = UUID()

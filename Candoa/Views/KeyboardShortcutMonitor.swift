@@ -6,6 +6,7 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
     let onCommandW: () -> Void
     let onReopenClosedTab: () -> Void
     let onFocusAddressBar: () -> Void
+    let onOpenCommandBar: () -> Void
     let onCopyURL: () -> Void
     let onCopyURLAsMarkdown: () -> Void
     let onCaptureFullPage: () -> Void
@@ -60,6 +61,7 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
         coordinator.onCommandW = onCommandW
         coordinator.onReopenClosedTab = onReopenClosedTab
         coordinator.onFocusAddressBar = onFocusAddressBar
+        coordinator.onOpenCommandBar = onOpenCommandBar
         coordinator.onCopyURL = onCopyURL
         coordinator.onCopyURLAsMarkdown = onCopyURLAsMarkdown
         coordinator.onCaptureFullPage = onCaptureFullPage
@@ -98,6 +100,7 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
         var onCommandW: () -> Void = {}
         var onReopenClosedTab: () -> Void = {}
         var onFocusAddressBar: () -> Void = {}
+        var onOpenCommandBar: () -> Void = {}
         var onCopyURL: () -> Void = {}
         var onCopyURLAsMarkdown: () -> Void = {}
         var onCaptureFullPage: () -> Void = {}
@@ -191,6 +194,11 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
 
             if Self.matchesConfiguredShortcut(.focusAddressBar, event) {
                 onFocusAddressBar()
+                return nil
+            }
+
+            if Self.matchesConfiguredShortcut(.commandBar, event) {
+                onOpenCommandBar()
                 return nil
             }
 
