@@ -12,6 +12,10 @@ enum AppConfiguration {
 enum BrowserCommandTitles {
     static let newTab = String(localized: "New Tab")
     static let focusAddressBar = String(localized: "Focus Address Bar")
+    /// Safari's File-menu name for the same command; the palette and the
+    /// shortcut editor keep calling it Focus Address Bar, which describes
+    /// what it does rather than where it lives.
+    static let openLocation = String(localized: "Open Location…")
     static let commandBar = String(localized: "Command Bar")
     static let toggleSidebar = String(localized: "Toggle Sidebar")
     static let toggleAISidebar = String(localized: "Toggle Eli Sidebar")
@@ -44,6 +48,10 @@ enum BrowserCommandTitles {
     static let openFile = String(localized: "Open File…")
     static let saveAs = String(localized: "Save As…")
     static let exportAsPDF = String(localized: "Export as PDF…")
+    /// Titles of the two Safari-style submenus that keep the Edit and View
+    /// menus short.
+    static let findMenu = String(localized: "Find")
+    static let splitViewMenu = String(localized: "Split View")
     static let findInPage = String(localized: "Find in Page…")
     static let findNext = String(localized: "Find Next")
     static let findPrevious = String(localized: "Find Previous")

@@ -84,6 +84,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         updateDockIcon()
+        MenuAlternateInstaller.install()
         webAuthenticationHostService.activate()
         DistributedNotificationCenter.default().addObserver(
             self,
@@ -156,6 +157,55 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 
+/// Safari shows "Reload Page From Origin" only while Option is held: it is an
+/// alternate of "Reload Page" rather than a line of its own. SwiftUI has no
+/// modifier for `NSMenuItem.isAlternate`, so the flag is set on the menu
+/// AppKit built — and re-set whenever the menu bar begins tracking, because
+/// SwiftUI rebuilds these items as the focused browser state changes and a
+/// rebuilt item comes back ordinary.
+///
+/// AppKit only honours the flag when the alternate directly follows its base
+/// item and carries the same key equivalent with a different modifier mask,
+/// which is how the two are declared in the View menu.
+@MainActor
+private enum MenuAlternateInstaller {
+    private static var observer: NSObjectProtocol?
+
+    static func install() {
+        guard observer == nil else { return }
+
+        observer = NotificationCenter.default.addObserver(
+            forName: NSMenu.didBeginTrackingNotification,
+            object: nil,
+            queue: .main
+        ) { _ in
+            MainActor.assumeIsolated { applyReloadAlternate() }
+        }
+    }
+
+    private static func applyReloadAlternate() {
+        guard let mainMenu = NSApp.mainMenu else { return }
+
+        for topLevelItem in mainMenu.items {
+            guard let submenu = topLevelItem.submenu,
+                  let index = submenu.items.firstIndex(where: {
+                      $0.title == BrowserCommandTitles.reloadTabFromOrigin
+                  }),
+                  index > 0,
+                  submenu.items[index - 1].title == BrowserCommandTitles.reloadTab
+            else { continue }
+
+            let alternate = submenu.items[index]
+            guard !alternate.isAlternate else { return }
+
+            alternate.keyEquivalent = "r"
+            alternate.keyEquivalentModifierMask = [.command, .option]
+            alternate.isAlternate = true
+            return
+        }
+    }
+}
+
 private struct AboutCommands: Commands {
     var body: some Commands {
         CommandGroup(replacing: .appInfo) {
@@ -177,13 +227,33 @@ private struct BrowserCommands: Commands {
     @ObservedObject var userStore: UserStore
 
     var body: some Commands {
-        CommandGroup(before: .appTermination) {
-            Button("Sign Out") {
-                userStore.signOut()
-            }
-            .disabled(!userStore.hasCloudSession || userStore.isWorking)
+        // Grouped to stay inside the commands builder's ten-element limit.
+        Group {
+            CommandGroup(before: .appTermination) {
+                Button("Sign Out") {
+                    userStore.signOut()
+                }
+                .disabled(!userStore.hasCloudSession || userStore.isWorking)
 
-            Divider()
+                Divider()
+            }
+
+            // Safari keeps both of these in its app menu just below Settings —
+            // the report as "Privacy Report…", the per-page entry as "Settings
+            // for <site>…" — not in View. The address pill remains the
+            // everyday way in to Site Info.
+            CommandGroup(after: .appSettings) {
+                // The report describes global protection, so it needs no page.
+                Button(BrowserCommandTitles.privacyReport) {
+                    actions?.showPrivacyReport()
+                }
+                .disabled(actions == nil)
+
+                Button(BrowserCommandTitles.siteInfo) {
+                    actions?.showSiteInfo()
+                }
+                .disabled(actions?.canShowSiteInfo != true)
+            }
         }
 
         CommandGroup(replacing: .newItem) {
@@ -209,6 +279,16 @@ private struct BrowserCommands: Commands {
                     actions?.openLocalFile()
                 }
                 .keyboardShortcut("o", modifiers: .command)
+                .disabled(actions == nil)
+
+                // Safari's home for focusing the address bar, under the name
+                // it uses there. The shortcut is dispatched by
+                // KeyboardShortcutMonitor; attaching it here only draws the
+                // equivalent beside the item.
+                Button(BrowserCommandTitles.openLocation) {
+                    actions?.focusAddressBar()
+                }
+                .keyboardShortcut(ShortcutDefinition.focusAddressBar.currentKeyboardShortcut)
                 .disabled(actions == nil)
             }
 
@@ -260,23 +340,28 @@ private struct BrowserCommands: Commands {
             }
         }
 
+        // Safari nests the find commands one level down rather than spending
+        // three lines of the Edit menu on them.
         CommandGroup(after: .textEditing) {
-            Button(BrowserCommandTitles.findInPage) {
-                actions?.findInPage()
-            }
-            .disabled(actions == nil)
+            Menu(BrowserCommandTitles.findMenu) {
+                Button(BrowserCommandTitles.findInPage) {
+                    actions?.findInPage()
+                }
+                .keyboardShortcut(ShortcutDefinition.findInPage.currentKeyboardShortcut)
+                .disabled(actions == nil)
 
-            Button(BrowserCommandTitles.findNext) {
-                actions?.findNext()
-            }
-            .keyboardShortcut("g", modifiers: .command)
-            .disabled(actions == nil)
+                Button(BrowserCommandTitles.findNext) {
+                    actions?.findNext()
+                }
+                .keyboardShortcut("g", modifiers: .command)
+                .disabled(actions == nil)
 
-            Button(BrowserCommandTitles.findPrevious) {
-                actions?.findPrevious()
+                Button(BrowserCommandTitles.findPrevious) {
+                    actions?.findPrevious()
+                }
+                .keyboardShortcut("g", modifiers: [.command, .shift])
+                .disabled(actions == nil)
             }
-            .keyboardShortcut("g", modifiers: [.command, .shift])
-            .disabled(actions == nil)
         }
 
         CommandGroup(replacing: .sidebar) {
@@ -300,129 +385,128 @@ private struct BrowserCommands: Commands {
 
             Divider()
 
-            Button(BrowserCommandTitles.focusAddressBar) {
-                actions?.focusAddressBar()
-            }
-            .disabled(actions == nil)
+            Group {
+                // Safari lists Reader immediately below the sidebars. Enabled
+                // while the active page qualifies or reader is already showing
+                // (so it always exits).
+                Button(
+                    actions?.isReaderActive == true
+                        ? BrowserCommandTitles.hideReader
+                        : BrowserCommandTitles.showReader
+                ) {
+                    actions?.toggleReader()
+                }
+                .keyboardShortcut("r", modifiers: [.command, .shift])
+                .disabled(actions?.canToggleReader != true)
 
-            Button(BrowserCommandTitles.commandBar) {
-                actions?.openCommandPalette()
+                Button(BrowserCommandTitles.commandBar) {
+                    actions?.openCommandPalette()
+                }
+                .disabled(actions == nil)
+
+                Divider()
+
+                Button(BrowserCommandTitles.stopLoading) {
+                    actions?.stopLoading()
+                }
+                .keyboardShortcut(".", modifiers: .command)
+                .disabled(actions?.isActiveTabLoading != true)
+
+                Button(BrowserCommandTitles.reloadTab) {
+                    actions?.reloadTab()
+                }
+                .keyboardShortcut(ShortcutDefinition.reloadTab.currentKeyboardShortcut)
+                .disabled(actions?.canReloadActiveTab != true)
+
+                // Kept directly after Reload Page, sharing its key equivalent:
+                // MenuAlternateInstaller turns this into the Option-held
+                // alternate of the item above, the way Safari hides it.
+                Button(BrowserCommandTitles.reloadTabFromOrigin) {
+                    actions?.reloadTabFromOrigin()
+                }
+                .keyboardShortcut("r", modifiers: [.command, .option])
+                .disabled(actions?.canReloadActiveTab != true)
             }
-            .disabled(actions == nil)
 
             Divider()
 
-            Button(BrowserCommandTitles.stopLoading) {
-                actions?.stopLoading()
+            Group {
+                Button(BrowserCommandTitles.resetZoom) {
+                    actions?.resetZoom()
+                }
+                .keyboardShortcut("0", modifiers: .command)
+                .disabled(actions == nil)
+
+                Button(BrowserCommandTitles.zoomIn) {
+                    actions?.zoomIn()
+                }
+                .keyboardShortcut("=", modifiers: .command)
+                .disabled(actions == nil)
+
+                Button(BrowserCommandTitles.zoomOut) {
+                    actions?.zoomOut()
+                }
+                .keyboardShortcut("-", modifiers: .command)
+                .disabled(actions == nil)
+
+                Divider()
+
+                // Four split commands would outweigh everything else in the
+                // menu, so they sit one level down. The shortcuts are handled
+                // by KeyboardShortcutMonitor (it consumes matching key events
+                // before menu dispatch); attaching the person's configured
+                // equivalents here surfaces them in the menu instead of
+                // leaving the items looking shortcut-less.
+                Menu(BrowserCommandTitles.splitViewMenu) {
+                    Button(BrowserCommandTitles.addSplitView) {
+                        actions?.addSplitView()
+                    }
+                    .keyboardShortcut(ShortcutDefinition.addSplitView.currentKeyboardShortcut)
+                    .disabled(actions == nil)
+
+                    // Closing and rearranging only mean something while a
+                    // split is on screen, so they grey out otherwise instead
+                    // of silently doing nothing.
+                    Button(BrowserCommandTitles.closeSplitView) {
+                        actions?.closeSplitView()
+                    }
+                    .keyboardShortcut(ShortcutDefinition.closeSplitView.currentKeyboardShortcut)
+                    .disabled(actions?.isSplitDisplayed != true)
+
+                    Button(BrowserCommandTitles.splitLayoutHorizontal) {
+                        actions?.setSplitLayout(.horizontal)
+                    }
+                    .keyboardShortcut(ShortcutDefinition.splitLayoutHorizontal.currentKeyboardShortcut)
+                    .disabled(actions?.isSplitDisplayed != true)
+
+                    Button(BrowserCommandTitles.splitLayoutVertical) {
+                        actions?.setSplitLayout(.vertical)
+                    }
+                    .keyboardShortcut(ShortcutDefinition.splitLayoutVertical.currentKeyboardShortcut)
+                    .disabled(actions?.isSplitDisplayed != true)
+                }
+
+                // AppKit appends its Enter Full Screen item after this group;
+                // the divider sets it apart the way Safari's View menu does.
+                Divider()
             }
-            .keyboardShortcut(".", modifiers: .command)
-            .disabled(actions?.isActiveTabLoading != true)
+        }
 
-            Button(BrowserCommandTitles.reloadTab) {
-                actions?.reloadTab()
-            }
-            .disabled(actions?.canReloadActiveTab != true)
-
-            Button(BrowserCommandTitles.reloadTabFromOrigin) {
-                actions?.reloadTabFromOrigin()
-            }
-            .keyboardShortcut("r", modifiers: [.command, .option])
-            .disabled(actions?.canReloadActiveTab != true)
-
-            // Safari's reader shortcut. Enabled while the active page
-            // qualifies or reader is already showing (so it always exits).
-            Button(
-                actions?.isReaderActive == true
-                    ? BrowserCommandTitles.hideReader
-                    : BrowserCommandTitles.showReader
-            ) {
-                actions?.toggleReader()
-            }
-            .keyboardShortcut("r", modifiers: [.command, .shift])
-            .disabled(actions?.canToggleReader != true)
-
-            Button(BrowserCommandTitles.siteInfo) {
-                actions?.showSiteInfo()
-            }
-            .disabled(actions?.canShowSiteInfo != true)
-
-            // The report describes global protection, so it needs no page.
-            Button(BrowserCommandTitles.privacyReport) {
-                actions?.showPrivacyReport()
-            }
-            .disabled(actions == nil)
-
-            Divider()
-
-            Button(BrowserCommandTitles.resetZoom) {
-                actions?.resetZoom()
-            }
-            .keyboardShortcut("0", modifiers: .command)
-            .disabled(actions == nil)
-
-            Button(BrowserCommandTitles.zoomIn) {
-                actions?.zoomIn()
-            }
-            .keyboardShortcut("=", modifiers: .command)
-            .disabled(actions == nil)
-
-            Button(BrowserCommandTitles.zoomOut) {
-                actions?.zoomOut()
-            }
-            .keyboardShortcut("-", modifiers: .command)
-            .disabled(actions == nil)
-
-            Divider()
-
-            // The split shortcuts are handled by KeyboardShortcutMonitor (it
-            // consumes matching key events before menu dispatch); attaching
-            // the person's configured equivalents here surfaces them in the
-            // menu instead of leaving the items looking shortcut-less.
-            Button(BrowserCommandTitles.addSplitView) {
-                actions?.addSplitView()
-            }
-            .keyboardShortcut(ShortcutDefinition.addSplitView.currentKeyboardShortcut)
-            .disabled(actions == nil)
-
-            // Closing and rearranging only mean something while a split is
-            // on screen, so they grey out otherwise instead of silently
-            // doing nothing.
-            Button(BrowserCommandTitles.closeSplitView) {
-                actions?.closeSplitView()
-            }
-            .keyboardShortcut(ShortcutDefinition.closeSplitView.currentKeyboardShortcut)
-            .disabled(actions?.isSplitDisplayed != true)
-
-            Button(BrowserCommandTitles.splitLayoutHorizontal) {
-                actions?.setSplitLayout(.horizontal)
-            }
-            .keyboardShortcut(ShortcutDefinition.splitLayoutHorizontal.currentKeyboardShortcut)
-            .disabled(actions?.isSplitDisplayed != true)
-
-            Button(BrowserCommandTitles.splitLayoutVertical) {
-                actions?.setSplitLayout(.vertical)
-            }
-            .keyboardShortcut(ShortcutDefinition.splitLayoutVertical.currentKeyboardShortcut)
-            .disabled(actions?.isSplitDisplayed != true)
-
-            Divider()
-
-            Button(BrowserCommandTitles.nextTab) {
-                actions?.nextTab()
-            }
-            .keyboardShortcut(.downArrow, modifiers: [.command, .option])
-            .disabled(actions == nil)
-
+        // Safari's Window menu is where tab navigation lives — Show Next Tab
+        // and Show Previous Tab, then Go To Next/Previous Tab Group above Pin
+        // Tab and Duplicate Tab. Spaces are Candoa's tab groups, so they take
+        // the tab-group slot rather than a line in the View menu.
+        CommandGroup(after: .windowArrangement) {
             Button(BrowserCommandTitles.previousTab) {
                 actions?.previousTab()
             }
             .keyboardShortcut(.upArrow, modifiers: [.command, .option])
             .disabled(actions == nil)
 
-            Button(BrowserCommandTitles.nextSpace) {
-                actions?.nextSpace()
+            Button(BrowserCommandTitles.nextTab) {
+                actions?.nextTab()
             }
-            .keyboardShortcut(.rightArrow, modifiers: [.command, .option])
+            .keyboardShortcut(.downArrow, modifiers: [.command, .option])
             .disabled(actions == nil)
 
             Button(BrowserCommandTitles.previousSpace) {
@@ -431,12 +515,12 @@ private struct BrowserCommands: Commands {
             .keyboardShortcut(.leftArrow, modifiers: [.command, .option])
             .disabled(actions == nil)
 
-            // AppKit appends its Enter Full Screen item after this group;
-            // the divider sets it apart the way Safari's View menu does.
-            Divider()
-        }
+            Button(BrowserCommandTitles.nextSpace) {
+                actions?.nextSpace()
+            }
+            .keyboardShortcut(.rightArrow, modifiers: [.command, .option])
+            .disabled(actions == nil)
 
-        CommandGroup(after: .windowArrangement) {
             Button(actions?.isActiveTabPinned == true ? "Unpin Tab" : "Pin Tab") {
                 actions?.pinOrUnpinTab()
             }
