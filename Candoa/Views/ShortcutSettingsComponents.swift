@@ -628,7 +628,7 @@ enum ShortcutDefinition: String, CaseIterable, Identifiable {
         case .copyURLAsMarkdown: return "Option-Shift-Command-C"
         case .captureFullPage: return "None"
         case .pinOrUnpinTab: return "Command-D"
-        case .toggleSidebar: return "Shift-Command-L"
+        case .toggleSidebar: return "Command-S"
         case .toggleAISidebar: return "Command-E"
         case .clearUnpinnedTabs: return "Shift-Command-K"
         case .goBack: return "Command-Left"

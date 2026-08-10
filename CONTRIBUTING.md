@@ -36,6 +36,16 @@ Default shortcuts copy **Safari's mapping**, not Arc/Dia/Zen conventions. When a
 2. For features Safari doesn't have, never take keys common web apps rely on (⌘B/⌘I/⌘U formatting, ⌘K palettes and link insertion) — a browser-level binding swallows the key before the page sees it. Prefer the least-conflicted key; shifted variants (e.g. ⇧⌘E) are acceptable when nothing plain is clean.
 3. Defaults live in `ShortcutDefinition.defaultShortcut`; menu items bind through `currentKeyboardShortcut` so user rebinds stay in sync. Update the README shortcut table and any affected UI tests alongside.
 
+### The sidebar exception
+
+**Toggle Sidebar is ⌘S, not Safari's ⇧⌘L.** This is the one deliberate departure, and it is not a licence for others.
+
+Safari's sidebar is optional chrome holding bookmarks and reading list — toggled occasionally, so Apple never had reason to spend a single-modifier key on it. Candoa's sidebar is the tab list and the space switcher: the primary navigation surface, toggled constantly. Arc and Dia both reached ⌘S from that same premise. Where a Candoa surface carries materially more weight than Safari's nearest equivalent, ergonomics wins over parity.
+
+Save As takes ⇧⌘S as a result. That cost is acceptable because saving a webpage is rare, and the failure mode is gentle in the right direction: someone pressing ⌘S out of save reflex gets a sidebar toggle they undo with the same key, rather than a modal save sheet they have to dismiss.
+
+Any future exception needs the same shape — a named Candoa surface that is load-bearing in a way Safari's counterpart is not, plus the reasoning written down here. Absent that, follow Safari.
+
 ## Pull Request Expectations
 
 Before requesting review, verify the app builds and manually check the changed workflow. For changes touching web view lifecycle, injected scripts, timers, media playback, hibernation, or content blocking, include an energy or idle-resource sanity check in the PR notes.

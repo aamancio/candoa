@@ -226,7 +226,9 @@ private struct BrowserCommands: Commands {
                 Button(BrowserCommandTitles.saveAs) {
                     actions?.saveActiveTabAs()
                 }
-                .keyboardShortcut("s", modifiers: .command)
+                // Command-S is the sidebar toggle — the one documented exception
+                // to Safari's mapping — so Save As takes the shifted variant.
+                .keyboardShortcut("s", modifiers: [.command, .shift])
                 .disabled(actions?.canSaveActiveTab != true)
 
                 Button(BrowserCommandTitles.exportAsPDF) {

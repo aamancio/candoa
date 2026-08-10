@@ -86,8 +86,8 @@ Candoa reserves familiar macOS browser shortcuts for comparable features.
 - `Cmd+D`: Pin or unpin current tab
 - `Cmd+Shift+C`: Copy current tab URL
 - `Cmd+Shift+Option+C`: Copy current tab URL as Markdown
-- `Cmd+Shift+L`: Show or hide sidebar
-- `Cmd+S`: Save page as…
+- `Cmd+S`: Show or hide sidebar
+- `Cmd+Shift+S`: Save page as…
 - `Cmd+Shift+K`: Clear unpinned tabs
 - `Cmd+1`, `Cmd+2`, `Cmd+3`: Go directly to a tab
 - `Control+1`, `Control+2`, `Control+3`: Focus a Space
