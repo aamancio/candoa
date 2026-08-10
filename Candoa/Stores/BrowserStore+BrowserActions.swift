@@ -143,6 +143,7 @@ extension BrowserStore {
     func showFindBar() {
         guard activeTab != nil else { return }
         isFindBarPresented = true
+        findFocusRequestID = UUID()
     }
 
     func dismissFindBar() {
@@ -150,6 +151,18 @@ extension BrowserStore {
         isFindBarPresented = false
         if let activeTabID {
             webCoordinator.clearFindSelection(in: activeTabID)
+        }
+
+        // Same hand-back as the command palette: the find field's editor stays
+        // first responder after the bar unmounts, which leaves the window with
+        // an orphaned editor and the page unable to scroll from the keyboard.
+        if let window = NSApp.keyWindow {
+            window.endEditing(for: nil)
+            window.makeFirstResponder(nil)
+        }
+
+        DispatchQueue.main.async { [weak self] in
+            self?.webCoordinator.focusActiveWebViewIfIdle()
         }
     }
 

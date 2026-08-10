@@ -350,10 +350,32 @@ struct WebViewContainer: View {
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
                     .stroke(InterfaceStyle.popoverBorder, lineWidth: 1)
             }
-            .onAppear { isFieldFocused = true }
+            .onAppear { focusField(selectingQuery: !store.findQuery.isEmpty) }
+            .onChange(of: store.findFocusRequestID) { _, _ in
+                // A repeat Command-F with the bar already up: reclaim focus
+                // from the page and select what is there, so typing replaces
+                // the previous query.
+                focusField(selectingQuery: !store.findQuery.isEmpty)
+            }
             .onExitCommand { store.dismissFindBar() }
             .onChange(of: store.findQuery) { _, _ in
                 store.findNext()
+            }
+        }
+
+        /// Focus has to be claimed a runloop later than the state change that
+        /// mounts the bar: at `onAppear` the field is not in the window yet, so
+        /// a synchronous `isFieldFocused = true` is dropped and the page keeps
+        /// first responder — the same deferral the command palette uses.
+        private func focusField(selectingQuery: Bool) {
+            DispatchQueue.main.async {
+                isFieldFocused = true
+
+                guard selectingQuery else { return }
+
+                DispatchQueue.main.async {
+                    NSApp.sendAction(#selector(NSText.selectAll(_:)), to: nil, from: nil)
+                }
             }
         }
     }

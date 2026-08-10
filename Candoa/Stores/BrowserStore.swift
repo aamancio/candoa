@@ -267,6 +267,10 @@ final class BrowserStore: ObservableObject {
     var dropSourceClearTask: Task<Void, Never>?
     @Published var isFindBarPresented = false
     @Published var findQuery = ""
+    /// Bumped every time Find in Page is invoked. The find field watches this
+    /// rather than its own `onAppear` so a second Command-F — when the bar is
+    /// already up — refocuses and selects the query, the way Safari does.
+    @Published var findFocusRequestID = UUID()
     /// Resolved destination of the link under the pointer in a visible pane,
     /// shown as a transient pill over the page's bottom-leading corner.
     @Published var hoveredLinkHref: String?
