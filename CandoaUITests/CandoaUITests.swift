@@ -1811,19 +1811,24 @@ final class CandoaUITests: XCTestCase {
 
         let stopItem = app.menuItems["Stop"]
         let reloadItem = app.menuItems["Reload Page"]
-        let reloadFromOriginItem = app.menuItems["Reload Page From Origin"]
         XCTAssertTrue(stopItem.waitForExistence(timeout: 3))
         XCTAssertTrue(reloadItem.exists)
-        XCTAssertTrue(reloadFromOriginItem.exists)
 
-        // With an idle page the reload commands are enabled and Stop is not.
+        // With an idle page the reload command is enabled and Stop is not.
         XCTAssertFalse(stopItem.isEnabled)
         XCTAssertTrue(reloadItem.isEnabled)
-        XCTAssertTrue(reloadFromOriginItem.isEnabled)
 
-        // Reload From Origin performs a real reload that settles back on the
-        // same page with the tab intact.
-        reloadFromOriginItem.click()
+        // Reload From Origin is Reload Page's Option-held alternate, the way
+        // Safari hides it: it stays in the menu — accessibility still reports
+        // it — but draws no row of its own until Option goes down, so it is
+        // not hittable.
+        XCTAssertFalse(app.menuItems["Reload Page From Origin"].isHittable)
+
+        app.typeKey(.escape, modifierFlags: [])
+
+        // It still performs a real reload that settles back on the same page
+        // with the tab intact.
+        app.typeKey("r", modifierFlags: [.command, .option])
         XCTAssertTrue(
             waitForState(in: app, containing: "url=https://example.com/", timeout: 10),
             currentState(in: app)
@@ -2716,15 +2721,16 @@ final class CandoaUITests: XCTestCase {
         )
     }
 
-    /// View ▸ Site Info presents the same popover from the menu bar.
+    /// Candoa ▸ Site Info presents the same popover from the menu bar, in the
+    /// app-menu slot Safari uses for its per-site entries.
     func testSiteInfoMenuCommandOpensPopover() {
         let app = launchApp(fixture: "popup-open")
 
         openFixtureTab(path: "popup", in: app)
 
-        let viewMenu = app.menuBarItems["View"]
-        XCTAssertTrue(viewMenu.waitForExistence(timeout: 5))
-        viewMenu.click()
+        let appMenu = app.menuBars.menuBarItems["Candoa"]
+        XCTAssertTrue(appMenu.waitForExistence(timeout: 5))
+        appMenu.click()
         let siteInfoItem = app.menuItems["Site Info…"]
         XCTAssertTrue(siteInfoItem.waitForExistence(timeout: 5))
         siteInfoItem.click()
@@ -2738,16 +2744,16 @@ final class CandoaUITests: XCTestCase {
 
     // MARK: - Privacy Report (issue #33)
 
-    /// View ▸ Privacy Report presents the report sheet: the status row
+    /// Candoa ▸ Privacy Report presents the report sheet: the status row
     /// reflects the default-on protection, every category of the compiled
     /// blocklist is listed, and the retention statement is present. Done
     /// dismisses it.
     func testPrivacyReportMenuCommandShowsReport() {
         let app = launchApp()
 
-        let viewMenu = app.menuBarItems["View"]
-        XCTAssertTrue(viewMenu.waitForExistence(timeout: 5))
-        viewMenu.click()
+        let appMenu = app.menuBars.menuBarItems["Candoa"]
+        XCTAssertTrue(appMenu.waitForExistence(timeout: 5))
+        appMenu.click()
         let reportItem = app.menuItems["Privacy Report…"]
         XCTAssertTrue(reportItem.waitForExistence(timeout: 5))
         reportItem.click()
