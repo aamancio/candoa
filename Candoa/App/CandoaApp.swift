@@ -379,18 +379,14 @@ private struct BrowserCommands: Commands {
             .keyboardShortcut(ShortcutDefinition.toggleAISidebar.currentKeyboardShortcut)
             .disabled(actions == nil)
 
-            Button(actions?.isDownloadsVisible == true ? "Hide Downloads" : "Show Downloads") {
-                actions?.showDownloads()
-            }
-            .keyboardShortcut("l", modifiers: [.command, .option])
-            .disabled(actions == nil)
-
             Divider()
 
             Group {
-                // Safari lists Reader immediately below the sidebars. Enabled
-                // while the active page qualifies or reader is already showing
-                // (so it always exits).
+                // Safari groups the page-level views together below the
+                // sidebars — Reader, then Downloads — with Candoa's own
+                // Command Bar folded in at the end. Reader is enabled while
+                // the active page qualifies or reader is already showing (so
+                // it always exits).
                 Button(
                     actions?.isReaderActive == true
                         ? BrowserCommandTitles.hideReader
@@ -400,6 +396,12 @@ private struct BrowserCommands: Commands {
                 }
                 .keyboardShortcut("r", modifiers: [.command, .shift])
                 .disabled(actions?.canToggleReader != true)
+
+                Button(actions?.isDownloadsVisible == true ? "Hide Downloads" : "Show Downloads") {
+                    actions?.showDownloads()
+                }
+                .keyboardShortcut("l", modifiers: [.command, .option])
+                .disabled(actions == nil)
 
                 Button(BrowserCommandTitles.commandBar) {
                     actions?.openCommandPalette()
