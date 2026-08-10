@@ -268,6 +268,14 @@ final class CandoaUITests: XCTestCase {
             waitForState(in: spacesApp, containing: "splitTabs=a-one|a-split"),
             currentState(in: spacesApp)
         )
+
+        // Leave a tab the Space already knew about focused: coming back
+        // restores the Space's remembered tab, and the split only revives
+        // when that tab is one of the group's own.
+        let chipAOne = element("split-chip-a-one", in: spacesApp)
+        XCTAssertTrue(chipAOne.waitForExistence(timeout: 5), currentState(in: spacesApp))
+        chipAOne.click()
+        XCTAssertTrue(waitForState(in: spacesApp, containing: "splitActive=a-one"), currentState(in: spacesApp))
         XCTAssertTrue(
             waitForState(in: spacesApp, containing: "splitDisplayed=true"),
             currentState(in: spacesApp)
