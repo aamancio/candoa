@@ -27,13 +27,11 @@ final class CandoaUITests: XCTestCase {
         let app = launchApp(fixture: "split-view")
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
 
-        openFixtureTab(path: "one", in: app)
         openFixtureTab(path: "two", in: app)
-
-        app.typeKey("=", modifierFlags: [.control, .shift])
+        openSplitPane(with: "one", in: app)
         XCTAssertTrue(waitForState(in: app, containing: "splitDisplayed=true"), currentState(in: app))
         XCTAssertTrue(waitForState(in: app, containing: "splitTabs=two|one"), currentState(in: app))
-        XCTAssertTrue(waitForState(in: app, containing: "splitActive=two"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "splitActive=one"), currentState(in: app))
 
         // The sidebar pill focuses one pane per chip, not the whole group.
         let chipOne = element("split-chip-one", in: app)
@@ -45,7 +43,7 @@ final class CandoaUITests: XCTestCase {
         let leadingPane = element("split-pane-0", in: app)
         XCTAssertTrue(leadingPane.waitForExistence(timeout: 5), currentState(in: app))
         leadingPane.click()
-        XCTAssertTrue(waitForState(in: app, containing: "splitActive=two"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "splitActive=one"), currentState(in: app))
 
         let trailingPane = element("split-pane-1", in: app)
         XCTAssertTrue(trailingPane.waitForExistence(timeout: 5), currentState(in: app))
@@ -64,13 +62,11 @@ final class CandoaUITests: XCTestCase {
         let app = launchApp(fixture: "split-view-pixels")
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
 
-        openFixtureTab(path: "one", in: app)
         openFixtureTab(path: "two", in: app)
-
-        app.typeKey("=", modifierFlags: [.control, .shift])
+        openSplitPane(with: "one", in: app)
         XCTAssertTrue(waitForState(in: app, containing: "splitDisplayed=true"), currentState(in: app))
         XCTAssertTrue(waitForState(in: app, containing: "splitTabs=two|one"), currentState(in: app))
-        XCTAssertTrue(waitForState(in: app, containing: "splitActive=two"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "splitActive=one"), currentState(in: app))
 
         let leadingPane = element("split-pane-0", in: app)
         XCTAssertTrue(leadingPane.waitForExistence(timeout: 5), currentState(in: app))
@@ -124,10 +120,8 @@ final class CandoaUITests: XCTestCase {
         let app = launchApp(fixture: "split-view")
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
 
-        openFixtureTab(path: "one", in: app)
         openFixtureTab(path: "two", in: app)
-
-        app.typeKey("=", modifierFlags: [.control, .shift])
+        openSplitPane(with: "one", in: app)
         XCTAssertTrue(waitForState(in: app, containing: "splitDisplayed=true"), currentState(in: app))
         XCTAssertTrue(waitForState(in: app, containing: "splitTabs=two|one"), currentState(in: app))
         XCTAssertTrue(waitForState(in: app, containing: "splitLayout=horizontal"), currentState(in: app))
@@ -193,10 +187,8 @@ final class CandoaUITests: XCTestCase {
         let app = launchApp(fixture: "split-view")
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
 
-        openFixtureTab(path: "one", in: app)
         openFixtureTab(path: "two", in: app)
-
-        app.typeKey("=", modifierFlags: [.control, .shift])
+        openSplitPane(with: "one", in: app)
         XCTAssertTrue(waitForState(in: app, containing: "splitDisplayed=true"), currentState(in: app))
         XCTAssertTrue(waitForState(in: app, containing: "splitRatios=0.50|0.50"), currentState(in: app))
 
@@ -243,10 +235,8 @@ final class CandoaUITests: XCTestCase {
         let app = launchApp(fixture: "split-view")
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
 
-        openFixtureTab(path: "one", in: app)
         openFixtureTab(path: "two", in: app)
-
-        app.typeKey("=", modifierFlags: [.control, .shift])
+        openSplitPane(with: "one", in: app)
         XCTAssertTrue(waitForState(in: app, containing: "splitDisplayed=true"), currentState(in: app))
 
         // Switching to a non-member tab suspends the split instead of
@@ -269,7 +259,7 @@ final class CandoaUITests: XCTestCase {
         XCTAssertTrue(spacesApp.wait(for: .runningForeground, timeout: 10))
         XCTAssertTrue(waitForState(in: spacesApp, containing: "space=SplitOne"), currentState(in: spacesApp))
 
-        spacesApp.typeKey("=", modifierFlags: [.control, .shift])
+        openSplitPane(with: "a-two", in: spacesApp)
         XCTAssertTrue(
             waitForState(in: spacesApp, containing: "splitTabs=a-one|a-two"),
             currentState(in: spacesApp)
@@ -299,10 +289,8 @@ final class CandoaUITests: XCTestCase {
         let app = launchApp(fixture: "split-view")
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
 
-        openFixtureTab(path: "one", in: app)
         openFixtureTab(path: "two", in: app)
-
-        app.typeKey("=", modifierFlags: [.control, .shift])
+        openSplitPane(with: "one", in: app)
         XCTAssertTrue(waitForState(in: app, containing: "splitDisplayed=true"), currentState(in: app))
         XCTAssertTrue(waitForState(in: app, containing: "splitTabs=two|one"), currentState(in: app))
         XCTAssertTrue(waitForState(in: app, containing: "splitLayout=horizontal"), currentState(in: app))
@@ -342,35 +330,12 @@ final class CandoaUITests: XCTestCase {
         XCTAssertTrue(waitForState(in: app, containing: "splitLayout=horizontal"), currentState(in: app))
     }
 
-    func testSplitPaneCloseButtonClosesTabAndDissolvesSplit() throws {
-        let app = launchApp(fixture: "split-view")
-        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
-
-        openFixtureTab(path: "one", in: app)
-        openFixtureTab(path: "two", in: app)
-
-        app.typeKey("=", modifierFlags: [.control, .shift])
-        XCTAssertTrue(waitForState(in: app, containing: "splitDisplayed=true"), currentState(in: app))
-        XCTAssertTrue(waitForState(in: app, containing: "splitTabs=two|one"), currentState(in: app))
-
-        // The pane pill's close button closes that pane's tab; with one
-        // member left the split dissolves.
-        let closeButton = element("split-pane-close-1", in: app)
-        XCTAssertTrue(closeButton.waitForExistence(timeout: 5), currentState(in: app))
-        closeButton.click()
-        XCTAssertTrue(waitForState(in: app, containing: "split=false"), currentState(in: app))
-        XCTAssertTrue(waitForState(in: app, containing: "active=two"), currentState(in: app))
-        XCTAssertTrue(waitForState(in: app, containing: "tabs=two"), currentState(in: app))
-    }
-
     func testSplitPaneUnsplitButtonReturnsTabToSidebar() throws {
         let app = launchApp(fixture: "split-view")
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
 
-        openFixtureTab(path: "one", in: app)
         openFixtureTab(path: "two", in: app)
-
-        app.typeKey("=", modifierFlags: [.control, .shift])
+        openSplitPane(with: "one", in: app)
         XCTAssertTrue(waitForState(in: app, containing: "splitDisplayed=true"), currentState(in: app))
         XCTAssertTrue(waitForState(in: app, containing: "splitTabs=two|one"), currentState(in: app))
 
@@ -3223,6 +3188,14 @@ final class CandoaUITests: XCTestCase {
 
     /// Opens a new tab through the command palette and waits until the
     /// fixture page has loaded and retitled itself to its path.
+    /// Cmd-\\ opens the new pane blank with the command bar focused, so a
+    /// test that wants two real panes names the second one itself.
+    private func openSplitPane(with path: String, in app: XCUIApplication) {
+        app.typeKey("\\", modifierFlags: [.command])
+        submitCommandPaletteText("https://fixture.candoa.test/\(path)", in: app)
+        XCTAssertTrue(waitForState(in: app, containing: "splitDisplayed=true"), currentState(in: app))
+    }
+
     private func openFixtureTab(path: String, in app: XCUIApplication) {
         openNewTabPalette(in: app)
         submitCommandPaletteText("https://fixture.candoa.test/\(path)", in: app)

@@ -431,7 +431,6 @@ struct WebViewContainer: View {
                                 }
                             },
                             onUnsplit: { store.removeTabFromSplit(splitTab.id, focusRemovedTab: true) },
-                            onClose: { store.closeTab(splitTab.id) }
                         )
                         // Below the row dividers' 7pt overhang so the pill
                         // and a divider strip never contend for the pointer.
@@ -890,7 +889,6 @@ private struct SplitPaneControlPill: View {
     let onDragChanged: (CGPoint) -> Void
     let onDragEnded: (CGPoint) -> Void
     let onUnsplit: () -> Void
-    let onClose: () -> Void
 
     @State private var isHovering = false
 
@@ -938,18 +936,6 @@ private struct SplitPaneControlPill: View {
             .help("Unsplit — Move Back to Tab List")
             .accessibilityLabel("Unsplit")
             .accessibilityIdentifier("split-pane-unsplit-\(paneIndex)")
-
-            Button(action: onClose) {
-                Image(systemName: "xmark")
-                    .font(.system(size: 10, weight: .semibold))
-                    .frame(width: 26, height: 20)
-                    .contentShape(Rectangle())
-            }
-            .buttonTreatment(.content)
-            .foregroundStyle(.secondary)
-            .help("Close Tab")
-            .accessibilityLabel("Close Tab")
-            .accessibilityIdentifier("split-pane-close-\(paneIndex)")
         }
         .padding(.horizontal, 4)
         .padding(.vertical, 2)

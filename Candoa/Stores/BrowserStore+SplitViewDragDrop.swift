@@ -38,7 +38,24 @@ extension BrowserStore {
             return
         }
 
-        openSplitView(with: replacementSplitTab(excluding: activeTabID)?.id)
+        // Arc-style: the new pane opens empty with the command bar focused
+        // rather than guessing a tab to put there. A split is a place to put
+        // something, and the guess was wrong often enough to be a step
+        // backwards — dropping a tab in still names its own pane.
+        guard let previousActiveID = activeTabID else { return }
+        openSplitView(with: nil)
+
+        guard
+            isSplitViewDisplayed,
+            let blankID = splitGroupTabIDs().last,
+            blankID != previousActiveID
+        else {
+            return
+        }
+
+        applySplitGroup(splitGroupTabIDs(), activeID: blankID)
+        updateNavigationState()
+        openCommandPaletteForActivePane()
     }
 
     func openSplitView(with tabID: UUID?) {
