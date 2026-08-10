@@ -380,6 +380,10 @@ struct ContentView: View {
                 store.findNext()
             } onFindPrevious: {
                 store.findPrevious()
+            } onEscape: {
+                guard store.isFindBarPresented else { return false }
+                store.dismissFindBar()
+                return true
             } onReload: {
                 store.reloadActiveTab()
             } onReloadFromOrigin: {

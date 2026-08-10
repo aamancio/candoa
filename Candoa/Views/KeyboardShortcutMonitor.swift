@@ -16,6 +16,8 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
     let onFindInPage: () -> Void
     let onFindNext: () -> Void
     let onFindPrevious: () -> Void
+    /// Returns whether Escape was used, so unused presses still reach the page.
+    let onEscape: () -> Bool
     let onReload: () -> Void
     let onReloadFromOrigin: () -> Void
     let onStopLoading: () -> Bool
@@ -70,6 +72,7 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
         coordinator.onFindInPage = onFindInPage
         coordinator.onFindNext = onFindNext
         coordinator.onFindPrevious = onFindPrevious
+        coordinator.onEscape = onEscape
         coordinator.onReload = onReload
         coordinator.onReloadFromOrigin = onReloadFromOrigin
         coordinator.onStopLoading = onStopLoading
@@ -108,6 +111,7 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
         var onFindInPage: () -> Void = {}
         var onFindNext: () -> Void = {}
         var onFindPrevious: () -> Void = {}
+        var onEscape: () -> Bool = { false }
         var onReload: () -> Void = {}
         var onReloadFromOrigin: () -> Void = {}
         var onStopLoading: () -> Bool = { false }
@@ -172,6 +176,14 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
                     onControlReleased()
                 }
                 return event
+            }
+
+            // Escape carries no modifiers, so it can never match a configured
+            // shortcut. It is handled here rather than through the find bar's
+            // own `onExitCommand` because the page usually holds first
+            // responder, and then SwiftUI never sees the cancel command.
+            if Self.isPlainEscape(event), onEscape() {
+                return nil
             }
 
             if Self.matchesConfiguredShortcut(.newTab, event) {
@@ -377,6 +389,10 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
         private static func isControlShiftTab(_ event: NSEvent) -> Bool {
             let modifiers = normalizedModifiers(for: event)
             return modifiers == [.control, .shift] && event.keyCode == 48
+        }
+
+        private static func isPlainEscape(_ event: NSEvent) -> Bool {
+            normalizedModifiers(for: event).isEmpty && event.keyCode == 53
         }
 
         private static func isControlPressed(_ event: NSEvent) -> Bool {
