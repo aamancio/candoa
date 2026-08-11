@@ -341,7 +341,8 @@ struct ContentView: View {
         .background(
             WindowInteractionConfigurator(
                 autosaveName: "\(AppConfiguration.windowAutosaveNamePrefix).\(windowAutosaveID)",
-                isPrivate: isPrivate
+                isPrivate: isPrivate,
+                store: store
             )
         )
         .background(
@@ -601,6 +602,9 @@ struct ContentView: View {
             canReloadActiveTab: store.activeTab?.url != nil,
             goBack: store.goBack,
             goForward: store.goForward,
+            goHome: store.goHome,
+            returnToSearchResults: store.returnToSearchResults,
+            canReturnToSearchResults: store.canReturnToSearchResults,
             closeCurrentTab: closeTabOrWindow,
             nextTab: store.switchToNextTab,
             previousTab: store.switchToPreviousTab,

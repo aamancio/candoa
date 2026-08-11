@@ -83,6 +83,258 @@
         }
       }
     },
+    "Clear History" : {
+      "comment" : "Clear History sheet: confirming button.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verlauf löschen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Borrar historial"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Effacer l’historique"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "履歴を消去"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Limpar histórico"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "清除历史记录"
+          }
+        }
+      }
+    },
+    "Clearing history will remove related cookies and other website data." : {
+      "comment" : "Clear History sheet: title.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beim Löschen der Verlaufsdaten werden auch zugehörige Cookies und andere Websitedaten entfernt."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Al borrar el historial se eliminarán las cookies y otros datos de sitios web relacionados."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Effacer l’historique supprimera les cookies et autres données de sites web associés."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "履歴を消去すると、関連する Cookie とその他の Web サイトデータも削除されます。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Limpar o histórico também remove cookies e outros dados de sites relacionados."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "清除历史记录将移除相关 Cookie 和其他网站数据。"
+          }
+        }
+      }
+    },
+    "History is removed from every Space." : {
+      "comment" : "Clear History sheet: which Spaces are affected.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Verlauf wird aus allen Spaces entfernt."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El historial se elimina de todos los Spaces."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’historique est supprimé de tous les espaces."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "すべての Space の履歴が削除されます。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O histórico é removido de todos os Spaces."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "将从所有 Space 中移除历史记录。"
+          }
+        }
+      }
+    },
+    "History is removed from this Space." : {
+      "comment" : "Clear History sheet: which Spaces are affected.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Verlauf wird aus diesem Space entfernt."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El historial se elimina de este Space."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’historique est supprimé de cet espace."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "この Space の履歴が削除されます。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O histórico é removido deste Space."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "将从此 Space 中移除历史记录。"
+          }
+        }
+      }
+    },
+    "History will also be removed on your other Macs syncing with iCloud." : {
+      "comment" : "Clear History sheet: iCloud note.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Verlauf wird auch auf deinen anderen Macs entfernt, die mit iCloud synchronisieren."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El historial también se eliminará en tus otros Macs que sincronizan con iCloud."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’historique sera aussi supprimé sur vos autres Mac synchronisés avec iCloud."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iCloud と同期しているほかの Mac からも履歴が削除されます。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O histórico também será removido nos seus outros Macs que sincronizam com o iCloud."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同步 iCloud 的其他 Mac 上的历史记录也会被移除。"
+          }
+        }
+      }
+    },
+    "Homepage" : {
+      "comment" : "Settings: the address the Home command opens.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Startseite"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Página de inicio"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Page d’accueil"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ホームページ"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Página inicial"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "主页"
+          }
+        }
+      }
+    },
     "Not found" : {
       "comment" : "Find in Page: shown when the query matches nothing on the page.",
       "extractionState" : "manual",
@@ -121,6 +373,132 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "未找到"
+          }
+        }
+      }
+    },
+    "Recently Closed" : {
+      "comment" : "History menu: submenu of tabs closed this session.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zuletzt geschlossen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cerrados recientemente"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Récemment fermés"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最近閉じた項目"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fechados recentemente"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最近关闭"
+          }
+        }
+      }
+    },
+    "Return to Search Results" : {
+      "comment" : "History menu: goes back to the search page this tab came from.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zurück zu den Suchergebnissen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Volver a los resultados de búsqueda"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Revenir aux résultats de recherche"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "検索結果に戻る"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Voltar aos resultados da busca"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "返回搜索结果"
+          }
+        }
+      }
+    },
+    "Where Shift-Command-H goes. Leave empty for your search engine's home page." : {
+      "comment" : "Settings: explains the Homepage field.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Ziel von Umschalt-Befehl-H. Leer lassen für die Startseite deiner Suchmaschine."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adónde va Mayúsculas-Comando-H. Déjalo vacío para usar la página de inicio de tu buscador."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La destination de Maj-Commande-H. Laissez vide pour la page d’accueil de votre moteur de recherche."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shift-Command-H で開く場所。空欄にすると検索エンジンのホームページを開きます。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Para onde vai Shift-Command-H. Deixe vazio para usar a página inicial do seu buscador."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shift-Command-H 打开的地址。留空则使用搜索引擎的主页。"
           }
         }
       }
@@ -1379,47 +1757,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "闹钟"
-          }
-        }
-      }
-    },
-    "All Spaces" : {
-      "comment" : "Clear-browsing-data scope covering every Space. 'Space' is Candoa's named browsing workspace (its own tabs, theme, and profile) — not outer space or a blank character.",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Alle Spaces"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Todos los Espacios"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tous les Espaces"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "すべてのスペース"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Todos os Espaços"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "所有空间"
           }
         }
       }
@@ -5127,46 +5464,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "清除"
-          }
-        }
-      }
-    },
-    "Clear browsing data?" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Browserdaten löschen?"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "¿Borrar los datos de navegación?"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Effacer les données de navigation ?"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ブラウズデータを消去しますか？"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Limpar dados de navegação?"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "要清除浏览数据吗？"
           }
         }
       }
@@ -10897,47 +11194,6 @@
         }
       }
     },
-    "From" : {
-      "comment" : "Label before the start date of the range in the Clear Browsing Data dialog.",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Von"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "De"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Provenance"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "読み込み元"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "De"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "来自"
-          }
-        }
-      }
-    },
     "Gallery" : {
       "comment" : "Space icon picker: label for the 'photo' symbol.",
       "localizations" : {
@@ -11620,126 +11876,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "无法更新历史记录"
-          }
-        }
-      }
-    },
-    "History from the chosen period is removed from all Spaces." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Der Verlauf des gewählten Zeitraums wird aus allen Spaces entfernt."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "El historial del período elegido se elimina de todos los Espacios."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "L’historique de la période choisie est supprimé de tous les Espaces."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "選択した期間の履歴がすべてのスペースから削除されます。"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "O histórico do período escolhido é removido de todos os Espaços."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "所选时段的历史记录将从所有空间中移除。"
-          }
-        }
-      }
-    },
-    "History from the chosen period is removed from the selected Spaces." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Der Verlauf des gewählten Zeitraums wird aus den ausgewählten Spaces entfernt."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "El historial del período elegido se elimina de los Espacios seleccionados."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "L’historique de la période choisie est supprimé des Espaces sélectionnés."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "選択した期間の履歴が選択したスペースから削除されます。"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "O histórico do período escolhido é removido dos Espaços selecionados."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "所选时段的历史记录将从所选空间中移除。"
-          }
-        }
-      }
-    },
-    "History is also removed from your other Macs that sync history with iCloud." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Der Verlauf wird auch von Ihren anderen Macs entfernt, die den Verlauf mit iCloud synchronisieren."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "El historial también se elimina de tus otros Mac que sincronizan el historial con iCloud."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "L’historique est également supprimé de vos autres Mac qui synchronisent l’historique avec iCloud."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "iCloudで履歴を同期している他のMacからも履歴が削除されます。"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "O histórico também é removido dos seus outros Macs que sincronizam o histórico com o iCloud."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "历史记录也会从通过 iCloud 同步历史记录的其他 Mac 上移除。"
           }
         }
       }
@@ -19079,46 +19215,6 @@
         }
       }
     },
-    "Remove cookies and other website data" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cookies und andere Websitedaten entfernen"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Eliminar cookies y otros datos de sitios web"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Supprimer les cookies et autres données de sites web"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cookieやその他のWebサイトデータを削除"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Remover cookies e outros dados de sites"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "移除 Cookie 和其他网站数据"
-          }
-        }
-      }
-    },
     "Remove from Favorites" : {
       "localizations" : {
         "de" : {
@@ -19235,46 +19331,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "移除快捷键"
-          }
-        }
-      }
-    },
-    "Removing website data also clears cookies, caches, and other data those websites stored for the same period, which may sign you out of them." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Beim Entfernen von Websitedaten werden auch Cookies, Caches und andere Daten gelöscht, die diese Websites im selben Zeitraum gespeichert haben. Dadurch werden Sie dort möglicherweise abgemeldet."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Al eliminar los datos de sitios web también se borran las cookies, las cachés y otros datos que esos sitios guardaron durante el mismo período, lo que puede cerrar tu sesión en ellos."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "La suppression des données de sites web efface aussi les cookies, les caches et les autres données que ces sites ont stockées pour la même période, ce qui peut vous déconnecter de ces sites."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Webサイトデータを削除すると、同じ期間にそれらのWebサイトが保存したCookie、キャッシュ、その他のデータも消去され、サインアウトされる場合があります。"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Remover dados de sites também limpa cookies, caches e outros dados que esses sites armazenaram no mesmo período, o que pode encerrar sua sessão neles."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "移除网站数据的同时也会清除这些网站在同一时段内存储的 Cookie、缓存和其他数据，这可能会使你退出这些网站的登录。"
           }
         }
       }
@@ -25880,46 +25936,6 @@
         }
       }
     },
-    "This can’t be undone." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Dies kann nicht widerrufen werden."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Esta acción no se puede deshacer."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cette opération est irréversible."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "この操作は取り消せません。"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Isso não pode ser desfeito."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "此操作无法撤销。"
-          }
-        }
-      }
-    },
     "This model isn't available on your current plan. Choose another model in Candoa Settings." : {
       "localizations" : {
         "de" : {
@@ -26116,47 +26132,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "网络连接恢复后，此页面将自动加载。"
-          }
-        }
-      }
-    },
-    "This Space" : {
-      "comment" : "Clear-browsing-data scope covering only the active Space. 'Space' is Candoa's named browsing workspace (its own tabs, theme, and profile) — not outer space or a blank character.",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Dieser Space"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Este Espacio"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cet Espace"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "このスペース"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Este Espaço"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "此空间"
           }
         }
       }

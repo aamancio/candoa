@@ -571,8 +571,23 @@ private struct BrowserCommands: Commands {
             .keyboardShortcut("]", modifiers: .command)
             .disabled(actions == nil)
 
+            Button(BrowserCommandTitles.home) {
+                actions?.goHome()
+            }
+            .keyboardShortcut("h", modifiers: [.command, .shift])
+            .disabled(actions == nil)
+
+            Button(BrowserCommandTitles.returnToSearchResults) {
+                actions?.returnToSearchResults()
+            }
+            .keyboardShortcut("s", modifiers: [.command, .option])
+            .disabled(actions?.canReturnToSearchResults != true)
+
             Divider()
 
+            // The Recently Closed submenu is inserted here at runtime by
+            // HistoryMenuController, which also appends the visited pages
+            // below — both are built only when the menu opens.
             Button(BrowserCommandTitles.reopenClosedTab) {
                 actions?.reopenClosedTab()
             }
@@ -686,6 +701,9 @@ struct BrowserCommandActions {
     var canReloadActiveTab: Bool
     var goBack: () -> Void
     var goForward: () -> Void
+    var goHome: () -> Void
+    var returnToSearchResults: () -> Void
+    var canReturnToSearchResults: Bool
     var closeCurrentTab: () -> Void
     var nextTab: () -> Void
     var previousTab: () -> Void

@@ -1,5 +1,6 @@
 import Foundation
 import Network
+import WebKit
 
 extension BrowserStore {
     // MARK: - Navigation & WebContent Recovery
@@ -145,6 +146,30 @@ extension BrowserStore {
         }
 
         _ = newTab(url: url)
+    }
+
+    /// Safari's Home: the address set in Settings, in the current tab.
+    func goHome() {
+        guard let url = HomepagePreference.url else { return }
+        navigateActiveTab(to: url)
+    }
+
+    /// Safari's Return to Search Results: jumps back to the search page this
+    /// tab came from, however many links deep you have wandered since.
+    func returnToSearchResults() {
+        guard let activeTabID, let item = lastSearchResultsItem(in: activeTabID) else { return }
+        webCoordinator.go(to: item, in: activeTabID)
+    }
+
+    var canReturnToSearchResults: Bool {
+        guard let activeTabID else { return false }
+        return lastSearchResultsItem(in: activeTabID) != nil
+    }
+
+    private func lastSearchResultsItem(in tabID: UUID) -> WKBackForwardListItem? {
+        webCoordinator.lastSearchResultsItem(tabID: tabID) { [navigationService] url in
+            navigationService.searchQuery(from: url) != nil
+        }
     }
 
     func goBack() {

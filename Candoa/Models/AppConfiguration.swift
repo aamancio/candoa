@@ -33,7 +33,13 @@ enum BrowserCommandTitles {
     static let toggleSplitView = String(localized: "Toggle Split View")
     static let createSpace = String(localized: "Create Space")
     static let reopenClosedTab = String(localized: "Reopen Closed Tab")
+    /// Safari's History-menu submenu listing the tabs closed this session.
+    static let recentlyClosed = String(localized: "Recently Closed")
+    static let home = String(localized: "Home")
+    static let returnToSearchResults = String(localized: "Return to Search Results")
     static let clearHistory = String(localized: "Clear History…")
+    /// The confirming button in the sheet, without the ellipsis.
+    static let clearHistoryConfirmation = String(localized: "Clear History")
     static let pinOrUnpinTab = String(localized: "Pin or Unpin Tab")
     static let clearUnpinnedTabs = String(localized: "Clear Unpinned Tabs")
     static let siteInfo = String(localized: "Site Info…")

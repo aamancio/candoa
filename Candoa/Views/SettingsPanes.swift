@@ -7,9 +7,23 @@ internal struct GeneralSettingsPane: View {
     @AppStorage(SettingsOption.websiteAppearance) private var websiteAppearance = WebsiteAppearance.dark.rawValue
     @AppStorage(SettingsOption.defaultSearchProvider) private var defaultSearchProvider = NavigationService.searchProviders.first?.id ?? "google"
     @AppStorage(SettingsOption.showSearchSuggestions) private var showSearchSuggestions = true
+    @AppStorage(SettingsOption.homepage) private var homepage = ""
+    @FocusState private var homepageFieldFocused: Bool
     @State private var syncsWorkspaceWithICloud = SyncPreferences.syncsWorkspaceWithICloud
     @State private var syncsHistoryWithICloud = SyncPreferences.syncsHistoryWithICloud
     @StateObject private var defaultBrowserService = DefaultBrowserService()
+
+    /// Stores what was typed as a real address, so "example.com" is saved the
+    /// way it will be opened. Anything that is not a web address is discarded
+    /// rather than saved as a Home that cannot load.
+    private func normalizeHomepage() {
+        let trimmed = homepage.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            homepage = ""
+            return
+        }
+        homepage = HomepagePreference.normalized(trimmed)?.absoluteString ?? ""
+    }
 
     var body: some View {
         SettingsPane {
@@ -43,6 +57,26 @@ internal struct GeneralSettingsPane: View {
                         subtitle: String(localized: "Show a default-browser reminder at startup."),
                         isOn: $checkDefaultBrowser
                     )
+                }
+
+                SettingsCard {
+                    SettingsRow(
+                        systemImage: "house",
+                        title: String(localized: "Homepage"),
+                        subtitle: String(localized: "Where Shift-Command-H goes. Leave empty for your search engine's home page.")
+                    ) {
+                        TextField(
+                            HomepagePreference.defaultURL?.absoluteString ?? "",
+                            text: $homepage
+                        )
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 240)
+                        .onSubmit { normalizeHomepage() }
+                        .onChange(of: homepageFieldFocused) { _, focused in
+                            if !focused { normalizeHomepage() }
+                        }
+                        .focused($homepageFieldFocused)
+                    }
                 }
 
                 SettingsCard {

@@ -1,4 +1,5 @@
 import AppKit
+import SwiftUI
 import Foundation
 import WebKit
 
@@ -85,112 +86,68 @@ enum ClearBrowsingDataPrompt {
     }
 
     static func present(currentSpace: CurrentSpace?) {
-        let ranges = HistoryClearRange.allCases
-        let rangePicker = NSPopUpButton(frame: NSRect(x: 0, y: 0, width: 210, height: 26), pullsDown: false)
-        rangePicker.addItems(withTitles: ranges.map(\.title))
-        rangePicker.selectItem(at: 0)
-        rangePicker.setAccessibilityIdentifier("clear-browsing-data-range")
+        let scope: BrowsingDataService.Scope = currentSpace.map {
+            .space(id: $0.id, dataStoreID: $0.dataStoreID)
+        } ?? .allSpaces
 
-        let scopePicker = NSPopUpButton(frame: NSRect(x: 0, y: 0, width: 210, height: 26), pullsDown: false)
-        scopePicker.addItems(withTitles: [
-            String(localized: "This Space"),
-            String(localized: "All Spaces")
-        ])
-        scopePicker.selectItem(at: 0)
-        scopePicker.setAccessibilityIdentifier("clear-browsing-data-scope")
+        let host = NSApplication.shared.keyWindow
+            ?? NSApplication.shared.mainWindow
+            ?? NSApplication.shared.windows.first { $0.isVisible && $0.canBecomeKey }
+        guard let host else { return }
 
-        let websiteDataCheckbox = NSButton(
-            checkboxWithTitle: String(localized: "Remove cookies and other website data"),
-            target: nil,
-            action: nil
-        )
-        websiteDataCheckbox.state = .on
-        websiteDataCheckbox.setAccessibilityIdentifier("clear-browsing-data-website-data")
-
-        let accessory = NSStackView(frame: NSRect(x: 0, y: 0, width: 320, height: 90))
-        accessory.orientation = .vertical
-        accessory.alignment = .leading
-        accessory.spacing = 10
-
-        let rangeRow = NSStackView()
-        rangeRow.orientation = .horizontal
-        rangeRow.alignment = .centerY
-        rangeRow.spacing = 8
-        rangeRow.addArrangedSubview(NSTextField(labelWithString: String(localized: "Clear")))
-        rangeRow.addArrangedSubview(rangePicker)
-        accessory.addArrangedSubview(rangeRow)
-
-        if currentSpace != nil {
-            let scopeRow = NSStackView()
-            scopeRow.orientation = .horizontal
-            scopeRow.alignment = .centerY
-            scopeRow.spacing = 8
-            scopeRow.addArrangedSubview(NSTextField(labelWithString: String(localized: "From")))
-            scopeRow.addArrangedSubview(scopePicker)
-            accessory.addArrangedSubview(scopeRow)
+        var controller: NSViewController?
+        let dismiss: () -> Void = {
+            guard let sheet = controller?.view.window else { return }
+            host.endSheet(sheet)
         }
 
-        accessory.addArrangedSubview(websiteDataCheckbox)
-
-        let alert = NSAlert()
-        alert.alertStyle = .warning
-        alert.icon = NSApplication.shared.applicationIconImage
-        alert.messageText = String(localized: "Clear browsing data?")
-        alert.informativeText = informativeText(currentSpace: currentSpace)
-        alert.accessoryView = accessory
-        let clearButton = alert.addButton(withTitle: String(localized: "Clear"))
-        clearButton.hasDestructiveAction = true
-        alert.addButton(withTitle: String(localized: "Cancel"))
-
-        let handleResponse: (NSApplication.ModalResponse) -> Void = { response in
-            guard response == .alertFirstButtonReturn else { return }
-            let range = ranges[max(rangePicker.indexOfSelectedItem, 0)]
-            let scope: BrowsingDataService.Scope = {
-                guard let currentSpace, scopePicker.indexOfSelectedItem == 0 else { return .allSpaces }
-                return .space(id: currentSpace.id, dataStoreID: currentSpace.dataStoreID)
-            }()
-            let includeWebsiteData = websiteDataCheckbox.state == .on
-            Task {
-                do {
-                    try await BrowsingDataService.clear(
-                        range: range,
-                        scope: scope,
-                        includeWebsiteData: includeWebsiteData
-                    )
-                } catch {
-                    presentClearError(error)
+        let sheet = ClearBrowsingDataSheet(
+            message: String(localized: "Clearing history will remove related cookies and other website data."),
+            detail: informativeText(currentSpace: currentSpace),
+            onCancel: dismiss,
+            onClear: { range in
+                dismiss()
+                Task {
+                    do {
+                        try await BrowsingDataService.clear(
+                            range: range,
+                            scope: scope,
+                            includeWebsiteData: true
+                        )
+                    } catch {
+                        presentClearError(error)
+                    }
                 }
             }
-        }
+        )
 
-        if let window = NSApplication.shared.keyWindow {
-            alert.beginSheetModal(for: window, completionHandler: handleResponse)
-        } else {
-            handleResponse(alert.runModal())
-        }
+        let hosting = NSHostingController(rootView: sheet)
+        hosting.view.layoutSubtreeIfNeeded()
+        controller = hosting
+        host.beginSheet(sheetWindow(for: hosting))
+    }
+
+    /// Wraps the sheet's content in a plain window, so it drops from the title
+    /// bar as a sheet rather than opening as a panel of its own.
+    private static func sheetWindow(for controller: NSViewController) -> NSWindow {
+        let window = NSWindow(contentViewController: controller)
+        window.styleMask = [.titled, .fullSizeContentView]
+        window.titleVisibility = .hidden
+        window.titlebarAppearsTransparent = true
+        window.isMovable = false
+        return window
     }
 
     private static func informativeText(currentSpace: CurrentSpace?) -> String {
         var lines: [String] = []
-        if currentSpace != nil {
-            lines.append(String(localized: """
-            History from the chosen period is removed from the selected Spaces.
-            """))
-        } else {
-            lines.append(String(localized: """
-            History from the chosen period is removed from all Spaces.
-            """))
-        }
-        lines.append(String(localized: """
-        Removing website data also clears cookies, caches, and other data \
-        those websites stored for the same period, which may sign you out of them.
-        """))
+        // Which Spaces are affected is the one thing Safari has no equivalent
+        // for, so it is stated plainly.
+        lines.append(currentSpace != nil
+            ? String(localized: "History is removed from this Space.")
+            : String(localized: "History is removed from every Space."))
         if SyncPreferences.syncsWorkspaceWithICloud, SyncPreferences.syncsHistoryWithICloud {
-            lines.append(String(localized: """
-            History is also removed from your other Macs that sync history with iCloud.
-            """))
+            lines.append(String(localized: "History will also be removed on your other Macs syncing with iCloud."))
         }
-        lines.append(String(localized: "This can’t be undone."))
         return lines.joined(separator: " ")
     }
 

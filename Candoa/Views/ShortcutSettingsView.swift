@@ -176,6 +176,8 @@ enum SettingsOption {
     static let selectRecentlyUsedOnClose = prefix + "SelectRecentlyUsedOnClose"
     static let pinnedCloseShortcutBehavior = prefix + "PinnedCloseShortcutBehavior"
 
+    static let homepage = prefix + "Homepage"
+
     static let defaultSearchProvider = prefix + "DefaultSearchProvider"
     static let showSearchSuggestions = prefix + "ShowSearchSuggestions"
     static let strictTrackingProtection = prefix + "StrictTrackingProtection"

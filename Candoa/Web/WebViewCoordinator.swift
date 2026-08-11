@@ -492,6 +492,18 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         }
     }
 
+    /// The most recent search-results page behind the current one, if the tab
+    /// reached here from a search. Safari's Return to Search Results walks the
+    /// back list rather than stepping back one page at a time.
+    func lastSearchResultsItem(tabID: UUID, matches: (URL) -> Bool) -> WKBackForwardListItem? {
+        guard let webView = webViews[tabID] else { return nil }
+        return webView.backForwardList.backList.last(where: { matches($0.url) })
+    }
+
+    func go(to item: WKBackForwardListItem, in tabID: UUID) {
+        webViews[tabID]?.go(to: item)
+    }
+
     func goBack(tabID: UUID) {
         webViews[tabID]?.goBack()
     }
