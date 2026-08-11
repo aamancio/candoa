@@ -4,6 +4,9 @@ import SwiftUI
 struct WindowInteractionConfigurator: NSViewRepresentable {
     let autosaveName: String
     var isPrivate = false
+    /// Also hands the window's store to the History menu, which needs a source
+    /// of history for whichever window is key.
+    var store: BrowserStore?
 
     func makeCoordinator() -> Coordinator {
         Coordinator()
@@ -13,6 +16,9 @@ struct WindowInteractionConfigurator: NSViewRepresentable {
         let view = WindowAttachmentView(frame: .zero)
         view.configureWindow = { [coordinator = context.coordinator] window in
             coordinator.configure(window: window, autosaveName: autosaveName, isPrivate: isPrivate)
+            if let window, let store {
+                HistoryMenuController.shared.register(window: window, store: store)
+            }
         }
         return view
     }
@@ -21,7 +27,11 @@ struct WindowInteractionConfigurator: NSViewRepresentable {
         if let view = nsView as? WindowAttachmentView {
             view.configureWindow = { [coordinator = context.coordinator] window in
                 coordinator.configure(window: window, autosaveName: autosaveName, isPrivate: isPrivate)
+                if let window, let store { HistoryMenuController.shared.register(window: window, store: store) }
             }
+        }
+        if let window = nsView.window, let store {
+            HistoryMenuController.shared.register(window: window, store: store)
         }
         context.coordinator.configure(
             window: nsView.window,

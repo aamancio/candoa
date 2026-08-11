@@ -380,6 +380,17 @@ extension BrowserStore {
         return tab
     }
 
+    /// Reopens a specific entry from the History menu's Recently Closed list,
+    /// rather than the most recent one.
+    func reopenClosedTab(at url: URL) {
+        guard let index = recentlyClosedTabs.lastIndex(where: { $0.url == url }) else { return }
+        let snapshot = recentlyClosedTabs.remove(at: index)
+        let targetSpaceID = spaces.contains(where: { $0.id == snapshot.spaceID })
+            ? snapshot.spaceID
+            : activeSpaceID
+        _ = newTab(url: snapshot.url, favorite: snapshot.isFavorite, pinned: snapshot.isPinned, in: targetSpaceID)
+    }
+
     func reopenLastClosedTab() {
         guard let snapshot = recentlyClosedTabs.popLast() else { return }
         let targetSpaceID = spaces.contains(where: { $0.id == snapshot.spaceID })
