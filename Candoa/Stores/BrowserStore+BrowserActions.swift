@@ -144,11 +144,13 @@ extension BrowserStore {
         guard activeTab != nil else { return }
         isFindBarPresented = true
         findFocusRequestID = UUID()
+        performFind(forward: true)
     }
 
     func dismissFindBar() {
         guard isFindBarPresented else { return }
         isFindBarPresented = false
+        findTally = nil
         if let activeTabID {
             webCoordinator.clearFindSelection(in: activeTabID)
         }
@@ -190,8 +192,23 @@ extension BrowserStore {
     }
 
     func performFind(forward: Bool) {
-        guard let activeTabID, !findQuery.isEmpty else { return }
-        webCoordinator.find(findQuery, forward: forward, in: activeTabID)
+        guard let activeTabID else {
+            findTally = nil
+            return
+        }
+
+        // Clearing the field clears the page with it. Without this, deleting
+        // the query back to empty left the last search's dim and its holes
+        // painted over the page.
+        guard !findQuery.isEmpty else {
+            findTally = nil
+            webCoordinator.clearFindSelection(in: activeTabID)
+            return
+        }
+
+        webCoordinator.find(findQuery, forward: forward, in: activeTabID) { [weak self] tally in
+            self?.findTally = tally.isCountExact ? tally : nil
+        }
     }
 
     func rememberClosedTab(_ tab: BrowserTab) {

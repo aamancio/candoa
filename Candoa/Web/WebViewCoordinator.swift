@@ -512,24 +512,65 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         webViews[tabID]?.stopLoading()
     }
 
-    func find(_ query: String, forward: Bool, in tabID: UUID, completion: ((Bool) -> Void)? = nil) {
+    /// Where the current match sits among all of them, for the find bar's
+    /// "3 of 27 matches". `isCountExact` is false on the native fallback path,
+    /// which can only report whether something was found.
+    struct FindTally {
+        static let none = FindTally(index: 0, count: 0, isCountExact: true)
+
+        let index: Int
+        let count: Int
+        let isCountExact: Bool
+    }
+
+    /// Highlights every match and steps the current one, the way Safari does.
+    /// `WKFindConfiguration` only moves the page selection, which WebKit stops
+    /// painting once the find field takes keyboard focus, so the highlighting
+    /// runs in the page (see `WebPageScripts.findScript`). Pages without the
+    /// CSS Custom Highlight API fall back to the native selection.
+    func find(_ query: String, forward: Bool, in tabID: UUID, completion: ((FindTally) -> Void)? = nil) {
         guard let webView = webViews[tabID], !query.isEmpty else {
-            completion?(false)
+            completion?(.none)
             return
         }
 
+        webView.evaluateJavaScript(WebPageScripts.findScript(query: query, forward: forward)) { value, error in
+            let result = value as? [String: Any]
+            guard error == nil, result?["supported"] as? Bool == true else {
+                self.findUsingPageSelection(query, forward: forward, in: webView, completion: completion)
+                return
+            }
+
+            completion?(FindTally(
+                index: result?["index"] as? Int ?? 0,
+                count: result?["count"] as? Int ?? 0,
+                isCountExact: true
+            ))
+        }
+    }
+
+    private func findUsingPageSelection(
+        _ query: String,
+        forward: Bool,
+        in webView: WKWebView,
+        completion: ((FindTally) -> Void)?
+    ) {
         let configuration = WKFindConfiguration()
         configuration.wraps = true
         configuration.caseSensitive = false
         configuration.backwards = !forward
 
         webView.find(query, configuration: configuration) { result in
-            completion?(result.matchFound)
+            // The native path knows only whether it landed on something, so
+            // the find bar shows no tally rather than a made-up one.
+            completion?(FindTally(index: 0, count: result.matchFound ? 1 : 0, isCountExact: false))
         }
     }
 
     func clearFindSelection(in tabID: UUID) {
-        webViews[tabID]?.evaluateJavaScript("window.getSelection().removeAllRanges()")
+        guard let webView = webViews[tabID] else { return }
+        webView.evaluateJavaScript(WebPageScripts.findClearScript)
+        webView.evaluateJavaScript("window.getSelection().removeAllRanges()")
     }
 
     func readablePageText(for tabID: UUID) async -> String? {

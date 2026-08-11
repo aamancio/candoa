@@ -308,13 +308,30 @@ struct WebViewContainer: View {
                 Image(systemName: "magnifyingglass")
                     .foregroundStyle(.secondary)
 
-                TextField("Find in page", text: $store.findQuery)
-                    .textFieldStyle(.plain)
-                    .tint(AppColor.accent)
-                    .frame(width: 190)
-                    .focused($isFieldFocused)
-                    .accessibilityIdentifier("find-bar-field")
-                    .onSubmit { store.findNext() }
+                // The tally rides the field's trailing edge, as it does in
+                // Safari, rather than taking a slot of its own: the bar keeps
+                // one width in every state, and a query with no tally leaves
+                // no hole behind — it just reads as the field's own padding.
+                // Digits only, because this bar floats over the page and has
+                // to stay narrow; the spoken label carries the full sentence.
+                ZStack(alignment: .trailing) {
+                    TextField("Find in page", text: $store.findQuery)
+                        .textFieldStyle(.plain)
+                        .tint(AppColor.accent)
+                        .padding(.trailing, 54)
+                        .focused($isFieldFocused)
+                        .accessibilityIdentifier("find-bar-field")
+                        .onSubmit { store.findNext() }
+
+                    Text(matchTally ?? "")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                        .lineLimit(1)
+                        .accessibilityLabel(matchStatus ?? "")
+                        .accessibilityIdentifier("find-bar-status")
+                }
+                .frame(width: 200)
 
                 Button {
                     store.findPrevious()
@@ -361,6 +378,26 @@ struct WebViewContainer: View {
             .onChange(of: store.findQuery) { _, _ in
                 store.findNext()
             }
+        }
+
+        /// The compact form the bar shows: "9/235", or "0" for a query that
+        /// matches nothing. Absent while the query is empty, and on pages the
+        /// in-page find engine cannot count.
+        private var matchTally: String? {
+            guard !store.findQuery.isEmpty, let tally = store.findTally else { return nil }
+            guard tally.count > 0 else { return "0" }
+            return "\(tally.index)/\(tally.count)"
+        }
+
+        /// What VoiceOver reads for that tally — Safari's full wording, which
+        /// there is no room to print.
+        private var matchStatus: String? {
+            guard !store.findQuery.isEmpty, let tally = store.findTally else { return nil }
+            guard tally.count > 0 else { return String(localized: "Not found") }
+            return String(
+                localized: "\(tally.index) of \(tally.count) matches",
+                comment: "Find in Page: position of the current match among all matches."
+            )
         }
 
         /// Focus has to be claimed a runloop later than the state change that

@@ -239,6 +239,400 @@ enum WebPageScripts {
     })();
     """
 
+    /// Find in Page.
+    ///
+    /// `WKWebView.find` only moves the page selection, which WebKit paints in
+    /// its inactive grey — and paints not at all — while the find field holds
+    /// keyboard focus, so matches were effectively invisible. Safari solves
+    /// this with private WebKit find-overlay SPI; the public equivalent is the
+    /// CSS Custom Highlight API, which tints ranges without touching the DOM.
+    ///
+    /// The engine is stateless between calls apart from the ranges it is
+    /// currently showing: no observers, no timers, and nothing that outlives
+    /// `findClearScript` or the next navigation.
+    static func findScript(query: String, forward: Bool) -> String {
+        """
+        (() => {
+          const query = \(jsStringLiteral(query));
+          const forward = \(forward);
+          const ALL = "candoa-find";
+          const ACTIVE = "candoa-find-active";
+          const STYLE_ID = "candoa-find-style";
+          const LIMIT = 5000;
+
+          if (typeof CSS === "undefined" || !CSS.highlights || typeof Highlight !== "function") {
+            return { supported: false, count: 0, index: 0 };
+          }
+
+          const INDICATOR_ID = "candoa-find-indicator";
+          const SCRIM_ID = "candoa-find-scrim";
+          const MAX_HOLES = 400;
+          const state = window.__candoaFind || (window.__candoaFind = { query: "", ranges: [], index: -1 });
+
+          // Safari dims the whole page and cuts every match out of the dim, so
+          // the matches read as the only lit text. The scrim is one absolutely
+          // positioned layer in document coordinates, which means the page
+          // scrolls it for free — no scroll handler, nothing running per frame.
+          const canCutOut = typeof CSS.supports === "function"
+            && CSS.supports("clip-path", "path(evenodd, \\"M0 0Z\\")");
+
+          const hole = (x, y, w, h) => {
+            const r = Math.min(3, w / 2, h / 2);
+            const round = (value) => value.toFixed(1);
+            return "M" + round(x + r) + " " + round(y) +
+              "H" + round(x + w - r) + "A" + round(r) + " " + round(r) + " 0 0 1 " + round(x + w) + " " + round(y + r) +
+              "V" + round(y + h - r) + "A" + round(r) + " " + round(r) + " 0 0 1 " + round(x + w - r) + " " + round(y + h) +
+              "H" + round(x + r) + "A" + round(r) + " " + round(r) + " 0 0 1 " + round(x) + " " + round(y + h - r) +
+              "V" + round(y + r) + "A" + round(r) + " " + round(r) + " 0 0 1 " + round(x + r) + " " + round(y) + "Z";
+          };
+
+          const dim = () => {
+            document.getElementById(SCRIM_ID)?.remove();
+            if (!canCutOut || !state.ranges.length || !document.body) { return false; }
+
+            const root = document.documentElement;
+            const width = Math.max(root.scrollWidth, document.body.scrollWidth);
+            const height = Math.max(root.scrollHeight, document.body.scrollHeight);
+
+            let path = "M0 0H" + width + "V" + height + "H0Z";
+            let holes = 0;
+            for (const range of state.ranges) {
+              for (const rect of range.getClientRects()) {
+                if (holes >= MAX_HOLES) { break; }
+                // Same inset as the indicator's box, so the lit match and the
+                // hole in the dim are exactly the same shape.
+                path += hole(
+                  rect.left + window.scrollX - 2.5,
+                  rect.top + window.scrollY - 1.5,
+                  rect.width + 5,
+                  rect.height + 3
+                );
+                holes += 1;
+              }
+              if (holes >= MAX_HOLES) { break; }
+            }
+
+            const scrim = document.createElement("div");
+            scrim.id = SCRIM_ID;
+            scrim.setAttribute("aria-hidden", "true");
+            scrim.style.cssText = [
+              "position:absolute",
+              "left:0",
+              "top:0",
+              "width:" + width + "px",
+              "height:" + height + "px",
+              "z-index:2147483646",
+              "pointer-events:none",
+              "user-select:none",
+              // Dim depth measured against Safari on the same screen, by
+              // comparing each browser's own page with find on and off.
+              "background:rgba(0, 0, 0, 0.22)",
+              "clip-path:path(evenodd, \\"" + path + "\\")",
+              "animation:candoa-find-dim 0.15s ease-out"
+            ].join(";");
+            document.body.appendChild(scrim);
+            return true;
+          };
+
+          // Safari's find indicator, measured off a screen recording of it:
+          // the current match pops to 1.24x about 60ms in and settles back by
+          // 150ms. It has to be a real element, because a highlight pseudo
+          // cannot be transformed — one node, replaced whenever the current
+          // match moves and removed with everything else on clear.
+          //
+          // A match split by inline markup ("Goo<b>gle</b>") is drawn as one
+          // fragment per text node, each in that node's own font, inside a
+          // single rounded container that clips them into one seamless bubble
+          // and carries the animation so they scale together.
+          const indicate = (fragments) => {
+            document.getElementById(INDICATOR_ID)?.remove();
+            if (!document.body || !fragments.length) { return; }
+
+            const boxes = [];
+            for (const fragment of fragments) {
+              const rects = fragment.getClientRects();
+              const anchor = fragment.startContainer.parentElement;
+              // A fragment that wraps mid-word has no single box to pop, and
+              // neither does a match spread down the page: leave those to the
+              // highlight alone.
+              if (rects.length !== 1 || !anchor) { return; }
+              if (boxes.length && Math.abs(rects[0].top - boxes[0].rect.top) > 1) { return; }
+              boxes.push({ rect: rects[0], anchor, text: fragment.toString() });
+            }
+
+            const left = Math.min(...boxes.map((box) => box.rect.left));
+            const top = Math.min(...boxes.map((box) => box.rect.top));
+            const right = Math.max(...boxes.map((box) => box.rect.right));
+            const bottom = Math.max(...boxes.map((box) => box.rect.bottom));
+
+            const bubble = document.createElement("div");
+            bubble.id = INDICATOR_ID;
+            bubble.setAttribute("aria-hidden", "true");
+            bubble.style.cssText = [
+              "position:absolute",
+              "z-index:2147483647",
+              "pointer-events:none",
+              "user-select:none",
+              "overflow:hidden",
+              // The fill lives on the container, so the yellow reaches the
+              // rounded corners instead of leaving the cut-out showing as a
+              // pale ring around the text.
+              "background:#ffff00",
+              "border-radius:4px",
+              "box-shadow:0 1px 3px rgba(0, 0, 0, 0.4)",
+              "transform-origin:center",
+              "animation:candoa-find-pop 0.11s linear",
+              "left:" + (left + window.scrollX - 2.5) + "px",
+              "top:" + (top + window.scrollY - 1.5) + "px",
+              "width:" + (right - left + 5) + "px",
+              "height:" + (bottom - top + 3) + "px"
+            ].join(";");
+
+            for (const box of boxes) {
+              const font = getComputedStyle(box.anchor);
+              const piece = document.createElement("div");
+              piece.textContent = box.text;
+              piece.style.cssText = [
+                "position:absolute",
+                "color:#000",
+                "white-space:pre",
+                "left:" + (box.rect.left - left + 2.5) + "px",
+                "top:0px",
+                "height:100%",
+                "line-height:" + (bottom - top + 3) + "px",
+                "font-family:" + font.fontFamily,
+                "font-size:" + font.fontSize,
+                "font-weight:" + font.fontWeight,
+                "font-style:" + font.fontStyle,
+                "font-stretch:" + font.fontStretch,
+                "letter-spacing:" + font.letterSpacing,
+                "word-spacing:" + font.wordSpacing,
+                "text-transform:" + font.textTransform
+              ].join(";");
+              bubble.appendChild(piece);
+            }
+
+            // Like Safari's, the bubble stays on the current match rather than
+            // fading: it is positioned in document coordinates, so the page
+            // scrolls it, and stepping or clearing replaces it.
+            document.body.appendChild(bubble);
+          };
+
+          const show = (rebuildScrim) => {
+            if (!state.ranges.length) {
+              // A query with no matches leaves nothing behind in the page.
+              CSS.highlights.delete(ALL);
+              CSS.highlights.delete(ACTIVE);
+              document.getElementById(INDICATOR_ID)?.remove();
+              document.getElementById(SCRIM_ID)?.remove();
+              document.getElementById(STYLE_ID)?.remove();
+              return;
+            }
+            if (!document.getElementById(STYLE_ID)) {
+              const style = document.createElement("style");
+              style.id = STYLE_ID;
+              // Safari's own find colors: a soft yellow on every match, pure
+              // yellow on the current one, both with a forced dark foreground
+              // so the tint stays legible over any page palette.
+              style.textContent =
+                "::highlight(" + ALL + ") { background-color: #ffe066; color: #000; }" +
+                "::highlight(" + ACTIVE + ") { background-color: #ffff00; color: #000; }" +
+                "@keyframes candoa-find-dim { from { opacity: 0; } to { opacity: 1; } }" +
+                // Sampled off a screen recording of Safari at 16ms, then
+                // replayed here as linear stops so the motion is the same
+                // curve rather than an approximation of it: it appears
+                // already grown, peaks at 1.25 about 32ms in, and eases back
+                // to rest by 96ms.
+                "@keyframes candoa-find-pop {" +
+                "  0% { transform: scale(1.10); }" +
+                "  29% { transform: scale(1.25); }" +
+                "  44% { transform: scale(1.17); }" +
+                "  58% { transform: scale(1.10); }" +
+                "  73% { transform: scale(1.05); }" +
+                "  100% { transform: scale(1); }" +
+                "}" +
+                "@media (prefers-reduced-motion: reduce) {" +
+                "  #" + INDICATOR_ID + " { animation: none; }" +
+                "}";
+              (document.head || document.documentElement).appendChild(style);
+            }
+            // Cutting the matches out of the dim is Safari's treatment, and
+            // it leaves them in the page's own colors. The yellow wash on
+            // every match is the fallback for pages the scrim cannot cover.
+            const cutOut = rebuildScrim ? dim() : !!document.getElementById(SCRIM_ID);
+            if (cutOut) {
+              CSS.highlights.delete(ALL);
+            } else {
+              CSS.highlights.set(ALL, new Highlight(...state.ranges));
+            }
+
+            const active = state.ranges[state.index];
+            CSS.highlights.set(ACTIVE, new Highlight(active));
+
+
+            const rect = active.getBoundingClientRect();
+            const fullyVisible = rect.top >= 0 && rect.bottom <= (window.innerHeight || 0);
+            if (!fullyVisible) {
+              // scrollIntoView on the containing element, so matches inside a
+              // nested scroller are revealed too. Never animated: Find is a
+              // keyboard-repeat surface and Reduce Motion must hold.
+              const anchor = active.startContainer.parentElement;
+              anchor?.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" });
+            }
+            indicate(state.fragments[state.index] || []);
+          };
+
+          if (state.query === query && state.ranges.length) {
+            // Stepping does not move any match, so the scrim it already cut
+            // stays valid and is left alone.
+            state.index = (state.index + (forward ? 1 : -1) + state.ranges.length) % state.ranges.length;
+            show(false);
+            return { supported: true, count: state.ranges.length, index: state.index + 1 };
+          }
+
+          // Text nodes are concatenated so a match can span inline markup
+          // ("Goo<b>gle</b>"), with a newline between block containers so it
+          // can never span two of them — the same boundary WebKit's own find
+          // respects.
+          const BLOCKS = new Set([
+            "ADDRESS", "ARTICLE", "ASIDE", "BLOCKQUOTE", "BODY", "BR", "DD", "DIV", "DL", "DT",
+            "FIELDSET", "FIGCAPTION", "FIGURE", "FOOTER", "FORM", "H1", "H2", "H3", "H4", "H5",
+            "H6", "HEADER", "HR", "LI", "MAIN", "NAV", "OL", "P", "PRE", "SECTION", "TABLE",
+            "TBODY", "TD", "TFOOT", "TH", "THEAD", "TR", "UL"
+          ]);
+          const SKIPPED = new Set(["SCRIPT", "STYLE", "NOSCRIPT", "TITLE", "TEXTAREA"]);
+          const visibility = new Map();
+          const isVisible = (element) => {
+            if (visibility.has(element)) { return visibility.get(element); }
+            const visible = typeof element.checkVisibility === "function"
+              ? element.checkVisibility({ checkVisibilityCSS: true })
+              : true;
+            visibility.set(element, visible);
+            return visible;
+          };
+          const blocks = new Map();
+          const blockOf = (element) => {
+            if (blocks.has(element)) { return blocks.get(element); }
+            let node = element;
+            while (node && !BLOCKS.has(node.nodeName)) { node = node.parentElement; }
+            blocks.set(element, node);
+            return node;
+          };
+
+          const walker = document.createTreeWalker(
+            document.body || document.documentElement,
+            NodeFilter.SHOW_TEXT,
+            {
+              acceptNode(node) {
+                const parent = node.parentElement;
+                if (!parent || SKIPPED.has(parent.nodeName)) { return NodeFilter.FILTER_REJECT; }
+                if (!node.nodeValue) { return NodeFilter.FILTER_REJECT; }
+                return isVisible(parent) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+              }
+            }
+          );
+
+          const pieces = [];
+          let haystack = "";
+          let lastBlock = null;
+          for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+            const block = blockOf(node.parentElement);
+            if (lastBlock !== null && block !== lastBlock) { haystack += "\\n"; }
+            lastBlock = block;
+            pieces.push({ node, start: haystack.length, end: haystack.length + node.nodeValue.length });
+            haystack += node.nodeValue;
+          }
+
+          const pieceAt = (offset) => {
+            let low = 0;
+            let high = pieces.length - 1;
+            while (low <= high) {
+              const middle = (low + high) >> 1;
+              const piece = pieces[middle];
+              if (offset < piece.start) { high = middle - 1; }
+              else if (offset >= piece.end) { low = middle + 1; }
+              else { return middle; }
+            }
+            return -1;
+          };
+
+          const needle = query.toLowerCase();
+          const text = haystack.toLowerCase();
+          const ranges = [];
+          const fragments = [];
+          for (let at = text.indexOf(needle); at !== -1 && ranges.length < LIMIT; at = text.indexOf(needle, at + needle.length)) {
+            const stop = at + needle.length;
+            const first = pieceAt(at);
+            const last = pieceAt(stop - 1);
+            if (first === -1 || last === -1) { continue; }
+            const startPiece = pieces[first];
+            const endPiece = pieces[last];
+            const range = document.createRange();
+            range.setStart(startPiece.node, at - startPiece.start);
+            range.setEnd(endPiece.node, stop - endPiece.start);
+            ranges.push(range);
+
+            // One subrange per text node the match covers, so the indicator
+            // can draw each fragment in the font it is actually rendered in.
+            const parts = [];
+            for (let index = first; index <= last; index += 1) {
+              const piece = pieces[index];
+              const part = document.createRange();
+              part.setStart(piece.node, Math.max(at, piece.start) - piece.start);
+              part.setEnd(piece.node, Math.min(stop, piece.end) - piece.start);
+              parts.push(part);
+            }
+            fragments.push(parts);
+          }
+
+          state.query = query;
+          state.ranges = ranges;
+          state.fragments = fragments;
+          state.index = ranges.length ? (forward ? 0 : ranges.length - 1) : -1;
+          show(true);
+          return { supported: true, count: ranges.length, index: state.index + 1 };
+        })();
+        """
+    }
+
+    static let findClearScript = """
+    (() => {
+      if (typeof CSS !== "undefined" && CSS.highlights) {
+        CSS.highlights.delete("candoa-find");
+        CSS.highlights.delete("candoa-find-active");
+      }
+      document.getElementById("candoa-find-indicator")?.remove();
+      document.getElementById("candoa-find-scrim")?.remove();
+      document.getElementById("candoa-find-style")?.remove();
+      delete window.__candoaFind;
+    })();
+    """
+
+    /// A JavaScript string literal for `value`. JSON string syntax is a subset
+    /// of JavaScript's, and escaping `<` keeps the result safe to inline.
+    private static func jsStringLiteral(_ value: String) -> String {
+        var escaped = ""
+        for character in value.unicodeScalars {
+            switch character {
+            case "\"": escaped += "\\\""
+            case "\\": escaped += "\\\\"
+            case "\n": escaped += "\\n"
+            case "\r": escaped += "\\r"
+            case "\u{2028}": escaped += "\\u2028"
+            case "\u{2029}": escaped += "\\u2029"
+            case "<": escaped += "\\u003C"
+            default:
+                if character.value < 0x20 {
+                    let hex = String(character.value, radix: 16, uppercase: true)
+                    escaped += "\\u" + String(repeating: "0", count: 4 - hex.count) + hex
+                } else {
+                    escaped.unicodeScalars.append(character)
+                }
+            }
+        }
+        return "\"\(escaped)\""
+    }
+
     static let visiblePageControlsScript = """
     (() => {
       const selectors = [
