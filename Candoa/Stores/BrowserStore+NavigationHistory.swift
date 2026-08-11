@@ -161,11 +161,6 @@ extension BrowserStore {
         webCoordinator.go(to: item, in: activeTabID)
     }
 
-    var canReturnToSearchResults: Bool {
-        guard let activeTabID else { return false }
-        return lastSearchResultsItem(in: activeTabID) != nil
-    }
-
     private func lastSearchResultsItem(in tabID: UUID) -> WKBackForwardListItem? {
         webCoordinator.lastSearchResultsItem(tabID: tabID) { [navigationService] url in
             navigationService.searchQuery(from: url) != nil
@@ -256,6 +251,7 @@ extension BrowserStore {
         if activeTabID == tabID {
             self.canGoBack = canGoBack
             self.canGoForward = canGoForward
+            self.canReturnToSearchResults = lastSearchResultsItem(in: tabID) != nil
         }
     }
 
@@ -379,12 +375,14 @@ extension BrowserStore {
         guard let activeTabID else {
             canGoBack = false
             canGoForward = false
+            canReturnToSearchResults = false
             return
         }
 
         let state = webCoordinator.navigationState(for: activeTabID)
         canGoBack = state.canGoBack
         canGoForward = state.canGoForward
+        canReturnToSearchResults = lastSearchResultsItem(in: activeTabID) != nil
     }
 
     static func isInternalBlankPlaceholderURL(_ url: URL?) -> Bool {

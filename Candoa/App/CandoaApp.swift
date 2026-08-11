@@ -6,6 +6,14 @@ struct CandoaApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var userStore = UserStore()
 
+    init() {
+        // Candoa has no tab bar — tabs live in the sidebar. Left on, AppKit's
+        // automatic window tabbing injects "Hide Tab Bar" and "Show All Tabs"
+        // into View and "Merge All Windows" into Window, all advertising a
+        // surface the app doesn't have. Set before any scene is built.
+        NSWindow.allowsAutomaticWindowTabbing = false
+    }
+
     var body: some Scene {
         WindowGroup(id: AppConfiguration.browserWindowSceneID) {
             ContentView()
