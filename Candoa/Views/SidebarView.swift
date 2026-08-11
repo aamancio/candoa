@@ -113,6 +113,11 @@ struct SidebarView: View {
         .animation(.easeOut(duration: 0.16), value: availableUpdate)
         .animation(.easeOut(duration: 0.16), value: store.mediaControllerTabID)
         .ignoresSafeArea(.container, edges: .top)
+        .onChange(of: store.spaceSelectionRequest) { _, request in
+            guard let request else { return }
+            store.spaceSelectionRequest = nil
+            animateSpaceSelection(request.spaceID)
+        }
         .onChange(of: store.activeSpaceID) { _, _ in
             resetSpaceSwipeProgress()
         }
