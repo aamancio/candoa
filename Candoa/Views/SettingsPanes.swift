@@ -9,8 +9,6 @@ internal struct GeneralSettingsPane: View {
     @AppStorage(SettingsOption.showSearchSuggestions) private var showSearchSuggestions = true
     @AppStorage(SettingsOption.homepage) private var homepage = ""
     @FocusState private var homepageFieldFocused: Bool
-    @State private var syncsWorkspaceWithICloud = SyncPreferences.syncsWorkspaceWithICloud
-    @State private var syncsHistoryWithICloud = SyncPreferences.syncsHistoryWithICloud
     @StateObject private var defaultBrowserService = DefaultBrowserService()
 
     /// Stores what was typed as a real address, so "example.com" is saved the
@@ -123,27 +121,6 @@ internal struct GeneralSettingsPane: View {
                     )
                 }
 
-                SettingsCard {
-                    SettingsToggleRow(
-                        systemImage: "square.grid.2x2",
-                        title: String(localized: "Sync Spaces and tabs with iCloud"),
-                        subtitle: CloudKitEntitlements.hasConfiguredContainer
-                            ? String(localized: "Keep them available on Macs using this Apple Account.")
-                            : String(localized: "This build is missing the CloudKit entitlement."),
-                        isOn: workspaceSyncBinding
-                    )
-                    .disabled(!CloudKitEntitlements.hasConfiguredContainer)
-
-                    SettingsDivider()
-
-                    SettingsToggleRow(
-                        systemImage: "clock.arrow.circlepath",
-                        title: String(localized: "Sync history"),
-                        subtitle: String(localized: "Requires Spaces sync."),
-                        isOn: historySyncBinding
-                    )
-                    .disabled(!CloudKitEntitlements.hasConfiguredContainer || !syncsWorkspaceWithICloud)
-                }
             }
         }
         .onAppear(perform: normalizeDefaultSearchProvider)
@@ -174,31 +151,6 @@ internal struct GeneralSettingsPane: View {
         }
     }
 
-    private var workspaceSyncBinding: Binding<Bool> {
-        Binding {
-            syncsWorkspaceWithICloud
-        } set: { newValue in
-            syncsWorkspaceWithICloud = newValue
-            SyncPreferences.syncsWorkspaceWithICloud = newValue
-            if !newValue {
-                syncsHistoryWithICloud = false
-                SyncPreferences.syncsHistoryWithICloud = false
-            }
-        }
-    }
-
-    private var historySyncBinding: Binding<Bool> {
-        Binding {
-            syncsHistoryWithICloud
-        } set: { newValue in
-            if newValue, !syncsWorkspaceWithICloud {
-                syncsWorkspaceWithICloud = true
-                SyncPreferences.syncsWorkspaceWithICloud = true
-            }
-            syncsHistoryWithICloud = newValue
-            SyncPreferences.syncsHistoryWithICloud = newValue
-        }
-    }
 }
 
 internal struct SpacesSettingsPane: View {

@@ -62,7 +62,7 @@
 		A90000000000000000000101 /* HistoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A90000000000000000000001 /* HistoryStore.swift */; };
 		A90000000000000000000102 /* HistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A90000000000000000000002 /* HistoryView.swift */; };
 		CA00000000000000000A0103 /* ClearBrowsingDataSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA00000000000000000A0003 /* ClearBrowsingDataSheet.swift */; };
-		CA00000000000000000A0101 /* HistoryMenuController.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA00000000000000000A0001 /* HistoryMenuController.swift */; };
+		CA00000000000000000A0101 /* BrowserMenuController.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA00000000000000000A0001 /* BrowserMenuController.swift */; };
 		AA0000000000000000000101 /* UserStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000001 /* UserStore.swift */; };
 		AA0000000000000000000102 /* BrowserStore+Testing.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000002 /* BrowserStore+Testing.swift */; };
 		AA0000000000000000000103 /* BrowserStore+CommandPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000003 /* BrowserStore+CommandPalette.swift */; };
@@ -209,7 +209,7 @@
 		A90000000000000000000001 /* HistoryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryStore.swift; sourceTree = "<group>"; };
 		A90000000000000000000002 /* HistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryView.swift; sourceTree = "<group>"; };
 		CA00000000000000000A0003 /* ClearBrowsingDataSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClearBrowsingDataSheet.swift; sourceTree = "<group>"; };
-		CA00000000000000000A0001 /* HistoryMenuController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryMenuController.swift; sourceTree = "<group>"; };
+		CA00000000000000000A0001 /* BrowserMenuController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserMenuController.swift; sourceTree = "<group>"; };
 		AA0000000000000000000001 /* UserStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserStore.swift; sourceTree = "<group>"; };
 		AA0000000000000000000002 /* BrowserStore+Testing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+Testing.swift"; sourceTree = "<group>"; };
 		AA0000000000000000000003 /* BrowserStore+CommandPalette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+CommandPalette.swift"; sourceTree = "<group>"; };
@@ -365,7 +365,7 @@
 				010000000000000000000011 /* ContentView.swift */,
 				A90000000000000000000002 /* HistoryView.swift */,
 				CA00000000000000000A0003 /* ClearBrowsingDataSheet.swift */,
-				CA00000000000000000A0001 /* HistoryMenuController.swift */,
+				CA00000000000000000A0001 /* BrowserMenuController.swift */,
 				010000000000000000000067 /* InitialOnboardingView.swift */,
 				010000000000000000000045 /* EliSidebarResizeHandle.swift */,
 				010000000000000000000046 /* EliSidebarView.swift */,
@@ -759,7 +759,7 @@
 				010000000000000000000111 /* ContentView.swift in Sources */,
 				A90000000000000000000102 /* HistoryView.swift in Sources */,
 				CA00000000000000000A0103 /* ClearBrowsingDataSheet.swift in Sources */,
-				CA00000000000000000A0101 /* HistoryMenuController.swift in Sources */,
+				CA00000000000000000A0101 /* BrowserMenuController.swift in Sources */,
 				010000000000000000000112 /* SidebarView.swift in Sources */,
 				C1A2B3D4E5F60718293A4B5C /* SidebarSpaceComposer.swift in Sources */,
 				C2A2B3D4E5F60718293A4B5C /* SidebarTabSections.swift in Sources */,

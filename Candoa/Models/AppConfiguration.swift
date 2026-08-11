@@ -42,6 +42,11 @@ enum BrowserCommandTitles {
     static let clearHistoryConfirmation = String(localized: "Clear History")
     static let pinOrUnpinTab = String(localized: "Pin or Unpin Tab")
     static let clearUnpinnedTabs = String(localized: "Clear Unpinned Tabs")
+    static let addToFavorites = String(localized: "Add to Favorites")
+    static let removeFromFavorites = String(localized: "Remove from Favorites")
+    /// Section headers in the Favorites menu.
+    static let favoritesGroup = String(localized: "Favorites")
+    static let pinnedTabsGroup = String(localized: "Pinned Tabs")
     static let siteInfo = String(localized: "Site Info…")
     static let privacyReport = String(localized: "Privacy Report…")
     static let showReader = String(localized: "Show Reader")
@@ -72,10 +77,6 @@ enum BrowserCommandTitles {
     // instead -- neither word can be read the other way round.
     static let splitLayoutHorizontal = String(localized: "Side by Side")
     static let splitLayoutVertical = String(localized: "Stacked")
-    static let enableWorkspaceICloudSync = String(localized: "Enable iCloud Sync for Spaces and Tabs")
-    static let disableWorkspaceICloudSync = String(localized: "Disable iCloud Sync for Spaces and Tabs")
-    static let enableHistoryICloudSync = String(localized: "Enable iCloud Sync for History")
-    static let disableHistoryICloudSync = String(localized: "Disable iCloud Sync for History")
 }
 
 enum BrowserDefaults {

@@ -549,6 +549,12 @@ private struct BrowserCommands: Commands {
                 actions?.duplicateTab()
             }
             .disabled(actions == nil)
+
+            Button(BrowserCommandTitles.clearUnpinnedTabs) {
+                actions?.clearUnpinnedTabs()
+            }
+            .keyboardShortcut("k", modifiers: [.command, .shift])
+            .disabled(actions == nil)
         }
 
         CommandGroup(after: .help) {
@@ -594,7 +600,7 @@ private struct BrowserCommands: Commands {
             Divider()
 
             // The Recently Closed submenu is inserted here at runtime by
-            // HistoryMenuController, which also appends the visited pages
+            // BrowserMenuController, which also appends the visited pages
             // below — both are built only when the menu opens.
             Button(BrowserCommandTitles.reopenClosedTab) {
                 actions?.reopenClosedTab()
@@ -612,41 +618,24 @@ private struct BrowserCommands: Commands {
             .disabled(actions?.canClearBrowsingData != true)
         }
 
-        CommandMenu("Bookmarks") {
-            Button(actions?.isActiveTabPinned == true ? "Unpin Tab" : "Add Bookmark…") {
-                actions?.pinOrUnpinTab()
+        // Candoa has no bookmarks: what it saves are Favorites and pinned
+        // tabs, which is what this menu adds to and lists. Syncing lives in
+        // Settings, not here — it is a preference, not a command.
+        CommandMenu("Favorites") {
+            Button(
+                actions?.isActiveTabFavorite == true
+                    ? BrowserCommandTitles.removeFromFavorites
+                    : BrowserCommandTitles.addToFavorites
+            ) {
+                actions?.toggleFavoriteForActiveTab()
             }
-            .disabled(actions == nil)
+            // Command-D is already Pin Tab, which is Candoa's own "save this
+            // page" gesture; favoriting is the wider one, a shift away.
+            .keyboardShortcut("d", modifiers: [.command, .shift])
+            .disabled(actions?.canToggleFavorite != true)
 
-            Button(BrowserCommandTitles.clearUnpinnedTabs) {
-                actions?.clearUnpinnedTabs()
-            }
-            .keyboardShortcut("k", modifiers: [.command, .shift])
-            .disabled(actions == nil)
-
-            Divider()
-
-            Menu("iCloud Sync") {
-                Button(
-                    actions?.isWorkspaceICloudSyncEnabled == true
-                        ? BrowserCommandTitles.disableWorkspaceICloudSync
-                        : BrowserCommandTitles.enableWorkspaceICloudSync
-                ) {
-                    guard let actions else { return }
-                    actions.setWorkspaceICloudSyncEnabled(!actions.isWorkspaceICloudSyncEnabled)
-                }
-                .disabled(actions == nil)
-
-                Button(
-                    actions?.isHistoryICloudSyncEnabled == true
-                        ? BrowserCommandTitles.disableHistoryICloudSync
-                        : BrowserCommandTitles.enableHistoryICloudSync
-                ) {
-                    guard let actions else { return }
-                    actions.setHistoryICloudSyncEnabled(!actions.isHistoryICloudSyncEnabled)
-                }
-                .disabled(actions == nil || actions?.isWorkspaceICloudSyncEnabled != true)
-            }
+            // The saved tabs themselves are appended here at runtime by
+            // BrowserMenuController.
         }
 
         CommandMenu("Develop") {
@@ -720,6 +709,9 @@ struct BrowserCommandActions {
     var reopenClosedTab: () -> Void
     var pinOrUnpinTab: () -> Void
     var isActiveTabPinned: Bool
+    var isActiveTabFavorite: Bool
+    var canToggleFavorite: Bool
+    var toggleFavoriteForActiveTab: () -> Void
     var duplicateTab: () -> Void
     var clearUnpinnedTabs: () -> Void
     var copyURL: () -> Void
@@ -733,10 +725,6 @@ struct BrowserCommandActions {
     var toggleSplitView: () -> Void
     var setSplitLayout: (SplitViewLayout) -> Void
     var isSplitDisplayed: Bool
-    var isWorkspaceICloudSyncEnabled: Bool
-    var isHistoryICloudSyncEnabled: Bool
-    var setWorkspaceICloudSyncEnabled: (Bool) -> Void
-    var setHistoryICloudSyncEnabled: (Bool) -> Void
     var isDeveloperModeAvailable: Bool
     var isDeveloperModeEnabled: Bool
     var setDeveloperMode: (Bool) -> Void
