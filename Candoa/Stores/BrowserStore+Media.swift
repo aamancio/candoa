@@ -66,6 +66,36 @@ extension BrowserStore {
     func toggleMiniPlayerPlayback() { guard let mediaControllerTabID else { return }; retainedPausedMiniPlayerTabID = mediaControllerTabID; webCoordinator.toggleMediaPlayback(tabID: mediaControllerTabID) }
     func toggleMediaMute() { guard let mediaControllerTabID else { return }; toggleMediaMute(tabID: mediaControllerTabID) }
     func toggleMediaMute(tabID: UUID) { webCoordinator.toggleMediaMute(tabID: tabID) }
+    // Mute menu commands. mediaStates only holds tabs whose pages reported
+    // media, so iterating it enumerates every candidate tab; unloaded or
+    // hibernated tabs can't produce audio, so the DOM-level mute is enough.
+    var canMuteActiveTab: Bool {
+        guard let activeTabID else { return false }
+        return mediaStates[activeTabID]?.hasMedia == true
+    }
+
+    var isActiveTabMuted: Bool {
+        guard let activeTabID else { return false }
+        return mediaStates[activeTabID]?.isMuted == true
+    }
+
+    func toggleActiveTabMute() { guard let activeTabID else { return }; toggleMediaMute(tabID: activeTabID) }
+
+    var canMuteOtherTabs: Bool {
+        mediaStates.contains { tabID, state in
+            tabID != activeTabID && state.hasMedia && !state.isMuted
+        }
+    }
+
+    func muteOtherTabs() {
+        // The page script reports the resulting volumechange back, which
+        // updates mediaStates and re-renders the menu — no manual
+        // objectWillChange needed.
+        for (tabID, state) in mediaStates where tabID != activeTabID && state.hasMedia {
+            webCoordinator.setMediaMuted(true, tabID: tabID)
+        }
+    }
+
     func skipMediaTrack(forward: Bool) { guard let mediaControllerTabID else { return }; webCoordinator.skipMediaTrack(tabID: mediaControllerTabID, forward: forward) }
     func seekMedia(by seconds: Double) { guard let mediaControllerTabID else { return }; webCoordinator.seekMedia(tabID: mediaControllerTabID, by: seconds) }
     func seekMedia(to time: Double) { guard let mediaControllerTabID, time.isFinite else { return }; webCoordinator.seekMedia(tabID: mediaControllerTabID, to: max(0, time)) }

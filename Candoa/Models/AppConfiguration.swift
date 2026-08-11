@@ -6,6 +6,7 @@ enum AppConfiguration {
     static let minimumWindowHeight: CGFloat = 640
     static let browserWindowSceneID = "browser"
     static let privateBrowserWindowSceneID = "browser.private"
+    static let acknowledgmentsWindowSceneID = "browser.acknowledgments"
     static let windowAutosaveNamePrefix = "Candoa.BrowserWindow"
 }
 
@@ -44,6 +45,13 @@ enum BrowserCommandTitles {
     static let clearHistoryConfirmation = String(localized: "Clear History")
     static let pinOrUnpinTab = String(localized: "Pin or Unpin Tab")
     static let clearUnpinnedTabs = String(localized: "Clear Unpinned Tabs")
+    static let arrangeTabsBy = String(localized: "Arrange Tabs By")
+    static let arrangeTabsByTitle = String(localized: "Title")
+    static let arrangeTabsByWebsite = String(localized: "Website")
+    static let muteThisTab = String(localized: "Mute This Tab")
+    static let unmuteThisTab = String(localized: "Unmute This Tab")
+    static let muteOtherTabs = String(localized: "Mute Other Tabs")
+    static let acknowledgments = String(localized: "Acknowledgments")
     static let addToFavorites = String(localized: "Add to Favorites")
     static let removeFromFavorites = String(localized: "Remove from Favorites")
     static let siteInfo = String(localized: "Site Info…")
@@ -54,6 +62,17 @@ enum BrowserCommandTitles {
     static let copyURLAsMarkdown = String(localized: "Copy URL as Markdown")
     static let turnOnDeveloperMode = String(localized: "Turn On Developer Mode")
     static let turnOffDeveloperMode = String(localized: "Turn Off Developer Mode")
+    static let openPageWith = String(localized: "Open Page With")
+    static let userAgent = String(localized: "User Agent")
+    static let connectWebInspector = String(localized: "Connect Web Inspector")
+    static let showJavaScriptConsole = String(localized: "Show JavaScript Console")
+    static let showPageSource = String(localized: "Show Page Source")
+    static let showPageResources = String(localized: "Show Page Resources")
+    static let startTimelineRecording = String(localized: "Start Timeline Recording")
+    static let stopTimelineRecording = String(localized: "Stop Timeline Recording")
+    static let startElementSelection = String(localized: "Start Element Selection")
+    static let stopElementSelection = String(localized: "Stop Element Selection")
+    static let emptyCaches = String(localized: "Empty Caches")
     static let printPage = String(localized: "Print…")
     static let openFile = String(localized: "Open File…")
     static let saveAs = String(localized: "Save As…")

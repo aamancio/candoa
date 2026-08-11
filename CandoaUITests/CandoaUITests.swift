@@ -378,7 +378,9 @@ final class CandoaUITests: XCTestCase {
         let row = element("tab-row-a-one", in: app)
         XCTAssertTrue(row.waitForExistence(timeout: 5), currentState(in: app))
         row.rightClick()
-        let favoriteItem = app.menuItems["Add to Favorites"]
+        // Scoped to the window: the Window menu holds an identically titled
+        // command, and the menu bar materializes in snapshots.
+        let favoriteItem = app.windows.firstMatch.menuItems["Add to Favorites"]
         XCTAssertTrue(favoriteItem.waitForExistence(timeout: 5), currentState(in: app))
         favoriteItem.click()
         XCTAssertTrue(waitForState(in: app, containing: "favorites=a-one"), currentState(in: app))
@@ -397,7 +399,7 @@ final class CandoaUITests: XCTestCase {
 
         // Un-favoriting from here returns the tab to the Space on screen.
         tile.rightClick()
-        let unfavoriteItem = app.menuItems["Remove from Favorites"]
+        let unfavoriteItem = app.windows.firstMatch.menuItems["Remove from Favorites"]
         XCTAssertTrue(unfavoriteItem.waitForExistence(timeout: 5), currentState(in: app))
         unfavoriteItem.click()
         XCTAssertTrue(waitForState(in: app, containing: "favorites=;"), currentState(in: app))
@@ -2899,6 +2901,250 @@ final class CandoaUITests: XCTestCase {
             RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.25))
         }
         return FileManager.default.fileExists(atPath: url.path)
+    }
+
+    // MARK: - Develop menu (Safari parity)
+
+    /// The Develop menu mirrors Safari's order with Candoa's own items kept:
+    /// opening elsewhere and user-agent spoofing up top, developer mode, the
+    /// inspector family, recording tools, caches, and the copy commands. With
+    /// a real page loaded every page-scoped command is enabled.
+    func testDevelopMenuOffersSafariParityCommands() throws {
+        let app = launchApp(fixture: "popup-open")
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
+
+        openFixtureTab(path: "develop", in: app)
+        XCTAssertTrue(waitForState(in: app, containing: "loading=false"), currentState(in: app))
+
+        let developMenu = app.menuBarItems["Develop"]
+        XCTAssertTrue(developMenu.waitForExistence(timeout: 5))
+        developMenu.click()
+
+        let openPageWithItem = app.menuItems["Open Page With"]
+        XCTAssertTrue(openPageWithItem.waitForExistence(timeout: 3))
+        XCTAssertTrue(openPageWithItem.isEnabled)
+        let userAgentItem = app.menuItems["User Agent"]
+        XCTAssertTrue(userAgentItem.exists)
+        XCTAssertTrue(userAgentItem.isEnabled)
+
+        XCTAssertTrue(app.menuItems["Turn On Developer Mode"].exists)
+
+        for title in [
+            "Connect Web Inspector",
+            "Show JavaScript Console",
+            "Show Page Source",
+            "Show Page Resources",
+            "Start Timeline Recording",
+            "Start Element Selection",
+            "Empty Caches",
+        ] {
+            let item = app.menuItems[title]
+            XCTAssertTrue(item.exists, "missing Develop item \(title)")
+            XCTAssertTrue(item.isEnabled, "\(title) should be enabled with a page loaded")
+        }
+
+        XCTAssertTrue(app.menuItems["Copy URL"].exists)
+        XCTAssertTrue(app.menuItems["Copy URL as Markdown"].exists)
+
+        // The User Agent submenu carries the default plus the six spoofs.
+        userAgentItem.click()
+        XCTAssertTrue(app.menuItems["Default"].waitForExistence(timeout: 3))
+        for presetTitle in [
+            "Safari — macOS",
+            "Safari — iOS",
+            "Safari — iPadOS",
+            "Google Chrome — macOS",
+            "Firefox — macOS",
+            "Microsoft Edge — macOS",
+        ] {
+            XCTAssertTrue(
+                app.menuItems[presetTitle].exists,
+                "missing User Agent preset \(presetTitle)"
+            )
+        }
+
+        // Open Page With lists the installed HTTPS handlers; the exact set is
+        // machine-dependent, but Safari ships with macOS.
+        openPageWithItem.click()
+        XCTAssertTrue(app.menuItems["Safari"].waitForExistence(timeout: 3))
+
+        // One escape per open menu level: submenu, then the Develop menu.
+        app.typeKey(.escape, modifierFlags: [])
+        app.typeKey(.escape, modifierFlags: [])
+    }
+
+    /// Without a loaded page there is nothing to inspect or hand off, so the
+    /// page-scoped Develop commands must be disabled. The split-view fixture
+    /// launches an empty Space with no active tab.
+    func testDevelopMenuItemsDisabledWithoutPage() throws {
+        let app = launchApp(fixture: "split-view")
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
+
+        XCTAssertTrue(waitForState(in: app, containing: "url=none"), currentState(in: app))
+
+        let developMenu = app.menuBarItems["Develop"]
+        XCTAssertTrue(developMenu.waitForExistence(timeout: 5))
+        developMenu.click()
+
+        for title in [
+            "Connect Web Inspector",
+            "Show JavaScript Console",
+            "Show Page Source",
+            "Show Page Resources",
+            "Empty Caches",
+        ] {
+            let item = app.menuItems[title]
+            XCTAssertTrue(item.waitForExistence(timeout: 3), "missing Develop item \(title)")
+            XCTAssertFalse(item.isEnabled, "\(title) must be disabled without a page")
+        }
+
+        app.typeKey(.escape, modifierFlags: [])
+    }
+
+    /// Develop ▸ Empty Caches clears the Space's caches and confirms through
+    /// the same toast surface the copy commands use.
+    func testEmptyCachesShowsToast() throws {
+        let app = launchApp(fixture: "popup-open")
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
+
+        openFixtureTab(path: "develop", in: app)
+        XCTAssertTrue(waitForState(in: app, containing: "loading=false"), currentState(in: app))
+
+        let developMenu = app.menuBarItems["Develop"]
+        XCTAssertTrue(developMenu.waitForExistence(timeout: 5))
+        developMenu.click()
+
+        let emptyCachesItem = app.menuItems["Empty Caches"]
+        XCTAssertTrue(emptyCachesItem.waitForExistence(timeout: 3))
+        XCTAssertTrue(emptyCachesItem.isEnabled)
+        emptyCachesItem.click()
+
+        XCTAssertTrue(
+            app.staticTexts["Caches Emptied"].waitForExistence(timeout: 5),
+            currentState(in: app)
+        )
+    }
+
+    // MARK: - Window and Help menus (Safari parity)
+
+    /// Window ▸ Arrange Tabs By ▸ Title re-sorts the active Space's regular
+    /// bucket alphabetically. New tabs land at the top of their bucket, so
+    /// opening "apricot" before "banana" leaves the sidebar in the reversed
+    /// order the command must fix.
+    func testArrangeTabsByTitleSortsActiveSpaceTabs() throws {
+        let app = launchApp(fixture: "split-view")
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
+
+        openFixtureTab(path: "apricot", in: app)
+        openFixtureTab(path: "banana", in: app)
+        XCTAssertTrue(waitForState(in: app, containing: "tabs=banana|apricot"), currentState(in: app))
+
+        let windowMenu = app.menuBarItems["Window"]
+        XCTAssertTrue(windowMenu.waitForExistence(timeout: 5))
+        windowMenu.click()
+
+        let arrangeItem = app.menuItems["Arrange Tabs By"]
+        XCTAssertTrue(arrangeItem.waitForExistence(timeout: 3))
+        XCTAssertTrue(arrangeItem.isEnabled, "two regular tabs make the bucket sortable")
+        arrangeItem.click()
+
+        let titleItem = app.menuItems["Title"]
+        XCTAssertTrue(titleItem.waitForExistence(timeout: 3))
+        XCTAssertTrue(app.menuItems["Website"].exists)
+        titleItem.click()
+
+        XCTAssertTrue(waitForState(in: app, containing: "tabs=apricot|banana"), currentState(in: app))
+    }
+
+    /// With at most one tab in every bucket there is nothing to sort, so the
+    /// Arrange Tabs By submenu greys out instead of offering a no-op.
+    func testArrangeTabsDisabledWithSingleTab() throws {
+        // The split-view fixture is an empty Space; a single opened tab is
+        // the only sortable candidate, which is not enough.
+        let app = launchApp(fixture: "split-view")
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
+
+        openFixtureTab(path: "solo", in: app)
+        XCTAssertTrue(waitForState(in: app, containing: "tabs=solo"), currentState(in: app))
+
+        let windowMenu = app.menuBarItems["Window"]
+        XCTAssertTrue(windowMenu.waitForExistence(timeout: 5))
+        windowMenu.click()
+
+        // AppKit keeps submenu parents enabled, so the child items carry
+        // the disabled state.
+        let arrangeItem = app.menuItems["Arrange Tabs By"]
+        XCTAssertTrue(arrangeItem.waitForExistence(timeout: 3))
+        arrangeItem.click()
+
+        let titleItem = arrangeItem.menuItems["Title"]
+        XCTAssertTrue(titleItem.waitForExistence(timeout: 3))
+        XCTAssertFalse(titleItem.isEnabled, "a single tab must not be sortable")
+        let websiteItem = arrangeItem.menuItems["Website"]
+        XCTAssertTrue(websiteItem.exists)
+        XCTAssertFalse(websiteItem.isEnabled, "a single tab must not be sortable")
+
+        app.typeKey(.escape, modifierFlags: [])
+        app.typeKey(.escape, modifierFlags: [])
+    }
+
+    /// A page that never reported media leaves both mute commands with
+    /// nothing to act on, so they stay disabled.
+    func testMuteMenuItemsDisabledWithoutMedia() throws {
+        let app = launchApp(fixture: "popup-open")
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
+
+        openFixtureTab(path: "develop", in: app)
+        XCTAssertTrue(waitForState(in: app, containing: "loading=false"), currentState(in: app))
+
+        let windowMenu = app.menuBarItems["Window"]
+        XCTAssertTrue(windowMenu.waitForExistence(timeout: 5))
+        windowMenu.click()
+
+        let muteThisItem = app.menuItems["Mute This Tab"]
+        XCTAssertTrue(muteThisItem.waitForExistence(timeout: 3))
+        XCTAssertFalse(muteThisItem.isEnabled, "no media on the active tab")
+
+        let muteOthersItem = app.menuItems["Mute Other Tabs"]
+        XCTAssertTrue(muteOthersItem.exists)
+        XCTAssertFalse(muteOthersItem.isEnabled, "no other tab has unmuted media")
+
+        app.typeKey(.escape, modifierFlags: [])
+    }
+
+    /// Help ▸ Acknowledgments opens its own small window with the bundled
+    /// credits; the window's close button tears it back down.
+    func testHelpMenuOpensAcknowledgments() throws {
+        let app = launchApp(fixture: "split-view")
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
+        XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 10))
+
+        let helpMenu = app.menuBarItems["Help"]
+        XCTAssertTrue(helpMenu.waitForExistence(timeout: 5))
+        helpMenu.click()
+
+        let acknowledgmentsItem = app.menuItems["Acknowledgments"]
+        XCTAssertTrue(acknowledgmentsItem.waitForExistence(timeout: 3))
+        acknowledgmentsItem.click()
+
+        let ackWindow = app.windows["Acknowledgments"]
+        XCTAssertTrue(ackWindow.waitForExistence(timeout: 5))
+        XCTAssertTrue(
+            element("acknowledgments-view", in: ackWindow).waitForExistence(timeout: 5)
+        )
+        // The bundled Credits.rtf names the open-source software.
+        XCTAssertTrue(
+            ackWindow.staticTexts.containing(
+                NSPredicate(format: "value CONTAINS %@", "Sparkle")
+            ).firstMatch.waitForExistence(timeout: 5)
+        )
+
+        ackWindow.buttons[XCUIIdentifierCloseWindow].click()
+        let windowGone = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "exists == false"),
+            object: ackWindow
+        )
+        XCTAssertEqual(XCTWaiter.wait(for: [windowGone], timeout: 10), .completed)
     }
 
     // MARK: - Reader mode (issue #34)
