@@ -1,14 +1,17 @@
 import AppKit
 import SwiftUI
 
-/// Fills the menus whose contents are the person's own browsing: History gets
-/// the pages they visited, Spaces gets their Spaces.
+/// Fills the History menu with the pages the person visited.
 ///
 /// This is an `NSMenu` delegate rather than SwiftUI `Commands` because the
 /// list has to be built lazily. SwiftUI rebuilds a menu whenever its focused
 /// values change, which would mean querying history on every navigation —
 /// steady-state work for a menu nobody has opened. `menuNeedsUpdate` runs only
 /// when the menu is pulled down.
+///
+/// Only History is built this way. A menu SwiftUI declares stays SwiftUI's to
+/// fill: it rebuilds its own items as the menu bar opens, discarding rows a
+/// delegate appended, which left the Spaces menu blank after a Space switch.
 @MainActor
 final class BrowserMenuController: NSObject, NSMenuDelegate {
     static let shared = BrowserMenuController()
@@ -63,21 +66,16 @@ final class BrowserMenuController: NSObject, NSMenuDelegate {
     }
 
     private func attachToHistoryMenu(retries: Int = 0) {
-        let menus = [historyMenu, spacesMenu].compactMap { $0 }
-        for menu in menus where menu.delegate !== self {
-            menu.delegate = self
+        if let menu = historyMenu {
+            if menu.delegate !== self {
+                menu.delegate = self
+            }
+            return
         }
 
-        guard menus.count < 2, retries > 0 else { return }
+        guard retries > 0 else { return }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
             self?.attachToHistoryMenu(retries: retries - 1)
-        }
-    }
-
-    private var spacesMenu: NSMenu? {
-        let submenus: [NSMenu] = NSApp.mainMenu?.items.compactMap(\.submenu) ?? []
-        return submenus.first { menu in
-            menu.items.contains { $0.title == BrowserCommandTitles.newSpace }
         }
     }
 
@@ -100,11 +98,6 @@ final class BrowserMenuController: NSObject, NSMenuDelegate {
     // MARK: - NSMenuDelegate
 
     func menuNeedsUpdate(_ menu: NSMenu) {
-        if menu === spacesMenu {
-            updateSpaces(menu)
-            return
-        }
-
         // SwiftUI sets each command's enabled state itself; leaving AppKit's
         // automatic enabling on lets it override those values with whatever
         // the responder chain reports, which goes stale.
@@ -153,69 +146,6 @@ final class BrowserMenuController: NSObject, NSMenuDelegate {
 
     @objc private func returnToSearchResults(_ sender: NSMenuItem) {
         activeStore?.returnToSearchResults()
-    }
-
-    // MARK: - Spaces
-
-    /// The Spaces themselves, under the commands that act on one — the shape
-    /// Arc uses. The active Space is checked, and each carries the
-    /// Control-number shortcut that already switches to it.
-    private func updateSpaces(_ menu: NSMenu) {
-        for item in menu.items where item.tag == Self.dynamicItemTag {
-            menu.removeItem(item)
-        }
-
-        guard let store = activeStore, !store.spaces.isEmpty else { return }
-
-        let separator = NSMenuItem.separator()
-        separator.tag = Self.dynamicItemTag
-        menu.addItem(separator)
-
-        for (index, space) in store.spaces.enumerated() {
-            let item = NSMenuItem(
-                title: space.name,
-                action: #selector(switchToSpace(_:)),
-                keyEquivalent: index < 9 ? String(index + 1) : ""
-            )
-            item.keyEquivalentModifierMask = .control
-            item.target = self
-            item.representedObject = space.id
-            item.tag = Self.dynamicItemTag
-            item.state = space.id == store.activeSpaceID ? .on : .off
-            item.image = Self.spaceIcon(for: space)
-            menu.addItem(item)
-        }
-    }
-
-    /// The Space's own icon, so the menu reads like the Space switcher. Spaces
-    /// carry either an SF Symbol or an emoji, and an emoji has to be drawn.
-    private static func spaceIcon(for space: BrowserSpace) -> NSImage? {
-        // A Space that never picked an icon carries the picker's placeholder;
-        // drawing it would put an empty dashed box beside the name.
-        guard space.symbolName != BrowserSpace.noIconSymbolName else { return nil }
-
-        let size = NSSize(width: 16, height: 16)
-
-        if let emoji = space.iconEmoji {
-            let image = NSImage(size: size)
-            image.lockFocus()
-            (emoji as NSString).draw(
-                in: NSRect(origin: .zero, size: size),
-                withAttributes: [.font: NSFont.systemFont(ofSize: 13)]
-            )
-            image.unlockFocus()
-            return image
-        }
-
-        let image = NSImage(systemSymbolName: space.symbolName, accessibilityDescription: nil)
-        image?.size = size
-        image?.isTemplate = true
-        return image
-    }
-
-    @objc private func switchToSpace(_ sender: NSMenuItem) {
-        guard let id = sender.representedObject as? UUID else { return }
-        activeStore?.requestSpaceSelection(id)
     }
 
     // MARK: - Recently closed

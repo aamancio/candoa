@@ -510,6 +510,13 @@ struct ContentView: View {
                 await userStore.reconcilePendingSubscriptionIfNeeded(for: url)
             }
         }
+        .onChange(of: store.activeSpaceID) { _, _ in
+            // A Space is its tabs, and they live in the sidebar. Switching
+            // from the menu or the keyboard with the sidebar hidden would
+            // otherwise change everything off-screen, so the switch brings
+            // the sidebar back with it.
+            revealSidebar()
+        }
         .onChange(of: store.downloadsStore.items.first?.id) { _, newestItemID in
             // A new download (or a PDF-HUD save) with no visible response
             // reads as a dead button — the Dock already bounces the
@@ -619,6 +626,9 @@ struct ContentView: View {
             isActiveTabFavorite: store.activeTab?.isFavorite == true,
             createSpace: store.beginSpaceCreation,
             editActiveSpace: { store.beginSpaceEditing(store.activeSpaceID) },
+            spaces: store.spaces,
+            activeSpaceID: store.activeSpaceID,
+            selectSpace: store.requestSpaceSelection,
             canToggleFavorite: store.activeTab?.url != nil,
             toggleFavoriteForActiveTab: store.toggleFavoriteForActiveTab,
             duplicateTab: store.duplicateCurrentTab,
@@ -775,12 +785,17 @@ struct ContentView: View {
         }
     }
 
+    /// Pins the sidebar open for something that needs it visible, leaving it
+    /// alone when it already is.
+    private func revealSidebar() {
+        guard !isSidebarVisible else { return }
+        isSidebarVisible = true
+        isSidebarHoverRevealed = false
+        isSidebarRevealSuppressed = false
+    }
+
     private func showQuickTour() {
-        if !isSidebarVisible {
-            isSidebarVisible = true
-            isSidebarHoverRevealed = false
-            isSidebarRevealSuppressed = false
-        }
+        revealSidebar()
         closeAISidebar()
         store.showQuickTour()
     }
