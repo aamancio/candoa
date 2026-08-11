@@ -619,7 +619,7 @@ private struct BrowserCommands: Commands {
         // Spaces are what Candoa is organized around, so they get the menu
         // Safari spends on bookmarks — the shape Arc, Dia and Zen all use:
         // the commands that act on the current Space, then the Spaces
-        // themselves, appended at runtime by BrowserMenuController.
+        // themselves.
         CommandMenu("Spaces") {
             Button(BrowserCommandTitles.newSpace) {
                 actions?.createSpace()
@@ -645,6 +645,22 @@ private struct BrowserCommands: Commands {
             }
             .keyboardShortcut(.rightArrow, modifiers: [.command, .option])
             .disabled(actions == nil)
+
+            if let actions, !actions.spaces.isEmpty {
+                Divider()
+
+                // The active Space is checked, the way a menu marks the one
+                // of a set that is current, and each row carries the
+                // Control-number shortcut that already switches to it.
+                ForEach(Array(actions.spaces.enumerated()), id: \.element.id) { index, space in
+                    SpaceCommandItem(
+                        space: space,
+                        isActive: space.id == actions.activeSpaceID,
+                        index: index,
+                        select: actions.selectSpace
+                    )
+                }
+            }
         }
 
         CommandMenu("Develop") {
@@ -670,6 +686,68 @@ private struct BrowserCommands: Commands {
             }
             .disabled(actions == nil)
         }
+    }
+}
+
+/// One Space in the Spaces menu. `Toggle` is how a menu marks the current one
+/// of a set, so the active Space carries the checkmark; choosing it again is a
+/// no-op, the same as clicking the Space you are already in.
+private struct SpaceCommandItem: View {
+    let space: BrowserSpace
+    let isActive: Bool
+    let index: Int
+    let select: (UUID) -> Void
+
+    var body: some View {
+        let item = Toggle(isOn: Binding(get: { isActive }, set: { _ in select(space.id) })) {
+            label
+        }
+
+        if index < 9 {
+            item.keyboardShortcut(
+                KeyEquivalent(Character("\(index + 1)")),
+                modifiers: .control
+            )
+        } else {
+            item
+        }
+    }
+
+    /// The Space's own icon, so the menu reads like the Space switcher. Spaces
+    /// carry either an SF Symbol or an emoji, and an emoji has to be drawn.
+    @ViewBuilder
+    private var label: some View {
+        if let emoji = space.iconEmoji {
+            Label { Text(space.name) } icon: { Image(nsImage: Self.emojiIcon(emoji)) }
+        } else if space.symbolName != BrowserSpace.noIconSymbolName {
+            // A Space that never picked an icon carries the picker's
+            // placeholder; drawing it would put an empty dashed box beside
+            // the name.
+            Label(space.name, systemImage: space.symbolName)
+        } else {
+            Text(space.name)
+        }
+    }
+
+    /// Drawn emoji are cached: the menu is rebuilt whenever a focused value
+    /// changes, and redrawing an image per Space per rebuild is steady-state
+    /// work for a menu nobody has opened.
+    @MainActor private static var emojiIcons: [String: NSImage] = [:]
+
+    @MainActor
+    private static func emojiIcon(_ emoji: String) -> NSImage {
+        if let cached = emojiIcons[emoji] { return cached }
+
+        let size = NSSize(width: 16, height: 16)
+        let image = NSImage(size: size)
+        image.lockFocus()
+        (emoji as NSString).draw(
+            in: NSRect(origin: .zero, size: size),
+            withAttributes: [.font: NSFont.systemFont(ofSize: 13)]
+        )
+        image.unlockFocus()
+        emojiIcons[emoji] = image
+        return image
     }
 }
 
@@ -721,6 +799,9 @@ struct BrowserCommandActions {
     var isActiveTabFavorite: Bool
     var createSpace: () -> Void
     var editActiveSpace: () -> Void
+    var spaces: [BrowserSpace]
+    var activeSpaceID: UUID
+    var selectSpace: (UUID) -> Void
     var canToggleFavorite: Bool
     var toggleFavoriteForActiveTab: () -> Void
     var duplicateTab: () -> Void
