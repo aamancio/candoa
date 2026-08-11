@@ -6,7 +6,7 @@ internal struct UpsertSpaceSidebarComposer: View {
     let mode: SpaceComposerMode
 
     @State private var name = ""
-    @State private var symbolName = "square.dashed"
+    @State private var symbolName = BrowserSpace.noIconSymbolName
     @State private var themeColorHex: String?
     @State private var themeAuxiliaryHexes: [String] = []
     @State private var themeAppearance = BrowserSpace.defaultThemeAppearance

@@ -190,6 +190,10 @@ final class BrowserMenuController: NSObject, NSMenuDelegate {
     /// The Space's own icon, so the menu reads like the Space switcher. Spaces
     /// carry either an SF Symbol or an emoji, and an emoji has to be drawn.
     private static func spaceIcon(for space: BrowserSpace) -> NSImage? {
+        // A Space that never picked an icon carries the picker's placeholder;
+        // drawing it would put an empty dashed box beside the name.
+        guard space.symbolName != BrowserSpace.noIconSymbolName else { return nil }
+
         let size = NSSize(width: 16, height: 16)
 
         if let emoji = space.iconEmoji {

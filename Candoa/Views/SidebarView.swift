@@ -1063,7 +1063,7 @@ struct SidebarView: View {
         } else if let space = store.spaces.first(where: { $0.id == spaceID }),
            !space.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             HStack(spacing: 8) {
-                if space.symbolName != "square.dashed" {
+                if space.symbolName != BrowserSpace.noIconSymbolName {
                     if let emoji = space.iconEmoji {
                         Text(emoji)
                             .font(.system(size: 15))
