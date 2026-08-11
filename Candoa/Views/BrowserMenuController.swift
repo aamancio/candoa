@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 /// Fills the menus whose contents are the person's own browsing: History gets
-/// the pages they visited, Favorites gets what they saved.
+/// the pages they visited, Spaces gets their Spaces.
 ///
 /// This is an `NSMenu` delegate rather than SwiftUI `Commands` because the
 /// list has to be built lazily. SwiftUI rebuilds a menu whenever its focused
@@ -63,7 +63,7 @@ final class BrowserMenuController: NSObject, NSMenuDelegate {
     }
 
     private func attachToHistoryMenu(retries: Int = 0) {
-        let menus = [historyMenu, favoritesMenu].compactMap { $0 }
+        let menus = [historyMenu, spacesMenu].compactMap { $0 }
         for menu in menus where menu.delegate !== self {
             menu.delegate = self
         }
@@ -74,12 +74,10 @@ final class BrowserMenuController: NSObject, NSMenuDelegate {
         }
     }
 
-    private var favoritesMenu: NSMenu? {
+    private var spacesMenu: NSMenu? {
         let submenus: [NSMenu] = NSApp.mainMenu?.items.compactMap(\.submenu) ?? []
         return submenus.first { menu in
-            let titles = menu.items.map(\.title)
-            return titles.contains(BrowserCommandTitles.addToFavorites)
-                || titles.contains(BrowserCommandTitles.removeFromFavorites)
+            menu.items.contains { $0.title == BrowserCommandTitles.newSpace }
         }
     }
 
@@ -102,8 +100,8 @@ final class BrowserMenuController: NSObject, NSMenuDelegate {
     // MARK: - NSMenuDelegate
 
     func menuNeedsUpdate(_ menu: NSMenu) {
-        if menu === favoritesMenu {
-            updateFavorites(menu)
+        if menu === spacesMenu {
+            updateSpaces(menu)
             return
         }
 
@@ -157,73 +155,63 @@ final class BrowserMenuController: NSObject, NSMenuDelegate {
         activeStore?.returnToSearchResults()
     }
 
-    // MARK: - Favorites
+    // MARK: - Spaces
 
-    /// The saved tabs themselves: Favorites first, then this Space's pinned
-    /// tabs. Selecting one switches to it — in Candoa these are tabs, not
-    /// addresses, so there is nothing to re-open.
-    private func updateFavorites(_ menu: NSMenu) {
+    /// The Spaces themselves, under the commands that act on one — the shape
+    /// Arc uses. The active Space is checked, and each carries the
+    /// Control-number shortcut that already switches to it.
+    private func updateSpaces(_ menu: NSMenu) {
         for item in menu.items where item.tag == Self.dynamicItemTag {
             menu.removeItem(item)
         }
 
-        guard let store = activeStore else { return }
-        let icons = Self.cachedIcons(from: store)
+        guard let store = activeStore, !store.spaces.isEmpty else { return }
 
-        // Same reason the History menu validates its own commands: once this
-        // delegate adds rows, SwiftUI stops updating the command it declared,
-        // so its title would keep saying "Add" for a page already saved.
-        if let item = menu.items.first(where: {
-            $0.title == BrowserCommandTitles.addToFavorites || $0.title == BrowserCommandTitles.removeFromFavorites
-        }) {
-            let isFavorite = store.activeTab?.isFavorite == true
-            item.title = isFavorite ? BrowserCommandTitles.removeFromFavorites : BrowserCommandTitles.addToFavorites
+        let separator = NSMenuItem.separator()
+        separator.tag = Self.dynamicItemTag
+        menu.addItem(separator)
+
+        for (index, space) in store.spaces.enumerated() {
+            let item = NSMenuItem(
+                title: space.name,
+                action: #selector(switchToSpace(_:)),
+                keyEquivalent: index < 9 ? String(index + 1) : ""
+            )
+            item.keyEquivalentModifierMask = .control
             item.target = self
-            item.action = #selector(toggleFavorite(_:))
-            item.isEnabled = store.activeTab?.url != nil
-        }
-
-        let groups: [(title: String, tabs: [BrowserTab])] = [
-            (BrowserCommandTitles.favoritesGroup, Array(store.favoriteTabs.prefix(Self.favoriteLimit))),
-            (BrowserCommandTitles.pinnedTabsGroup, Array(store.pinnedTabsForActiveSpace.prefix(Self.favoriteLimit)))
-        ]
-
-        for group in groups where !group.tabs.isEmpty {
-            let separator = NSMenuItem.separator()
-            separator.tag = Self.dynamicItemTag
-            menu.addItem(separator)
-
-            let header = NSMenuItem(title: group.title, action: nil, keyEquivalent: "")
-            header.isEnabled = false
-            header.tag = Self.dynamicItemTag
-            menu.addItem(header)
-
-            for tab in group.tabs {
-                let item = NSMenuItem(
-                    title: Self.title(for: tab.url, fallback: tab.title),
-                    action: #selector(activateSavedTab(_:)),
-                    keyEquivalent: ""
-                )
-                item.target = self
-                item.representedObject = tab.id
-                item.tag = Self.dynamicItemTag
-                item.toolTip = tab.url?.absoluteString
-                if let url = tab.url {
-                    item.image = Self.icon(for: url, icons: icons)
-                }
-                menu.addItem(item)
-            }
+            item.representedObject = space.id
+            item.tag = Self.dynamicItemTag
+            item.state = space.id == store.activeSpaceID ? .on : .off
+            item.image = Self.spaceIcon(for: space)
+            menu.addItem(item)
         }
     }
 
-    @objc private func toggleFavorite(_ sender: NSMenuItem) {
-        activeStore?.toggleFavoriteForActiveTab()
+    /// The Space's own icon, so the menu reads like the Space switcher. Spaces
+    /// carry either an SF Symbol or an emoji, and an emoji has to be drawn.
+    private static func spaceIcon(for space: BrowserSpace) -> NSImage? {
+        let size = NSSize(width: 16, height: 16)
+
+        if let emoji = space.iconEmoji {
+            let image = NSImage(size: size)
+            image.lockFocus()
+            (emoji as NSString).draw(
+                in: NSRect(origin: .zero, size: size),
+                withAttributes: [.font: NSFont.systemFont(ofSize: 13)]
+            )
+            image.unlockFocus()
+            return image
+        }
+
+        let image = NSImage(systemSymbolName: space.symbolName, accessibilityDescription: nil)
+        image?.size = size
+        image?.isTemplate = true
+        return image
     }
 
-    @objc private func activateSavedTab(_ sender: NSMenuItem) {
-        guard let id = sender.representedObject as? UUID, let store = activeStore else { return }
-        store.historyDismissRequestID = UUID()
-        store.activateFavorite(id)
+    @objc private func switchToSpace(_ sender: NSMenuItem) {
+        guard let id = sender.representedObject as? UUID else { return }
+        activeStore?.switchSpace(to: id)
     }
 
     // MARK: - Recently closed

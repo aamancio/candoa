@@ -32,6 +32,8 @@ enum BrowserCommandTitles {
     static let duplicateTab = String(localized: "Duplicate Tab")
     static let toggleSplitView = String(localized: "Toggle Split View")
     static let createSpace = String(localized: "Create Space")
+    static let newSpace = String(localized: "New Space…")
+    static let editSpace = String(localized: "Edit Space…")
     static let reopenClosedTab = String(localized: "Reopen Closed Tab")
     /// Safari's History-menu submenu listing the tabs closed this session.
     static let recentlyClosed = String(localized: "Recently Closed")
@@ -44,9 +46,6 @@ enum BrowserCommandTitles {
     static let clearUnpinnedTabs = String(localized: "Clear Unpinned Tabs")
     static let addToFavorites = String(localized: "Add to Favorites")
     static let removeFromFavorites = String(localized: "Remove from Favorites")
-    /// Section headers in the Favorites menu.
-    static let favoritesGroup = String(localized: "Favorites")
-    static let pinnedTabsGroup = String(localized: "Pinned Tabs")
     static let siteInfo = String(localized: "Site Info…")
     static let privacyReport = String(localized: "Privacy Report…")
     static let showReader = String(localized: "Show Reader")

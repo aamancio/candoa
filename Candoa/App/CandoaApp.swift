@@ -528,22 +528,20 @@ private struct BrowserCommands: Commands {
             .keyboardShortcut(.downArrow, modifiers: [.command, .option])
             .disabled(actions == nil)
 
-            Button(BrowserCommandTitles.previousSpace) {
-                actions?.previousSpace()
-            }
-            .keyboardShortcut(.leftArrow, modifiers: [.command, .option])
-            .disabled(actions == nil)
-
-            Button(BrowserCommandTitles.nextSpace) {
-                actions?.nextSpace()
-            }
-            .keyboardShortcut(.rightArrow, modifiers: [.command, .option])
-            .disabled(actions == nil)
-
             Button(actions?.isActiveTabPinned == true ? "Unpin Tab" : "Pin Tab") {
                 actions?.pinOrUnpinTab()
             }
             .disabled(actions == nil)
+
+            Button(
+                actions?.isActiveTabFavorite == true
+                    ? BrowserCommandTitles.removeFromFavorites
+                    : BrowserCommandTitles.addToFavorites
+            ) {
+                actions?.toggleFavoriteForActiveTab()
+            }
+            .keyboardShortcut("d", modifiers: [.command, .shift])
+            .disabled(actions?.canToggleFavorite != true)
 
             Button(BrowserCommandTitles.duplicateTab) {
                 actions?.duplicateTab()
@@ -618,24 +616,35 @@ private struct BrowserCommands: Commands {
             .disabled(actions?.canClearBrowsingData != true)
         }
 
-        // Candoa has no bookmarks: what it saves are Favorites and pinned
-        // tabs, which is what this menu adds to and lists. Syncing lives in
-        // Settings, not here — it is a preference, not a command.
-        CommandMenu("Favorites") {
-            Button(
-                actions?.isActiveTabFavorite == true
-                    ? BrowserCommandTitles.removeFromFavorites
-                    : BrowserCommandTitles.addToFavorites
-            ) {
-                actions?.toggleFavoriteForActiveTab()
+        // Spaces are what Candoa is organized around, so they get the menu
+        // Safari spends on bookmarks — the shape Arc, Dia and Zen all use:
+        // the commands that act on the current Space, then the Spaces
+        // themselves, appended at runtime by BrowserMenuController.
+        CommandMenu("Spaces") {
+            Button(BrowserCommandTitles.newSpace) {
+                actions?.createSpace()
             }
-            // Command-D is already Pin Tab, which is Candoa's own "save this
-            // page" gesture; favoriting is the wider one, a shift away.
-            .keyboardShortcut("d", modifiers: [.command, .shift])
-            .disabled(actions?.canToggleFavorite != true)
+            .keyboardShortcut("n", modifiers: [.command, .control])
+            .disabled(actions == nil)
 
-            // The saved tabs themselves are appended here at runtime by
-            // BrowserMenuController.
+            Button(BrowserCommandTitles.editSpace) {
+                actions?.editActiveSpace()
+            }
+            .disabled(actions == nil)
+
+            Divider()
+
+            Button(BrowserCommandTitles.previousSpace) {
+                actions?.previousSpace()
+            }
+            .keyboardShortcut(.leftArrow, modifiers: [.command, .option])
+            .disabled(actions == nil)
+
+            Button(BrowserCommandTitles.nextSpace) {
+                actions?.nextSpace()
+            }
+            .keyboardShortcut(.rightArrow, modifiers: [.command, .option])
+            .disabled(actions == nil)
         }
 
         CommandMenu("Develop") {
@@ -710,6 +719,8 @@ struct BrowserCommandActions {
     var pinOrUnpinTab: () -> Void
     var isActiveTabPinned: Bool
     var isActiveTabFavorite: Bool
+    var createSpace: () -> Void
+    var editActiveSpace: () -> Void
     var canToggleFavorite: Bool
     var toggleFavoriteForActiveTab: () -> Void
     var duplicateTab: () -> Void
