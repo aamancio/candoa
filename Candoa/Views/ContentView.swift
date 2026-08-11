@@ -617,6 +617,8 @@ struct ContentView: View {
             pinOrUnpinTab: store.togglePinForActiveTab,
             isActiveTabPinned: store.activeTab?.isPinned == true,
             isActiveTabFavorite: store.activeTab?.isFavorite == true,
+            createSpace: store.beginSpaceCreation,
+            editActiveSpace: { store.beginSpaceEditing(store.activeSpaceID) },
             canToggleFavorite: store.activeTab?.url != nil,
             toggleFavoriteForActiveTab: store.toggleFavoriteForActiveTab,
             duplicateTab: store.duplicateCurrentTab,
