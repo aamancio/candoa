@@ -1479,46 +1479,6 @@
         }
       }
     },
-    "Add Bookmark…" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Lesezeichen hinzufügen…"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Añadir marcador…"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ajouter un signet…"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ブックマークを追加…"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Adicionar Marcador…"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "添加书签…"
-          }
-        }
-      }
-    },
     "Add Split View" : {
       "localizations" : {
         "de" : {
@@ -2923,46 +2883,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Marcador"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "书签"
-          }
-        }
-      }
-    },
-    "Bookmarks" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Lesezeichen"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Marcadores"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Signets"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ブックマーク"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Marcadores"
           }
         },
         "zh-Hans" : {
@@ -8329,86 +8249,6 @@
         }
       }
     },
-    "Disable iCloud Sync for History" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "iCloud-Synchronisierung für den Verlauf deaktivieren"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Desactivar sincronización de iCloud para el historial"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Désactiver la synchronisation iCloud pour l’historique"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "履歴のiCloud同期をオフにする"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Desativar Sincronização do iCloud para o Histórico"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "停用历史记录的 iCloud 同步"
-          }
-        }
-      }
-    },
-    "Disable iCloud Sync for Spaces and Tabs" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "iCloud-Synchronisierung für Spaces und Tabs deaktivieren"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Desactivar sincronización de iCloud para Espacios y pestañas"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Désactiver la synchronisation iCloud pour les Espaces et les onglets"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "スペースとタブのiCloud同期をオフにする"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Desativar Sincronização do iCloud para Espaços e Abas"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "停用空间和标签页的 iCloud 同步"
-          }
-        }
-      }
-    },
     "Dismiss" : {
       "localizations" : {
         "de" : {
@@ -9736,86 +9576,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Candoa Pro 版 Eli"
-          }
-        }
-      }
-    },
-    "Enable iCloud Sync for History" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "iCloud-Synchronisierung für den Verlauf aktivieren"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Activar sincronización de iCloud para el historial"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Activer la synchronisation iCloud pour l’historique"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "履歴のiCloud同期をオンにする"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ativar Sincronização do iCloud para o Histórico"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "启用历史记录的 iCloud 同步"
-          }
-        }
-      }
-    },
-    "Enable iCloud Sync for Spaces and Tabs" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "iCloud-Synchronisierung für Spaces und Tabs aktivieren"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Activar sincronización de iCloud para Espacios y pestañas"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Activer la synchronisation iCloud pour les Espaces et les onglets"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "スペースとタブのiCloud同期をオンにする"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ativar Sincronização do iCloud para Espaços e Abas"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "启用空间和标签页的 iCloud 同步"
           }
         }
       }
@@ -12161,46 +11921,6 @@
         }
       }
     },
-    "iCloud Sync" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "iCloud-Synchronisierung"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sincronización con iCloud"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Synchronisation iCloud"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "iCloud同期"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sincronização do iCloud"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "iCloud 同步"
-          }
-        }
-      }
-    },
     "Icon" : {
       "localizations" : {
         "de" : {
@@ -13042,46 +12762,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "让空间、标签页、置顶网站和书签在你的所有Mac上保持可用。"
-          }
-        }
-      }
-    },
-    "Keep them available on Macs using this Apple Account." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Halten Sie sie auf Macs mit diesem Apple-Account verfügbar."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Mantenlos disponibles en los Mac que usen esta cuenta de Apple."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Gardez-les disponibles sur les Mac utilisant ce compte Apple."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "このAppleアカウントを使用しているMacで利用できるようにします。"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Mantenha-os disponíveis nos Macs que usam esta Conta Apple."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "让它们在使用此Apple账户的Mac上保持可用。"
           }
         }
       }
@@ -19536,46 +19216,6 @@
         }
       }
     },
-    "Requires Spaces sync." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Erfordert die Spaces-Synchronisierung."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Requiere la sincronización de Espacios."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nécessite la synchronisation des Espaces."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "スペースの同期が必要です。"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Requer a sincronização de Espaços."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "需要空间同步。"
-          }
-        }
-      }
-    },
     "Research" : {
       "localizations" : {
         "de" : {
@@ -25170,86 +24810,6 @@
         }
       }
     },
-    "Sync history" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Verlauf synchronisieren"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sincronizar historial"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Synchroniser l’historique"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "履歴を同期"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sincronizar histórico"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "同步历史记录"
-          }
-        }
-      }
-    },
-    "Sync Spaces and tabs with iCloud" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Spaces und Tabs mit iCloud synchronisieren"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sincronizar Espacios y pestañas con iCloud"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Synchroniser les Espaces et les onglets avec iCloud"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "スペースとタブをiCloudと同期"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sincronizar Espaços e abas com o iCloud"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "通过 iCloud 同步空间和标签页"
-          }
-        }
-      }
-    },
     "Tab" : {
       "comment" : "Name of the keyboard Tab key in shortcut settings — not a browser tab.",
       "localizations" : {
@@ -29200,6 +28760,48 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "缩小"
+          }
+        }
+      }
+    },
+    "Pinned Tabs" : {
+      "comment" : "Favorites menu: section listing this Space's pinned tabs.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Angeheftete Tabs"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pestañas fijadas"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Onglets épinglés"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "固定されたタブ"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abas fixadas"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已固定标签页"
           }
         }
       }

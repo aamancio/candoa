@@ -1,9 +1,8 @@
 import AppKit
 import SwiftUI
 
-/// Fills the History menu with the pages you have actually visited, the way
-/// Safari does: the recent ones inline, then a submenu per earlier day, plus
-/// the tabs you closed recently.
+/// Fills the menus whose contents are the person's own browsing: History gets
+/// the pages they visited, Favorites gets what they saved.
 ///
 /// This is an `NSMenu` delegate rather than SwiftUI `Commands` because the
 /// list has to be built lazily. SwiftUI rebuilds a menu whenever its focused
@@ -11,8 +10,8 @@ import SwiftUI
 /// steady-state work for a menu nobody has opened. `menuNeedsUpdate` runs only
 /// when the menu is pulled down.
 @MainActor
-final class HistoryMenuController: NSObject, NSMenuDelegate {
-    static let shared = HistoryMenuController()
+final class BrowserMenuController: NSObject, NSMenuDelegate {
+    static let shared = BrowserMenuController()
 
     /// Marks the items this controller owns, so a rebuild replaces only its
     /// own rows and leaves the SwiftUI-declared commands alone.
@@ -23,6 +22,7 @@ final class HistoryMenuController: NSObject, NSMenuDelegate {
     private static let dayLimit = 7
     private static let fetchLimit = 400
     private static let recentlyClosedLimit = 10
+    private static let favoriteLimit = 30
 
     private var stores: [ObjectIdentifier: WeakStore] = [:]
     private var observer: (any NSObjectProtocol)?
@@ -63,16 +63,23 @@ final class HistoryMenuController: NSObject, NSMenuDelegate {
     }
 
     private func attachToHistoryMenu(retries: Int = 0) {
-        if let menu = historyMenu {
-            if menu.delegate !== self {
-                menu.delegate = self
-            }
-            return
+        let menus = [historyMenu, favoritesMenu].compactMap { $0 }
+        for menu in menus where menu.delegate !== self {
+            menu.delegate = self
         }
 
-        guard retries > 0 else { return }
+        guard menus.count < 2, retries > 0 else { return }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
             self?.attachToHistoryMenu(retries: retries - 1)
+        }
+    }
+
+    private var favoritesMenu: NSMenu? {
+        let submenus: [NSMenu] = NSApp.mainMenu?.items.compactMap(\.submenu) ?? []
+        return submenus.first { menu in
+            let titles = menu.items.map(\.title)
+            return titles.contains(BrowserCommandTitles.addToFavorites)
+                || titles.contains(BrowserCommandTitles.removeFromFavorites)
         }
     }
 
@@ -95,6 +102,11 @@ final class HistoryMenuController: NSObject, NSMenuDelegate {
     // MARK: - NSMenuDelegate
 
     func menuNeedsUpdate(_ menu: NSMenu) {
+        if menu === favoritesMenu {
+            updateFavorites(menu)
+            return
+        }
+
         // SwiftUI sets each command's enabled state itself; leaving AppKit's
         // automatic enabling on lets it override those values with whatever
         // the responder chain reports, which goes stale.
@@ -143,6 +155,75 @@ final class HistoryMenuController: NSObject, NSMenuDelegate {
 
     @objc private func returnToSearchResults(_ sender: NSMenuItem) {
         activeStore?.returnToSearchResults()
+    }
+
+    // MARK: - Favorites
+
+    /// The saved tabs themselves: Favorites first, then this Space's pinned
+    /// tabs. Selecting one switches to it — in Candoa these are tabs, not
+    /// addresses, so there is nothing to re-open.
+    private func updateFavorites(_ menu: NSMenu) {
+        for item in menu.items where item.tag == Self.dynamicItemTag {
+            menu.removeItem(item)
+        }
+
+        guard let store = activeStore else { return }
+        let icons = Self.cachedIcons(from: store)
+
+        // Same reason the History menu validates its own commands: once this
+        // delegate adds rows, SwiftUI stops updating the command it declared,
+        // so its title would keep saying "Add" for a page already saved.
+        if let item = menu.items.first(where: {
+            $0.title == BrowserCommandTitles.addToFavorites || $0.title == BrowserCommandTitles.removeFromFavorites
+        }) {
+            let isFavorite = store.activeTab?.isFavorite == true
+            item.title = isFavorite ? BrowserCommandTitles.removeFromFavorites : BrowserCommandTitles.addToFavorites
+            item.target = self
+            item.action = #selector(toggleFavorite(_:))
+            item.isEnabled = store.activeTab?.url != nil
+        }
+
+        let groups: [(title: String, tabs: [BrowserTab])] = [
+            (BrowserCommandTitles.favoritesGroup, Array(store.favoriteTabs.prefix(Self.favoriteLimit))),
+            (BrowserCommandTitles.pinnedTabsGroup, Array(store.pinnedTabsForActiveSpace.prefix(Self.favoriteLimit)))
+        ]
+
+        for group in groups where !group.tabs.isEmpty {
+            let separator = NSMenuItem.separator()
+            separator.tag = Self.dynamicItemTag
+            menu.addItem(separator)
+
+            let header = NSMenuItem(title: group.title, action: nil, keyEquivalent: "")
+            header.isEnabled = false
+            header.tag = Self.dynamicItemTag
+            menu.addItem(header)
+
+            for tab in group.tabs {
+                let item = NSMenuItem(
+                    title: Self.title(for: tab.url, fallback: tab.title),
+                    action: #selector(activateSavedTab(_:)),
+                    keyEquivalent: ""
+                )
+                item.target = self
+                item.representedObject = tab.id
+                item.tag = Self.dynamicItemTag
+                item.toolTip = tab.url?.absoluteString
+                if let url = tab.url {
+                    item.image = Self.icon(for: url, icons: icons)
+                }
+                menu.addItem(item)
+            }
+        }
+    }
+
+    @objc private func toggleFavorite(_ sender: NSMenuItem) {
+        activeStore?.toggleFavoriteForActiveTab()
+    }
+
+    @objc private func activateSavedTab(_ sender: NSMenuItem) {
+        guard let id = sender.representedObject as? UUID, let store = activeStore else { return }
+        store.historyDismissRequestID = UUID()
+        store.activateFavorite(id)
     }
 
     // MARK: - Recently closed
@@ -291,9 +372,9 @@ final class HistoryMenuController: NSObject, NSMenuDelegate {
         }
     }
 
-    private static func title(for url: URL, fallback: String?) -> String {
+    private static func title(for url: URL?, fallback: String?) -> String {
         let trimmed = fallback?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        let title = trimmed.isEmpty ? (url.host(percentEncoded: false) ?? url.absoluteString) : trimmed
+        let title = trimmed.isEmpty ? (url?.host(percentEncoded: false) ?? url?.absoluteString ?? "") : trimmed
         // Menu rows stay one line; long article titles are truncated the way
         // AppKit truncates its own long menu titles.
         guard title.count > 60 else { return title }

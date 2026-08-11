@@ -616,6 +616,9 @@ struct ContentView: View {
             reopenClosedTab: store.reopenLastClosedTab,
             pinOrUnpinTab: store.togglePinForActiveTab,
             isActiveTabPinned: store.activeTab?.isPinned == true,
+            isActiveTabFavorite: store.activeTab?.isFavorite == true,
+            canToggleFavorite: store.activeTab?.url != nil,
+            toggleFavoriteForActiveTab: store.toggleFavoriteForActiveTab,
             duplicateTab: store.duplicateCurrentTab,
             clearUnpinnedTabs: store.clearUnpinnedTabs,
             copyURL: { store.copyActiveTabURL() },
@@ -629,10 +632,6 @@ struct ContentView: View {
             toggleSplitView: toggleSplitView,
             setSplitLayout: store.setSplitLayout,
             isSplitDisplayed: store.isSplitViewDisplayed,
-            isWorkspaceICloudSyncEnabled: store.iCloudWorkspaceSyncEnabled,
-            isHistoryICloudSyncEnabled: store.iCloudHistorySyncEnabled,
-            setWorkspaceICloudSyncEnabled: store.setWorkspaceICloudSyncEnabled,
-            setHistoryICloudSyncEnabled: store.setHistoryICloudSyncEnabled,
             isDeveloperModeAvailable: store.activeTab?.url != nil,
             isDeveloperModeEnabled: store.activeTab?.url.map {
                 DeveloperModeConfiguration.isEnabled(

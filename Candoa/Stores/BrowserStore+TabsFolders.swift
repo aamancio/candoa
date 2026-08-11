@@ -403,6 +403,11 @@ extension BrowserStore {
         regularTabsForActiveSpace.map(\.id).forEach(closeTab)
     }
 
+    func toggleFavoriteForActiveTab() {
+        guard let activeTabID else { return }
+        toggleFavorite(activeTabID)
+    }
+
     func togglePinForActiveTab() {
         guard let activeTabID else { return }
         togglePin(activeTabID)
