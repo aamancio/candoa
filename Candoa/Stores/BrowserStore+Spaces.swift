@@ -326,7 +326,15 @@ extension BrowserStore {
     func switchSpace(offset: Int) {
         guard !spaces.isEmpty, let currentIndex = spaces.firstIndex(where: { $0.id == activeSpaceID }) else { return }
         let nextIndex = (currentIndex + offset + spaces.count) % spaces.count
-        switchSpace(to: spaces[nextIndex].id)
+        requestSpaceSelection(spaces[nextIndex].id)
+    }
+
+    /// Switches Spaces the way clicking one in the sidebar does, animation
+    /// included. The sidebar fulfils the request; if it cannot animate right
+    /// now it falls back to switching outright, so the Space always changes.
+    func requestSpaceSelection(_ id: UUID) {
+        guard spaces.contains(where: { $0.id == id }), id != activeSpaceID else { return }
+        spaceSelectionRequest = SpaceSelectionRequest(spaceID: id)
     }
 }
 

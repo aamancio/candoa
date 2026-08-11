@@ -215,7 +215,7 @@ final class BrowserMenuController: NSObject, NSMenuDelegate {
 
     @objc private func switchToSpace(_ sender: NSMenuItem) {
         guard let id = sender.representedObject as? UUID else { return }
-        activeStore?.switchSpace(to: id)
+        activeStore?.requestSpaceSelection(id)
     }
 
     // MARK: - Recently closed

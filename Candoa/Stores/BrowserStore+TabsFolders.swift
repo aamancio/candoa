@@ -595,7 +595,7 @@ extension BrowserStore {
 
     func switchToSpace(at position: Int) {
         guard position >= 1, position <= spaces.count else { return }
-        switchSpace(to: spaces[position - 1].id)
+        requestSpaceSelection(spaces[position - 1].id)
     }
 
     /// Placement buckets are per-Space, except favorites: the global grid is

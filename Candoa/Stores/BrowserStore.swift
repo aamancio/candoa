@@ -70,6 +70,13 @@ struct SplitTabDropPreview: Equatable {
     var side: SplitTabDropSide
 }
 
+/// A Space switch asked for from outside the sidebar, which owns the
+/// transition between Spaces.
+struct SpaceSelectionRequest: Equatable {
+    let requestID = UUID()
+    let spaceID: UUID
+}
+
 struct SidebarTabDropIndicator: Equatable {
     var placement: SidebarTabDropPlacement
     var targetTabID: UUID?
@@ -251,6 +258,11 @@ final class BrowserStore: ObservableObject {
     @Published var spaceThemeOpacityPreview: Double?
     @Published var spaceThemeTexturePreview: Double?
     @Published var addressFocusRequestID = UUID()
+    /// A Space switch asked for from outside the sidebar — the menu, or a
+    /// keyboard shortcut. The sidebar owns the swipe transition between
+    /// Spaces, so it fulfils these and animates them like its own clicks.
+    @Published var spaceSelectionRequest: SpaceSelectionRequest?
+
     /// Bumped when something outside the window asks for the full-window
     /// History view to close — opening a page from the History menu, where
     /// leaving the view up would hide the page that was just opened.
