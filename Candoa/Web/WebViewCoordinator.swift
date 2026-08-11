@@ -11,15 +11,18 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
 
     static let pageZoomLevels: [CGFloat] = [0.5, 0.65, 0.8, 0.9, 1.0, 1.1, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0]
     static let browserAgentContentWorld = WKContentWorld.world(name: "CandoaBrowserAgent")
+    /// Ends at `Safari/605.1.15`, with nothing of ours appended. Sites match
+    /// the user agent against known-browser strings, and an unrecognized
+    /// trailing token reads as a scripted client — Google's unusual-traffic
+    /// interstitial being the one that bit us. Identify Candoa on our own
+    /// requests with a header instead; browsing traffic stays Safari-shaped.
     static let browserUserAgentApplicationName: String = {
         let safariVersion = NSWorkspace.shared
             .urlForApplication(withBundleIdentifier: "com.apple.Safari")
             .flatMap(Bundle.init(url:))?
             .object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
-        let appVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
 
-        return "Version/\(safariVersion ?? fallbackSafariVersion) "
-            + "Safari/605.1.15 Candoa/\(appVersion ?? "0")"
+        return "Version/\(safariVersion ?? fallbackSafariVersion) Safari/605.1.15"
     }()
 
     static var fallbackSafariVersion: String {
