@@ -61,6 +61,20 @@ struct CandoaApp: App {
                 .environmentObject(userStore)
                 .tint(AppColor.accent)
         }
+
+        // Help ▸ Acknowledgments. The same Credits.rtf also feeds the
+        // standard About panel, which picks it up from the bundle on its own.
+        Window(
+            BrowserCommandTitles.acknowledgments,
+            id: AppConfiguration.acknowledgmentsWindowSceneID
+        ) {
+            AcknowledgmentsView()
+        }
+        .windowResizability(.contentSize)
+        .defaultSize(width: 460, height: 380)
+        // Without this, the scene injects its own "Acknowledgments" row into
+        // the Window menu, duplicating the Help menu entry.
+        .commandsRemoved()
     }
 
     private static var initialWindowSize: CGSize {
@@ -516,43 +530,81 @@ private struct BrowserCommands: Commands {
         // Tab and Duplicate Tab. Spaces are Candoa's tab groups, so they take
         // the tab-group slot rather than a line in the View menu.
         CommandGroup(after: .windowArrangement) {
-            Button(BrowserCommandTitles.previousTab) {
-                actions?.previousTab()
-            }
-            .keyboardShortcut(.upArrow, modifiers: [.command, .option])
-            .disabled(actions == nil)
+            // Grouped to stay inside the commands builder's ten-element limit.
+            Group {
+                // Safari heads its tab section with Arrange Tabs By; the
+                // items ship without shortcuts because Safari's do too.
+                // AppKit auto-enables submenu parents, so the child items
+                // carry the disabled state as well.
+                Menu(BrowserCommandTitles.arrangeTabsBy) {
+                    Button(BrowserCommandTitles.arrangeTabsByTitle) {
+                        actions?.arrangeTabsByTitle()
+                    }
+                    .disabled(actions?.canArrangeTabs != true)
 
-            Button(BrowserCommandTitles.nextTab) {
-                actions?.nextTab()
-            }
-            .keyboardShortcut(.downArrow, modifiers: [.command, .option])
-            .disabled(actions == nil)
+                    Button(BrowserCommandTitles.arrangeTabsByWebsite) {
+                        actions?.arrangeTabsByWebsite()
+                    }
+                    .disabled(actions?.canArrangeTabs != true)
+                }
+                .disabled(actions?.canArrangeTabs != true)
 
-            Button(actions?.isActiveTabPinned == true ? "Unpin Tab" : "Pin Tab") {
-                actions?.pinOrUnpinTab()
-            }
-            .disabled(actions == nil)
+                Button(BrowserCommandTitles.previousTab) {
+                    actions?.previousTab()
+                }
+                .keyboardShortcut(.upArrow, modifiers: [.command, .option])
+                .disabled(actions == nil)
 
-            Button(
-                actions?.isActiveTabFavorite == true
-                    ? BrowserCommandTitles.removeFromFavorites
-                    : BrowserCommandTitles.addToFavorites
-            ) {
-                actions?.toggleFavoriteForActiveTab()
-            }
-            .keyboardShortcut("d", modifiers: [.command, .shift])
-            .disabled(actions?.canToggleFavorite != true)
+                Button(BrowserCommandTitles.nextTab) {
+                    actions?.nextTab()
+                }
+                .keyboardShortcut(.downArrow, modifiers: [.command, .option])
+                .disabled(actions == nil)
 
-            Button(BrowserCommandTitles.duplicateTab) {
-                actions?.duplicateTab()
-            }
-            .disabled(actions == nil)
+                Button(actions?.isActiveTabPinned == true ? "Unpin Tab" : "Pin Tab") {
+                    actions?.pinOrUnpinTab()
+                }
+                .disabled(actions == nil)
 
-            Button(BrowserCommandTitles.clearUnpinnedTabs) {
-                actions?.clearUnpinnedTabs()
+                Button(
+                    actions?.isActiveTabFavorite == true
+                        ? BrowserCommandTitles.removeFromFavorites
+                        : BrowserCommandTitles.addToFavorites
+                ) {
+                    actions?.toggleFavoriteForActiveTab()
+                }
+                .keyboardShortcut("d", modifiers: [.command, .shift])
+                .disabled(actions?.canToggleFavorite != true)
+
+                Button(BrowserCommandTitles.duplicateTab) {
+                    actions?.duplicateTab()
+                }
+                .disabled(actions == nil)
+
+                Button(BrowserCommandTitles.clearUnpinnedTabs) {
+                    actions?.clearUnpinnedTabs()
+                }
+                .keyboardShortcut("k", modifiers: [.command, .shift])
+                .disabled(actions == nil)
             }
-            .keyboardShortcut("k", modifiers: [.command, .shift])
-            .disabled(actions == nil)
+
+            Group {
+                Divider()
+
+                Button(
+                    actions?.isActiveTabMuted == true
+                        ? BrowserCommandTitles.unmuteThisTab
+                        : BrowserCommandTitles.muteThisTab
+                ) {
+                    actions?.toggleActiveTabMute()
+                }
+                .disabled(actions?.canMuteActiveTab != true)
+
+                Button(BrowserCommandTitles.muteOtherTabs) {
+                    actions?.muteOtherTabs()
+                }
+                .disabled(actions?.canMuteOtherTabs != true)
+            }
         }
 
         CommandGroup(after: .help) {
@@ -560,6 +612,14 @@ private struct BrowserCommands: Commands {
                 actions?.showQuickTour()
             }
             .disabled(actions == nil)
+
+            Divider()
+
+            // The acknowledgments window is its own scene, so it opens with
+            // no browser window key — help stays reachable from anywhere.
+            Button(BrowserCommandTitles.acknowledgments) {
+                openWindow(id: AppConfiguration.acknowledgmentsWindowSceneID)
+            }
         }
 
         CommandMenu("History") {
@@ -663,28 +723,128 @@ private struct BrowserCommands: Commands {
             }
         }
 
+        // Safari's Develop menu order, keeping Candoa's own items: opening
+        // elsewhere and spoofing up top, developer mode, then the inspector
+        // family, recording tools, caches, and the copy commands.
         CommandMenu("Develop") {
-            Button(
-                actions?.isDeveloperModeEnabled == true
-                    ? BrowserCommandTitles.turnOffDeveloperMode
-                    : BrowserCommandTitles.turnOnDeveloperMode
-            ) {
-                guard let actions else { return }
-                actions.setDeveloperMode(!actions.isDeveloperModeEnabled)
-            }
-            .disabled(actions?.isDeveloperModeAvailable != true)
+            // Grouped to stay inside the commands builder's ten-element limit.
+            Group {
+                Menu(BrowserCommandTitles.openPageWith) {
+                    ForEach(actions?.installedBrowsers ?? []) { browser in
+                        Button(browser.name) {
+                            actions?.openPageWith(browser)
+                        }
+                        // AppKit auto-enables submenu parents, so children
+                        // carry the disabled state.
+                        .disabled(actions?.canUseDevelopTools != true)
+                    }
+                }
+                .disabled(
+                    actions?.canUseDevelopTools != true
+                        || actions?.installedBrowsers.isEmpty != false
+                )
 
-            Divider()
+                Menu(BrowserCommandTitles.userAgent) {
+                    ForEach(UserAgentPreset.allCases) { preset in
+                        Toggle(isOn: Binding(
+                            get: { preset == actions?.activeUserAgentPreset },
+                            set: { _ in actions?.setUserAgentPreset(preset) }
+                        )) {
+                            Text(preset.title)
+                        }
+                        .disabled(actions?.canUseDevelopTools != true)
 
-            Button(BrowserCommandTitles.copyURL) {
-                actions?.copyURL()
-            }
-            .disabled(actions == nil)
+                        // Safari separates the default from the spoofs.
+                        if preset == .standard {
+                            Divider()
+                        }
+                    }
+                }
+                .disabled(actions?.canUseDevelopTools != true)
 
-            Button(BrowserCommandTitles.copyURLAsMarkdown) {
-                actions?.copyURLAsMarkdown()
+                Divider()
+
+                Button(
+                    actions?.isDeveloperModeEnabled == true
+                        ? BrowserCommandTitles.turnOffDeveloperMode
+                        : BrowserCommandTitles.turnOnDeveloperMode
+                ) {
+                    guard let actions else { return }
+                    actions.setDeveloperMode(!actions.isDeveloperModeEnabled)
+                }
+                .disabled(actions?.isDeveloperModeAvailable != true)
+
+                Divider()
+
+                Button(BrowserCommandTitles.connectWebInspector) {
+                    actions?.showWebInspector()
+                }
+                .keyboardShortcut("i", modifiers: [.command, .option, .shift])
+                .disabled(actions?.canUseDevelopTools != true)
+
+                Button(BrowserCommandTitles.showJavaScriptConsole) {
+                    actions?.showJavaScriptConsole()
+                }
+                .keyboardShortcut("c", modifiers: [.command, .option])
+                .disabled(actions?.canUseDevelopTools != true)
+
+                Button(BrowserCommandTitles.showPageSource) {
+                    actions?.showPageSource()
+                }
+                .keyboardShortcut("u", modifiers: [.command, .option])
+                .disabled(actions?.canUseDevelopTools != true)
+
+                Button(BrowserCommandTitles.showPageResources) {
+                    actions?.showPageResources()
+                }
+                .keyboardShortcut("a", modifiers: [.command, .option])
+                .disabled(actions?.canUseDevelopTools != true)
             }
-            .disabled(actions == nil)
+
+            Group {
+                Divider()
+
+                Button(
+                    actions?.isRecordingTimeline == true
+                        ? BrowserCommandTitles.stopTimelineRecording
+                        : BrowserCommandTitles.startTimelineRecording
+                ) {
+                    actions?.toggleTimelineRecording()
+                }
+                .keyboardShortcut("t", modifiers: [.command, .option, .shift])
+                .disabled(actions?.canUseDevelopTools != true)
+
+                // Safari's Shift-Command-C belongs to Candoa's Copy URL, so
+                // element selection ships without a shortcut.
+                Button(
+                    actions?.isSelectingElement == true
+                        ? BrowserCommandTitles.stopElementSelection
+                        : BrowserCommandTitles.startElementSelection
+                ) {
+                    actions?.toggleElementSelection()
+                }
+                .disabled(actions?.canUseDevelopTools != true)
+
+                Divider()
+
+                Button(BrowserCommandTitles.emptyCaches) {
+                    actions?.emptyCaches()
+                }
+                .keyboardShortcut("e", modifiers: [.command, .option])
+                .disabled(actions?.canUseDevelopTools != true)
+
+                Divider()
+
+                Button(BrowserCommandTitles.copyURL) {
+                    actions?.copyURL()
+                }
+                .disabled(actions == nil)
+
+                Button(BrowserCommandTitles.copyURLAsMarkdown) {
+                    actions?.copyURLAsMarkdown()
+                }
+                .disabled(actions == nil)
+            }
         }
     }
 }
@@ -820,6 +980,28 @@ struct BrowserCommandActions {
     var isDeveloperModeAvailable: Bool
     var isDeveloperModeEnabled: Bool
     var setDeveloperMode: (Bool) -> Void
+    var installedBrowsers: [ExternalBrowserService.Browser]
+    var openPageWith: (ExternalBrowserService.Browser) -> Void
+    var canUseDevelopTools: Bool
+    var activeUserAgentPreset: UserAgentPreset
+    var setUserAgentPreset: (UserAgentPreset) -> Void
+    var showWebInspector: () -> Void
+    var showJavaScriptConsole: () -> Void
+    var showPageSource: () -> Void
+    var showPageResources: () -> Void
+    var isRecordingTimeline: Bool
+    var toggleTimelineRecording: () -> Void
+    var isSelectingElement: Bool
+    var toggleElementSelection: () -> Void
+    var emptyCaches: () -> Void
+    var arrangeTabsByTitle: () -> Void
+    var arrangeTabsByWebsite: () -> Void
+    var canArrangeTabs: Bool
+    var canMuteActiveTab: Bool
+    var isActiveTabMuted: Bool
+    var toggleActiveTabMute: () -> Void
+    var canMuteOtherTabs: Bool
+    var muteOtherTabs: () -> Void
 }
 
 private struct BrowserCommandActionsKey: FocusedValueKey {

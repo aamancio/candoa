@@ -121,6 +121,17 @@ extension WebViewCoordinator {
         """)
     }
 
+    func setMediaMuted(_ muted: Bool, tabID: UUID) {
+        webViews[tabID]?.evaluateJavaScript("""
+        (() => {
+          const selected = window.__candoaSelectMedia?.();
+          const medias = (selected ? [selected] : Array.from(document.querySelectorAll("video, audio")))
+            .filter((media) => media.readyState >= 1 || media.currentTime > 0);
+          medias.forEach((media) => { media.muted = \(muted); });
+        })();
+        """)
+    }
+
     func skipMediaTrack(tabID: UUID, forward: Bool) {
         let buttonSelectors = forward
             ? ".ytp-next-button, [aria-label='Next'], [data-testid='control-button-skip-forward']"

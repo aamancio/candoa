@@ -59,6 +59,7 @@
 		010000000000000000000178 /* BrowserImportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000068 /* BrowserImportService.swift */; };
 		A1B2C3D4E5F60718293A4B5C /* CommandPaletteSearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E4F5A60718293A4B5C /* CommandPaletteSearch.swift */; };
 		A1B2C3D4E5F60718293A4B5E /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B5D /* Localizable.xcstrings */; };
+		DE0000000000000000000107 /* Credits.rtf in Resources */ = {isa = PBXBuildFile; fileRef = DE0000000000000000000007 /* Credits.rtf */; };
 		A90000000000000000000101 /* HistoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A90000000000000000000001 /* HistoryStore.swift */; };
 		A90000000000000000000102 /* HistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A90000000000000000000002 /* HistoryView.swift */; };
 		CA00000000000000000A0103 /* ClearBrowsingDataSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA00000000000000000A0003 /* ClearBrowsingDataSheet.swift */; };
@@ -79,6 +80,12 @@
 		AA000000000000000000010D /* ImageTextRecognizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000000D /* ImageTextRecognizer.swift */; };
 		AB1000000000000000000101 /* WebsiteAppearanceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB1000000000000000000001 /* WebsiteAppearanceService.swift */; };
 		AB10000000000000000BD101 /* BrowsingDataService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB10000000000000000BD001 /* BrowsingDataService.swift */; };
+		DE0000000000000000000105 /* AcknowledgmentsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE0000000000000000000005 /* AcknowledgmentsView.swift */; };
+		DE0000000000000000000106 /* BrowserStore+TabArrangement.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE0000000000000000000006 /* BrowserStore+TabArrangement.swift */; };
+		DE0000000000000000000101 /* WebViewCoordinator+Inspector.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE0000000000000000000001 /* WebViewCoordinator+Inspector.swift */; };
+		DE0000000000000000000102 /* ExternalBrowserService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE0000000000000000000002 /* ExternalBrowserService.swift */; };
+		DE0000000000000000000103 /* UserAgentConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE0000000000000000000003 /* UserAgentConfiguration.swift */; };
+		DE0000000000000000000104 /* BrowserStore+DevelopMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE0000000000000000000004 /* BrowserStore+DevelopMenu.swift */; };
 		AB1200000000000000000101 /* WhatsNewBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB1200000000000000000001 /* WhatsNewBanner.swift */; };
 		AB1200000000000000000102 /* WhatsNewService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB1200000000000000000002 /* WhatsNewService.swift */; };
 		AB1300000000000000000102 /* ProviderModelDirectory.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB1300000000000000000002 /* ProviderModelDirectory.swift */; };
@@ -206,6 +213,7 @@
 		010000000000000000000067 /* InitialOnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InitialOnboardingView.swift; sourceTree = "<group>"; };
 		010000000000000000000068 /* BrowserImportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserImportService.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A4B5D /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
+		DE0000000000000000000007 /* Credits.rtf */ = {isa = PBXFileReference; lastKnownFileType = text.rtf; path = Credits.rtf; sourceTree = "<group>"; };
 		A90000000000000000000001 /* HistoryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryStore.swift; sourceTree = "<group>"; };
 		A90000000000000000000002 /* HistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryView.swift; sourceTree = "<group>"; };
 		CA00000000000000000A0003 /* ClearBrowsingDataSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClearBrowsingDataSheet.swift; sourceTree = "<group>"; };
@@ -226,6 +234,12 @@
 		AA000000000000000000000D /* ImageTextRecognizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageTextRecognizer.swift; sourceTree = "<group>"; };
 		AB1000000000000000000001 /* WebsiteAppearanceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebsiteAppearanceService.swift; sourceTree = "<group>"; };
 		AB10000000000000000BD001 /* BrowsingDataService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowsingDataService.swift; sourceTree = "<group>"; };
+		DE0000000000000000000005 /* AcknowledgmentsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AcknowledgmentsView.swift"; sourceTree = "<group>"; };
+		DE0000000000000000000006 /* BrowserStore+TabArrangement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+TabArrangement.swift"; sourceTree = "<group>"; };
+		DE0000000000000000000001 /* WebViewCoordinator+Inspector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WebViewCoordinator+Inspector.swift"; sourceTree = "<group>"; };
+		DE0000000000000000000002 /* ExternalBrowserService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ExternalBrowserService.swift"; sourceTree = "<group>"; };
+		DE0000000000000000000003 /* UserAgentConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UserAgentConfiguration.swift"; sourceTree = "<group>"; };
+		DE0000000000000000000004 /* BrowserStore+DevelopMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+DevelopMenu.swift"; sourceTree = "<group>"; };
 		AB1200000000000000000001 /* WhatsNewBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhatsNewBanner.swift; sourceTree = "<group>"; };
 		AB1200000000000000000002 /* WhatsNewService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhatsNewService.swift; sourceTree = "<group>"; };
 		AB1300000000000000000002 /* ProviderModelDirectory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderModelDirectory.swift; sourceTree = "<group>"; };
@@ -350,6 +364,7 @@
 				010000000000000000000003 /* BrowserSpace.swift */,
 				010000000000000000000004 /* BrowserWindowState.swift */,
 				01000000000000000000001C /* AppConfiguration.swift */,
+				DE0000000000000000000003 /* UserAgentConfiguration.swift */,
 				TF00000000000000000000A1 /* TabLoadFailure.swift */,
 				SI00000000000000000000A1 /* SitePermissions.swift */,
 				010000000000000000000051 /* HistoryVisit.swift */,
@@ -396,6 +411,7 @@
 				010000000000000000000064 /* CommandPaletteComponents.swift */,
 				010000000000000000000065 /* CommandPaletteModels.swift */,
 				010000000000000000000016 /* TabRowView.swift */,
+				DE0000000000000000000005 /* AcknowledgmentsView.swift */,
 				010000000000000000000017 /* SpaceSwitcherView.swift */,
 				E60000000000000000000001 /* SpaceSwipeTransition.swift */,
 				01000000000000000000001B /* TabSwitcherOverlay.swift */,
@@ -425,6 +441,7 @@
 				010000000000000000000040 /* ContentBlockerService.swift */,
 				AB1000000000000000000001 /* WebsiteAppearanceService.swift */,
 				AB10000000000000000BD001 /* BrowsingDataService.swift */,
+				DE0000000000000000000002 /* ExternalBrowserService.swift */,
 				01000000000000000000001D /* AppUpdateService.swift */,
 				AB1200000000000000000002 /* WhatsNewService.swift */,
 				AB1300000000000000000002 /* ProviderModelDirectory.swift */,
@@ -456,6 +473,7 @@
 				EF0000000000000000000005 /* WebPageScripts.swift */,
 				EF0000000000000000000007 /* WebViewCoordinator+Permissions.swift */,
 				EF0000000000000000000008 /* WebViewCoordinator+Hosting.swift */,
+				DE0000000000000000000001 /* WebViewCoordinator+Inspector.swift */,
 				EF0000000000000000000009 /* WebViewCoordinator+Hibernation.swift */,
 				EF000000000000000000000A /* WebViewCoordinator+Media.swift */,
 				RD00000000000000000000A1 /* ReaderMode.swift */,
@@ -472,6 +490,7 @@
 			children = (
 				BA0000000000000000000002 /* BrowserAgent */,
 				A1B2C3D4E5F60718293A4B5D /* Localizable.xcstrings */,
+				DE0000000000000000000007 /* Credits.rtf */,
 				010000000000000000000018 /* Info.plist */,
 				01000000000000000000001A /* Candoa.entitlements */,
 			);
@@ -506,10 +525,12 @@
 				AA0000000000000000000001 /* UserStore.swift */,
 				AA0000000000000000000002 /* BrowserStore+Testing.swift */,
 				AA0000000000000000000003 /* BrowserStore+CommandPalette.swift */,
+				DE0000000000000000000004 /* BrowserStore+DevelopMenu.swift */,
 				AA0000000000000000000004 /* BrowserStore+Onboarding.swift */,
 				CD0000000000000000000001 /* DownloadsStore.swift */,
 				AA0000000000000000000005 /* BrowserStore+Spaces.swift */,
 				AA0000000000000000000006 /* BrowserStore+TabsFolders.swift */,
+				DE0000000000000000000006 /* BrowserStore+TabArrangement.swift */,
 				AA0000000000000000000007 /* BrowserStore+BrowserActions.swift */,
 				AAFC00000000000000000001 /* BrowserStore+FileCommands.swift */,
 				AA0000000000000000000008 /* BrowserStore+TabSwitching.swift */,
@@ -677,6 +698,7 @@
 				010000000000000000000150 /* Assets.xcassets in Resources */,
 				BA0000000000000000000102 /* BrowserAgent in Resources */,
 				A1B2C3D4E5F60718293A4B5E /* Localizable.xcstrings in Resources */,
+				DE0000000000000000000107 /* Credits.rtf in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -812,6 +834,12 @@
 				010000000000000000000140 /* ContentBlockerService.swift in Sources */,
 				AB1000000000000000000101 /* WebsiteAppearanceService.swift in Sources */,
 				AB10000000000000000BD101 /* BrowsingDataService.swift in Sources */,
+				DE0000000000000000000105 /* AcknowledgmentsView.swift in Sources */,
+				DE0000000000000000000106 /* BrowserStore+TabArrangement.swift in Sources */,
+				DE0000000000000000000101 /* WebViewCoordinator+Inspector.swift in Sources */,
+				DE0000000000000000000102 /* ExternalBrowserService.swift in Sources */,
+				DE0000000000000000000103 /* UserAgentConfiguration.swift in Sources */,
+				DE0000000000000000000104 /* BrowserStore+DevelopMenu.swift in Sources */,
 				010000000000000000000141 /* CopiedURLToastView.swift in Sources */,
 				010000000000000000000142 /* EliService.swift in Sources */,
 				EF0000000000000000000101 /* EliModels.swift in Sources */,

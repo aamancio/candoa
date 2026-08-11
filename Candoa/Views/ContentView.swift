@@ -654,7 +654,29 @@ struct ContentView: View {
             setDeveloperMode: { isEnabled in
                 guard let url = store.activeTab?.url else { return }
                 store.setDeveloperMode(isEnabled, for: url)
-            }
+            },
+            installedBrowsers: ExternalBrowserService.installedBrowsers(),
+            openPageWith: { store.openActivePage(with: $0) },
+            canUseDevelopTools: store.canUseDevelopTools,
+            activeUserAgentPreset: store.activeUserAgentPreset,
+            setUserAgentPreset: { store.setUserAgentPreset($0) },
+            showWebInspector: { store.showWebInspector() },
+            showJavaScriptConsole: { store.showJavaScriptConsole() },
+            showPageSource: { store.showPageSource() },
+            showPageResources: { store.showPageResources() },
+            isRecordingTimeline: store.isRecordingTimeline,
+            toggleTimelineRecording: { store.toggleTimelineRecording() },
+            isSelectingElement: store.isSelectingElement,
+            toggleElementSelection: { store.toggleElementSelection() },
+            emptyCaches: { store.emptyCaches() },
+            arrangeTabsByTitle: { store.arrangeTabs(by: .title) },
+            arrangeTabsByWebsite: { store.arrangeTabs(by: .website) },
+            canArrangeTabs: store.canArrangeTabs,
+            canMuteActiveTab: store.canMuteActiveTab,
+            isActiveTabMuted: store.isActiveTabMuted,
+            toggleActiveTabMute: { store.toggleActiveTabMute() },
+            canMuteOtherTabs: store.canMuteOtherTabs,
+            muteOtherTabs: { store.muteOtherTabs() }
         )
     }
 
