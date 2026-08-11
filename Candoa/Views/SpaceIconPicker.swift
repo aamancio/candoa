@@ -7,7 +7,7 @@ internal struct SpaceIconPreview: View {
 
     var body: some View {
         ZStack {
-            if symbolName == "square.dashed" {
+            if symbolName == BrowserSpace.noIconSymbolName {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
                     .stroke(
                         strokeColor,
@@ -15,7 +15,7 @@ internal struct SpaceIconPreview: View {
                     )
             }
 
-            if symbolName != "square.dashed" {
+            if symbolName != BrowserSpace.noIconSymbolName {
                 if let emoji = SpaceIconOption.emoji(from: symbolName) {
                     Text(emoji)
                         .font(.system(size: 16))
@@ -217,7 +217,7 @@ internal struct SpaceIconPicker: View {
 
                 Button {
                     onWillDismiss()
-                    selectedSymbolName = "square.dashed"
+                    selectedSymbolName = BrowserSpace.noIconSymbolName
                     isPresented = false
                 } label: {
                     Image(systemName: "trash")

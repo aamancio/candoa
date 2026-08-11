@@ -47,6 +47,10 @@ struct BrowserSpace: Identifiable, Codable, Hashable {
     /// persisted field a single string alongside SF Symbol names.
     static let emojiSymbolPrefix = "emoji:"
 
+    /// A Space with no icon of its own. Surfaces draw nothing for it rather
+    /// than the dashed placeholder the picker shows while choosing.
+    static let noIconSymbolName = "square.dashed"
+
     /// Apple's system-blue reference used when persisting an explicitly
     /// selected blue Space theme. The default theme has no color value.
     static let blueThemeColorHex = AppColor.blueThemeHex
