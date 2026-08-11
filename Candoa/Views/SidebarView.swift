@@ -50,6 +50,7 @@ struct SidebarView: View {
     let onWhatsNewDismissed: () -> Void
     let onToggleSidebar: () -> Void
     let isSidebarPinned: Bool
+    let onRevealSidebar: () -> Void
 
     @State private var isHoveringNewTab = false
     @State private var isHoveringAddressPill = false
@@ -445,6 +446,23 @@ struct SidebarView: View {
             return
         }
 
+        guard isSidebarPinned else {
+            // The transition is the sidebar sliding from one Space to the
+            // next, so a hidden sidebar would play it off-screen. Switching
+            // in the same transaction races the reveal commit (see the
+            // two-beat handoff pattern) — open the sidebar, then slide once
+            // it is in place.
+            onRevealSidebar()
+            CATransaction.setCompletionBlock {
+                slideToSpace(spaceID)
+            }
+            return
+        }
+
+        slideToSpace(spaceID)
+    }
+
+    private func slideToSpace(_ spaceID: UUID) {
         guard
             canSwipeSpaces,
             !isSettlingSpaceSwipe,

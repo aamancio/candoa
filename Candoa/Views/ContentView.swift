@@ -682,7 +682,8 @@ struct ContentView: View {
                     whatsNewService.acknowledge()
                 },
                 onToggleSidebar: toggleSidebar,
-                isSidebarPinned: isSidebarVisible
+                isSidebarPinned: isSidebarVisible,
+                onRevealSidebar: revealSidebar
             )
                 .frame(width: sidebarWidth)
         }
