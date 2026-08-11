@@ -95,6 +95,11 @@ final class HistoryMenuController: NSObject, NSMenuDelegate {
     // MARK: - NSMenuDelegate
 
     func menuNeedsUpdate(_ menu: NSMenu) {
+        // SwiftUI sets each command's enabled state itself; leaving AppKit's
+        // automatic enabling on lets it override those values with whatever
+        // the responder chain reports, which goes stale.
+        menu.autoenablesItems = false
+
         for item in menu.items where item.tag == Self.dynamicItemTag {
             menu.removeItem(item)
         }
@@ -103,6 +108,41 @@ final class HistoryMenuController: NSObject, NSMenuDelegate {
 
         insertRecentlyClosed(from: store, into: menu)
         insertVisits(from: store, into: menu)
+        validateStaticCommands(from: store, in: menu)
+    }
+
+    /// SwiftUI stops applying its own enabled states to this menu once the
+    /// delegate inserts rows into it — its items shift, and commands whose
+    /// state depends on a value (rather than on the actions being present at
+    /// all) go stale. Since the menu is the delegate's to build, it validates
+    /// those commands too, from the same store the rows come from.
+    private func validateStaticCommands(from store: BrowserStore, in menu: NSMenu) {
+        let states: [String: Bool] = [
+            BrowserCommandTitles.back: store.canGoBack,
+            BrowserCommandTitles.forward: store.canGoForward,
+            BrowserCommandTitles.returnToSearchResults: store.canReturnToSearchResults,
+            BrowserCommandTitles.reopenClosedTab: !store.recentlyClosedTabs.isEmpty,
+            BrowserCommandTitles.clearHistory: !store.isPrivate
+        ]
+
+        for item in menu.items {
+            guard let enabled = states[item.title] else { continue }
+            item.isEnabled = enabled
+        }
+
+        // Enabling a SwiftUI command whose own state says otherwise only
+        // changes how it looks — it still swallows the click — so the one
+        // command that depends on a changing value is driven from here
+        // instead, keeping its title and key equivalent.
+        if let item = menu.items.first(where: { $0.title == BrowserCommandTitles.returnToSearchResults }) {
+            item.target = self
+            item.action = #selector(returnToSearchResults(_:))
+            item.isEnabled = store.canReturnToSearchResults
+        }
+    }
+
+    @objc private func returnToSearchResults(_ sender: NSMenuItem) {
+        activeStore?.returnToSearchResults()
     }
 
     // MARK: - Recently closed
@@ -116,7 +156,7 @@ final class HistoryMenuController: NSObject, NSMenuDelegate {
         let submenu = NSMenu()
         for snapshot in closed {
             let item = NSMenuItem(
-                title: Self.title(for: snapshot.url, fallback: nil),
+                title: Self.title(for: snapshot.url, fallback: snapshot.title),
                 action: #selector(reopenClosedTab(_:)),
                 keyEquivalent: ""
             )
@@ -270,12 +310,14 @@ final class HistoryMenuController: NSObject, NSMenuDelegate {
     // MARK: - Actions
 
     @objc private func openVisit(_ sender: NSMenuItem) {
-        guard let url = sender.representedObject as? URL else { return }
-        activeStore?.navigateActiveTab(to: url)
+        guard let url = sender.representedObject as? URL, let store = activeStore else { return }
+        store.historyDismissRequestID = UUID()
+        store.navigateActiveTab(to: url)
     }
 
     @objc private func reopenClosedTab(_ sender: NSMenuItem) {
-        guard let url = sender.representedObject as? URL else { return }
-        activeStore?.reopenClosedTab(at: url)
+        guard let url = sender.representedObject as? URL, let store = activeStore else { return }
+        store.historyDismissRequestID = UUID()
+        store.reopenClosedTab(at: url)
     }
 }

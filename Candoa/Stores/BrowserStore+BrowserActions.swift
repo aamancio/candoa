@@ -215,6 +215,7 @@ extension BrowserStore {
         guard let url = tab.isFavorite ? tab.favoriteURL ?? tab.url : tab.url else { return }
         recentlyClosedTabs.append(ClosedTabSnapshot(
             url: url,
+            title: tab.title,
             isFavorite: tab.isFavorite,
             isPinned: tab.isPinned,
             spaceID: tab.spaceID

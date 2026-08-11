@@ -133,6 +133,9 @@ struct ContentView: View {
                         .id(store.activeSpaceID)
                         .padding(.leading, isSidebarVisible ? sidebarTotalWidth : 0)
                         .tint(AppColor.accent)
+                        .onChange(of: store.historyDismissRequestID) { _, _ in
+                            isHistoryPresented = false
+                        }
                     } else {
                         // Keep the WebKit host at one stable width when the left
                         // or right sidebar toggles. WebKit paints through a remote

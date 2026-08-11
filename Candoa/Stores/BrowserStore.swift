@@ -151,6 +151,9 @@ enum InitialTourTip: Int, CaseIterable {
 final class BrowserStore: ObservableObject {
     struct ClosedTabSnapshot {
         let url: URL
+        /// Kept so the History menu can name the tab the way it was titled,
+        /// rather than falling back to its host.
+        let title: String
         let isFavorite: Bool
         let isPinned: Bool
         let spaceID: UUID
@@ -248,6 +251,10 @@ final class BrowserStore: ObservableObject {
     @Published var spaceThemeOpacityPreview: Double?
     @Published var spaceThemeTexturePreview: Double?
     @Published var addressFocusRequestID = UUID()
+    /// Bumped when something outside the window asks for the full-window
+    /// History view to close — opening a page from the History menu, where
+    /// leaving the view up would hide the page that was just opened.
+    @Published var historyDismissRequestID = UUID()
     @Published var isTabSwitcherPresented = false
     @Published var tabSwitcherTabs: [BrowserTab] = []
     @Published var tabSwitcherSelectedTabID: UUID?
@@ -257,6 +264,10 @@ final class BrowserStore: ObservableObject {
     /// thumbnail beats an empty card, and a fresh capture replaces it.
     @Published var tabSwitcherSnapshots: [UUID: NSImage] = [:]
     @Published var canGoBack = false
+    /// Whether the active tab can jump back to the search results it came
+    /// from. Refreshed alongside canGoBack, because the back list itself
+    /// publishes nothing when it changes.
+    @Published var canReturnToSearchResults = false
     @Published var canGoForward = false
     @Published var draggedTabID: UUID?
     @Published var sidebarDropIndicator: SidebarTabDropIndicator?
