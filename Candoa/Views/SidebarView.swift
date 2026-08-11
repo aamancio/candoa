@@ -79,6 +79,10 @@ struct SidebarView: View {
     private let spaceSwitcherHeight: CGFloat = 32
     private let updateBannerHeight: CGFloat = 38
 
+    /// How long the Space slide waits after a hidden sidebar is revealed, so
+    /// the two reads as open-then-slide rather than one blurred move.
+    private static let revealBeforeSlideDelay: TimeInterval = 0.2
+
     /// Zen-style Essentials collapse unused grid tracks, so one or two tiles
     /// still consume the full row instead of leaving empty reserved slots.
     private func essentialColumns(for itemCount: Int) -> [GridItem] {
@@ -448,12 +452,12 @@ struct SidebarView: View {
 
         guard isSidebarPinned else {
             // The transition is the sidebar sliding from one Space to the
-            // next, so a hidden sidebar would play it off-screen. Switching
-            // in the same transaction races the reveal commit (see the
-            // two-beat handoff pattern) — open the sidebar, then slide once
-            // it is in place.
+            // next, so a hidden sidebar would play it off-screen. The reveal
+            // snaps in a single frame, so the slide waits a beat behind it:
+            // long enough to read the sidebar as open and the slide as the
+            // separate move it is, short enough to stay one gesture.
             onRevealSidebar()
-            CATransaction.setCompletionBlock {
+            DispatchQueue.main.asyncAfter(deadline: .now() + Self.revealBeforeSlideDelay) {
                 slideToSpace(spaceID)
             }
             return
