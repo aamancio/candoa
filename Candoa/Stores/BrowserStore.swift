@@ -271,6 +271,10 @@ final class BrowserStore: ObservableObject {
     /// rather than its own `onAppear` so a second Command-F — when the bar is
     /// already up — refocuses and selects the query, the way Safari does.
     @Published var findFocusRequestID = UUID()
+    /// Position of the current match among all of them, or nil when there is
+    /// nothing to count yet — an empty query, or a page the in-page find
+    /// engine could not tally.
+    @Published var findTally: WebViewCoordinator.FindTally?
     /// Resolved destination of the link under the pointer in a visible pane,
     /// shown as a transient pill over the page's bottom-leading corner.
     @Published var hoveredLinkHref: String?
