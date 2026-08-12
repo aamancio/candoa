@@ -83,6 +83,7 @@
 		DE0000000000000000000105 /* AcknowledgmentsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE0000000000000000000005 /* AcknowledgmentsView.swift */; };
 		DE0000000000000000000106 /* BrowserStore+TabArrangement.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE0000000000000000000006 /* BrowserStore+TabArrangement.swift */; };
 		DE0000000000000000000101 /* WebViewCoordinator+Inspector.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE0000000000000000000001 /* WebViewCoordinator+Inspector.swift */; };
+		DE0000000000000000000108 /* BrowserWebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE0000000000000000000008 /* BrowserWebView.swift */; };
 		DE0000000000000000000102 /* ExternalBrowserService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE0000000000000000000002 /* ExternalBrowserService.swift */; };
 		DE0000000000000000000103 /* UserAgentConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE0000000000000000000003 /* UserAgentConfiguration.swift */; };
 		DE0000000000000000000104 /* BrowserStore+DevelopMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE0000000000000000000004 /* BrowserStore+DevelopMenu.swift */; };
@@ -237,6 +238,7 @@
 		DE0000000000000000000005 /* AcknowledgmentsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AcknowledgmentsView.swift"; sourceTree = "<group>"; };
 		DE0000000000000000000006 /* BrowserStore+TabArrangement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+TabArrangement.swift"; sourceTree = "<group>"; };
 		DE0000000000000000000001 /* WebViewCoordinator+Inspector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WebViewCoordinator+Inspector.swift"; sourceTree = "<group>"; };
+		DE0000000000000000000008 /* BrowserWebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserWebView.swift; sourceTree = "<group>"; };
 		DE0000000000000000000002 /* ExternalBrowserService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ExternalBrowserService.swift"; sourceTree = "<group>"; };
 		DE0000000000000000000003 /* UserAgentConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UserAgentConfiguration.swift"; sourceTree = "<group>"; };
 		DE0000000000000000000004 /* BrowserStore+DevelopMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+DevelopMenu.swift"; sourceTree = "<group>"; };
@@ -474,6 +476,7 @@
 				EF0000000000000000000007 /* WebViewCoordinator+Permissions.swift */,
 				EF0000000000000000000008 /* WebViewCoordinator+Hosting.swift */,
 				DE0000000000000000000001 /* WebViewCoordinator+Inspector.swift */,
+				DE0000000000000000000008 /* BrowserWebView.swift */,
 				EF0000000000000000000009 /* WebViewCoordinator+Hibernation.swift */,
 				EF000000000000000000000A /* WebViewCoordinator+Media.swift */,
 				RD00000000000000000000A1 /* ReaderMode.swift */,
@@ -837,6 +840,7 @@
 				DE0000000000000000000105 /* AcknowledgmentsView.swift in Sources */,
 				DE0000000000000000000106 /* BrowserStore+TabArrangement.swift in Sources */,
 				DE0000000000000000000101 /* WebViewCoordinator+Inspector.swift in Sources */,
+				DE0000000000000000000108 /* BrowserWebView.swift in Sources */,
 				DE0000000000000000000102 /* ExternalBrowserService.swift in Sources */,
 				DE0000000000000000000103 /* UserAgentConfiguration.swift in Sources */,
 				DE0000000000000000000104 /* BrowserStore+DevelopMenu.swift in Sources */,
