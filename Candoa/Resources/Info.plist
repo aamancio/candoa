@@ -82,7 +82,8 @@
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>Dictate messages to Eli.</string>
 	<key>NSHumanReadableCopyright</key>
-	<string>MPL-2.0 License</string>
+	<string>Copyright © 2026 The Candoa Authors.
+MPL-2.0 License.</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
 </dict>
