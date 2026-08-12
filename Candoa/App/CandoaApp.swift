@@ -232,11 +232,12 @@ private struct AboutCommands: Commands {
     var body: some Commands {
         CommandGroup(replacing: .appInfo) {
             Button("About Candoa") {
-                // The standard panel appends the build number in parentheses;
-                // that counter is Sparkle plumbing, not something people
-                // should read. An empty version hides the parenthetical.
+                // Safari-style panel: icon, name, "Version x.y (build)", and
+                // the copyright lines only. Empty credits keep the standard
+                // panel from inlining Credits.rtf, which stays reachable via
+                // Help ▸ Acknowledgments.
                 NSApplication.shared.orderFrontStandardAboutPanel(
-                    options: [.version: ""]
+                    options: [.credits: NSAttributedString(string: "")]
                 )
             }
         }
