@@ -724,9 +724,9 @@ struct AISidebarComposerIconButton: View {
     var body: some View {
         Button(action: action) {
             Image(systemName: symbolName)
-                .font(.system(size: 17, weight: .semibold))
+                .font(.system(size: 15.5, weight: .semibold))
                 .foregroundStyle(foregroundStyle)
-                .frame(width: 28, height: 28)
+                .frame(width: 27, height: 27)
                 .background {
                     Circle()
                         .fill(backgroundFill)
@@ -762,9 +762,9 @@ struct AISidebarComposerSendButton: View {
     var body: some View {
         Button(action: action) {
             Image(systemName: "arrow.up")
-                .font(.system(size: 17, weight: .bold))
+                .font(.system(size: 15, weight: .bold))
                 .foregroundStyle(iconColor)
-                .frame(width: 34, height: 34)
+                .frame(width: 31, height: 31)
                 .background {
                     Circle()
                         .fill(backgroundFill)
@@ -828,29 +828,35 @@ struct AISidebarMentionButton: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 10) {
-                AISidebarMentionIcon(symbolName: symbolName, faviconData: faviconData, isSelected: isSelected)
+            HStack(spacing: 8) {
+                AISidebarMentionIcon(
+                    symbolName: symbolName,
+                    faviconData: faviconData,
+                    isSelected: isSelected,
+                    size: 16
+                )
 
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Untitled" : title)
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(isSelected ? Color.white : InterfaceStyle.sidebarText)
+                Text(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Untitled" : title)
+                    .font(.system(size: 13))
+                    .foregroundStyle(isSelected ? Color.white : InterfaceStyle.sidebarText)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+
+                if let detail, !detail.isEmpty {
+                    Text(detail)
+                        .font(.system(size: 11))
+                        .foregroundStyle(isSelected ? Color.white.opacity(0.72) : InterfaceStyle.sidebarTextSecondary)
                         .lineLimit(1)
-
-                    if let detail, !detail.isEmpty {
-                        Text(detail)
-                            .font(.system(size: 11))
-                            .foregroundStyle(isSelected ? Color.white.opacity(0.72) : InterfaceStyle.sidebarTextSecondary)
-                            .lineLimit(1)
-                    }
+                        .layoutPriority(1)
                 }
 
-                Spacer(minLength: 8)
+                Spacer(minLength: 4)
             }
-            .padding(.horizontal, 10)
-            .frame(height: 42)
+            .padding(.horizontal, 8)
+            .frame(height: 29)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .background(rowBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
             .contentShape(Rectangle())
         }
         .buttonTreatment(.content)
@@ -925,19 +931,19 @@ struct AISidebarContextChipView: View {
     }
 
     private var chipBody: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 8) {
             chipIcon
 
             VStack(alignment: .leading, spacing: 1) {
                 Text(chip.title)
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(InterfaceStyle.sidebarText)
                     .lineLimit(1)
                     .truncationMode(.tail)
 
                 if !chip.subtitle.isEmpty {
                     Text(chip.subtitle)
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.system(size: 11))
                         .foregroundStyle(InterfaceStyle.sidebarTextSecondary)
                         .lineLimit(1)
                         .truncationMode(.tail)
@@ -946,8 +952,8 @@ struct AISidebarContextChipView: View {
             .frame(maxWidth: 130, alignment: .leading)
         }
         .padding(.leading, 8)
-        .padding(.trailing, 12)
-        .frame(height: 46)
+        .padding(.trailing, 10)
+        .frame(height: 42)
         .background(Color.primary.opacity(0.075))
         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         .overlay {
@@ -986,9 +992,10 @@ struct AISidebarMentionIcon: View {
                 Image(nsImage: image)
                     .resizable()
                     .scaledToFit()
+                    .clipShape(RoundedRectangle(cornerRadius: size < 20 ? 3.5 : 5, style: .continuous))
             } else {
                 Image(systemName: symbolName)
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(.system(size: min(15, size * 0.78), weight: .semibold))
                     .foregroundStyle(isSelected ? Color.white.opacity(0.86) : InterfaceStyle.sidebarIcon)
             }
         }
@@ -1007,6 +1014,7 @@ struct AISidebarMentionOption: Identifiable {
 
 enum AISidebarMentionAction {
     case mention(AISidebarContextMention)
+    case mentionAllOpenTabs
     case uploadFile
 }
 

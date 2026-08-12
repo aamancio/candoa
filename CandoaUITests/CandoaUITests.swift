@@ -2399,6 +2399,44 @@ final class CandoaUITests: XCTestCase {
         add(attachment)
     }
 
+    func testEliMentionPickerSkipsAttachedTabsAndAddsAllOpenTabs() throws {
+        // Seeded TestingBot workspace: five tabs, "Apple" active. The active
+        // tab is attached as the current-page chip, so the mention picker
+        // must never offer it again.
+        let app = launchApp()
+
+        app.typeKey("e", modifierFlags: .command)
+        XCTAssertTrue(element("agent-sidebar", in: app).waitForExistence(timeout: 5), currentState(in: app))
+        XCTAssertTrue(waitForAskState(in: app, containing: "Apple|www.apple.com"), askState(in: app))
+
+        let field = app.textFields["agent-sidebar"].firstMatch
+        XCTAssertTrue(field.waitForExistence(timeout: 5), currentState(in: app))
+        field.click()
+
+        // "apple" matches the Apple tab and developer.apple.com. With the
+        // active Apple tab excluded, the first row is WebKit Documentation.
+        field.typeText("@apple")
+        field.typeKey(.return, modifierFlags: [])
+        XCTAssertTrue(
+            waitForAskState(in: app, containing: "WebKit Documentation|developer.apple.com"),
+            askState(in: app)
+        )
+
+        // Both "apple" tabs are attached now, so the same query offers no tab
+        // rows and the first row becomes "All open tabs", which attaches the
+        // remaining three tabs at once.
+        field.typeText("@apple")
+        field.typeKey(.return, modifierFlags: [])
+        XCTAssertTrue(waitForAskState(in: app, containing: "amazon.com"), askState(in: app))
+        XCTAssertTrue(waitForAskState(in: app, containing: "Granola"), askState(in: app))
+        XCTAssertTrue(waitForAskState(in: app, containing: "Home / X"), askState(in: app))
+
+        // The attached-tab exclusion means no tab is ever attached twice.
+        let state = askState(in: app)
+        let appleChipCount = state.components(separatedBy: "Apple|www.apple.com").count - 1
+        XCTAssertEqual(appleChipCount, 1, state)
+    }
+
     func testEliAgentNavigatesMultiplePagesAndConfirmsCancellation() throws {
         let app = launchApp(fixture: "ask-agent-navigation")
         let exactPrompt = "unsubscribe me from this service"
