@@ -103,6 +103,8 @@ struct BrowserAgentRunResponse: Codable, Sendable {
 struct BrowserAgentAction: Codable, Sendable {
     let snapshotID: UUID
     let kind: PageActionKind
+    /// A snapshot control ref, a scroll direction, or — for direct URL
+    /// navigation — empty/omitted on the wire.
     let target: String
     let value: String
     let label: String
@@ -122,6 +124,9 @@ struct BrowserAgentAction: Codable, Sendable {
                 browserAgentPageURL: page.url
             )
         }
+        if kind == .navigate {
+            return validatedNavigation(on: page)
+        }
 
         guard let control = page.controls.first(where: { $0.ref == target }),
               !control.disabled,
@@ -138,26 +143,73 @@ struct BrowserAgentAction: Codable, Sendable {
             }
         case .fill:
             guard control.kind == .field, !value.isEmpty else { return nil }
-        case .navigate:
-            guard control.kind == .link,
-                  let controlURL = control.url,
-                  controlURL == url,
-                  let destination = URL(string: controlURL),
-                  let current = URL(string: page.url),
-                  isSameSite(destination, current) else { return nil }
-        case .scroll:
+        case .navigate, .scroll:
             break
         }
 
         return PageActionProposal(
             kind: kind,
-            target: kind == .navigate ? (control.url ?? control.label) : control.label,
+            target: control.label,
             value: value.isEmpty ? nil : value,
             browserAgentReference: control.ref,
             browserAgentSnapshotID: snapshotID,
             browserAgentPageURL: page.url,
             browserAgentControlKind: control.kind
         )
+    }
+
+    /// A navigate is valid if EITHER the target is a snapshot link ref (which
+    /// stays same-site) OR `url` is a direct absolute http/https destination
+    /// (`target` may then be empty). Direct URL navigation loads natively in
+    /// the tab — reversible with Back — so cross-site is allowed there.
+    private func validatedNavigation(on page: BrowserAgentPage) -> PageActionProposal? {
+        if let control = page.controls.first(where: { $0.ref == target }),
+           !control.disabled,
+           control.label == label,
+           control.kind == .link,
+           let controlURL = control.url,
+           controlURL == url,
+           let destination = URL(string: controlURL),
+           let current = URL(string: page.url),
+           isSameSite(destination, current) {
+            return PageActionProposal(
+                kind: .navigate,
+                target: controlURL,
+                value: nil,
+                browserAgentReference: control.ref,
+                browserAgentSnapshotID: snapshotID,
+                browserAgentPageURL: page.url,
+                browserAgentControlKind: control.kind
+            )
+        }
+
+        guard let destination = validatedDirectNavigationURL else { return nil }
+        return PageActionProposal(
+            kind: .navigate,
+            target: destination.absoluteString,
+            value: nil,
+            browserAgentSnapshotID: snapshotID,
+            browserAgentPageURL: page.url
+        )
+    }
+
+    /// Accepts only an absolute http/https URL without userinfo and within a
+    /// bounded length; anything else is rejected rather than repaired.
+    private var validatedDirectNavigationURL: URL? {
+        guard let url,
+              url.count <= 2048,
+              let components = URLComponents(string: url),
+              let scheme = components.scheme?.lowercased(),
+              scheme == "http" || scheme == "https",
+              let host = components.host, !host.isEmpty,
+              components.user == nil,
+              components.password == nil,
+              let destination = components.url else { return nil }
+        return destination
+    }
+
+    fileprivate enum CodingKeys: String, CodingKey {
+        case snapshotID, kind, target, value, label, url, requiresApproval, message
     }
 
     private func labelsMatch(_ lhs: String, _ rhs: String) -> Bool {
@@ -175,6 +227,23 @@ struct BrowserAgentAction: Codable, Sendable {
     }
 }
 
+extension BrowserAgentAction {
+    // Custom decoding lives in an extension so the struct keeps its memberwise
+    // initializer (the UI-test fixtures use it): `target`, `value`, and
+    // `label` may be omitted on the wire for direct URL navigation.
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        snapshotID = try container.decode(UUID.self, forKey: .snapshotID)
+        kind = try container.decode(PageActionKind.self, forKey: .kind)
+        target = try container.decodeIfPresent(String.self, forKey: .target) ?? ""
+        value = try container.decodeIfPresent(String.self, forKey: .value) ?? ""
+        label = try container.decodeIfPresent(String.self, forKey: .label) ?? ""
+        url = try container.decodeIfPresent(String.self, forKey: .url)
+        requiresApproval = try container.decode(Bool.self, forKey: .requiresApproval)
+        message = try container.decode(String.self, forKey: .message)
+    }
+}
+
 enum BrowserAgentPolicy {
     /// The model's `requiresApproval` judgment is a floor, never a ceiling: an action
     /// that targets a structurally sensitive control (per the snapshot's DOM semantics)
@@ -185,6 +254,10 @@ enum BrowserAgentPolicy {
     ) -> Bool {
         if action.requiresApproval { return true }
         guard action.kind != .scroll else { return false }
+        // Direct URL navigation (an empty or non-ref target) matches no
+        // control here and is intentionally not sensitive on its own: it loads
+        // natively in the tab and is reversible with Back. The model's
+        // `requiresApproval` judgment above still gates it.
         return page.controls.first(where: { $0.ref == action.target })?.sensitive == true
     }
 

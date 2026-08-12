@@ -26,7 +26,6 @@ struct EliSidebarView: View {
     @State private var streamTask: Task<Void, Never>?
     @State private var includesCurrentPageContext = true
     @State private var lastSubmittedPageContext: AIPageContext?
-    @State private var pendingBrowserControl: PendingBrowserControl?
     @State private var pendingSensitiveAgentAction: PendingSensitiveAgentAction?
     @State private var browserAgentTask: Task<Void, Never>?
     @State private var isResolvingPageAction = false
@@ -306,24 +305,22 @@ struct EliSidebarView: View {
             }
         }
         .confirmationDialog(
-            "Let Eli take control of this browser tab?",
-            isPresented: Binding(
-                get: { pendingBrowserControl != nil },
-                set: { _ in }
-            ),
-            titleVisibility: .visible
-        ) {
-            Button("Allow This Task") { approvePendingControl() }
-            Button("Cancel", role: .cancel) { clearPendingControlPermission() }
-        } message: {
-            Text("Eli can control this tab only for the task you just requested. Sensitive actions still require confirmation.")
-                .accessibilityIdentifier("eli-page-action-permission-message")
-        }
-        .confirmationDialog(
             "Confirm this action?",
             isPresented: Binding(
                 get: { pendingSensitiveAgentAction != nil },
-                set: { _ in }
+                set: { isPresented in
+                    guard !isPresented else { return }
+                    // SwiftUI writes false for every dismissal — Esc, window or
+                    // scene churn — before any dialog button action runs. Defer
+                    // one beat so an explicit button can resolve the pending
+                    // action first; whatever is still pending afterwards was
+                    // dismissed without a decision and must be treated as a
+                    // deny, or the parked run would strand isResolvingPageAction
+                    // and block every future submission.
+                    DispatchQueue.main.async {
+                        stopPendingSensitiveAgentAction()
+                    }
+                }
             ),
             titleVisibility: .visible
         ) {
@@ -850,33 +847,31 @@ struct EliSidebarView: View {
         isPromptFocused = true
     }
 
-    private func approvePendingControl() {
-        guard let pendingBrowserControl else { return }
-        clearPendingControlPermission()
-        startBrowserAgent(goal: pendingBrowserControl.goal, tabID: pendingBrowserControl.tabID)
-    }
-
-    private func clearPendingControlPermission() {
-        pendingBrowserControl = nil
-    }
-
-    private func startBrowserAgent(goal: String, tabID: UUID?) {
-        guard let tabID else {
+    /// Starts a browser-agent run immediately: the user's request is the
+    /// consent for reversible browsing, so there is no per-task permission
+    /// dialog. Consequential actions are still confirmed individually via
+    /// `pendingSensitiveAgentAction` during the run.
+    private func startBrowserAgent(goal: String, tabID: UUID?, reusing responseID: UUID) {
+        // The run must start (or fail visibly) even when the streaming message
+        // is gone — e.g. the conversation was reset while the request was in
+        // flight — so behavior never hinges on a messages lookup.
+        if let index = messages.firstIndex(where: { $0.id == responseID }) {
+            messages[index].text = ""
+            messages[index].isStreaming = true
+            messages[index].transientStatus = String(localized: "Looking at this page…")
+        } else {
             messages.append(AISidebarMessage(
+                id: responseID,
                 role: .assistant,
-                text: String(localized: "That browser tab is no longer open."),
-                isStreaming: false
+                text: "",
+                isStreaming: true,
+                transientStatus: String(localized: "Looking at this page…")
             ))
+        }
+        guard let tabID else {
+            finishBrowserAgentMessage(responseID, message: String(localized: "That browser tab is no longer open."))
             return
         }
-        let responseID = UUID()
-        messages.append(AISidebarMessage(
-            id: responseID,
-            role: .assistant,
-            text: "",
-            isStreaming: true,
-            transientStatus: String(localized: "Looking at this page…")
-        ))
         isResolvingPageAction = true
         let state = BrowserAgentRunState(
             runID: UUID(),
@@ -1003,9 +998,14 @@ struct EliSidebarView: View {
         }
     }
 
+    /// Denies the parked sensitive action: ends the cloud workflow with
+    /// `.rejected` and finalizes the run's status message. This is the single
+    /// path for every non-approval outcome — the Stop button, Esc, and any
+    /// other dialog dismissal all land here.
     private func stopPendingSensitiveAgentAction() {
         guard let pending = pendingSensitiveAgentAction else { return }
         pendingSensitiveAgentAction = nil
+        browserAgentTask?.cancel()
         browserAgentTask = Task {
             do {
                 let response = try await store.resumeBrowserAgentRun(
@@ -1017,7 +1017,12 @@ struct EliSidebarView: View {
                         page: nil
                     )
                 )
-                finishBrowserAgent(pending.state, message: response.message)
+                finishBrowserAgent(
+                    pending.state,
+                    message: response.message.isEmpty
+                        ? String(localized: "I stopped before making that change.")
+                        : response.message
+                )
             } catch {
                 finishBrowserAgent(pending.state, message: String(localized: "I stopped before making that change."))
             }
@@ -1025,7 +1030,11 @@ struct EliSidebarView: View {
     }
 
     private func finishBrowserAgent(_ state: BrowserAgentRunState, message: String) {
-        if let index = messages.firstIndex(where: { $0.id == state.responseID }) {
+        finishBrowserAgentMessage(state.responseID, message: message)
+    }
+
+    private func finishBrowserAgentMessage(_ responseID: UUID, message: String) {
+        if let index = messages.firstIndex(where: { $0.id == responseID }) {
             messages[index].text = message
             messages[index].isStreaming = false
             messages[index].transientStatus = nil
@@ -1048,7 +1057,9 @@ struct EliSidebarView: View {
 
         switch action.kind {
         case .navigate:
-            return String(localized: "Opening \(action.label)…")
+            // Direct URL navigation carries no control label; show the URL.
+            let label = action.label.trimmingCharacters(in: .whitespacesAndNewlines)
+            return String(localized: "Opening \(label.isEmpty ? (action.url ?? action.target) : label)…")
         case .click:
             return String(localized: "Using \(action.label)…")
         case .select:
@@ -1081,15 +1092,8 @@ struct EliSidebarView: View {
                 guard !Task.isCancelled else { return }
                 if case let .browserControl(goal) = event {
                     await MainActor.run {
-                        guard let index = messages.firstIndex(where: { $0.id == responseID }) else { return }
-                        messages[index].text =
-                            "I can take control of this browser tab to complete your request. Please confirm first."
-                        messages[index].isStreaming = false
-                        pendingBrowserControl = PendingBrowserControl(
-                            goal: goal,
-                            tabID: browserControlTabID
-                        )
                         streamTask = nil
+                        startBrowserAgent(goal: goal, tabID: browserControlTabID, reusing: responseID)
                     }
                     return
                 }
@@ -1113,10 +1117,12 @@ struct EliSidebarView: View {
             }
 
             await MainActor.run {
+                // State transitions come before the message lookup so they
+                // still happen when the conversation was reset mid-stream.
+                streamTask = nil
                 guard let index = messages.firstIndex(where: { $0.id == responseID }) else { return }
                 messages[index].text = response
                 messages[index].isStreaming = false
-                streamTask = nil
             }
             return
         } catch is CancellationError {
@@ -1155,10 +1161,12 @@ struct EliSidebarView: View {
             message = String(localized: "Eli is temporarily unavailable. Please try again later.")
         }
 
+        // State transitions come before the message lookup so they still
+        // happen when the conversation was reset mid-stream.
+        streamTask = nil
         guard let index = messages.firstIndex(where: { $0.id == responseID }) else { return }
         messages[index].text = message
         messages[index].isStreaming = false
-        streamTask = nil
     }
 
     private func combinedContext(
@@ -1529,8 +1537,24 @@ struct EliSidebarView: View {
         streamTask = nil
         browserAgentTask?.cancel()
         browserAgentTask = nil
-        pendingSensitiveAgentAction = nil
-        clearPendingControlPermission()
+        if let pending = pendingSensitiveAgentAction {
+            pendingSensitiveAgentAction = nil
+            // Finalize the status message inline — the sidebar may be
+            // disappearing, so nothing after an await can be relied on —
+            // and end the cloud workflow cleanly in the background.
+            finishBrowserAgent(pending.state, message: String(localized: "I stopped before making that change."))
+            Task {
+                _ = try? await store.resumeBrowserAgentRun(
+                    runID: pending.state.runID,
+                    goal: pending.state.goal,
+                    outcome: BrowserAgentActionOutcome(
+                        status: .rejected,
+                        result: "The user did not approve this action.",
+                        page: nil
+                    )
+                )
+            }
+        }
         isResolvingPageAction = false
 
         for index in messages.indices where messages[index].isStreaming {
