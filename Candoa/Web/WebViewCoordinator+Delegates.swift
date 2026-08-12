@@ -150,7 +150,7 @@ extension WebViewCoordinator {
 
         // WebKit drives the popup's first navigation through the returned web view,
         // which must be created with the configuration it hands us.
-        let popupWebView = WKWebView(frame: .zero, configuration: configuration)
+        let popupWebView = BrowserWebView(frame: .zero, configuration: configuration)
         register(popupWebView, for: popupTab.id)
         popupTabIDsAwaitingFirstLoad.insert(popupTab.id)
         return popupWebView

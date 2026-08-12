@@ -204,7 +204,7 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
             configuration.preferences.setValue(true, forKey: "developerExtrasEnabled")
         }
 
-        let webView = WKWebView(frame: .zero, configuration: configuration)
+        let webView = BrowserWebView(frame: .zero, configuration: configuration)
         register(webView, for: tab.id)
         return webView
     }
