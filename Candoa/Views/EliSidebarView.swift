@@ -195,7 +195,8 @@ struct EliSidebarView: View {
     private var isEliControlUITest: Bool {
         BrowserStore.isUITesting
             && [
-                "ask-agent-navigation", "ask-agent-normalized-navigation", "ask-agent-selection"
+                "ask-agent-navigation", "ask-agent-normalized-navigation", "ask-agent-selection",
+                "ask-agent-mentioned-tab"
             ].contains(
                 ProcessInfo.processInfo.environment["CANDOA_UI_TESTING_FIXTURE"]
             )
@@ -730,6 +731,11 @@ struct EliSidebarView: View {
             recentTurns: recentTurns(),
             currentPageTabID: includesCurrentPageContext ? store.activeTabID : nil,
             browserControlTabID: store.activeTabID,
+            mentionedTabs: mentionedContext.compactMap { mention in
+                guard case .tab(let tabID) = mention,
+                      let url = store.tabs.first(where: { $0.id == tabID })?.url else { return nil }
+                return EliMentionedTab(id: tabID, url: url.absoluteString)
+            },
             inheritedPageContext: lastSubmittedPageContext
         )
     }
@@ -760,10 +766,11 @@ struct EliSidebarView: View {
         isMentionMenuPresented = false
 
         streamTask = Task {
-            let submittedPageContext = await combinedContext(
+            let submittedContext = await combinedContext(
                 for: submission.contextMentions,
                 currentPageTabID: submission.currentPageTabID
             )
+            let submittedPageContext = submittedContext.pageContext
             let pageContext = submittedPageContext.hasAttachedContext
                 ? submittedPageContext
                 : submission.inheritedPageContext ?? submittedPageContext
@@ -783,7 +790,9 @@ struct EliSidebarView: View {
                 context: remoteContext,
                 recentTurns: submission.recentTurns,
                 responseID: responseID,
-                browserControlTabID: submission.browserControlTabID
+                browserControlTabID: submission.browserControlTabID,
+                mentionedTabs: submission.mentionedTabs,
+                agentAttachedContext: submittedContext.agentAttachedContext
             )
         }
     }
@@ -847,11 +856,78 @@ struct EliSidebarView: View {
         isPromptFocused = true
     }
 
+    /// Resolves which tab a browser-control request runs in. Without a
+    /// targetTabURL the task targets the current page (the tab that was
+    /// active at submission). With one, the URL must resolve to a tab the
+    /// user attached via a mention — or, failing that, an open tab in the
+    /// active Space; an unresolvable URL ends the run visibly rather than
+    /// silently acting on the wrong tab.
+    private func startBrowserAgentResolvingTargetTab(
+        goal: String,
+        targetTabURL: String?,
+        currentPageTabID: UUID?,
+        mentionedTabs: [EliMentionedTab],
+        attachedContext: String?,
+        reusing responseID: UUID
+    ) {
+        guard let targetTabURL else {
+            startBrowserAgent(
+                goal: goal,
+                tabID: currentPageTabID,
+                attachedContext: attachedContext,
+                reusing: responseID
+            )
+            return
+        }
+
+        guard let resolvedTabID = resolveBrowserAgentTargetTab(
+            url: targetTabURL,
+            mentionedTabs: mentionedTabs
+        ) else {
+            startBrowserAgent(goal: goal, tabID: nil, attachedContext: attachedContext, reusing: responseID)
+            return
+        }
+
+        // Activate the target so the user watches the run where it happens —
+        // and so a hibernated tab's web view wakes before the first snapshot.
+        let needsActivation = store.activeTabID != resolvedTabID
+        if needsActivation {
+            store.switchTab(to: resolvedTabID)
+        }
+        startBrowserAgent(
+            goal: goal,
+            tabID: resolvedTabID,
+            attachedContext: attachedContext,
+            wakesTab: needsActivation,
+            reusing: responseID
+        )
+    }
+
+    private func resolveBrowserAgentTargetTab(
+        url: String,
+        mentionedTabs: [EliMentionedTab]
+    ) -> UUID? {
+        let key = normalizedMentionURLKey(url)
+        if let mentioned = mentionedTabs.first(where: { normalizedMentionURLKey($0.url) == key }),
+           store.tabs.contains(where: { $0.id == mentioned.id }) {
+            return mentioned.id
+        }
+        return store.visibleTabsForActiveSpace.first { tab in
+            tab.url.map { normalizedMentionURLKey($0.absoluteString) } == key
+        }?.id
+    }
+
     /// Starts a browser-agent run immediately: the user's request is the
     /// consent for reversible browsing, so there is no per-task permission
     /// dialog. Consequential actions are still confirmed individually via
     /// `pendingSensitiveAgentAction` during the run.
-    private func startBrowserAgent(goal: String, tabID: UUID?, reusing responseID: UUID) {
+    private func startBrowserAgent(
+        goal: String,
+        tabID: UUID?,
+        attachedContext: String?,
+        wakesTab: Bool = false,
+        reusing responseID: UUID
+    ) {
         // The run must start (or fail visibly) even when the streaming message
         // is gone — e.g. the conversation was reset while the request was in
         // flight — so behavior never hinges on a messages lookup.
@@ -882,6 +958,9 @@ struct EliSidebarView: View {
         browserAgentTask?.cancel()
         browserAgentTask = Task {
             do {
+                if wakesTab {
+                    await store.wakeBrowserAgentTab(state.tabID)
+                }
                 guard let page = await store.browserAgentPage(for: state.tabID) else {
                     finishBrowserAgent(state, message: String(localized: "That browser tab is no longer available."))
                     return
@@ -889,7 +968,8 @@ struct EliSidebarView: View {
                 let response = try await store.startBrowserAgentRun(
                     runID: state.runID,
                     goal: state.goal,
-                    page: page
+                    page: page,
+                    attachedContext: attachedContext
                 )
                 try await continueBrowserAgent(response, page: page, state: state)
             } catch is CancellationError {
@@ -1079,7 +1159,9 @@ struct EliSidebarView: View {
         context: AIPageContext,
         recentTurns: [AIConversationTurn],
         responseID: UUID,
-        browserControlTabID: UUID?
+        browserControlTabID: UUID?,
+        mentionedTabs: [EliMentionedTab],
+        agentAttachedContext: String?
     ) async {
         do {
             var response = ""
@@ -1090,10 +1172,17 @@ struct EliSidebarView: View {
                 recentTurns: recentTurns
             ) {
                 guard !Task.isCancelled else { return }
-                if case let .browserControl(goal) = event {
+                if case let .browserControl(goal, targetTabURL) = event {
                     await MainActor.run {
                         streamTask = nil
-                        startBrowserAgent(goal: goal, tabID: browserControlTabID, reusing: responseID)
+                        startBrowserAgentResolvingTargetTab(
+                            goal: goal,
+                            targetTabURL: targetTabURL,
+                            currentPageTabID: browserControlTabID,
+                            mentionedTabs: mentionedTabs,
+                            attachedContext: agentAttachedContext,
+                            reusing: responseID
+                        )
                     }
                     return
                 }
@@ -1169,14 +1258,25 @@ struct EliSidebarView: View {
         messages[index].isStreaming = false
     }
 
+    /// The context Ask sees plus the browser agent's carry-along subset,
+    /// built in one pass so each mentioned tab's page is captured only once.
+    private struct SubmittedEliContext {
+        let pageContext: AIPageContext
+        /// Only the mentioned-tab and uploaded-file sections — the current
+        /// page is excluded because a browser-agent run observes it live.
+        /// Nil when the submission attached neither.
+        let agentAttachedContext: String?
+    }
+
     private func combinedContext(
         for mentions: [AISidebarContextMention],
         currentPageTabID: UUID?
-    ) async -> AIPageContext {
+    ) async -> SubmittedEliContext {
         let currentContext = currentPageTabID != nil
             ? await store.aiPageContext(for: currentPageTabID)
             : AIPageContext(title: nil, url: nil, text: nil)
         var sections: [String] = []
+        var agentSections: [String] = []
 
         if currentPageTabID != nil, !mentions.isEmpty {
             sections.append(contextSection(title: "Current page", context: currentContext))
@@ -1187,7 +1287,9 @@ struct EliSidebarView: View {
             case .tab(let tabID):
                 guard tabID != currentPageTabID else { continue }
                 let tabContext = await store.aiPageContext(for: tabID)
-                sections.append(contextSection(title: "Mentioned tab", context: tabContext))
+                let section = contextSection(title: "Mentioned tab", context: tabContext)
+                sections.append(section)
+                agentSections.append(section)
             case .history(let historyContext):
                 sections.append(
                     """
@@ -1197,7 +1299,9 @@ struct EliSidebarView: View {
                     """
                 )
             case .file(let fileContext):
-                sections.append("Uploaded file: \(fileContext.name)\n\(fileContext.text)")
+                let section = "Uploaded file: \(fileContext.name)\n\(fileContext.text)"
+                sections.append(section)
+                agentSections.append(section)
             }
         }
 
@@ -1205,11 +1309,26 @@ struct EliSidebarView: View {
             .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
             .joined(separator: "\n\n")
 
-        return AIPageContext(
-            title: currentContext.title,
-            url: currentContext.url,
-            text: combinedText.isEmpty ? currentContext.text : combinedText
+        return SubmittedEliContext(
+            pageContext: AIPageContext(
+                title: currentContext.title,
+                url: currentContext.url,
+                text: combinedText.isEmpty ? currentContext.text : combinedText
+            ),
+            agentAttachedContext: agentAttachedContext(from: agentSections)
         )
+    }
+
+    /// Joins the agent's carry-along sections the way `combinedContext` joins
+    /// Ask's, truncated to 20,000 characters to stay safely under the agent
+    /// start request's 24,000-character server limit.
+    private func agentAttachedContext(from sections: [String]) -> String? {
+        let joined = sections
+            .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+            .joined(separator: "\n\n")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !joined.isEmpty else { return nil }
+        return String(joined.prefix(20_000))
     }
 
     private func contextSection(title: String, context: AIPageContext) -> String {
@@ -1378,7 +1497,11 @@ struct EliSidebarView: View {
     }
 
     private func normalizedMentionURLKey(_ url: URL) -> String {
-        var key = url.absoluteString.lowercased()
+        normalizedMentionURLKey(url.absoluteString)
+    }
+
+    private func normalizedMentionURLKey(_ urlString: String) -> String {
+        var key = urlString.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         if key.hasSuffix("/") {
             key.removeLast()
         }

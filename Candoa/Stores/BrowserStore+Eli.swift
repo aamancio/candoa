@@ -28,15 +28,33 @@ extension BrowserStore {
         )
     }
 
+    /// Gives a tab the agent just activated a bounded window to be usable:
+    /// the mentioned tab may have been hibernated, so its web view can still
+    /// be mounting and loading when the run wants its first snapshot.
+    func wakeBrowserAgentTab(_ tabID: UUID) async {
+        for _ in 0..<20 {
+            guard !Task.isCancelled else { return }
+            if webCoordinator.hasLoadedWebView(for: tabID) { break }
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+        await webCoordinator.waitForAIPageContextSettled(for: tabID)
+    }
+
     func startBrowserAgentRun(
         runID: UUID,
         goal: String,
-        page: BrowserAgentPage
+        page: BrowserAgentPage,
+        attachedContext: String?
     ) async throws -> BrowserAgentRunResponse {
         if let fixture = fixtureBrowserAgentResponse(runID: runID, goal: goal, page: page, outcome: nil) {
             return fixture
         }
-        return try await BrowserAgentRemoteService.start(runID: runID, goal: goal, page: page)
+        return try await BrowserAgentRemoteService.start(
+            runID: runID,
+            goal: goal,
+            page: page,
+            attachedContext: attachedContext
+        )
     }
 
     func resumeBrowserAgentRun(
@@ -59,10 +77,30 @@ extension BrowserStore {
     ) -> BrowserAgentRunResponse? {
         guard Self.isUITesting,
               let fixture = ProcessInfo.processInfo.environment["CANDOA_UI_TESTING_FIXTURE"],
-              ["ask-agent-navigation", "ask-agent-normalized-navigation", "ask-agent-selection"]
-                .contains(fixture) else { return nil }
+              [
+                  "ask-agent-navigation", "ask-agent-normalized-navigation", "ask-agent-selection",
+                  "ask-agent-mentioned-tab"
+              ].contains(fixture) else { return nil }
         let pageURL = URL(string: page.url)
         let path = pageURL?.fragment.map { "/\($0)" } ?? pageURL?.path
+
+        if fixture == "ask-agent-mentioned-tab" {
+            if path == "/home", let control = page.controls.first {
+                return fixtureActionResponse(
+                    runID: runID,
+                    page: page,
+                    control: control,
+                    kind: .click,
+                    message: "Opening your account page."
+                )
+            }
+            return .init(
+                runID: runID,
+                status: .complete,
+                message: "Your account page is open in the membership tab.",
+                action: nil
+            )
+        }
 
         if fixture == "ask-agent-normalized-navigation" {
             if path == "/air", let control = page.controls.first {
