@@ -8,9 +8,28 @@ import WebKit
 final class BrowserWebView: WKWebView {
     private static let copyIdentifier = NSUserInterfaceItemIdentifier("WKMenuItemIdentifierCopy")
     private static let shareIdentifier = NSUserInterfaceItemIdentifier("WKMenuItemIdentifierShareMenu")
+    private static let searchWebIdentifier = NSUserInterfaceItemIdentifier("WKMenuItemIdentifierSearchWeb")
+
+    /// Set at registration; carries selection actions that need the store
+    /// (opening tabs) out of the view layer.
+    weak var coordinator: WebViewCoordinator?
 
     override func willOpenMenu(_ menu: NSMenu, with event: NSEvent) {
         super.willOpenMenu(menu, with: event)
+
+        // WebKit's stock Search item hands the query to the system default
+        // browser, leaving the app. Retarget it to search in a new tab here,
+        // and let the title reflect the engine Candoa will actually use.
+        if let searchItem = menu.items.first(where: { $0.identifier == Self.searchWebIdentifier }) {
+            if let providerName = coordinator?.defaultSearchProviderName {
+                searchItem.title = String(
+                    localized: "Search with \(providerName)",
+                    comment: "Web context menu: search the selected text with the default engine, e.g. Google."
+                )
+            }
+            searchItem.target = self
+            searchItem.action = #selector(searchWebForSelection(_:))
+        }
 
         // A plain Copy item is WebKit's tell for a text selection (images and
         // links get Copy Image / Copy Link instead), which is the only context
@@ -31,6 +50,14 @@ final class BrowserWebView: WKWebView {
             menu.insertItem(addNote, at: shareIndex)
         } else {
             menu.addItem(addNote)
+        }
+    }
+
+    @objc private func searchWebForSelection(_ sender: NSMenuItem) {
+        evaluateJavaScript("window.getSelection().toString()") { [weak self] result, _ in
+            guard let self, let selection = result as? String,
+                  !selection.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+            self.coordinator?.searchInNewTab(selection)
         }
     }
 

@@ -209,9 +209,24 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         return webView
     }
 
+    // MARK: - Context-menu selection actions
+
+    var defaultSearchProviderName: String? {
+        guard let store else { return nil }
+        return NavigationService.defaultSearchProvider(for: store.defaultSearchProviderID).name
+    }
+
+    func searchInNewTab(_ query: String) {
+        guard let store else { return }
+        let provider = NavigationService.defaultSearchProvider(for: store.defaultSearchProviderID)
+        guard let url = provider.searchURL(for: query) else { return }
+        store.navigateNewTab(to: url)
+    }
+
     func register(_ webView: WKWebView, for tabID: UUID) {
         webView.navigationDelegate = self
         webView.uiDelegate = self
+        (webView as? BrowserWebView)?.coordinator = self
         webView.allowsBackForwardNavigationGestures = true
         webView.allowsMagnification = true
         webView.isInspectable = WebInspectorConfiguration.isEnabled
