@@ -8,11 +8,6 @@ struct BrowserAgentRunState: Sendable {
     let responseID: UUID
 }
 
-struct PendingBrowserControl: Sendable {
-    let goal: String
-    let tabID: UUID?
-}
-
 struct PendingSensitiveAgentAction: Identifiable, Sendable {
     let id = UUID()
     let action: PageActionProposal

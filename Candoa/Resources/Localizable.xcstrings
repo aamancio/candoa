@@ -2927,46 +2927,6 @@
         }
       }
     },
-    "Allow This Task" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Diese Aufgabe erlauben"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Permitir esta tarea"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Autoriser cette tâche"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "このタスクを許可"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Permitir Esta Tarefa"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "允许此任务"
-          }
-        }
-      }
-    },
     "Always check if Candoa is your default browser" : {
       "localizations" : {
         "de" : {
@@ -10099,46 +10059,6 @@
         }
       }
     },
-    "Eli can control this tab only for the task you just requested. Sensitive actions still require confirmation." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Eli kann diesen Tab nur für die gerade angeforderte Aufgabe steuern. Sensible Aktionen erfordern weiterhin eine Bestätigung."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Eli puede controlar esta pestaña solo para la tarea que acabas de solicitar. Las acciones sensibles seguirán requiriendo confirmación."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Eli ne peut contrôler cet onglet que pour la tâche que vous venez de demander. Les actions sensibles nécessitent toujours une confirmation."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Eliは、今リクエストされたタスクに限りこのタブを操作できます。重要な操作には引き続き確認が必要です。"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "O Eli pode controlar esta aba apenas para a tarefa que você acabou de solicitar. Ações sensíveis ainda exigem confirmação."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Eli 只能针对你刚才请求的任务控制此标签页。敏感操作仍需确认。"
-          }
-        }
-      }
-    },
     "Eli can't use the direct %@ connection until you save a key." : {
       "comment" : "Placeholder is an AI provider name.",
       "localizations" : {
@@ -14291,46 +14211,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "叶子"
-          }
-        }
-      }
-    },
-    "Let Eli take control of this browser tab?" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Eli die Steuerung dieses Browser-Tabs überlassen?"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "¿Permitir que Eli tome el control de esta pestaña del navegador?"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Laisser Eli prendre le contrôle de cet onglet ?"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Eliにこのブラウザタブの操作を許可しますか？"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Permitir que o Eli assuma o controle desta aba do navegador?"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "要让 Eli 控制此浏览器标签页吗？"
           }
         }
       }
