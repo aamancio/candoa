@@ -2412,11 +2412,8 @@ final class CandoaUITests: XCTestCase {
         field.typeText(exactPrompt)
         field.typeKey(.return, modifierFlags: [])
 
-        let allowButton = app.sheets.buttons["Allow This Task"].firstMatch
-        XCTAssertTrue(allowButton.waitForExistence(timeout: 5), askState(in: app))
-        XCTAssertTrue(app.staticTexts["Let Eli take control of this browser tab?"].exists, app.debugDescription)
-        allowButton.click()
-
+        // The request itself is consent for reversible browsing: the agent
+        // starts without a per-task permission dialog.
         XCTAssertTrue(
             waitForState(in: app, containing: "url=https://fixture.candoa.test/home#membership", timeout: 8),
             currentState(in: app)
@@ -2460,10 +2457,8 @@ final class CandoaUITests: XCTestCase {
         XCTAssertTrue(element("agent-sidebar", in: app).waitForExistence(timeout: 5), currentState(in: app))
         submitAskText(exactPrompt, in: app)
 
-        let allowButton = app.sheets.buttons["Allow This Task"].firstMatch
-        XCTAssertTrue(allowButton.waitForExistence(timeout: 5), askState(in: app))
-        allowButton.click()
-
+        // Reversible navigation runs immediately — no per-task permission
+        // dialog and no per-action confirmation.
         XCTAssertTrue(
             waitForState(in: app, containing: "url=https://fixture.candoa.test/buy", timeout: 8),
             currentState(in: app)
@@ -2477,7 +2472,7 @@ final class CandoaUITests: XCTestCase {
             askState(in: app)
         )
         XCTAssertFalse(app.staticTexts["Confirm this action?"].exists, app.debugDescription)
-        XCTAssertFalse(app.sheets.buttons["Allow This Task"].firstMatch.exists, app.debugDescription)
+        XCTAssertFalse(app.sheets.firstMatch.exists, app.debugDescription)
     }
 
     func testEliSelectsAProductOptionThenAddsItToTheCart() throws {
@@ -2497,28 +2492,31 @@ final class CandoaUITests: XCTestCase {
             waitForAskState(in: app, containing: "lastUser=[\(exactPrompt)]"),
             askState(in: app)
         )
-        XCTAssertTrue(
-            waitForAskState(
-                in: app,
-                containing: "lastAssistant=[I can take control of this browser tab to complete your request. Please confirm first.]"
-            ),
-            askState(in: app)
-        )
-        let allowButton = app.sheets.buttons["Allow This Task"].firstMatch
-        XCTAssertTrue(allowButton.waitForExistence(timeout: 5), app.debugDescription)
-        XCTAssertTrue(app.staticTexts["Let Eli take control of this browser tab?"].exists, app.debugDescription)
-        allowButton.click()
-
+        // The reversible add-to-cart task starts without a permission dialog.
         XCTAssertTrue(
             waitForAskState(in: app, containing: "lastAssistant=[The MacBook Air is in your cart.]", timeout: 20),
             askState(in: app)
         )
         XCTAssertTrue(app.staticTexts["MacBook Air is in your cart."].waitForExistence(timeout: 5))
 
+        // The consequential removal is still confirmed per action; dismissing
+        // the confirmation counts as a deny and ends the run cleanly.
         submitAskText("remove teh computer from the cart", in: app)
-        let removalTaskAllowButton = app.sheets.buttons["Allow This Task"].firstMatch
-        XCTAssertTrue(removalTaskAllowButton.waitForExistence(timeout: 5), app.debugDescription)
-        removalTaskAllowButton.click()
+        XCTAssertTrue(app.staticTexts["Confirm this action?"].waitForExistence(timeout: 5), app.debugDescription)
+        app.typeKey(.escape, modifierFlags: [])
+        XCTAssertTrue(
+            waitForAskState(
+                in: app,
+                containing: "lastAssistant=[I stopped before making that change.]",
+                timeout: 8
+            ),
+            askState(in: app)
+        )
+        XCTAssertTrue(app.staticTexts["MacBook Air is in your cart."].exists, app.debugDescription)
+
+        // A denied run must not wedge the sidebar: the same request works
+        // again and the confirmation presents again.
+        submitAskText("remove teh computer from the cart", in: app)
         XCTAssertTrue(app.staticTexts["Confirm this action?"].waitForExistence(timeout: 5), app.debugDescription)
 
         let continueButton = app.sheets.buttons["Continue"].firstMatch

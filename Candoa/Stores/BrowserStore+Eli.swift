@@ -220,6 +220,9 @@ extension BrowserStore {
         }
 
         if action.kind == .navigate {
+            // The target is a snapshot link's URL or a validated absolute
+            // http/https destination (direct URL navigation); either way the
+            // load happens natively in the tab, like typed navigation.
             guard let url = navigationService.explicitDestinationURL(for: action.target) else {
                 return .failed("I could not understand that destination.")
             }
