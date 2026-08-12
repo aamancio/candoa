@@ -70,7 +70,12 @@ return (() => {
       if (credentialField(element)) return null;
       const label = labelFor(element);
       const kind = kindFor(element);
-      const url = kind === "link" ? clean(element.href || element.getAttribute("href")) : "";
+      // Only absolute http(s) URLs within the wire limit ride along; anything
+      // else (javascript:, blob:, or YouTube-length query strings) degrades to
+      // no URL — the control stays clickable by ref, matching Candoa Cloud's
+      // snapshot schema, which nulls such URLs rather than rejecting the page.
+      const rawURL = kind === "link" ? clean(element.href || element.getAttribute("href")) : "";
+      const url = /^https?:\/\//i.test(rawURL) && rawURL.length <= 2000 ? rawURL : "";
       if (!label) return null;
       const canonical = canonicalFor(element);
       if (seenElements.has(canonical)) return null;

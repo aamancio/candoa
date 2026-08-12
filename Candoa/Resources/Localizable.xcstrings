@@ -10181,6 +10181,46 @@
         }
       }
     },
+    "Eli hit a problem reading this page and stopped. Please try again." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eli hatte ein Problem beim Lesen dieser Seite und hat angehalten. Bitte versuche es erneut."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eli tuvo un problema al leer esta página y se detuvo. Inténtalo de nuevo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eli a rencontré un problème en lisant cette page et s’est arrêté. Veuillez réessayer."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eliはこのページの読み取りで問題が発生したため停止しました。もう一度お試しください。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O Eli teve um problema ao ler esta página e parou. Tente novamente."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eli 读取此页面时遇到问题，已停止。请重试。"
+          }
+        }
+      }
+    },
     "Eli is ready to activate \"%@\". This may make a consequential change to your account." : {
       "comment" : "Placeholder is a web page control label.",
       "localizations" : {
