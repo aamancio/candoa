@@ -39,11 +39,12 @@ final class BrowserWebView: WKWebView {
             guard let self, let selection = result as? String,
                   !selection.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
 
-            var items: [Any] = [selection]
-            // The page URL gives the note a link back to its source, like
-            // Quick Note's own capture does.
-            if let url = self.url { items.append(url) }
-            NotesSharingService.share(items: items)
+            // One combined string, not [text, URL]: given a URL item the Notes
+            // extension keeps only a link card and drops the text, so fold the
+            // source link into the note body instead.
+            var noteText = selection
+            if let url = self.url { noteText += "\n\n— \(url.absoluteString)" }
+            NotesSharingService.share(items: [noteText])
         }
     }
 }
