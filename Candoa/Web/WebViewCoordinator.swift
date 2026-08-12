@@ -191,6 +191,9 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         configuration.defaultWebpagePreferences.preferredContentMode = .desktop
         configuration.preferences.isElementFullscreenEnabled = true
         configuration.websiteDataStore = dataStore
+        if #available(macOS 15.1, *) {
+            configuration.writingToolsBehavior = .complete
+        }
 
         let webView = WKWebView(frame: .zero, configuration: configuration)
         register(webView, for: tab.id)
