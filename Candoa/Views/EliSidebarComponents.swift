@@ -1047,6 +1047,14 @@ struct AISidebarFileContext: Equatable {
     var previewImageData: Data? = nil
 }
 
+/// A tab attached via an @-mention, captured at submission so a later
+/// browser-control event can resolve the model's targetTabURL back to the
+/// exact tab the user attached.
+struct EliMentionedTab: Equatable {
+    let id: UUID
+    let url: String
+}
+
 struct EliSubmission {
     let prompt: String
     let contextChips: [AISidebarContextChip]
@@ -1054,6 +1062,7 @@ struct EliSubmission {
     let recentTurns: [AIConversationTurn]
     let currentPageTabID: UUID?
     let browserControlTabID: UUID?
+    let mentionedTabs: [EliMentionedTab]
     let inheritedPageContext: AIPageContext?
 }
 

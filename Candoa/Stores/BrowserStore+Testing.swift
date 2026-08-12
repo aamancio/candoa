@@ -588,6 +588,41 @@ extension BrowserStore {
             )
         }
 
+        if fixture == "ask-agent-mentioned-tab" {
+            let spaceID = UUID(uuidString: "ABABABAB-ABAB-ABAB-ABAB-ABABABABABAB")!
+            let readingTabID = UUID(uuidString: "CDCDCDCD-CDCD-CDCD-CDCD-CDCDCDCDCDCD")!
+            let membershipTabID = UUID(uuidString: "DEDEDEDE-DEDE-DEDE-DEDE-DEDEDEDEDEDE")!
+            let space = BrowserSpace(
+                id: spaceID,
+                name: "TestingBot",
+                symbolName: "sparkles",
+                themeAppearance: BrowserSpace.defaultThemeAppearance
+            )
+            let readingTab = BrowserTab(
+                id: readingTabID,
+                title: "Reading List",
+                url: URL(string: "https://fixture.candoa.test/reading")!,
+                faviconSymbol: "book",
+                spaceID: spaceID,
+                hasBeenActivated: true
+            )
+            let membershipTab = BrowserTab(
+                id: membershipTabID,
+                title: "Membership Home",
+                url: URL(string: "https://fixture.candoa.test/home")!,
+                faviconSymbol: "person.crop.circle",
+                spaceID: spaceID,
+                hasBeenActivated: true
+            )
+            return BrowserWindowState(
+                spaces: [space],
+                folders: [],
+                tabs: [readingTab, membershipTab],
+                activeSpaceID: spaceID,
+                activeTabID: readingTabID
+            )
+        }
+
         if fixture == "cross-space-duplicate-url" {
             return crossSpaceDuplicateURLFixtureState()
         }

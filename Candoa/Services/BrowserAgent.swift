@@ -281,9 +281,14 @@ enum BrowserAgentRemoteService {
     static func start(
         runID: UUID,
         goal: String,
-        page: BrowserAgentPage
+        page: BrowserAgentPage,
+        attachedContext: String?
     ) async throws -> BrowserAgentRunResponse {
-        try await advance(RunRequest(runID: runID, start: .init(goal: goal, page: page), outcome: nil))
+        try await advance(RunRequest(
+            runID: runID,
+            start: .init(goal: goal, page: page, attachedContext: attachedContext),
+            outcome: nil
+        ))
     }
 
     static func resume(
@@ -345,6 +350,10 @@ enum BrowserAgentRemoteService {
     private struct Start: Encodable {
         let goal: String
         let page: BrowserAgentPage
+        /// The user's attached tab and file sections, sent only on start (the
+        /// server carries it for the rest of the run). Nil when nothing was
+        /// attached; synthesized encoding omits the key entirely then.
+        let attachedContext: String?
     }
 
     private struct ServerError: Decodable {

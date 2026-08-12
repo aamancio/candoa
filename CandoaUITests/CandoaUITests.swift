@@ -2572,6 +2572,52 @@ final class CandoaUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Your cart is empty."].waitForExistence(timeout: 5))
     }
 
+    func testEliAgentRunsInMentionedTabFromAttachedContext() throws {
+        // Two-tab fixture: "Reading List" is active and "Membership Home" is
+        // attached only via an @-mention. The fixture's browser-control event
+        // carries the mentioned tab's URL as targetTabURL, so the run must
+        // activate that tab and act there instead of the current page.
+        let app = launchApp(fixture: "ask-agent-mentioned-tab")
+        let exactPrompt = "open the account page in my membership tab"
+
+        app.typeKey("e", modifierFlags: .command)
+        XCTAssertTrue(element("agent-sidebar", in: app).waitForExistence(timeout: 5), currentState(in: app))
+        XCTAssertTrue(
+            waitForState(in: app, containing: "url=https://fixture.candoa.test/reading"),
+            currentState(in: app)
+        )
+
+        let field = app.textFields["agent-sidebar"].firstMatch
+        XCTAssertTrue(field.waitForExistence(timeout: 5), currentState(in: app))
+        field.click()
+        field.typeText("@member")
+        field.typeKey(.return, modifierFlags: [])
+        XCTAssertTrue(
+            waitForAskState(in: app, containing: "Membership Home|fixture.candoa.test"),
+            askState(in: app)
+        )
+
+        field.typeText(exactPrompt)
+        field.typeKey(.return, modifierFlags: [])
+
+        // The run switches to the mentioned tab (waking its hibernated web
+        // view) and clicks through to the account page there; the reading tab
+        // is never acted on.
+        XCTAssertTrue(
+            waitForState(in: app, containing: "url=https://fixture.candoa.test/home#account", timeout: 15),
+            currentState(in: app)
+        )
+        XCTAssertTrue(
+            waitForAskState(
+                in: app,
+                containing: "lastAssistant=[Your account page is open in the membership tab.]",
+                timeout: 8
+            ),
+            askState(in: app)
+        )
+        XCTAssertTrue(app.staticTexts["Account Page"].waitForExistence(timeout: 5), currentState(in: app))
+    }
+
     /// Diagnostic: drives the real Google One Tap flow on notion.com and
     /// captures opener linkage inside the popup via the popup-diagnostics
     /// script. Requires network access.
@@ -3698,6 +3744,38 @@ final class CandoaUITests: XCTestCase {
                   content.append(button);
                 } else {
                   content.textContent = "Membership Cancelled";
+                }
+              };
+              addEventListener("hashchange", render);
+              render();
+            </script>
+          </body>
+        </html>
+        """,
+        "ask-agent-mentioned-tab": """
+        <!doctype html>
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <script>
+              document.title = location.pathname === "/home" ? "Membership Home" : "Reading List";
+            </script>
+          </head>
+          <body>
+            <main id="content"></main>
+            <script>
+              const content = document.getElementById("content");
+              const render = () => {
+                content.replaceChildren();
+                if (location.pathname === "/home" && !location.hash) {
+                  const button = document.createElement("button");
+                  button.textContent = "Account";
+                  button.addEventListener("click", () => { location.hash = "account"; });
+                  content.append(button);
+                } else if (location.hash === "#account") {
+                  content.textContent = "Account Page";
+                } else {
+                  content.textContent = "Reading list fixture.";
                 }
               };
               addEventListener("hashchange", render);
