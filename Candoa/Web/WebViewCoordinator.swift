@@ -195,6 +195,15 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
             configuration.writingToolsBehavior = .complete
         }
 
+        // "Inspect Element" in the web context menu needs WebKit's developer
+        // extras; isInspectable alone only permits external inspector attach.
+        // KVC resolves the key to the private _setDeveloperExtrasEnabled:, so
+        // probe for it first and degrade to a missing menu item, not a crash.
+        if WebInspectorConfiguration.isEnabled,
+           configuration.preferences.responds(to: NSSelectorFromString("_setDeveloperExtrasEnabled:")) {
+            configuration.preferences.setValue(true, forKey: "developerExtrasEnabled")
+        }
+
         let webView = WKWebView(frame: .zero, configuration: configuration)
         register(webView, for: tab.id)
         return webView
