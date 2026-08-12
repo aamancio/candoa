@@ -56,9 +56,27 @@ struct EliSidebarView: View {
         return token
     }
 
+    /// Tabs already represented by a context chip: explicit tab mentions plus
+    /// the active tab while the "current page" chip is attached.
+    private var attachedTabIDs: Set<UUID> {
+        var ids = Set(mentionedContext.compactMap { mention -> UUID? in
+            guard case .tab(let tabID) = mention else { return nil }
+            return tabID
+        })
+        if includesCurrentPageContext, let activeTabID = store.activeTabID {
+            ids.insert(activeTabID)
+        }
+        return ids
+    }
+
+    private var unattachedOpenTabs: [BrowserTab] {
+        let attached = attachedTabIDs
+        return store.visibleTabsForActiveSpace.filter { !attached.contains($0.id) }
+    }
+
     private var availableTabMentions: [BrowserTab] {
         let query = trimmedMentionQuery
-        let tabs = store.visibleTabsForActiveSpace
+        let tabs = unattachedOpenTabs
         guard !query.isEmpty else { return tabs }
         return tabs.filter { tab in
             tab.title.localizedCaseInsensitiveContains(query) ||
@@ -131,8 +149,23 @@ struct EliSidebarView: View {
         ]
     }
 
+    private var allOpenTabsMentionOptions: [AISidebarMentionOption] {
+        let count = unattachedOpenTabs.count
+        guard count >= 2 else { return [] }
+        return [
+            AISidebarMentionOption(
+                id: "all-open-tabs",
+                title: String(localized: "All open tabs"),
+                detail: "(\(count))",
+                symbolName: "macwindow.on.rectangle",
+                faviconData: nil,
+                action: .mentionAllOpenTabs
+            )
+        ]
+    }
+
     private var mentionOptions: [AISidebarMentionOption] {
-        tabMentionOptions + fileMentionOptions
+        tabMentionOptions + allOpenTabsMentionOptions + fileMentionOptions
     }
 
     private var contextChips: [AISidebarContextChip] {
@@ -447,6 +480,19 @@ struct EliSidebarView: View {
                         handleImagePaste()
                         return .handled
                     }
+                    .overlay(alignment: .leading) {
+                        if isMentionMenuPresented, prompt == "@" {
+                            HStack(spacing: 3) {
+                                Text(verbatim: "@")
+                                    .hidden()
+                                Text("Type to filter")
+                                    .foregroundStyle(InterfaceStyle.sidebarTextSecondary)
+                            }
+                            .font(.system(size: 14))
+                            .allowsHitTesting(false)
+                            .accessibilityHidden(true)
+                        }
+                    }
 
                 AISidebarComposerIconButton(symbolName: "plus", helpText: "Add Context") {
                     showMentionMenuFromButton()
@@ -472,15 +518,15 @@ struct EliSidebarView: View {
                 speechStatusRow
             }
         }
-        .padding(.horizontal, 12)
+        .padding(.horizontal, 14)
         .padding(.top, hasContext ? 12 : 9)
         .padding(.bottom, hasContext ? 10 : 9)
         .background {
-            RoundedRectangle(cornerRadius: hasContext ? 16 : 14, style: .continuous)
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .fill(InterfaceStyle.sidebarControlFill)
         }
         .overlay {
-            RoundedRectangle(cornerRadius: hasContext ? 16 : 14, style: .continuous)
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .stroke(InterfaceStyle.sidebarControlStroke, lineWidth: 1)
         }
     }
@@ -555,11 +601,10 @@ struct EliSidebarView: View {
     }
 
     private var mentionMenu: some View {
-        VStack(alignment: .leading, spacing: 7) {
-            Text("TABS")
-                .font(.system(size: 11, weight: .bold))
-                .foregroundStyle(InterfaceStyle.sidebarTextSecondary)
-                .padding(.horizontal, 10)
+        VStack(alignment: .leading, spacing: 2) {
+            if !tabMentionOptions.isEmpty {
+                mentionSectionHeader("TABS")
+            }
 
             ForEach(Array(tabMentionOptions.enumerated()), id: \.element.id) { index, option in
                 mentionButton(
@@ -568,31 +613,49 @@ struct EliSidebarView: View {
                 )
             }
 
+            if let allOpenTabsOption = allOpenTabsMentionOptions.first {
+                Divider()
+                    .padding(.vertical, 3)
+
+                mentionButton(
+                    option: allOpenTabsOption,
+                    isSelected: tabMentionOptions.count == selectedMentionIndex
+                )
+            }
+
             if !fileMentionOptions.isEmpty {
                 Divider()
+                    .padding(.vertical, 3)
 
-                Text("FILES")
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(InterfaceStyle.sidebarTextSecondary)
-                    .padding(.horizontal, 10)
+                mentionSectionHeader("FILES")
 
                 ForEach(Array(fileMentionOptions.enumerated()), id: \.element.id) { index, option in
                     mentionButton(
                         option: option,
-                        isSelected: tabMentionOptions.count + index == selectedMentionIndex
+                        isSelected: tabMentionOptions.count
+                            + allOpenTabsMentionOptions.count
+                            + index == selectedMentionIndex
                     )
                 }
             }
         }
-        .padding(8)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(6)
+        .frame(minWidth: 260, maxWidth: 340, alignment: .leading)
         .background(InterfaceStyle.popoverBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .stroke(InterfaceStyle.popoverBorder, lineWidth: 1)
         }
         .shadow(color: Color(nsColor: .shadowColor).opacity(0.18), radius: 16, y: 8)
+    }
+
+    private func mentionSectionHeader(_ title: LocalizedStringKey) -> some View {
+        Text(title)
+            .font(.system(size: 10.5, weight: .semibold))
+            .foregroundStyle(InterfaceStyle.sidebarTextSecondary)
+            .padding(.horizontal, 8)
+            .padding(.bottom, 4)
     }
 
     private func mentionButton(
@@ -1196,6 +1259,12 @@ struct EliSidebarView: View {
         switch option.action {
         case .mention(let mention):
             addMention(mention)
+        case .mentionAllOpenTabs:
+            let newMentions = unattachedOpenTabs.map { AISidebarContextMention.tab($0.id) }
+            mentionedContext.append(contentsOf: newMentions)
+            clearMentionToken()
+            isMentionMenuPresented = false
+            isPromptFocused = true
         case .uploadFile:
             clearMentionToken()
             isMentionMenuPresented = false

@@ -2806,6 +2806,47 @@
         }
       }
     },
+    "All open tabs" : {
+      "comment" : "Mention-menu row that attaches every open tab as context for Eli.",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alle offenen Tabs"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Todas las pestañas abiertas"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tous les onglets ouverts"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "開いているすべてのタブ"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Todas as abas abertas"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "所有打开的标签页"
+          }
+        }
+      }
+    },
     "Allow" : {
       "comment" : "Button granting a website permission request.",
       "localizations" : {
@@ -27386,6 +27427,47 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "输入功能名称或快捷键"
+          }
+        }
+      }
+    },
+    "Type to filter" : {
+      "comment" : "Ghost hint shown after typing @ in Eli's composer.",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zum Filtern tippen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escribe para filtrar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saisissez du texte pour filtrer"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "入力して絞り込み"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Digite para filtrar"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "输入以筛选"
           }
         }
       }
