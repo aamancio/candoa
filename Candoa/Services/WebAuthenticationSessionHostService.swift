@@ -65,12 +65,22 @@ final class WebAuthenticationSessionHostService: NSObject {
         category: "WebAuthenticationHost"
     )
 
+    /// Set by `activate()`. Candoa's own Sign in with Apple hosts its
+    /// first-party session through this instance directly, bypassing the
+    /// system's default-browser routing entirely (#253).
+    private(set) static var shared: WebAuthenticationSessionHostService?
+
     private var activeSessions: [UUID: WebAuthenticationSessionWindowController] = [:]
     private var uiTestingRequestIDs: [String: UUID] = [:]
 
     func activate() {
+        Self.shared = self
         ASWebAuthenticationSessionWebBrowserSessionManager.shared.sessionHandler = self
         configureUITestingRequestTriggers()
+    }
+
+    func hostFirstPartySession(_ request: FirstPartyWebAuthenticationRequest) {
+        beginHosting(request)
     }
 
     fileprivate func beginHosting(_ request: any WebAuthenticationHostableRequest) {
@@ -404,6 +414,45 @@ extension WebAuthenticationSessionWindowController: WKNavigationDelegate {
         // A provider that cannot load leaves nothing to authenticate
         // against; hand the real error back to the requesting app.
         resolveCanceled(with: error)
+    }
+}
+
+/// First-party request minted by Candoa's own Sign in with Apple flow. The
+/// session never touches `ASWebAuthenticationSession`, so no default browser
+/// (or its Safari fallback) can intercept it — it always lands in the
+/// dedicated Sign In window. Uses the shared website data store, matching the
+/// non-ephemeral session the previous system-routed flow requested.
+final class FirstPartyWebAuthenticationRequest: WebAuthenticationHostableRequest {
+    let hostedRequestUUID = UUID()
+    let hostedRequestURL: URL
+    let usesEphemeralSession = false
+    private let callbackScheme: String
+    private let onComplete: @MainActor @Sendable (URL) -> Void
+    private let onCancel: @MainActor @Sendable (any Error) -> Void
+
+    init(
+        url: URL,
+        callbackScheme: String,
+        onComplete: @escaping @MainActor @Sendable (URL) -> Void,
+        onCancel: @escaping @MainActor @Sendable (any Error) -> Void
+    ) {
+        self.hostedRequestURL = url
+        self.callbackScheme = callbackScheme
+        self.onComplete = onComplete
+        self.onCancel = onCancel
+    }
+
+    func matchesCallback(_ url: URL) -> Bool {
+        url.scheme?.caseInsensitiveCompare(callbackScheme) == .orderedSame
+    }
+
+    func completeHostedAuthentication(callbackURL: URL) {
+        // Resolutions come from the main-actor window controller.
+        MainActor.assumeIsolated { [onComplete] in onComplete(callbackURL) }
+    }
+
+    func cancelHostedAuthentication(with error: any Error) {
+        MainActor.assumeIsolated { [onCancel] in onCancel(error) }
     }
 }
 
