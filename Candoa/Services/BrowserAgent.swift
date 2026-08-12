@@ -318,9 +318,21 @@ enum BrowserAgentRemoteService {
                 NotificationCenter.default.post(name: .cloudSessionUnauthorized, object: nil)
                 throw RemoteEliError.sessionExpired
             }
-            let message = (try? JSONDecoder().decode(ServerError.self, from: data))?.error
-                ?? String(localized: "Eli could not continue the browser task.")
-            throw RemoteEliError.server(message)
+            let serverMessage = (try? JSONDecoder().decode(ServerError.self, from: data))?.error
+            // A 400 means Candoa Cloud rejected the request shape — a protocol
+            // bug, not something the user can act on. Its raw validation text
+            // goes to the log; the chat gets a plain-language stop. Other
+            // statuses keep the server's message, which is written for users
+            // (credit and subscription copy relies on this).
+            if response.statusCode == 400 {
+                NSLog("Candoa Cloud rejected a browser-agent request: \(serverMessage ?? "no detail")")
+                throw RemoteEliError.server(
+                    String(localized: "Eli hit a problem reading this page and stopped. Please try again.")
+                )
+            }
+            throw RemoteEliError.server(
+                serverMessage ?? String(localized: "Eli could not continue the browser task.")
+            )
         }
     }
 
