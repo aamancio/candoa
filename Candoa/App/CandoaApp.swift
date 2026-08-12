@@ -252,7 +252,7 @@ private struct BrowserCommands: Commands {
         // Grouped to stay inside the commands builder's ten-element limit.
         Group {
             CommandGroup(before: .appTermination) {
-                Button("Sign Out") {
+                Button("Sign Out", systemImage: "rectangle.portrait.and.arrow.right") {
                     userStore.signOut()
                 }
                 .disabled(!userStore.hasCloudSession || userStore.isWorking)
@@ -266,12 +266,12 @@ private struct BrowserCommands: Commands {
             // everyday way in to Site Info.
             CommandGroup(after: .appSettings) {
                 // The report describes global protection, so it needs no page.
-                Button(BrowserCommandTitles.privacyReport) {
+                Button(BrowserCommandTitles.privacyReport, systemImage: "shield.fill") {
                     actions?.showPrivacyReport()
                 }
                 .disabled(actions == nil)
 
-                Button(BrowserCommandTitles.siteInfo) {
+                Button(BrowserCommandTitles.siteInfo, systemImage: "info.circle") {
                     actions?.showSiteInfo()
                 }
                 .disabled(actions?.canShowSiteInfo != true)
