@@ -775,25 +775,46 @@ enum WebPageScripts {
         return miniplayer?.querySelector("video") ? miniplayer : null;
       };
 
+      // The sweep pre-hides the site miniplayer for its whole window so it
+      // never paints before the close lands — without this it flashes in
+      // the corner for the beat between activation and the click.
+      const suppressStyleID = "candoa-youtube-miniplayer-suppress";
+      const hideMiniplayer = () => {
+        if (document.getElementById(suppressStyleID)) { return; }
+        const style = document.createElement("style");
+        style.id = suppressStyleID;
+        style.textContent = "ytd-miniplayer { visibility: hidden !important; pointer-events: none !important; }";
+        document.documentElement.appendChild(style);
+      };
+      const unhideMiniplayer = () => { document.getElementById(suppressStyleID)?.remove(); };
+
       let sweepTimer = null;
+      const endSweep = () => {
+        if (sweepTimer !== null) { clearInterval(sweepTimer); sweepTimer = null; }
+        unhideMiniplayer();
+      };
       const sweep = (durationMs) => {
         const deadline = Date.now() + durationMs;
         if (sweepTimer !== null) { clearInterval(sweepTimer); }
+        hideMiniplayer();
+        let closeClicked = false;
         sweepTimer = setInterval(() => {
           const expired = Date.now() > deadline;
           const userMeantIt = Date.now() - explicitSummonAt < 3000;
           if (expired || userMeantIt) {
-            clearInterval(sweepTimer);
-            sweepTimer = null;
+            endSweep();
             return;
           }
-          const closeButton = activeMiniplayer()?.querySelector(".ytp-miniplayer-close-button");
-          if (closeButton) {
-            closeButton.click();
-            clearInterval(sweepTimer);
-            sweepTimer = null;
+          const miniplayer = activeMiniplayer();
+          if (!miniplayer) {
+            // After a close, unhide only once the video has left the
+            // miniplayer, so its dismissal never paints either.
+            if (closeClicked) { endSweep(); }
+            return;
           }
-        }, 250);
+          miniplayer.querySelector(".ytp-miniplayer-close-button")?.click();
+          closeClicked = true;
+        }, 100);
       };
 
       window.addEventListener("popstate", () => {
@@ -804,13 +825,9 @@ enum WebPageScripts {
       }, true);
 
       // Session-restored ghost: a miniplayer active shortly after load was
-      // carried over from a previous visit, never something the user just did.
-      const sweepRestored = () => sweep(6000);
-      if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", sweepRestored, { once: true });
-      } else {
-        sweepRestored();
-      }
+      // carried over from a previous visit, never something the user just
+      // did. Swept (and pre-hidden) from document start, before it renders.
+      sweep(8000);
     })();
     """
 
