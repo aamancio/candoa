@@ -536,6 +536,32 @@ extension BrowserStore {
             )
         }
 
+        if fixture == "ask-agent-waiting" {
+            let spaceID = UUID(uuidString: "AFAFAFAF-AFAF-AFAF-AFAF-AFAFAFAFAFAF")!
+            let tabID = UUID(uuidString: "CECECECE-CECE-CECE-CECE-CECECECECECE")!
+            let space = BrowserSpace(
+                id: spaceID,
+                name: "TestingBot",
+                symbolName: "sparkles",
+                themeAppearance: BrowserSpace.defaultThemeAppearance
+            )
+            let tab = BrowserTab(
+                id: tabID,
+                title: "Membership Home",
+                url: URL(string: "https://fixture.candoa.test/home")!,
+                faviconSymbol: "person.crop.circle",
+                spaceID: spaceID,
+                hasBeenActivated: true
+            )
+            return BrowserWindowState(
+                spaces: [space],
+                folders: [],
+                tabs: [tab],
+                activeSpaceID: spaceID,
+                activeTabID: tabID
+            )
+        }
+
         if fixture == "ask-agent-normalized-navigation" {
             let spaceID = UUID(uuidString: "ACACACAC-ACAC-ACAC-ACAC-ACACACACACAC")!
             let tabID = UUID(uuidString: "BDBDBDBD-BDBD-BDBD-BDBD-BDBDBDBDBDBD")!

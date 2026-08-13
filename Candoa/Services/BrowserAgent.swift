@@ -80,6 +80,9 @@ struct BrowserAgentActionOutcome: Codable, Sendable {
         case executed
         case failed
         case rejected
+        /// The user cleared a wait-for-user handoff and asked Eli to continue.
+        /// Requires a fresh page snapshot, like `executed`.
+        case resumed
     }
 
     let status: Status
@@ -92,6 +95,17 @@ struct BrowserAgentRunResponse: Codable, Sendable {
         case action
         case complete
         case blocked
+        /// The run is paused on something only the user can clear (an ad, a
+        /// sign-in, a CAPTCHA). The workflow stays alive; resume with a
+        /// `.resumed` outcome or end it with `.rejected`.
+        case waiting
+
+        // A status this client doesn't know must not abort the run loop —
+        // it decodes as `blocked` so the server's message still surfaces.
+        init(from decoder: Decoder) throws {
+            let raw = try decoder.singleValueContainer().decode(String.self)
+            self = Status(rawValue: raw) ?? .blocked
+        }
     }
 
     let runID: UUID

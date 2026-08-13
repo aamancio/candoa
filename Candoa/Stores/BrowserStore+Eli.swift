@@ -79,10 +79,35 @@ extension BrowserStore {
               let fixture = ProcessInfo.processInfo.environment["CANDOA_UI_TESTING_FIXTURE"],
               [
                   "ask-agent-navigation", "ask-agent-normalized-navigation", "ask-agent-selection",
-                  "ask-agent-mentioned-tab"
+                  "ask-agent-mentioned-tab", "ask-agent-waiting"
               ].contains(fixture) else { return nil }
         let pageURL = URL(string: page.url)
         let path = pageURL?.fragment.map { "/\($0)" } ?? pageURL?.path
+
+        if fixture == "ask-agent-waiting" {
+            if outcome == nil {
+                return .init(
+                    runID: runID,
+                    status: .waiting,
+                    message: "An ad is playing. Skip it or let it finish, then continue.",
+                    action: nil
+                )
+            }
+            if outcome?.status == .resumed {
+                return .init(
+                    runID: runID,
+                    status: .complete,
+                    message: "The video is playing.",
+                    action: nil
+                )
+            }
+            return .init(
+                runID: runID,
+                status: .complete,
+                message: "I stopped there.",
+                action: nil
+            )
+        }
 
         if fixture == "ask-agent-mentioned-tab" {
             if path == "/home", let control = page.controls.first {

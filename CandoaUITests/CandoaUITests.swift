@@ -2437,6 +2437,69 @@ final class CandoaUITests: XCTestCase {
         XCTAssertEqual(appleChipCount, 1, state)
     }
 
+    func testEliAgentWaitsForUserThenContinues() throws {
+        let app = launchApp(fixture: "ask-agent-waiting")
+
+        app.typeKey("e", modifierFlags: .command)
+        XCTAssertTrue(element("agent-sidebar", in: app).waitForExistence(timeout: 5), currentState(in: app))
+
+        let field = app.textFields["agent-sidebar"].firstMatch
+        XCTAssertTrue(field.waitForExistence(timeout: 5), currentState(in: app))
+        field.click()
+        field.typeText("play the video for me")
+        field.typeKey(.return, modifierFlags: [])
+
+        // The run pauses on a wait-for-user handoff instead of dying.
+        let card = element("agent-waiting-card", in: app)
+        XCTAssertTrue(card.waitForExistence(timeout: 8), askState(in: app))
+        XCTAssertTrue(app.staticTexts["Waiting for you"].exists, app.debugDescription)
+        XCTAssertTrue(
+            app.staticTexts["An ad is playing. Skip it or let it finish, then continue."].exists,
+            app.debugDescription
+        )
+
+        let waitingAttachment = XCTAttachment(screenshot: app.windows.firstMatch.screenshot())
+        waitingAttachment.name = "Eli waiting-for-you card"
+        waitingAttachment.lifetime = .keepAlways
+        add(waitingAttachment)
+
+        element("agent-waiting-continue", in: app).click()
+        XCTAssertTrue(
+            waitForAskState(in: app, containing: "lastAssistant=[The video is playing.]", timeout: 8),
+            askState(in: app)
+        )
+        XCTAssertFalse(element("agent-waiting-card", in: app).exists, app.debugDescription)
+    }
+
+    func testEliAgentWaitingStopFinalizesTheCard() throws {
+        let app = launchApp(fixture: "ask-agent-waiting")
+
+        app.typeKey("e", modifierFlags: .command)
+        XCTAssertTrue(element("agent-sidebar", in: app).waitForExistence(timeout: 5), currentState(in: app))
+
+        let field = app.textFields["agent-sidebar"].firstMatch
+        XCTAssertTrue(field.waitForExistence(timeout: 5), currentState(in: app))
+        field.click()
+        field.typeText("play the video for me")
+        field.typeKey(.return, modifierFlags: [])
+
+        let card = element("agent-waiting-card", in: app)
+        XCTAssertTrue(card.waitForExistence(timeout: 8), askState(in: app))
+
+        element("agent-waiting-stop", in: app).click()
+        XCTAssertTrue(
+            waitForAskState(in: app, containing: "lastAssistant=[Okay, I stopped there.]", timeout: 8),
+            askState(in: app)
+        )
+        XCTAssertFalse(element("agent-waiting-card", in: app).exists, app.debugDescription)
+
+        // The lifecycle state must not be stranded: a new submission works.
+        field.click()
+        field.typeText("play the video for me")
+        field.typeKey(.return, modifierFlags: [])
+        XCTAssertTrue(card.waitForExistence(timeout: 8), askState(in: app))
+    }
+
     func testEliAgentNavigatesMultiplePagesAndConfirmsCancellation() throws {
         let app = launchApp(fixture: "ask-agent-navigation")
         let exactPrompt = "unsubscribe me from this service"

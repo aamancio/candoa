@@ -184,6 +184,10 @@ struct AISidebarSubscriptionGateView: View {
 
 struct AISidebarMessageRow: View {
     @Binding var message: AISidebarMessage
+    /// Resolve a `waitingForUser` card; supplied only by the Eli sidebar,
+    /// which owns the run lifecycle.
+    var onWaitingContinue: (() -> Void)? = nil
+    var onWaitingStop: (() -> Void)? = nil
     @EnvironmentObject private var userStore: UserStore
     @State private var didCopyText = false
 
@@ -252,6 +256,12 @@ struct AISidebarMessageRow: View {
     private var messageContent: some View {
         if message.action == .subscribe {
             AISidebarSubscriptionGateView()
+        } else if case let .waitingForUser(reason) = message.action {
+            AISidebarWaitingCardView(
+                reason: reason,
+                onContinue: { onWaitingContinue?() },
+                onStop: { onWaitingStop?() }
+            )
         } else {
             VStack(alignment: .leading, spacing: 6) {
                 if !message.text.isEmpty {
@@ -503,6 +513,59 @@ private final class AISidebarTooltipButton: NSButton, NSViewToolTipOwner {
 
         guard !tooltipText.isEmpty, !bounds.isEmpty else { return }
         tooltipTag = addToolTip(bounds, owner: self, userData: nil)
+    }
+}
+
+/// Rendered inside an assistant message while a browser-agent run is paused
+/// on something only the user can clear (an ad, a sign-in, a CAPTCHA). The
+/// run stays alive until Continue or Stop resolves it.
+struct AISidebarWaitingCardView: View {
+    let reason: String
+    let onContinue: () -> Void
+    let onStop: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Image(systemName: "hourglass")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Color.accentColor)
+                Text("Waiting for you")
+                    .font(.system(size: 14, weight: .semibold))
+            }
+            .accessibilityElement(children: .combine)
+
+            Text(reason)
+                .font(.system(size: 14))
+                .fixedSize(horizontal: false, vertical: true)
+
+            HStack(spacing: 8) {
+                Button("Continue", action: onContinue)
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                    .accessibilityIdentifier("agent-waiting-continue")
+
+                Button("Stop", action: onStop)
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .accessibilityIdentifier("agent-waiting-stop")
+            }
+            .padding(.top, 2)
+        }
+        .padding(12)
+        .frame(maxWidth: 350, alignment: .leading)
+        .background {
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Color.accentColor.opacity(0.08))
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .strokeBorder(Color.accentColor.opacity(0.35), lineWidth: 1)
+        }
+        // .contain keeps this a plain AX container: an element-style
+        // identifier here would swallow the buttons' own identifiers.
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("agent-waiting-card")
     }
 }
 
@@ -1097,6 +1160,10 @@ struct AISidebarMessage: Identifiable, Equatable {
 
 enum AISidebarMessageAction: Equatable {
     case subscribe
+    /// The browser-agent run is paused on something only the user can clear
+    /// (an ad, a sign-in, a CAPTCHA); `reason` is the model's plain-language
+    /// description of what to do before continuing.
+    case waitingForUser(reason: String)
 }
 
 enum AISidebarMessageRole: Equatable {
