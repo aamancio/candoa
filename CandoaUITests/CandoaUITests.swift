@@ -3075,6 +3075,7 @@ final class CandoaUITests: XCTestCase {
         XCTAssertTrue(app.menuItems["Turn On Developer Mode"].exists)
 
         for title in [
+            "Show Web Inspector",
             "Connect Web Inspector",
             "Show JavaScript Console",
             "Show Page Source",
@@ -3091,16 +3092,36 @@ final class CandoaUITests: XCTestCase {
         XCTAssertTrue(app.menuItems["Copy URL"].exists)
         XCTAssertTrue(app.menuItems["Copy URL as Markdown"].exists)
 
-        // The User Agent submenu carries the default plus the six spoofs.
+        // The Service Workers submenu is always present; fixture pages
+        // register no workers, so it carries the disabled placeholder.
+        let serviceWorkersItem = app.menuItems["Service Workers"]
+        XCTAssertTrue(serviceWorkersItem.exists)
+        serviceWorkersItem.click()
+        let noServiceWorkersItem = app.menuItems["No Service Workers"]
+        XCTAssertTrue(noServiceWorkersItem.waitForExistence(timeout: 3))
+        XCTAssertFalse(noServiceWorkersItem.isEnabled, "the placeholder row is informational only")
+
+        // The User Agent submenu mirrors Safari's layout: the automatic
+        // default, the Safari / Edge / Chrome / Firefox groups, and the
+        // custom-agent escape hatch. Clicking the parent swaps out the
+        // Service Workers submenu opened above.
         userAgentItem.click()
-        XCTAssertTrue(app.menuItems["Default"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.menuItems["Default (Automatically Chosen)"].waitForExistence(timeout: 3))
         for presetTitle in [
             "Safari — macOS",
             "Safari — iOS",
             "Safari — iPadOS",
-            "Google Chrome — macOS",
-            "Firefox — macOS",
             "Microsoft Edge — macOS",
+            "Microsoft Edge — Windows",
+            "Microsoft Edge — Android",
+            "Google Chrome — macOS",
+            "Google Chrome — Windows",
+            "Google Chrome — Android",
+            "Google Chrome — ChromeOS",
+            "Firefox — macOS",
+            "Firefox — Windows",
+            "Firefox — Android",
+            "Other…",
         ] {
             XCTAssertTrue(
                 app.menuItems[presetTitle].exists,
@@ -3132,6 +3153,7 @@ final class CandoaUITests: XCTestCase {
         developMenu.click()
 
         for title in [
+            "Show Web Inspector",
             "Connect Web Inspector",
             "Show JavaScript Console",
             "Show Page Source",
