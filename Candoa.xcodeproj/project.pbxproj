@@ -18,6 +18,7 @@
 		010000000000000000000109 /* WKWebViewRepresentable.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000009 /* WKWebViewRepresentable.swift */; };
 		010000000000000000000110 /* WebViewCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000010 /* WebViewCoordinator.swift */; };
 		010000000000000000000111 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000011 /* ContentView.swift */; };
+		010000000000000000000169 /* QuickNoteActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000069 /* QuickNoteActivity.swift */; };
 		010000000000000000000112 /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000012 /* SidebarView.swift */; };
 		010000000000000000000113 /* BrowserInterfaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000013 /* BrowserInterfaceView.swift */; };
 		010000000000000000000114 /* WebViewContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000014 /* WebViewContainer.swift */; };
@@ -171,6 +172,7 @@
 		010000000000000000000009 /* WKWebViewRepresentable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WKWebViewRepresentable.swift; sourceTree = "<group>"; };
 		010000000000000000000010 /* WebViewCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebViewCoordinator.swift; sourceTree = "<group>"; };
 		010000000000000000000011 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		010000000000000000000069 /* QuickNoteActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickNoteActivity.swift; sourceTree = "<group>"; };
 		010000000000000000000012 /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
 		010000000000000000000013 /* BrowserInterfaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserInterfaceView.swift; sourceTree = "<group>"; };
 		010000000000000000000014 /* WebViewContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebViewContainer.swift; sourceTree = "<group>"; };
@@ -380,6 +382,7 @@
 			children = (
 				F60000000000000000000201 /* UI */,
 				010000000000000000000011 /* ContentView.swift */,
+				010000000000000000000069 /* QuickNoteActivity.swift */,
 				A90000000000000000000002 /* HistoryView.swift */,
 				CA00000000000000000A0003 /* ClearBrowsingDataSheet.swift */,
 				CA00000000000000000A0001 /* BrowserMenuController.swift */,
@@ -782,6 +785,7 @@
 				EF000000000000000000010C /* WebViewCoordinator+Downloads.swift in Sources */,
 				EF000000000000000000010D /* WebViewCoordinator+PageIntegration.swift in Sources */,
 				010000000000000000000111 /* ContentView.swift in Sources */,
+				010000000000000000000169 /* QuickNoteActivity.swift in Sources */,
 				A90000000000000000000102 /* HistoryView.swift in Sources */,
 				CA00000000000000000A0103 /* ClearBrowsingDataSheet.swift in Sources */,
 				CA00000000000000000A0101 /* BrowserMenuController.swift in Sources */,
