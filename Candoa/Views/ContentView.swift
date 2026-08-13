@@ -558,6 +558,7 @@ struct ContentView: View {
                 }
             }
         }
+        .quickNoteActivity(for: store)
     }
 
     private func applyWebsiteAppearance() {

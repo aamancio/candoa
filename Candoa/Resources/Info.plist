@@ -81,6 +81,10 @@
 	<string>Use microphone features only after you choose to allow them, such as dictation or website voice input.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>Dictate messages to Eli.</string>
+	<key>NSUserActivityTypes</key>
+	<array>
+		<string>NSUserActivityTypeBrowsingWeb</string>
+	</array>
 	<key>NSHumanReadableCopyright</key>
 	<string>Copyright © 2026 The Candoa Authors.
 MPL-2.0 License.</string>
