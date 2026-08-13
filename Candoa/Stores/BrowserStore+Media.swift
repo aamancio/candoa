@@ -55,6 +55,15 @@ extension BrowserStore {
             mediaControllerTabID = tabID
         } else if mediaControllerTabID == tabID {
             if state.hasMedia, state.isMiniPlayerEligible, retainedPausedMiniPlayerTabID == tabID { return }
+            // A pause that lands while the player is floating (the media
+            // key, the page's own controls) keeps it up in paused mode —
+            // only its close button, the media ending, or the media
+            // disappearing dismisses. The player's own pause button takes
+            // the retained path above instead.
+            if state.hasMedia, state.isMiniPlayerEligible, webCoordinator.miniPlayerHostedTabID == tabID {
+                retainedPausedMiniPlayerTabID = tabID
+                return
+            }
             mediaControllerTabID = nil
             dismissedMiniPlayerTabID = nil
             retainedPausedMiniPlayerTabID = nil
