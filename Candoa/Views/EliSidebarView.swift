@@ -27,6 +27,10 @@ struct EliSidebarView: View {
     @State private var includesCurrentPageContext = true
     @State private var lastSubmittedPageContext: AIPageContext?
     @State private var pendingSensitiveAgentAction: PendingSensitiveAgentAction?
+    /// A run paused on a wait-for-user handoff (an ad, a sign-in, a CAPTCHA).
+    /// The cloud workflow stays alive until Continue resumes it or Stop (or
+    /// sidebar teardown) rejects it.
+    @State private var waitingAgentRun: BrowserAgentRunState?
     @State private var browserAgentTask: Task<Void, Never>?
     @State private var isResolvingPageAction = false
     @State private var attachmentPreviewData: [UUID: Data] = [:]
@@ -196,7 +200,7 @@ struct EliSidebarView: View {
         BrowserStore.isUITesting
             && [
                 "ask-agent-navigation", "ask-agent-normalized-navigation", "ask-agent-selection",
-                "ask-agent-mentioned-tab"
+                "ask-agent-mentioned-tab", "ask-agent-waiting"
             ].contains(
                 ProcessInfo.processInfo.environment["CANDOA_UI_TESTING_FIXTURE"]
             )
@@ -217,7 +221,9 @@ struct EliSidebarView: View {
                             VStack(alignment: .leading, spacing: 0) {
                                 ForEach($messages) { $message in
                                     AISidebarMessageRow(
-                                        message: $message
+                                        message: $message,
+                                        onWaitingContinue: { continueWaitingAgentRun() },
+                                        onWaitingStop: { stopWaitingAgentRun() }
                                     )
                                     .padding(.bottom, spacingAfterMessage(message))
                                     .id(message.id)
@@ -702,6 +708,11 @@ struct EliSidebarView: View {
     private func submitPrompt(_ promptOverride: String? = nil) {
         let submittedPrompt = (promptOverride ?? prompt).trimmingCharacters(in: .whitespacesAndNewlines)
         guard !isRefreshingEliAccess, !isResolvingPageAction else { return }
+        // A new request supersedes a run that was waiting on the user: end it
+        // cleanly so its card can't outlive the conversation turn it paused.
+        if waitingAgentRun != nil {
+            stopWaitingAgentRun()
+        }
         guard EliPromptPolicy.canSubmit(submittedPrompt, hasConversation: !messages.isEmpty) else { return }
 
         let submission = makeSubmission(prompt: submittedPrompt)
@@ -995,6 +1006,21 @@ struct EliSidebarView: View {
         switch response.status {
         case .complete:
             finishBrowserAgent(state, message: response.message.isEmpty ? String(localized: "Done.") : response.message)
+        case .waiting:
+            let reason = response.message.isEmpty
+                ? String(localized: "I need you to handle something in this tab, then continue.")
+                : response.message
+            if let index = messages.firstIndex(where: { $0.id == state.responseID }) {
+                messages[index].text = ""
+                messages[index].isStreaming = false
+                messages[index].transientStatus = nil
+                messages[index].action = .waitingForUser(reason: reason)
+            }
+            waitingAgentRun = state
+            browserAgentTask = nil
+            // The user may keep chatting (or take their time with the ad);
+            // only a live Continue re-enters the resolving state.
+            isResolvingPageAction = false
         case .blocked:
             finishBrowserAgent(
                 state,
@@ -1078,6 +1104,68 @@ struct EliSidebarView: View {
         }
     }
 
+    /// The user cleared the obstacle (skipped the ad, signed in) and pressed
+    /// Continue: snapshot the run's tab fresh and resume the paused workflow.
+    private func continueWaitingAgentRun() {
+        guard let state = waitingAgentRun else { return }
+        waitingAgentRun = nil
+        if let index = messages.firstIndex(where: { $0.id == state.responseID }) {
+            messages[index].action = nil
+            messages[index].isStreaming = true
+            messages[index].transientStatus = String(localized: "Continuing…")
+        }
+        isResolvingPageAction = true
+        browserAgentTask?.cancel()
+        browserAgentTask = Task {
+            do {
+                // The user may have wandered to another tab while waiting;
+                // the run belongs to its tab, so bring it back first.
+                if store.activeTabID != state.tabID {
+                    store.switchTab(to: state.tabID)
+                    await store.wakeBrowserAgentTab(state.tabID)
+                }
+                guard let page = await store.browserAgentPage(for: state.tabID) else {
+                    finishBrowserAgent(state, message: String(localized: "That browser tab is no longer open."))
+                    return
+                }
+                let next = try await store.resumeBrowserAgentRun(
+                    runID: state.runID,
+                    goal: state.goal,
+                    outcome: BrowserAgentActionOutcome(
+                        status: .resumed,
+                        result: "The user handled it and asked me to continue.",
+                        page: page
+                    )
+                )
+                try await continueBrowserAgent(next, page: page, state: state)
+            } catch is CancellationError {
+            } catch {
+                Self.eliLogger.error("Browser agent resume failed: \(error.localizedDescription, privacy: .public)")
+                finishBrowserAgent(state, message: error.localizedDescription)
+            }
+        }
+    }
+
+    /// Ends a waiting run without resuming it: finalize the card immediately
+    /// and tell the workflow in the background, mirroring `cancelStream()`'s
+    /// handling of a pending sensitive action.
+    private func stopWaitingAgentRun() {
+        guard let state = waitingAgentRun else { return }
+        waitingAgentRun = nil
+        finishBrowserAgent(state, message: String(localized: "Okay, I stopped there."))
+        Task {
+            _ = try? await store.resumeBrowserAgentRun(
+                runID: state.runID,
+                goal: state.goal,
+                outcome: BrowserAgentActionOutcome(
+                    status: .rejected,
+                    result: "The user chose not to continue the paused task.",
+                    page: nil
+                )
+            )
+        }
+    }
+
     /// Denies the parked sensitive action: ends the cloud workflow with
     /// `.rejected` and finalizes the run's status message. This is the single
     /// path for every non-approval outcome — the Stop button, Esc, and any
@@ -1118,6 +1206,8 @@ struct EliSidebarView: View {
             messages[index].text = message
             messages[index].isStreaming = false
             messages[index].transientStatus = nil
+            // A finished run can never leave an interactive waiting card behind.
+            messages[index].action = nil
         }
         isResolvingPageAction = false
         browserAgentTask = nil
@@ -1660,6 +1750,12 @@ struct EliSidebarView: View {
         streamTask = nil
         browserAgentTask?.cancel()
         browserAgentTask = nil
+        if waitingAgentRun != nil {
+            // Sidebar teardown or a new conversation while a run is waiting on
+            // the user: same contract as a pending sensitive action — finalize
+            // now, tell the workflow in the background.
+            stopWaitingAgentRun()
+        }
         if let pending = pendingSensitiveAgentAction {
             pendingSensitiveAgentAction = nil
             // Finalize the status message inline — the sidebar may be
