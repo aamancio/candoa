@@ -68,11 +68,27 @@ final class BrowserWebView: WKWebView {
 
             // One combined string, not [text, URL]: given a URL item the Notes
             // extension keeps only a link card and drops the text, so fold the
-            // source link into the note body instead.
+            // source into the note body instead. Lead with the page title so it
+            // reads like the card Safari draws, and keep the address on its own
+            // line — Notes strips link attributes from shared text, so the bare
+            // URL is the only way back to the page.
             var noteText = selection
-            if let url = self.url { noteText += "\n\n— \(url.absoluteString)" }
+            if let url = self.url {
+                noteText += "\n\n"
+                if let pageTitle = self.pageTitleForNote { noteText += "\(pageTitle)\n" }
+                noteText += url.absoluteString
+            }
             NotesSharingService.share(items: [noteText])
         }
+    }
+
+    /// The page title, when it says something the address does not. Untitled
+    /// pages fall back to the address alone rather than an empty heading line.
+    private var pageTitleForNote: String? {
+        guard let pageTitle = title?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !pageTitle.isEmpty
+        else { return nil }
+        return pageTitle
     }
 }
 
