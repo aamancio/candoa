@@ -135,6 +135,45 @@ extension BrowserStore {
         }
     }
 
+    // MARK: - Inspectable Pages
+
+    /// One row in Develop's device submenu, Safari's per-page inspection
+    /// targets scoped to Candoa's own pages.
+    struct InspectablePage: Identifiable, Equatable {
+        let id: UUID
+        let title: String
+    }
+
+    var inspectablePages: [InspectablePage] {
+        tabs.compactMap { tab in
+            guard let url = tab.url, webCoordinator.hasLoadedWebView(for: tab.id) else {
+                return nil
+            }
+            // Safari labels targets host-first ("en.wikipedia.org — Rose_…"),
+            // falling back to the tab title for hostless pages.
+            var title = url.host() ?? tab.title
+            let component = url.lastPathComponent
+            if component.count > 1 {
+                title += " — " + component
+            }
+            return InspectablePage(id: tab.id, title: title)
+        }
+    }
+
+    /// Jumps to the page the way Safari's device submenu does, then opens
+    /// its inspector once the tab (and possibly Space) switch has committed.
+    func inspectPage(_ tabID: UUID) {
+        guard tabs.contains(where: { $0.id == tabID }) else { return }
+        switchTab(to: tabID)
+        CATransaction.begin()
+        CATransaction.setCompletionBlock { [weak self] in
+            Task { @MainActor in
+                self?.webCoordinator.showWebInspector(for: tabID)
+            }
+        }
+        CATransaction.commit()
+    }
+
     // MARK: - Service Workers
 
     /// Repopulates Develop ▸ Service Workers from the active window's data

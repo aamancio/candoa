@@ -109,9 +109,39 @@ struct SettingsView: View {
         }
         .tabViewStyle(.automatic)
         .frame(width: 780, height: 590)
+        .onAppear {
+            if let requested = SettingsPaneRequest.pending {
+                selectedTab = requested
+                SettingsPaneRequest.pending = nil
+            }
+        }
+        .onReceive(
+            NotificationCenter.default.publisher(for: SettingsPaneRequest.notification)
+        ) { _ in
+            if let requested = SettingsPaneRequest.pending {
+                selectedTab = requested
+                SettingsPaneRequest.pending = nil
+            }
+        }
         .onOpenURL { url in
             _ = userStore.handleAppleSignInCallback(url)
         }
+    }
+}
+
+/// Routes the Settings window to a specific pane when it is opened from
+/// outside the Settings scene (Develop ▸ Developer Settings…, which pairs
+/// this with SwiftUI's openSettings action). The pending value covers a
+/// cold window (consumed in onAppear); the notification covers one already
+/// open.
+@MainActor
+internal enum SettingsPaneRequest {
+    static var pending: SettingsTab?
+    static let notification = Notification.Name("CandoaOpenSettingsPane")
+
+    static func request(_ tab: SettingsTab) {
+        pending = tab
+        NotificationCenter.default.post(name: notification, object: nil)
     }
 }
 

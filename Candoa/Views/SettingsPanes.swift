@@ -463,3 +463,151 @@ internal struct AdvancedSettingsPane: View {
         }
     }
 }
+
+/// Safari-style Feature Flags: WebKit's experimental features with per-flag
+/// overrides. Hosted in its own window (Develop menu), not a Settings tab.
+internal struct FeatureFlagsView: View {
+    @State private var searchText = ""
+    @State private var flags: [WebKitFeatureFlags.Flag] = []
+    /// Local mirror of the persisted overrides so toggles refresh; the
+    /// engine's UserDefaults dictionary stays the source of truth.
+    @State private var overrides: [String: Bool] = [:]
+    @State private var hasLoadedFlags = false
+
+    private var filteredFlags: [WebKitFeatureFlags.Flag] {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return flags }
+        return flags.filter {
+            $0.name.localizedCaseInsensitiveContains(query)
+                || $0.key.localizedCaseInsensitiveContains(query)
+        }
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            searchField
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+
+            Divider()
+
+            if hasLoadedFlags, flags.isEmpty {
+                emptyState(String(localized: "Feature flags are unavailable in this build of WebKit."))
+            } else if filteredFlags.isEmpty, hasLoadedFlags {
+                emptyState(String(localized: "No Matching Features"))
+            } else {
+                List(filteredFlags) { flag in
+                    flagRow(flag)
+                }
+                .listStyle(.plain)
+            }
+
+            Divider()
+
+            HStack(spacing: 16) {
+                Text(String(localized: "Changes take effect for newly loaded pages."))
+                    .font(.system(size: 11.5))
+                    .foregroundStyle(.secondary)
+
+                Spacer(minLength: 16)
+
+                Button(String(localized: "Reset All")) {
+                    WebKitFeatureFlags.resetAll()
+                    overrides = [:]
+                }
+                .disabled(overrides.isEmpty)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+        }
+        .background(Color(nsColor: .windowBackgroundColor))
+        .frame(minWidth: 440, idealWidth: 520, minHeight: 420, idealHeight: 600)
+        .navigationTitle(String(localized: "Feature Flags"))
+        .onAppear(perform: loadFlags)
+    }
+
+    private var searchField: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(.secondary)
+
+            TextField(String(localized: "Search"), text: $searchText)
+                .textFieldStyle(.plain)
+                .font(.system(size: 13))
+
+            if !searchText.isEmpty {
+                Button {
+                    searchText = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
+        .background(
+            Color(nsColor: .controlBackgroundColor).opacity(0.42),
+            in: RoundedRectangle(cornerRadius: 6, style: .continuous)
+        )
+        .overlay {
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .stroke(Color.primary.opacity(0.11), lineWidth: 1)
+        }
+    }
+
+    private func flagRow(_ flag: WebKitFeatureFlags.Flag) -> some View {
+        Toggle(isOn: overrideBinding(for: flag)) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(flag.name)
+                    .font(.system(size: 13))
+                    .foregroundStyle(.primary)
+
+                if let details = flag.details {
+                    Text(details)
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+        .help(flag.key)
+        .padding(.vertical, 2)
+    }
+
+    private func overrideBinding(for flag: WebKitFeatureFlags.Flag) -> Binding<Bool> {
+        Binding {
+            overrides[flag.key] ?? flag.defaultValue
+        } set: { newValue in
+            // Choosing the default clears the override, so untouched flags
+            // keep tracking WebKit's defaults across SDK updates.
+            let stored: Bool? = (newValue == flag.defaultValue) ? nil : newValue
+            WebKitFeatureFlags.setOverride(stored, for: flag.key)
+            overrides[flag.key] = stored
+        }
+    }
+
+    private func emptyState(_ message: String) -> some View {
+        VStack {
+            Text(message)
+                .font(.system(size: 11.5))
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(24)
+    }
+
+    private func loadFlags() {
+        flags = WebKitFeatureFlags.allFlags()
+        overrides = Dictionary(
+            uniqueKeysWithValues: flags.compactMap { flag in
+                WebKitFeatureFlags.override(for: flag.key).map { (flag.key, $0) }
+            }
+        )
+        hasLoadedFlags = true
+    }
+}

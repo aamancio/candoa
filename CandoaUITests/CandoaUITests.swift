@@ -3051,9 +3051,10 @@ final class CandoaUITests: XCTestCase {
     // MARK: - Develop menu (Safari parity)
 
     /// The Develop menu mirrors Safari's order with Candoa's own items kept:
-    /// opening elsewhere and user-agent spoofing up top, developer mode, the
-    /// inspector family, recording tools, caches, and the copy commands. With
-    /// a real page loaded every page-scoped command is enabled.
+    /// opening elsewhere, user-agent spoofing, and the device-targets submenu
+    /// up top, developer mode, the inspector family, recording tools, caches,
+    /// the developer-tools rows, and the copy commands. With a real page
+    /// loaded every page-scoped command is enabled.
     func testDevelopMenuOffersSafariParityCommands() throws {
         let app = launchApp(fixture: "popup-open")
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
@@ -3072,6 +3073,33 @@ final class CandoaUITests: XCTestCase {
         XCTAssertTrue(userAgentItem.exists)
         XCTAssertTrue(userAgentItem.isEnabled)
 
+        // After User Agent comes the device-targets submenu. Its title is
+        // computed at launch — this Mac's name over its macOS version — and
+        // the runner is the same machine, so rebuild both lines here (the
+        // patch component is dropped when zero) rather than matching a
+        // literal string. Query before any submenu opens: the User Agent
+        // presets also carry "macOS" in their labels.
+        let osVersion = ProcessInfo.processInfo.operatingSystemVersion
+        var macOSVersion = "\(osVersion.majorVersion).\(osVersion.minorVersion)"
+        if osVersion.patchVersion > 0 {
+            macOSVersion += ".\(osVersion.patchVersion)"
+        }
+        let deviceItem = app.menuItems.matching(
+            NSPredicate(format: "title CONTAINS %@", "macOS ")
+        ).firstMatch
+        XCTAssertTrue(deviceItem.exists, "missing device-targets submenu")
+        XCTAssertTrue(deviceItem.isEnabled)
+        if let computerName = Host.current().localizedName {
+            XCTAssertTrue(
+                deviceItem.title.hasPrefix(computerName),
+                "device submenu should lead with this Mac's name: \(deviceItem.title)"
+            )
+        }
+        XCTAssertTrue(
+            deviceItem.title.hasSuffix("macOS \(macOSVersion)"),
+            "device submenu should close with the OS version: \(deviceItem.title)"
+        )
+
         XCTAssertTrue(app.menuItems["Turn On Developer Mode"].exists)
 
         for title in [
@@ -3087,6 +3115,14 @@ final class CandoaUITests: XCTestCase {
             let item = app.menuItems[title]
             XCTAssertTrue(item.exists, "missing Develop item \(title)")
             XCTAssertTrue(item.isEnabled, "\(title) should be enabled with a page loaded")
+        }
+
+        // Developer Settings and Feature Flags sit between the caches and
+        // copy groups; neither depends on a page.
+        for title in ["Developer Settings…", "Feature Flags…"] {
+            let item = app.menuItems[title]
+            XCTAssertTrue(item.exists, "missing Develop item \(title)")
+            XCTAssertTrue(item.isEnabled, "\(title) should always be enabled")
         }
 
         XCTAssertTrue(app.menuItems["Copy URL"].exists)
@@ -3134,6 +3170,19 @@ final class CandoaUITests: XCTestCase {
         openPageWithItem.click()
         XCTAssertTrue(app.menuItems["Safari"].waitForExistence(timeout: 3))
 
+        // The device-targets submenu leads with a disabled Candoa header,
+        // then one enabled row per inspectable page named host — path.
+        // Clicking the parent swaps out the Open Page With submenu.
+        deviceItem.click()
+        // Scoped to the submenu: the Window menu also carries a "Candoa" row
+        // (the main window's title) in the closed-menu accessibility tree.
+        let candoaHeaderItem = deviceItem.menuItems["Candoa"]
+        XCTAssertTrue(candoaHeaderItem.waitForExistence(timeout: 3))
+        XCTAssertFalse(candoaHeaderItem.isEnabled, "the app header row is informational only")
+        let inspectablePageItem = deviceItem.menuItems["fixture.candoa.test — develop"]
+        XCTAssertTrue(inspectablePageItem.exists)
+        XCTAssertTrue(inspectablePageItem.isEnabled, "a loaded page is an inspectable target")
+
         // One escape per open menu level: submenu, then the Develop menu.
         app.typeKey(.escape, modifierFlags: [])
         app.typeKey(.escape, modifierFlags: [])
@@ -3165,6 +3214,19 @@ final class CandoaUITests: XCTestCase {
             XCTAssertFalse(item.isEnabled, "\(title) must be disabled without a page")
         }
 
+        // The device-targets submenu is always present; with nothing loaded
+        // it carries the disabled placeholder.
+        let deviceItem = app.menuItems.matching(
+            NSPredicate(format: "title CONTAINS %@", "macOS ")
+        ).firstMatch
+        XCTAssertTrue(deviceItem.exists, "missing device-targets submenu")
+        deviceItem.click()
+        let noInspectablePagesItem = app.menuItems["No Inspectable Pages"]
+        XCTAssertTrue(noInspectablePagesItem.waitForExistence(timeout: 3))
+        XCTAssertFalse(noInspectablePagesItem.isEnabled, "the placeholder row is informational only")
+
+        // One escape per open menu level: submenu, then the Develop menu.
+        app.typeKey(.escape, modifierFlags: [])
         app.typeKey(.escape, modifierFlags: [])
     }
 
@@ -3190,6 +3252,34 @@ final class CandoaUITests: XCTestCase {
             app.staticTexts["Caches Emptied"].waitForExistence(timeout: 5),
             currentState(in: app)
         )
+    }
+
+    /// Develop ▸ Feature Flags… opens its own window; the command needs no
+    /// page, so the empty split-view Space is enough.
+    func testFeatureFlagsWindowOpensFromDevelopMenu() throws {
+        let app = launchApp(fixture: "split-view")
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
+
+        XCTAssertTrue(waitForState(in: app, containing: "url=none"), currentState(in: app))
+
+        let developMenu = app.menuBarItems["Develop"]
+        XCTAssertTrue(developMenu.waitForExistence(timeout: 5))
+        developMenu.click()
+
+        let featureFlagsItem = app.menuItems["Feature Flags…"]
+        XCTAssertTrue(featureFlagsItem.waitForExistence(timeout: 3))
+        XCTAssertTrue(featureFlagsItem.isEnabled)
+        featureFlagsItem.click()
+
+        let featureFlagsWindow = app.windows["Feature Flags"]
+        XCTAssertTrue(featureFlagsWindow.waitForExistence(timeout: 5))
+
+        featureFlagsWindow.buttons[XCUIIdentifierCloseWindow].click()
+        let featureFlagsWindowClosed = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "exists == false"),
+            object: featureFlagsWindow
+        )
+        XCTAssertEqual(XCTWaiter.wait(for: [featureFlagsWindowClosed], timeout: 10), .completed)
     }
 
     // MARK: - Window and Help menus (Safari parity)

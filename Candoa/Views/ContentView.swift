@@ -678,6 +678,8 @@ struct ContentView: View {
             isCustomUserAgentActive: store.isCustomUserAgentActive,
             promptForCustomUserAgent: { store.promptForCustomUserAgent() },
             serviceWorkerDomains: store.serviceWorkerDomains,
+            inspectablePages: store.inspectablePages,
+            inspectPage: { store.inspectPage($0) },
             isWebInspectorVisible: store.isWebInspectorVisible,
             toggleWebInspector: { store.toggleWebInspector() },
             connectWebInspector: { store.connectWebInspector() },
