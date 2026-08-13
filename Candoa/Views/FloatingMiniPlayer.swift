@@ -39,6 +39,43 @@ enum MiniPlayerLayout {
     }
 }
 
+/// The floating player keeps its dragged position and resized width across
+/// appearances and launches. Height is derived from width (fixed aspect), and
+/// a stale off-window origin self-heals through the container's clamping.
+@MainActor
+enum MiniPlayerPersistence {
+    private static let originXKey = "miniPlayerOriginX"
+    private static let originYKey = "miniPlayerOriginY"
+    private static let widthKey = "miniPlayerExpandedWidth"
+
+    static func loadOrigin() -> CGPoint? {
+        let defaults = UserDefaults.standard
+        guard
+            defaults.object(forKey: originXKey) != nil,
+            defaults.object(forKey: originYKey) != nil
+        else {
+            return nil
+        }
+        return CGPoint(x: defaults.double(forKey: originXKey), y: defaults.double(forKey: originYKey))
+    }
+
+    static func loadExpandedSize() -> CGSize {
+        let width = UserDefaults.standard.double(forKey: widthKey)
+        guard width > 0 else { return MiniPlayerLayout.defaultExpandedSize }
+        return CGSize(width: width, height: width / MiniPlayerLayout.aspectRatio)
+    }
+
+    static func save(origin: CGPoint?, expandedSize: CGSize) {
+        guard !BrowserStore.isUITesting else { return }
+        let defaults = UserDefaults.standard
+        if let origin {
+            defaults.set(Double(origin.x), forKey: originXKey)
+            defaults.set(Double(origin.y), forKey: originYKey)
+        }
+        defaults.set(Double(expandedSize.width), forKey: widthKey)
+    }
+}
+
 struct FloatingMiniPlayerContainer: View {
     @ObservedObject var store: BrowserStore
     let tab: BrowserTab
@@ -232,6 +269,7 @@ struct FloatingMiniPlayerContainer: View {
         let size = currentSize
         expandedSize = MiniPlayerLayout.clampedExpandedSize(expandedSize, in: availableSize)
         origin = MiniPlayerLayout.clampedOrigin(currentOrigin, size: size, in: availableSize)
+        MiniPlayerPersistence.save(origin: origin, expandedSize: expandedSize)
     }
 
     private struct MorphTarget {

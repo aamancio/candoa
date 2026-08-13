@@ -46,8 +46,8 @@ struct ContentView: View {
     @State private var pendingEliSubscriptionSubmission: EliSubmission?
     @State private var isSignOutConfirmationPresented = false
     @State private var aiSidebarResizeStartWidth: CGFloat?
-    @State private var miniPlayerOrigin: CGPoint?
-    @State private var miniPlayerExpandedSize = MiniPlayerLayout.defaultExpandedSize
+    @State private var miniPlayerOrigin: CGPoint? = MiniPlayerPersistence.loadOrigin()
+    @State private var miniPlayerExpandedSize = MiniPlayerPersistence.loadExpandedSize()
     @SceneStorage("candoa.aiSidebarWidth.diaLayout") private var aiSidebarWidth = 540.0
     private let sidebarWidth = InterfaceStyle.sidebarWidth
     private let sidebarDividerWidth: CGFloat = 0
