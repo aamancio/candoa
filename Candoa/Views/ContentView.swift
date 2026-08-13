@@ -504,6 +504,20 @@ struct ContentView: View {
                 await userStore.reconcilePendingSubscriptionIfNeeded()
             }
         }
+        .onReceive(
+            NotificationCenter.default.publisher(
+                for: NSMenu.didBeginTrackingNotification
+            )
+        ) { notification in
+            // The root menu posts once per menu-bar open: refresh Develop's
+            // Service Workers submenu the way Safari fills it on open, and
+            // nudge observers so titles that mirror inspector state
+            // (Show/Close Web Inspector, Start/Stop recordings) catch up
+            // with changes made in the inspector's own UI.
+            guard (notification.object as? NSMenu) === NSApp.mainMenu else { return }
+            store.refreshServiceWorkerRegistrations()
+            store.objectWillChange.send()
+        }
         .onChange(of: store.activeTab?.url) { _, url in
             guard let url else { return }
             Task {
@@ -661,7 +675,12 @@ struct ContentView: View {
             canUseDevelopTools: store.canUseDevelopTools,
             activeUserAgentPreset: store.activeUserAgentPreset,
             setUserAgentPreset: { store.setUserAgentPreset($0) },
-            showWebInspector: { store.showWebInspector() },
+            isCustomUserAgentActive: store.isCustomUserAgentActive,
+            promptForCustomUserAgent: { store.promptForCustomUserAgent() },
+            serviceWorkerDomains: store.serviceWorkerDomains,
+            isWebInspectorVisible: store.isWebInspectorVisible,
+            toggleWebInspector: { store.toggleWebInspector() },
+            connectWebInspector: { store.connectWebInspector() },
             showJavaScriptConsole: { store.showJavaScriptConsole() },
             showPageSource: { store.showPageSource() },
             showPageResources: { store.showPageResources() },

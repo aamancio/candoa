@@ -725,8 +725,9 @@ private struct BrowserCommands: Commands {
         }
 
         // Safari's Develop menu order, keeping Candoa's own items: opening
-        // elsewhere and spoofing up top, developer mode, then the inspector
-        // family, recording tools, caches, and the copy commands.
+        // elsewhere and spoofing up top, developer mode, service workers,
+        // then the inspector family, recording tools, caches, and the copy
+        // commands.
         CommandMenu("Develop") {
             // Grouped to stay inside the commands builder's ten-element limit.
             Group {
@@ -746,20 +747,28 @@ private struct BrowserCommands: Commands {
                 )
 
                 Menu(BrowserCommandTitles.userAgent) {
-                    ForEach(UserAgentPreset.allCases) { preset in
-                        Toggle(isOn: Binding(
-                            get: { preset == actions?.activeUserAgentPreset },
-                            set: { _ in actions?.setUserAgentPreset(preset) }
-                        )) {
-                            Text(preset.title)
+                    // Safari's layout: the default, then one group per
+                    // browser family, then the free-form Other… sheet.
+                    ForEach(UserAgentPreset.menuSections, id: \.self) { section in
+                        ForEach(section) { preset in
+                            Toggle(isOn: Binding(
+                                get: { preset == actions?.activeUserAgentPreset },
+                                set: { _ in actions?.setUserAgentPreset(preset) }
+                            )) {
+                                Text(preset.title)
+                            }
+                            .disabled(actions?.canUseDevelopTools != true)
                         }
-                        .disabled(actions?.canUseDevelopTools != true)
-
-                        // Safari separates the default from the spoofs.
-                        if preset == .standard {
-                            Divider()
-                        }
+                        Divider()
                     }
+
+                    Toggle(isOn: Binding(
+                        get: { actions?.isCustomUserAgentActive == true },
+                        set: { _ in actions?.promptForCustomUserAgent() }
+                    )) {
+                        Text(BrowserCommandTitles.userAgentOther)
+                    }
+                    .disabled(actions?.canUseDevelopTools != true)
                 }
                 .disabled(actions?.canUseDevelopTools != true)
 
@@ -777,8 +786,36 @@ private struct BrowserCommands: Commands {
 
                 Divider()
 
+                // Safari keeps the submenu present and lists registrations
+                // as informational rows; with none, a disabled placeholder.
+                Menu(BrowserCommandTitles.serviceWorkers) {
+                    if let domains = actions?.serviceWorkerDomains, !domains.isEmpty {
+                        ForEach(domains, id: \.self) { domain in
+                            Button(domain) {}
+                                .disabled(true)
+                        }
+                    } else {
+                        Button(BrowserCommandTitles.noServiceWorkers) {}
+                            .disabled(true)
+                    }
+                }
+
+                Divider()
+            }
+
+            Group {
+                Button(
+                    actions?.isWebInspectorVisible == true
+                        ? BrowserCommandTitles.closeWebInspector
+                        : BrowserCommandTitles.showWebInspector
+                ) {
+                    actions?.toggleWebInspector()
+                }
+                .keyboardShortcut("i", modifiers: [.command, .option])
+                .disabled(actions?.canUseDevelopTools != true)
+
                 Button(BrowserCommandTitles.connectWebInspector) {
-                    actions?.showWebInspector()
+                    actions?.connectWebInspector()
                 }
                 .keyboardShortcut("i", modifiers: [.command, .option, .shift])
                 .disabled(actions?.canUseDevelopTools != true)
@@ -800,9 +837,7 @@ private struct BrowserCommands: Commands {
                 }
                 .keyboardShortcut("a", modifiers: [.command, .option])
                 .disabled(actions?.canUseDevelopTools != true)
-            }
 
-            Group {
                 Divider()
 
                 Button(
@@ -827,7 +862,9 @@ private struct BrowserCommands: Commands {
                 .disabled(actions?.canUseDevelopTools != true)
 
                 Divider()
+            }
 
+            Group {
                 Button(BrowserCommandTitles.emptyCaches) {
                     actions?.emptyCaches()
                 }
@@ -984,9 +1021,15 @@ struct BrowserCommandActions {
     var installedBrowsers: [ExternalBrowserService.Browser]
     var openPageWith: (ExternalBrowserService.Browser) -> Void
     var canUseDevelopTools: Bool
-    var activeUserAgentPreset: UserAgentPreset
+    /// nil while a custom (Other…) user agent is active.
+    var activeUserAgentPreset: UserAgentPreset?
     var setUserAgentPreset: (UserAgentPreset) -> Void
-    var showWebInspector: () -> Void
+    var isCustomUserAgentActive: Bool
+    var promptForCustomUserAgent: () -> Void
+    var serviceWorkerDomains: [String]
+    var isWebInspectorVisible: Bool
+    var toggleWebInspector: () -> Void
+    var connectWebInspector: () -> Void
     var showJavaScriptConsole: () -> Void
     var showPageSource: () -> Void
     var showPageResources: () -> Void

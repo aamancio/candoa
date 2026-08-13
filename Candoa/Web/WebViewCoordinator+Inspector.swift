@@ -15,8 +15,24 @@ extension WebViewCoordinator {
         hasLoadedWebView(for: tabID) && inspector(for: tabID) != nil
     }
 
-    func showWebInspector(for tabID: UUID) {
-        performInspectorCommand("show", for: tabID)
+    /// Safari's ⌥⌘I toggles: Show Web Inspector while closed, Close Web
+    /// Inspector while open.
+    func toggleWebInspector(for tabID: UUID) {
+        performInspectorCommand(
+            isWebInspectorVisible(for: tabID) ? "close" : "show",
+            for: tabID
+        )
+    }
+
+    func isWebInspectorVisible(for tabID: UUID) -> Bool {
+        inspectorBool("isVisible", for: tabID)
+    }
+
+    /// Safari's Connect Web Inspector: attach the inspector backend without
+    /// forcing the window forward. Older SDKs lack `connect`, in which case
+    /// showing is the closest behavior rather than a silent no-op.
+    func connectWebInspector(for tabID: UUID) {
+        performInspectorCommand("connect", for: tabID, fallback: "show")
     }
 
     func showJavaScriptConsole(for tabID: UUID) {
@@ -62,14 +78,21 @@ extension WebViewCoordinator {
         return webView.perform(selector)?.takeUnretainedValue() as? NSObject
     }
 
-    private func performInspectorCommand(_ selectorName: String, for tabID: UUID) {
+    private func performInspectorCommand(
+        _ selectorName: String,
+        for tabID: UUID,
+        fallback fallbackSelectorName: String? = nil
+    ) {
         guard let webView = webViews[tabID], let inspector = inspector(for: tabID) else { return }
 
         // The per-session Settings gate is read once at web-view creation;
         // the Develop menu is an explicit request, so it overrides on demand.
         webView.isInspectable = true
 
-        let selector = NSSelectorFromString(selectorName)
+        var selector = NSSelectorFromString(selectorName)
+        if !inspector.responds(to: selector), let fallbackSelectorName {
+            selector = NSSelectorFromString(fallbackSelectorName)
+        }
         guard inspector.responds(to: selector) else { return }
         _ = inspector.perform(selector)
     }

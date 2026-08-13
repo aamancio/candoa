@@ -12,9 +12,20 @@ extension BrowserStore {
             && webCoordinator.hasLoadedWebView(for: activeTab.id)
     }
 
-    func showWebInspector() {
+    var isWebInspectorVisible: Bool {
+        guard let activeTabID else { return false }
+        return webCoordinator.isWebInspectorVisible(for: activeTabID)
+    }
+
+    func toggleWebInspector() {
         guard let activeTabID else { return }
-        webCoordinator.showWebInspector(for: activeTabID)
+        webCoordinator.toggleWebInspector(for: activeTabID)
+        objectWillChange.send()
+    }
+
+    func connectWebInspector() {
+        guard let activeTabID else { return }
+        webCoordinator.connectWebInspector(for: activeTabID)
     }
 
     func showJavaScriptConsole() {
@@ -64,8 +75,13 @@ extension BrowserStore {
         return webCoordinator.webViews[activeTabID]
     }
 
-    var activeUserAgentPreset: UserAgentPreset {
+    /// nil while a custom (Other…) user agent is set, so no preset is checked.
+    var activeUserAgentPreset: UserAgentPreset? {
         UserAgentConfiguration.preset(matching: activeWebView?.customUserAgent)
+    }
+
+    var isCustomUserAgentActive: Bool {
+        activeUserAgentPreset == nil && activeWebView?.customUserAgent?.isEmpty == false
     }
 
     func setUserAgentPreset(_ preset: UserAgentPreset) {
@@ -73,6 +89,71 @@ extension BrowserStore {
         webView.customUserAgent = preset.userAgent
         reloadActiveTab()
         objectWillChange.send()
+    }
+
+    /// Safari's User Agent ▸ Other…: a sheet asking for a free-form string.
+    func promptForCustomUserAgent() {
+        guard let webView = activeWebView else { return }
+        if let custom = webView.customUserAgent, !custom.isEmpty {
+            presentCustomUserAgentPrompt(prefill: custom)
+            return
+        }
+        // No override yet: prefill with the page's live default, like Safari.
+        Task { [weak self] in
+            let liveAgent = (try? await webView.evaluateJavaScript("navigator.userAgent")) as? String
+            self?.presentCustomUserAgentPrompt(prefill: liveAgent ?? "")
+        }
+    }
+
+    private func presentCustomUserAgentPrompt(prefill: String) {
+        guard let webView = activeWebView else { return }
+
+        let alert = NSAlert()
+        alert.messageText = String(localized: "Custom User Agent")
+        alert.informativeText = String(localized: "Enter a complete user agent string for the current page.")
+        alert.addButton(withTitle: String(localized: "OK"))
+        alert.addButton(withTitle: String(localized: "Cancel"))
+
+        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 340, height: 24))
+        field.stringValue = prefill
+        field.lineBreakMode = .byTruncatingTail
+        alert.accessoryView = field
+        alert.window.initialFirstResponder = field
+
+        let apply: (NSApplication.ModalResponse) -> Void = { [weak self] response in
+            guard response == .alertFirstButtonReturn, let self else { return }
+            let value = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+            webView.customUserAgent = value.isEmpty ? nil : value
+            self.reloadActiveTab()
+            self.objectWillChange.send()
+        }
+
+        if let window = webView.window {
+            alert.beginSheetModal(for: window, completionHandler: apply)
+        } else {
+            apply(alert.runModal())
+        }
+    }
+
+    // MARK: - Service Workers
+
+    /// Repopulates Develop ▸ Service Workers from the active window's data
+    /// store. Fired as menu-bar tracking begins so the submenu reflects the
+    /// registrations of the moment, the way Safari fills it on open.
+    func refreshServiceWorkerRegistrations() {
+        // Private windows browse against their own non-persistent store, so
+        // resolve through the live web view first; the Space's shared store
+        // covers windows that have no page loaded yet.
+        let dataStore = activeWebView?.configuration.websiteDataStore
+            ?? WebViewCoordinator.sharedDataStore(forIdentifier: dataStoreID(for: activeSpaceID))
+        Task { [weak self] in
+            let records = await dataStore.dataRecords(
+                ofTypes: [WKWebsiteDataTypeServiceWorkerRegistrations]
+            )
+            let domains = Array(Set(records.map(\.displayName))).sorted()
+            guard let self, self.serviceWorkerDomains != domains else { return }
+            self.serviceWorkerDomains = domains
+        }
     }
 
     // MARK: - Caches
