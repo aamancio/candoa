@@ -28,6 +28,12 @@ extension WebViewCoordinator {
         inspectorBool("isVisible", for: tabID)
     }
 
+    /// Unconditionally show, for callers that already know the inspector
+    /// should end up open (Develop ▸ device submenu's Inspect Page).
+    func showWebInspector(for tabID: UUID) {
+        performInspectorCommand("show", for: tabID)
+    }
+
     /// Safari's Connect Web Inspector: attach the inspector backend without
     /// forcing the window forward. Older SDKs lack `connect`, in which case
     /// showing is the closest behavior rather than a silent no-op.
@@ -109,5 +115,128 @@ extension WebViewCoordinator {
 
         let getter = unsafeBitCast(method, to: (@convention(c) (AnyObject, Selector) -> Bool).self)
         return getter(inspector, selector)
+    }
+}
+
+/// Safari-style feature flags, built on the private
+/// `+[WKPreferences _experimentalFeatures]` enumeration (elements are
+/// `_WKFeature` objects) and `-[WKPreferences _setEnabled:forExperimentalFeature:]`.
+/// Same defensive posture as the inspector bridging above: every selector is
+/// probed first, every KVC key is probed through its getter selector, and a
+/// missing API degrades to an empty list or a no-op instead of a crash.
+///
+/// Overrides persist as a key → Bool dictionary in UserDefaults and are
+/// applied to each WKWebViewConfiguration at web-view creation, so a change
+/// only reaches web views created afterwards — matching Safari, which asks
+/// for a relaunch.
+@MainActor
+enum WebKitFeatureFlags {
+    struct Flag: Identifiable {
+        let key: String
+        let name: String
+        let details: String?
+        let defaultValue: Bool
+        /// Raw `_WKFeature` status/category enums, kept as plain ints since
+        /// the private enum names are not worth mirroring.
+        let status: Int?
+        let category: Int?
+
+        var id: String { key }
+    }
+
+    static let overridesDefaultsKey = "Candoa.WebKitFeatureFlagOverrides"
+
+    static func allFlags() -> [Flag] {
+        featureObjects()
+            .compactMap { feature -> Flag? in
+                guard let key = featureValue("key", of: feature) as? String, !key.isEmpty else {
+                    return nil
+                }
+                let name = featureValue("name", of: feature) as? String
+                // Older SDKs spelled details "featureDescription".
+                let details = (featureValue("details", of: feature) as? String)
+                    ?? (featureValue("featureDescription", of: feature) as? String)
+                return Flag(
+                    key: key,
+                    name: (name?.isEmpty == false) ? name! : key,
+                    details: (details?.isEmpty == false) ? details : nil,
+                    defaultValue: (featureValue("defaultValue", of: feature) as? NSNumber)?.boolValue ?? false,
+                    status: (featureValue("status", of: feature) as? NSNumber)?.intValue,
+                    category: (featureValue("category", of: feature) as? NSNumber)?.intValue
+                )
+            }
+            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    }
+
+    // MARK: - Override persistence
+
+    static func override(for key: String) -> Bool? {
+        storedOverrides()[key]
+    }
+
+    /// Passing nil removes the override so untouched flags track WebKit's
+    /// own defaults across SDK updates.
+    static func setOverride(_ value: Bool?, for key: String) {
+        var overrides = storedOverrides()
+        overrides[key] = value
+        if overrides.isEmpty {
+            UserDefaults.standard.removeObject(forKey: overridesDefaultsKey)
+        } else {
+            UserDefaults.standard.set(overrides, forKey: overridesDefaultsKey)
+        }
+    }
+
+    static func resetAll() {
+        UserDefaults.standard.removeObject(forKey: overridesDefaultsKey)
+    }
+
+    // MARK: - Applying overrides
+
+    /// Pushes every stored override whose key still names a real feature onto
+    /// the given preferences. Stale keys (features removed by an SDK update)
+    /// are skipped, not pruned, so they revive if the feature returns.
+    static func apply(to preferences: WKPreferences) {
+        let overrides = storedOverrides()
+        guard !overrides.isEmpty else { return }
+
+        var selector = NSSelectorFromString("_setEnabled:forExperimentalFeature:")
+        if !preferences.responds(to: selector) {
+            // Newer SDKs fold experimental features into the plain feature setter.
+            selector = NSSelectorFromString("_setEnabled:forFeature:")
+        }
+        guard preferences.responds(to: selector),
+              let method = preferences.method(for: selector) else { return }
+
+        // perform(_:) cannot pass an ObjC BOOL argument, so call the IMP
+        // through a matching C function type (same trick as inspectorBool).
+        let setter = unsafeBitCast(
+            method,
+            to: (@convention(c) (AnyObject, Selector, Bool, AnyObject) -> Void).self
+        )
+        for feature in featureObjects() {
+            guard let key = featureValue("key", of: feature) as? String,
+                  let value = overrides[key] else { continue }
+            setter(preferences, selector, value, feature)
+        }
+    }
+
+    // MARK: - Private-API bridging
+
+    private static func featureObjects() -> [NSObject] {
+        let selector = NSSelectorFromString("_experimentalFeatures")
+        let preferencesClass: AnyObject = WKPreferences.self
+        guard preferencesClass.responds(to: selector) else { return [] }
+        return preferencesClass.perform(selector)?.takeUnretainedValue() as? [NSObject] ?? []
+    }
+
+    /// `value(forKey:)` raises an ObjC exception on unknown keys, which Swift
+    /// cannot catch; probe the getter selector before reading.
+    private static func featureValue(_ key: String, of feature: NSObject) -> Any? {
+        guard feature.responds(to: NSSelectorFromString(key)) else { return nil }
+        return feature.value(forKey: key)
+    }
+
+    private static func storedOverrides() -> [String: Bool] {
+        UserDefaults.standard.dictionary(forKey: overridesDefaultsKey) as? [String: Bool] ?? [:]
     }
 }

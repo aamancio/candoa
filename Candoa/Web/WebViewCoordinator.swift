@@ -204,6 +204,9 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
             configuration.preferences.setValue(true, forKey: "developerExtrasEnabled")
         }
 
+        // Feature Flags overrides reach only web views created after a change.
+        WebKitFeatureFlags.apply(to: configuration.preferences)
+
         let webView = BrowserWebView(frame: .zero, configuration: configuration)
         register(webView, for: tab.id)
         return webView

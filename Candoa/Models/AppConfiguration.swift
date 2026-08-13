@@ -7,6 +7,7 @@ enum AppConfiguration {
     static let browserWindowSceneID = "browser"
     static let privateBrowserWindowSceneID = "browser.private"
     static let acknowledgmentsWindowSceneID = "browser.acknowledgments"
+    static let featureFlagsWindowSceneID = "browser.feature-flags"
     static let windowAutosaveNamePrefix = "Candoa.BrowserWindow"
 }
 
@@ -65,6 +66,10 @@ enum BrowserCommandTitles {
     static let openPageWith = String(localized: "Open Page With")
     static let userAgent = String(localized: "User Agent")
     static let showWebInspector = String(localized: "Show Web Inspector")
+    static let noInspectablePages = String(localized: "No Inspectable Pages")
+    static let developerSettings = String(localized: "Developer Settings…")
+    static let featureFlags = String(localized: "Feature Flags…")
+    static let featureFlagsWindowTitle = String(localized: "Feature Flags")
     static let closeWebInspector = String(localized: "Close Web Inspector")
     static let connectWebInspector = String(localized: "Connect Web Inspector")
     static let serviceWorkers = String(localized: "Service Workers")

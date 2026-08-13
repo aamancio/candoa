@@ -75,6 +75,18 @@ struct CandoaApp: App {
         // Without this, the scene injects its own "Acknowledgments" row into
         // the Window menu, duplicating the Help menu entry.
         .commandsRemoved()
+
+        // Develop ▸ Feature Flags…, Safari's WebKit experimental-feature
+        // panel.
+        Window(
+            BrowserCommandTitles.featureFlagsWindowTitle,
+            id: AppConfiguration.featureFlagsWindowSceneID
+        ) {
+            FeatureFlagsView()
+        }
+        .windowResizability(.contentSize)
+        .defaultSize(width: 540, height: 620)
+        .commandsRemoved()
     }
 
     private static var initialWindowSize: CGSize {
@@ -247,7 +259,20 @@ private struct AboutCommands: Commands {
 private struct BrowserCommands: Commands {
     @FocusedValue(\.browserCommandActions) private var actions
     @Environment(\.openWindow) private var openWindow
+    @Environment(\.openSettings) private var openSettings
     @ObservedObject var userStore: UserStore
+
+    /// Safari titles the Develop menu's local-targets submenu with the
+    /// device itself, name over OS version.
+    private static let deviceMenuTitle: String = {
+        let name = Host.current().localizedName ?? "Mac"
+        let os = ProcessInfo.processInfo.operatingSystemVersion
+        var version = "\(os.majorVersion).\(os.minorVersion)"
+        if os.patchVersion > 0 {
+            version += ".\(os.patchVersion)"
+        }
+        return "\(name)\nmacOS \(version)"
+    }()
 
     var body: some Commands {
         // Grouped to stay inside the commands builder's ten-element limit.
@@ -774,6 +799,28 @@ private struct BrowserCommands: Commands {
 
                 Divider()
 
+                // Safari's local-device targets, scoped to Candoa's own
+                // pages: the submenu carries the Mac's name, an app header
+                // row, and one entry per inspectable page.
+                Menu {
+                    if let pages = actions?.inspectablePages, !pages.isEmpty {
+                        Button(action: {}) { Text(verbatim: "Candoa") }
+                            .disabled(true)
+                        ForEach(pages) { page in
+                            Button(page.title) {
+                                actions?.inspectPage(page.id)
+                            }
+                        }
+                    } else {
+                        Button(BrowserCommandTitles.noInspectablePages) {}
+                            .disabled(true)
+                    }
+                } label: {
+                    Text(verbatim: Self.deviceMenuTitle)
+                }
+
+                Divider()
+
                 Button(
                     actions?.isDeveloperModeEnabled == true
                         ? BrowserCommandTitles.turnOffDeveloperMode
@@ -870,6 +917,17 @@ private struct BrowserCommands: Commands {
                 }
                 .keyboardShortcut("e", modifiers: [.command, .option])
                 .disabled(actions?.canUseDevelopTools != true)
+
+                Divider()
+
+                Button(BrowserCommandTitles.developerSettings) {
+                    SettingsPaneRequest.request(.advanced)
+                    openSettings()
+                }
+
+                Button(BrowserCommandTitles.featureFlags) {
+                    openWindow(id: AppConfiguration.featureFlagsWindowSceneID)
+                }
 
                 Divider()
 
@@ -1027,6 +1085,8 @@ struct BrowserCommandActions {
     var isCustomUserAgentActive: Bool
     var promptForCustomUserAgent: () -> Void
     var serviceWorkerDomains: [String]
+    var inspectablePages: [BrowserStore.InspectablePage]
+    var inspectPage: (UUID) -> Void
     var isWebInspectorVisible: Bool
     var toggleWebInspector: () -> Void
     var connectWebInspector: () -> Void
