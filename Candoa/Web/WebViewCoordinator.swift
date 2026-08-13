@@ -258,6 +258,11 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
             // Every frame: links inside embeds deserve a preview too.
             forMainFrameOnly: false
         )
+        addUserScriptOnce(
+            WebPageScripts.youtubeMiniplayerGuardScript,
+            to: contentController,
+            forMainFrameOnly: true
+        )
         if BrowserStore.isUITesting {
             addUserScriptOnce(
                 "window.__candoaInitialDark = matchMedia('(prefers-color-scheme: dark)').matches",

@@ -744,6 +744,76 @@ enum WebPageScripts {
     })();
     """
 
+    /// YouTube parks a playing video in its own corner miniplayer when a
+    /// history navigation leaves the watch page, and restores that miniplayer
+    /// on later visits from its own session state. Candoa's floating player
+    /// owns background playback, so the site's copy only ever shows up as a
+    /// stray after pressing Back — auto-close it. Deliberate summons (the
+    /// `i` shortcut or the player's miniplayer button) also ride a history
+    /// navigation, so they mark themselves exempt just before it fires.
+    static let youtubeMiniplayerGuardScript = """
+    (() => {
+      if (window.__candoaYouTubeMiniplayerGuarded) { return; }
+      if (!/(^|[.])youtube[.]com$/.test(location.hostname)) { return; }
+      window.__candoaYouTubeMiniplayerGuarded = true;
+
+      let explicitSummonAt = 0;
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "i" && !event.metaKey && !event.ctrlKey && !event.altKey) {
+          explicitSummonAt = Date.now();
+        }
+      }, true);
+      document.addEventListener("pointerdown", (event) => {
+        const target = event.target instanceof Element ? event.target : null;
+        if (target?.closest(".ytp-miniplayer-button")) { explicitSummonAt = Date.now(); }
+      }, true);
+
+      // Active means the site moved the player's video inside its
+      // miniplayer host; the element itself always exists, just empty.
+      const activeMiniplayer = () => {
+        const miniplayer = document.querySelector("ytd-miniplayer");
+        return miniplayer?.querySelector("video") ? miniplayer : null;
+      };
+
+      let sweepTimer = null;
+      const sweep = (durationMs) => {
+        const deadline = Date.now() + durationMs;
+        if (sweepTimer !== null) { clearInterval(sweepTimer); }
+        sweepTimer = setInterval(() => {
+          const expired = Date.now() > deadline;
+          const userMeantIt = Date.now() - explicitSummonAt < 3000;
+          if (expired || userMeantIt) {
+            clearInterval(sweepTimer);
+            sweepTimer = null;
+            return;
+          }
+          const closeButton = activeMiniplayer()?.querySelector(".ytp-miniplayer-close-button");
+          if (closeButton) {
+            closeButton.click();
+            clearInterval(sweepTimer);
+            sweepTimer = null;
+          }
+        }, 250);
+      };
+
+      window.addEventListener("popstate", () => {
+        // A miniplayer already floating predates this navigation — the user
+        // opened it on purpose; only activations the navigation causes close.
+        if (activeMiniplayer()) { return; }
+        sweep(2500);
+      }, true);
+
+      // Session-restored ghost: a miniplayer active shortly after load was
+      // carried over from a previous visit, never something the user just did.
+      const sweepRestored = () => sweep(6000);
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", sweepRestored, { once: true });
+      } else {
+        sweepRestored();
+      }
+    })();
+    """
+
     /// Injected at document start; reports playback state for the selected
     /// foreground video candidate and ignores small/autoplay ad-like media.
     static let mediaObserverScript = """
