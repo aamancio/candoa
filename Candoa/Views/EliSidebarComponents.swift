@@ -787,9 +787,9 @@ struct AISidebarComposerIconButton: View {
     var body: some View {
         Button(action: action) {
             Image(systemName: symbolName)
-                .font(.system(size: 15.5, weight: .semibold))
+                .font(.system(size: 13, weight: .medium))
                 .foregroundStyle(foregroundStyle)
-                .frame(width: 27, height: 27)
+                .frame(width: 26, height: 26)
                 .background {
                     Circle()
                         .fill(backgroundFill)
@@ -825,9 +825,9 @@ struct AISidebarComposerSendButton: View {
     var body: some View {
         Button(action: action) {
             Image(systemName: "arrow.up")
-                .font(.system(size: 15, weight: .bold))
+                .font(.system(size: 13, weight: .bold))
                 .foregroundStyle(iconColor)
-                .frame(width: 31, height: 31)
+                .frame(width: 28, height: 28)
                 .background {
                     Circle()
                         .fill(backgroundFill)
