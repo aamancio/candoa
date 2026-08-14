@@ -407,6 +407,100 @@ final class CandoaUITests: XCTestCase {
         XCTAssertTrue(waitForState(in: app, containing: "active=a-one"), currentState(in: app))
     }
 
+    func testLocalhostDeveloperBarPaintsPrimaryBlueStripes() throws {
+        let app = launchApp()
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
+
+        openNewTabPalette(in: app)
+        submitCommandPaletteText("localhost:8080", in: app)
+        XCTAssertTrue(
+            waitForState(in: app, containing: "url=http://localhost:8080/", timeout: 15),
+            currentState(in: app)
+        )
+
+        let window = app.windows.firstMatch
+        let urlField = window.textFields
+            .matching(NSPredicate(format: "value CONTAINS %@", "localhost:8080")).firstMatch
+        XCTAssertTrue(urlField.waitForExistence(timeout: 10), "developer bar URL field missing")
+
+        // Let the page settle so the bar is in its resting visual state.
+        sleep(2)
+
+        let screenshot = window.screenshot()
+        let attachment = XCTAttachment(screenshot: screenshot)
+        attachment.name = "Localhost developer bar"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+
+        let bitmap = try XCTUnwrap(NSBitmapImageRep(data: screenshot.pngRepresentation))
+        let windowFrame = window.frame
+        let scaleX = CGFloat(bitmap.pixelsWide) / windowFrame.width
+        let scaleY = CGFloat(bitmap.pixelsHigh) / windowFrame.height
+
+        func color(atX xPt: CGFloat, y yPt: CGFloat) throws -> NSColor {
+            try XCTUnwrap(bitmap.colorAt(
+                x: min(Int(xPt * scaleX), bitmap.pixelsWide - 1),
+                y: min(Int(yPt * scaleY), bitmap.pixelsHigh - 1)
+            )?.usingColorSpace(.sRGB))
+        }
+
+        // The bar occupies the card's top 30pt (window rows ~8-38). Sample
+        // mid-bar across the window's middle third — clear of the sidebar
+        // and of anything overlapping the trailing edge.
+        let barY: CGFloat = 22
+        var barSamples: [NSColor] = []
+        // Stride avoids aliasing with the 14pt stripe bands so samples land
+        // on both stripe phases.
+        for xPt in stride(from: windowFrame.width * 0.35, through: windowFrame.width * 0.65, by: 3) {
+            barSamples.append(try color(atX: xPt, y: barY))
+        }
+
+        // Primary blue dominates every sample: strongly blue, never slate.
+        for sample in barSamples {
+            XCTAssertGreaterThan(
+                sample.blueComponent, 0.7,
+                "developer bar is not primary blue at full strength"
+            )
+            XCTAssertLessThan(
+                sample.redComponent, 0.45,
+                "developer bar is washed out or occluded"
+            )
+        }
+
+        // The Arc-style stripes are visible: the run alternates between two
+        // distinct blue tones rather than one flat fill.
+        // Measured on the red channel: the blue channel is saturated on the
+        // base fill, so the white stripe overlay only registers in red/green.
+        let reds = barSamples.map(\.redComponent)
+        let stripeContrast = (reds.max() ?? 0) - (reds.min() ?? 0)
+        XCTAssertGreaterThan(
+            stripeContrast, 0.015,
+            "developer bar renders flat — diagonal stripes missing"
+        )
+
+        // The URL text renders legibly: near-white pixels exist on the text
+        // row within the field's leading run.
+        var sawTextPixel = false
+        let textProbeY = urlField.frame.midY - windowFrame.minY
+        for xPt in stride(from: urlField.frame.minX - windowFrame.minX, to: urlField.frame.minX - windowFrame.minX + 220, by: 2) {
+            let sample = try color(atX: xPt, y: textProbeY)
+            if sample.redComponent > 0.85, sample.greenComponent > 0.85, sample.blueComponent > 0.85 {
+                sawTextPixel = true
+                break
+            }
+        }
+        XCTAssertTrue(sawTextPixel, "URL text is not legible on the developer bar")
+
+        // The URL field accepts input: click, retype, and navigate.
+        urlField.click()
+        window.typeKey("a", modifierFlags: .command)
+        window.typeText("localhost:8080/dashboard\r")
+        XCTAssertTrue(
+            waitForState(in: app, containing: "url=http://localhost:8080/dashboard", timeout: 15),
+            currentState(in: app)
+        )
+    }
+
     func testWebsiteAppearanceRendersYouTubeInDarkMode() throws {
         let app = launchApp(fixture: "website-appearance", websiteAppearance: "dark")
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))

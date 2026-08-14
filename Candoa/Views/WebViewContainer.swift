@@ -253,6 +253,7 @@ struct WebViewContainer: View {
                 DeveloperToolbar(
                     url: url,
                     urlText: url.localDevelopmentDisplayText,
+                    contentInsets: webContentInsets,
                     isSplitViewEnabled: store.isSplitViewDisplayed,
                     onCopyURL: { store.copyActiveTabURL() },
                     onCapturePage: { store.captureActiveTabPage() },
@@ -260,6 +261,10 @@ struct WebViewContainer: View {
                     onSubmitURL: { store.navigateActiveTab(to: $0) },
                     onSetDeveloperMode: { store.setDeveloperMode($0, for: url) }
                 )
+                // The web host's opaque surface background paints over
+                // earlier siblings' rows; keep the toolbar above it or the
+                // bar renders dimmed behind that fill.
+                .zIndex(1)
             }
 
             if tab.isWelcomePage {
@@ -1273,6 +1278,10 @@ private struct SplitDropPreviewOverlay: View {
 private struct DeveloperToolbar: View {
     let url: URL
     let urlText: String
+    /// The interface lanes covering the card's edges. The striped surface
+    /// spans the full card, but content placed under a lane is masked away
+    /// with it, so the URL field and controls stay inside the visible run.
+    let contentInsets: BrowserInterfaceInsets
     let isSplitViewEnabled: Bool
     let onCopyURL: () -> Void
     let onCapturePage: () -> Void
@@ -1378,6 +1387,8 @@ private struct DeveloperToolbar: View {
             }
         }
         .padding(.horizontal, 10)
+        .padding(.leading, contentInsets.leading)
+        .padding(.trailing, contentInsets.trailing)
         .frame(height: 30)
         .frame(maxWidth: .infinity)
         .background {
