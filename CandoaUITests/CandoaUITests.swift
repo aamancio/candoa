@@ -449,7 +449,7 @@ final class CandoaUITests: XCTestCase {
         // and of anything overlapping the trailing edge.
         let barY: CGFloat = 22
         var barSamples: [NSColor] = []
-        // Stride avoids aliasing with the 14pt stripe bands so samples land
+        // Stride avoids aliasing with the stripe bands so samples land
         // on both stripe phases.
         for xPt in stride(from: windowFrame.width * 0.35, through: windowFrame.width * 0.65, by: 3) {
             barSamples.append(try color(atX: xPt, y: barY))
