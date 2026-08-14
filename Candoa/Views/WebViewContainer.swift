@@ -1546,16 +1546,17 @@ private struct DeveloperToolbar: View {
     }
 }
 
-/// Arc-style local-development banner on the app's own chrome gray: the
-/// system window background carries the bar, and the primary blue lives in
-/// the wide 45° stripes (Alex's pick over a solid or blended blue fill),
-/// so the bar sits with the chrome while still reading as "you are on
-/// localhost" at a glance.
+/// Arc-style local-development banner: the primary blue muted into the
+/// chrome (55% over the window background — Alex compared full-strength,
+/// gray-with-blue-stripes, and this in situ, and settled here), with wide
+/// 45° stripes in a slightly lighter tint so the bar reads as a deliberate
+/// "you are on localhost" surface without shouting over the chrome.
 private struct LocalDevelopmentStripedBackground: View {
     var body: some View {
         Canvas { context, size in
             let bounds = Path(CGRect(origin: .zero, size: size))
             context.fill(bounds, with: .color(Color(nsColor: .windowBackgroundColor)))
+            context.fill(bounds, with: .color(AppColor.Apple.systemBlue.opacity(0.55)))
 
             let bandWidth: CGFloat = 14
             let period = bandWidth * 2
@@ -1567,7 +1568,7 @@ private struct LocalDevelopmentStripedBackground: View {
                 band.addLine(to: CGPoint(x: x + bandWidth + size.height, y: 0))
                 band.addLine(to: CGPoint(x: x + size.height, y: 0))
                 band.closeSubpath()
-                context.fill(band, with: .color(AppColor.Apple.systemBlue.opacity(0.22)))
+                context.fill(band, with: .color(.white.opacity(0.08)))
                 x += period
             }
         }

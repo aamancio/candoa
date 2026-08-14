@@ -455,33 +455,28 @@ final class CandoaUITests: XCTestCase {
             barSamples.append(try color(atX: xPt, y: barY))
         }
 
-        // Chrome-gray base with primary-blue stripes: the base samples stay
-        // neutral while the stripe samples pull blue. Assert the stripes are
-        // both present (blue-channel contrast across the run) and blue
-        // (some sample is meaningfully blue-dominant). The #310 occlusion
-        // regression flattened the run entirely, which still fails here.
-        let blues = barSamples.map(\.blueComponent)
-        let stripeContrast = (blues.max() ?? 0) - (blues.min() ?? 0)
-        XCTAssertGreaterThan(
-            stripeContrast, 0.06,
-            "developer bar renders flat — diagonal stripes missing"
-        )
-
-        let maxBlueDominance = barSamples
-            .map { $0.blueComponent - $0.redComponent }
-            .max() ?? 0
-        XCTAssertGreaterThan(
-            maxBlueDominance, 0.1,
-            "stripes are not primary blue"
-        )
-
-        // The base is the chrome gray, not a washed accent slab.
+        // Muted primary blue dominates every sample (system blue at 55%
+        // over the chrome base) — the #310 occlusion regression read slate
+        // with a blue-red delta of only ~0.15, which still fails here.
         for sample in barSamples {
-            XCTAssertLessThan(
-                sample.redComponent, 0.4,
-                "developer bar base is not the chrome gray"
+            XCTAssertGreaterThan(
+                sample.blueComponent - sample.redComponent, 0.28,
+                "developer bar is not blue-dominant — occluded or wrong palette"
+            )
+            XCTAssertGreaterThan(
+                sample.blueComponent, 0.45,
+                "developer bar is too dark to read as the primary-blue surface"
             )
         }
+
+        // The Arc-style stripes are visible: measured on the red channel,
+        // where the white stripe overlay registers against the blue base.
+        let reds = barSamples.map(\.redComponent)
+        let stripeContrast = (reds.max() ?? 0) - (reds.min() ?? 0)
+        XCTAssertGreaterThan(
+            stripeContrast, 0.015,
+            "developer bar renders flat — diagonal stripes missing"
+        )
 
         // The URL text renders legibly: near-white pixels exist on the text
         // row within the field's leading run.
