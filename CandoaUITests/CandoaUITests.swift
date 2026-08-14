@@ -3130,19 +3130,13 @@ final class CandoaUITests: XCTestCase {
         XCTAssertTrue(app.menuItems["Copy URL"].exists)
         XCTAssertTrue(app.menuItems["Copy URL as Markdown"].exists)
 
-        // The Service Workers submenu is always present; fixture pages
-        // register no workers, so it carries the disabled placeholder.
-        let serviceWorkersItem = app.menuItems["Service Workers"]
-        XCTAssertTrue(serviceWorkersItem.exists)
-        serviceWorkersItem.click()
-        let noServiceWorkersItem = app.menuItems["No Service Workers"]
-        XCTAssertTrue(noServiceWorkersItem.waitForExistence(timeout: 3))
-        XCTAssertFalse(noServiceWorkersItem.isEnabled, "the placeholder row is informational only")
+        // Safari's Service Workers submenu is deliberately absent: its rows
+        // open per-worker inspectors WebKit gives no entry point for.
+        XCTAssertFalse(app.menuItems["Service Workers"].exists)
 
         // The User Agent submenu mirrors Safari's layout: the automatic
         // default, the Safari / Edge / Chrome / Firefox groups, and the
-        // custom-agent escape hatch. Clicking the parent swaps out the
-        // Service Workers submenu opened above.
+        // custom-agent escape hatch.
         userAgentItem.click()
         XCTAssertTrue(app.menuItems["Default (Automatically Chosen)"].waitForExistence(timeout: 3))
         for presetTitle in [

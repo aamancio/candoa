@@ -174,27 +174,6 @@ extension BrowserStore {
         CATransaction.commit()
     }
 
-    // MARK: - Service Workers
-
-    /// Repopulates Develop ▸ Service Workers from the active window's data
-    /// store. Fired as menu-bar tracking begins so the submenu reflects the
-    /// registrations of the moment, the way Safari fills it on open.
-    func refreshServiceWorkerRegistrations() {
-        // Private windows browse against their own non-persistent store, so
-        // resolve through the live web view first; the Space's shared store
-        // covers windows that have no page loaded yet.
-        let dataStore = activeWebView?.configuration.websiteDataStore
-            ?? WebViewCoordinator.sharedDataStore(forIdentifier: dataStoreID(for: activeSpaceID))
-        Task { [weak self] in
-            let records = await dataStore.dataRecords(
-                ofTypes: [WKWebsiteDataTypeServiceWorkerRegistrations]
-            )
-            let domains = Array(Set(records.map(\.displayName))).sorted()
-            guard let self, self.serviceWorkerDomains != domains else { return }
-            self.serviceWorkerDomains = domains
-        }
-    }
-
     // MARK: - Caches
 
     /// Removes only the active Space's caches, leaving cookies, storage and
