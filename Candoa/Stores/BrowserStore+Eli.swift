@@ -1,6 +1,100 @@
 import Foundation
 
 extension BrowserStore {
+    // MARK: - Space memory
+
+    /// Memory is a per-Space feature of ordinary windows; private windows
+    /// neither read nor write it.
+    var isActiveSpaceMemoryEnabled: Bool {
+        guard !isPrivate else { return false }
+        return activeSpace?.isEliMemoryEnabled ?? true
+    }
+
+    func setActiveSpaceMemoryEnabled(_ isEnabled: Bool) {
+        guard !isPrivate, let index = spaces.firstIndex(where: { $0.id == activeSpaceID }) else { return }
+        guard spaces[index].isEliMemoryEnabled != isEnabled else { return }
+        spaces[index].isEliMemoryEnabled = isEnabled
+        flushSession()
+    }
+
+    func activeSpaceMemoryFacts() -> [SpaceMemoryFact] {
+        guard !isPrivate else { return [] }
+        return persistenceService.spaceMemoryFacts(in: activeSpaceID)
+    }
+
+    /// The labeled block Ask and the browser agent carry, or nil when the
+    /// Space has memory off (or nothing saved). Reads only the active Space,
+    /// which is what keeps one Space's facts out of another's requests.
+    func activeSpaceMemorySection() -> String? {
+        guard isActiveSpaceMemoryEnabled else { return nil }
+        return SpaceMemoryPolicy.memoryContextSection(for: activeSpaceMemoryFacts())
+    }
+
+    func deleteSpaceMemoryFact(_ id: UUID) {
+        persistenceService.deleteSpaceMemoryFact(withID: id)
+        objectWillChange.send()
+    }
+
+    func deleteActiveSpaceMemory() {
+        guard !isPrivate else { return }
+        persistenceService.deleteSpaceMemoryFacts(in: activeSpaceID)
+        objectWillChange.send()
+    }
+
+    /// Runs the memory extraction pass for the active Space over a finished
+    /// Ask conversation. Fire-and-forget: a failed or malformed extraction
+    /// leaves existing memory untouched.
+    func updateSpaceMemory(fromConversation transcript: [AIConversationTurn]) {
+        guard !isPrivate, isActiveSpaceMemoryEnabled else { return }
+        guard transcript.contains(where: { $0.role == .user }) else { return }
+        let spaceID = activeSpaceID
+        guard transcript.count > (eliMemoryLastExtractedTurnCounts[spaceID] ?? 0) else { return }
+
+        let existing = persistenceService.spaceMemoryFacts(in: spaceID)
+
+        // UI tests never reach the network: the fixture's canned facts stand
+        // in for the extractor's reply, exercising the same sanitize, merge,
+        // and persist path.
+        if Self.isUITesting {
+            guard let fixtureContents = Self.uiTestingMemoryExtractionFacts() else { return }
+            eliMemoryLastExtractedTurnCounts[spaceID] = transcript.count
+            persistSpaceMemoryUpdate(contents: fixtureContents, existing: existing, spaceID: spaceID)
+            return
+        }
+
+        guard eliMemoryExtractionTasks[spaceID] == nil else { return }
+        eliMemoryLastExtractedTurnCounts[spaceID] = transcript.count
+        eliMemoryExtractionTasks[spaceID] = Task { [weak self] in
+            let contents = try? await SpaceMemoryExtractor.updatedFactContents(
+                existingFacts: existing.map(\.content),
+                transcript: transcript
+            )
+            if let contents {
+                self?.persistSpaceMemoryUpdate(contents: contents, existing: existing, spaceID: spaceID)
+            }
+            self?.eliMemoryExtractionTasks[spaceID] = nil
+        }
+    }
+
+    private func persistSpaceMemoryUpdate(
+        contents: [String],
+        existing: [SpaceMemoryFact],
+        spaceID: UUID
+    ) {
+        let sanitized = SpaceMemoryPolicy.sanitizedFactContents(contents)
+        // A reply that empties the whole list is indistinguishable from a
+        // failed extraction; only the user's Forget All clears memory outright.
+        guard !sanitized.isEmpty || existing.isEmpty else { return }
+        persistenceService.replaceSpaceMemoryFacts(
+            with: SpaceMemoryExtractor.mergedFacts(
+                contents: sanitized,
+                existing: existing,
+                spaceID: spaceID
+            ),
+            in: spaceID
+        )
+        objectWillChange.send()
+    }
     func browserAgentPage(for tabID: UUID?) async -> BrowserAgentPage? {
         guard let tabID else { return nil }
         var resolvedTab = tabs.first(where: { $0.id == tabID && $0.url != nil })

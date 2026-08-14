@@ -218,3 +218,164 @@ final class CandoaTests: XCTestCase {
         )
     }
 }
+
+/// Unit coverage for Eli's per-Space memory (issue #292): the sanitization
+/// gate, extractor reply parsing, merge semantics, and context injection.
+/// All pure logic — persistence and the popover stay with the UI tests.
+final class SpaceMemoryTests: XCTestCase {
+    private let spaceID = UUID()
+
+    // MARK: - Sanitization gate
+
+    func testSanitizationKeepsOrdinaryFacts() {
+        let facts = SpaceMemoryPolicy.sanitizedFactContents([
+            "The user's name is Alex.",
+            "The user is applying for engineering jobs.",
+            "  The user prefers dark mode.  ",
+        ])
+        XCTAssertEqual(facts, [
+            "The user's name is Alex.",
+            "The user is applying for engineering jobs.",
+            "The user prefers dark mode.",
+        ])
+    }
+
+    func testSanitizationDropsSecretsAndIdentificationNumbers() {
+        let facts = SpaceMemoryPolicy.sanitizedFactContents([
+            "The user's password is hunter2.",
+            "The user's card number is 4111 1111 1111 1111.",
+            "The user's SSN is 123-45-6789.",
+            "The user's API key is sk-abcdefghijklmnop1234.",
+            "The user's token is dGhpc2lzYXZlcnlsb25nb3BhcXVldG9rZW52YWx1ZQ.",
+            "The user lives in Lisbon.",
+        ])
+        XCTAssertEqual(facts, ["The user lives in Lisbon."])
+    }
+
+    func testSanitizationDeduplicatesCapsAndDropsOversizedFacts() {
+        let oversized = String(repeating: "a", count: SpaceMemoryPolicy.maximumFactLength + 1)
+        let many = (0..<40).map { "The user likes hobby number \($0)." }
+        let facts = SpaceMemoryPolicy.sanitizedFactContents(
+            [oversized, "The user hikes.", "the user hikes.", ""] + many
+        )
+        XCTAssertEqual(facts.count, SpaceMemoryPolicy.maximumFactCount)
+        XCTAssertEqual(facts.filter { $0.lowercased() == "the user hikes." }.count, 1)
+        XCTAssertFalse(facts.contains(oversized))
+    }
+
+    // MARK: - Extractor reply parsing
+
+    func testParsingAcceptsBareFencedAndProseWrappedArrays() {
+        let bare = #"["The user hikes."]"#
+        let fenced = "```json\n[\"The user hikes.\"]\n```"
+        let prose = #"Here is the updated list: ["The user hikes."] Let me know!"#
+        for response in [bare, fenced, prose] {
+            XCTAssertEqual(
+                SpaceMemoryExtractor.parseFactContents(from: response),
+                ["The user hikes."],
+                response
+            )
+        }
+        XCTAssertEqual(SpaceMemoryExtractor.parseFactContents(from: "[]"), [])
+    }
+
+    func testParsingRejectsRepliesWithoutAValidStringArray() {
+        XCTAssertNil(SpaceMemoryExtractor.parseFactContents(from: "I could not update the list."))
+        XCTAssertNil(SpaceMemoryExtractor.parseFactContents(from: #"[1, 2, 3]"#))
+        XCTAssertNil(SpaceMemoryExtractor.parseFactContents(from: #"["unterminated"#))
+    }
+
+    // MARK: - Merge semantics
+
+    func testMergePreservesIdentityOfUnchangedFactsAndMintsNewOnes() {
+        let kept = SpaceMemoryFact(spaceID: spaceID, content: "The user hikes.")
+        let dropped = SpaceMemoryFact(spaceID: spaceID, content: "The user is job hunting.")
+        let merged = SpaceMemoryExtractor.mergedFacts(
+            contents: ["The user hikes.", "The user found a job."],
+            existing: [kept, dropped],
+            spaceID: spaceID
+        )
+        XCTAssertEqual(merged.map(\.content), ["The user hikes.", "The user found a job."])
+        XCTAssertEqual(merged[0].id, kept.id)
+        XCTAssertEqual(merged[0].createdAt, kept.createdAt)
+        XCTAssertNotEqual(merged[1].id, dropped.id)
+        XCTAssertTrue(merged.allSatisfy { $0.spaceID == spaceID })
+    }
+
+    // MARK: - Context injection
+
+    func testMemorySectionListsFactsAndIsNilWhenEmpty() {
+        XCTAssertNil(SpaceMemoryPolicy.memoryContextSection(for: []))
+        let section = SpaceMemoryPolicy.memoryContextSection(for: [
+            SpaceMemoryFact(spaceID: spaceID, content: "The user hikes."),
+        ])
+        XCTAssertNotNil(section)
+        XCTAssertTrue(section?.contains("- The user hikes.") == true)
+        XCTAssertTrue(section?.contains("not page content") == true)
+    }
+
+    func testInjectionPrependsMemoryAndPreservesTitleAndURL() {
+        let context = AIPageContext(title: "Title", url: "https://example.com", text: "Page text")
+        let injected = SpaceMemoryPolicy.contextByPrependingMemory("Memory block", to: context)
+        XCTAssertEqual(injected.title, "Title")
+        XCTAssertEqual(injected.url, "https://example.com")
+        XCTAssertEqual(injected.text, "Memory block\n\nPage text")
+        XCTAssertTrue(injected.text?.hasPrefix("Memory block") == true, "memory must lead so prefix truncation keeps it")
+
+        let noMemory = SpaceMemoryPolicy.contextByPrependingMemory(nil, to: context)
+        XCTAssertEqual(noMemory.text, "Page text")
+
+        let noPage = AIPageContext(title: nil, url: nil, text: nil)
+        XCTAssertEqual(SpaceMemoryPolicy.contextByPrependingMemory("Memory block", to: noPage).text, "Memory block")
+    }
+
+    func testAgentContextInjectionJoinsAndCaps() {
+        XCTAssertNil(SpaceMemoryPolicy.agentContextByPrependingMemory(nil, to: nil))
+        XCTAssertEqual(
+            SpaceMemoryPolicy.agentContextByPrependingMemory("Memory", to: "Agent context"),
+            "Memory\n\nAgent context"
+        )
+        XCTAssertEqual(
+            SpaceMemoryPolicy.agentContextByPrependingMemory("Memory", to: nil),
+            "Memory"
+        )
+        let capped = SpaceMemoryPolicy.agentContextByPrependingMemory(
+            "Memory",
+            to: String(repeating: "x", count: 30_000)
+        )
+        XCTAssertEqual(capped?.count, 20_000)
+        XCTAssertTrue(capped?.hasPrefix("Memory") == true)
+    }
+
+    // MARK: - Extraction prompt
+
+    func testExtractionPromptCarriesFactsTranscriptAndSafetyRules() {
+        let prompt = SpaceMemoryExtractor.extractionPrompt(
+            existingFacts: ["The user hikes."],
+            transcript: [
+                AIConversationTurn(role: .user, text: "I'm applying for jobs."),
+                AIConversationTurn(role: .assistant, text: "Good luck!"),
+            ]
+        )
+        XCTAssertTrue(prompt.contains("- The user hikes."))
+        XCTAssertTrue(prompt.contains("User: I'm applying for jobs."))
+        XCTAssertTrue(prompt.contains("Eli: Good luck!"))
+        XCTAssertTrue(prompt.contains("NEVER include passwords"))
+        XCTAssertTrue(prompt.contains("JSON array of strings"))
+    }
+
+    // MARK: - Space decoding compatibility
+
+    func testLegacySpaceSnapshotsDecodeWithMemoryEnabled() throws {
+        let legacyJSON = #"{"id":"6F3D5A22-6B4B-4B6E-9A5C-1D2E3F405060","name":"Legacy"}"#
+        let space = try JSONDecoder().decode(BrowserSpace.self, from: Data(legacyJSON.utf8))
+        XCTAssertTrue(space.isEliMemoryEnabled)
+
+        let disabled = BrowserSpace(name: "Off", isEliMemoryEnabled: false)
+        let decoded = try JSONDecoder().decode(
+            BrowserSpace.self,
+            from: JSONEncoder().encode(disabled)
+        )
+        XCTAssertFalse(decoded.isEliMemoryEnabled)
+    }
+}

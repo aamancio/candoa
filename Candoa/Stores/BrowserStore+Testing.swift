@@ -495,6 +495,60 @@ extension BrowserStore {
         }
     }
 
+    static let uiTestingPersonalMemorySpaceID = UUID(uuidString: "1A1A1A1A-1A1A-1A1A-1A1A-1A1A1A1A1A1A")!
+    static let uiTestingWorkMemorySpaceID = UUID(uuidString: "2A2A2A2A-2A2A-2A2A-2A2A-2A2A2A2A2A2A")!
+
+    /// Canned extractor output for the memory fixture: UI tests set this to
+    /// a JSON array of fact strings and the app persists it through the real
+    /// sanitize/merge path instead of calling a model.
+    static func uiTestingMemoryExtractionFacts() -> [String]? {
+        guard isUITesting,
+              let raw = ProcessInfo.processInfo.environment["CANDOA_UI_TESTING_MEMORY_EXTRACTION_FACTS"],
+              let data = raw.data(using: .utf8)
+        else {
+            return nil
+        }
+        return try? JSONDecoder().decode([String].self, from: data)
+    }
+
+    /// Seeds saved facts for the space-memory fixture's two Spaces so tests
+    /// can assert per-Space isolation without a model round trip.
+    func seedUITestingSpaceMemoryIfNeeded() {
+        guard Self.isUITesting, !isPrivate,
+              ProcessInfo.processInfo.environment["CANDOA_UI_TESTING_FIXTURE"] == "space-memory"
+        else {
+            return
+        }
+
+        // Distinct createdAt values keep the row order (and the index-based
+        // delete identifiers) deterministic.
+        let fixtureDate = Date(timeIntervalSince1970: 1_800_000_000)
+        persistenceService.replaceSpaceMemoryFacts(
+            with: [
+                SpaceMemoryFact(
+                    spaceID: Self.uiTestingPersonalMemorySpaceID,
+                    content: "The user's name is Alex Fixture.",
+                    createdAt: fixtureDate
+                ),
+                SpaceMemoryFact(
+                    spaceID: Self.uiTestingPersonalMemorySpaceID,
+                    content: "The user is applying for engineering jobs.",
+                    createdAt: fixtureDate.addingTimeInterval(60)
+                )
+            ],
+            in: Self.uiTestingPersonalMemorySpaceID
+        )
+        persistenceService.replaceSpaceMemoryFacts(
+            with: [
+                SpaceMemoryFact(
+                    spaceID: Self.uiTestingWorkMemorySpaceID,
+                    content: "The user prepares quarterly budget reports."
+                )
+            ],
+            in: Self.uiTestingWorkMemorySpaceID
+        )
+    }
+
     static func uiTestingFixtureState() -> BrowserWindowState? {
         let environment = ProcessInfo.processInfo.environment
         guard environment["CANDOA_UI_TESTING"] == "1" else { return nil }
@@ -508,6 +562,45 @@ extension BrowserStore {
 
         if fixture == "ask" {
             return testingBotFixtureState(includesSeedTabs: false)
+        }
+
+        if fixture == "space-memory" {
+            let personalSpace = BrowserSpace(
+                id: uiTestingPersonalMemorySpaceID,
+                name: "Personal",
+                symbolName: "sparkles",
+                themeAppearance: BrowserSpace.defaultThemeAppearance
+            )
+            let workSpace = BrowserSpace(
+                id: uiTestingWorkMemorySpaceID,
+                name: "Work",
+                symbolName: "briefcase",
+                themeAppearance: BrowserSpace.defaultThemeAppearance
+            )
+            let personalTabID = UUID(uuidString: "1B1B1B1B-1B1B-1B1B-1B1B-1B1B1B1B1B1B")!
+            let tabs = [
+                BrowserTab(
+                    id: personalTabID,
+                    title: "Personal Home",
+                    url: URL(string: "https://fixture.candoa.test/personal")!,
+                    spaceID: personalSpace.id,
+                    hasBeenActivated: true
+                ),
+                BrowserTab(
+                    id: UUID(uuidString: "2B2B2B2B-2B2B-2B2B-2B2B-2B2B2B2B2B2B")!,
+                    title: "Work Home",
+                    url: URL(string: "https://fixture.candoa.test/work")!,
+                    spaceID: workSpace.id,
+                    hasBeenActivated: true
+                )
+            ]
+            return BrowserWindowState(
+                spaces: [personalSpace, workSpace],
+                folders: [],
+                tabs: tabs,
+                activeSpaceID: personalSpace.id,
+                activeTabID: personalTabID
+            )
         }
 
         if fixture == "ask-agent-navigation" {

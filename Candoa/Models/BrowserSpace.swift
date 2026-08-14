@@ -73,6 +73,10 @@ struct BrowserSpace: Identifiable, Codable, Hashable {
     var themeTexture: Double
     var dataStoreID: UUID
     var createdAt: Date
+    /// Whether Eli may save and use conversation memory in this Space.
+    /// Turning it off stops both injection and extraction; saved facts stay
+    /// until the user deletes them.
+    var isEliMemoryEnabled: Bool
 
     init(
         id: UUID = UUID(),
@@ -84,7 +88,8 @@ struct BrowserSpace: Identifiable, Codable, Hashable {
         themeOpacity: Double = 0.5,
         themeTexture: Double = 0,
         dataStoreID: UUID? = nil,
-        createdAt: Date = Date()
+        createdAt: Date = Date(),
+        isEliMemoryEnabled: Bool = true
     ) {
         self.id = id
         self.name = name
@@ -99,6 +104,7 @@ struct BrowserSpace: Identifiable, Codable, Hashable {
         self.themeTexture = min(1, max(0, themeTexture))
         self.dataStoreID = dataStoreID ?? id
         self.createdAt = createdAt
+        self.isEliMemoryEnabled = isEliMemoryEnabled
     }
 
     /// The full ordered palette the Space's theme renders from: the primary
@@ -135,6 +141,7 @@ struct BrowserSpace: Identifiable, Codable, Hashable {
         case themeTexture
         case dataStoreID
         case createdAt
+        case isEliMemoryEnabled
     }
 
     init(from decoder: Decoder) throws {
@@ -152,5 +159,6 @@ struct BrowserSpace: Identifiable, Codable, Hashable {
         themeTexture = min(1, max(0, try container.decodeIfPresent(Double.self, forKey: .themeTexture) ?? 0))
         dataStoreID = try container.decodeIfPresent(UUID.self, forKey: .dataStoreID) ?? id
         createdAt = try container.decodeIfPresent(Date.self, forKey: .createdAt) ?? Date()
+        isEliMemoryEnabled = try container.decodeIfPresent(Bool.self, forKey: .isEliMemoryEnabled) ?? true
     }
 }
