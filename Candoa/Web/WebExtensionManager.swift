@@ -28,10 +28,17 @@ final class WebExtensionManager: NSObject, ObservableObject {
     /// errors), so the settings pane can say why a row is inert.
     @Published private(set) var loadFailureDescriptions: [UUID: String] = [:]
 
+    /// Bumped whenever an extension updates its action (badge, icon,
+    /// enablement), so action surfaces re-render.
+    @Published private(set) var actionRefreshToken = UUID()
+
     private var contextsByInstallationID: [UUID: WKWebExtensionContext] = [:]
     private var windowAdapters: [ObjectIdentifier: WebExtensionWindowAdapter] = [:]
     private var windowCancellables: [ObjectIdentifier: Set<AnyCancellable>] = [:]
     private var windowObservers: [ObjectIdentifier: [any NSObjectProtocol]] = [:]
+    /// Per-window anchor for WebKit's action-popup NSPopovers — the sidebar
+    /// header's extensions button registers itself here.
+    private let actionAnchors = NSMapTable<NSWindow, NSView>.weakToWeakObjects()
 
     private override init() {
         controller = WKWebExtensionController(configuration: .default())
@@ -47,6 +54,64 @@ final class WebExtensionManager: NSObject, ObservableObject {
 
     func isLoaded(_ installationID: UUID) -> Bool {
         contextsByInstallationID[installationID] != nil
+    }
+
+    var hasLoadedExtensions: Bool {
+        !contextsByInstallationID.isEmpty
+    }
+
+    // MARK: - Toolbar actions
+
+    struct ActionDescriptor: Identifiable {
+        let id: UUID
+        let label: String
+        let badgeText: String
+        let icon: NSImage?
+        let isEnabled: Bool
+    }
+
+    /// The loaded extensions' actions against the focused window's active
+    /// tab, in installation order.
+    func actionDescriptors() -> [ActionDescriptor] {
+        let tabAdapter = focusedActiveTabAdapter
+        return installations.compactMap { installation in
+            guard
+                let context = contextsByInstallationID[installation.id],
+                let action = context.action(for: tabAdapter)
+            else {
+                return nil
+            }
+            let label = action.label.isEmpty ? installation.displayName : action.label
+            return ActionDescriptor(
+                id: installation.id,
+                label: label,
+                badgeText: action.badgeText,
+                icon: action.icon(for: CGSize(width: 32, height: 32)),
+                isEnabled: action.isEnabled
+            )
+        }
+    }
+
+    /// Performs an extension's toolbar action for the active tab: WebKit
+    /// either asks us to present the action's popup (delegate below) or
+    /// fires `action.onClicked` in the extension's background script.
+    func performAction(for installationID: UUID) {
+        guard let context = contextsByInstallationID[installationID] else { return }
+        context.performAction(for: focusedActiveTabAdapter)
+    }
+
+    func registerActionAnchor(_ view: NSView, for window: NSWindow) {
+        actionAnchors.setObject(view, forKey: window)
+    }
+
+    private var focusedActiveTabAdapter: WebExtensionTabAdapter? {
+        guard
+            let windowAdapter = focusedWindowAdapter,
+            let activeTabID = windowAdapter.store?.activeTabID
+        else {
+            return nil
+        }
+        return windowAdapter.adapter(for: activeTabID)
     }
 
     // MARK: - Install / remove / enable
@@ -410,6 +475,78 @@ extension WebExtensionManager: WKWebExtensionControllerDelegate {
             requestDescriptions: matchPatterns.map(\.string).sorted()
         )
         completionHandler(granted ? matchPatterns : [], nil)
+    }
+
+    func webExtensionController(
+        _ controller: WKWebExtensionController,
+        presentActionPopup action: WKWebExtension.Action,
+        for context: WKWebExtensionContext,
+        completionHandler: @escaping ((any Error)?) -> Void
+    ) {
+        guard let popover = action.popupPopover else {
+            completionHandler(nil)
+            return
+        }
+        let window = NSApp.keyWindow
+        if let window,
+           let anchor = actionAnchors.object(forKey: window),
+           anchor.window === window {
+            popover.show(relativeTo: anchor.bounds, of: anchor, preferredEdge: .maxY)
+            completionHandler(nil)
+        } else if let contentView = window?.contentView {
+            // No extensions button on screen (sidebar hidden): fall back to
+            // the window's top edge so the popup still appears.
+            let anchorRect = NSRect(x: contentView.bounds.midX, y: contentView.bounds.maxY - 1, width: 1, height: 1)
+            popover.show(relativeTo: anchorRect, of: contentView, preferredEdge: .minY)
+            completionHandler(nil)
+        } else {
+            completionHandler(WKWebExtension.Error(.unknown))
+        }
+    }
+
+    func webExtensionController(
+        _ controller: WKWebExtensionController,
+        didUpdate action: WKWebExtension.Action,
+        forExtensionContext context: WKWebExtensionContext
+    ) {
+        actionRefreshToken = UUID()
+    }
+
+    func webExtensionController(
+        _ controller: WKWebExtensionController,
+        openOptionsPageFor extensionContext: WKWebExtensionContext,
+        completionHandler: @escaping ((any Error)?) -> Void
+    ) {
+        guard
+            let url = extensionContext.optionsPageURL,
+            let store = focusedWindowAdapter?.store
+        else {
+            completionHandler(WKWebExtension.Error(.unknown))
+            return
+        }
+        let tab = store.newTab(url: url)
+        store.switchTab(to: tab.id)
+        completionHandler(nil)
+    }
+
+    /// Candoa has no native-messaging host registry; answer cleanly instead
+    /// of leaving `runtime.sendNativeMessage` hanging.
+    func webExtensionController(
+        _ controller: WKWebExtensionController,
+        sendMessage message: Any,
+        toApplicationWithIdentifier applicationIdentifier: String?,
+        for extensionContext: WKWebExtensionContext,
+        replyHandler: @escaping (Any?, (any Error)?) -> Void
+    ) {
+        replyHandler(nil, NSError(
+            domain: "app.candoa.browser.WebExtensions",
+            code: 1,
+            userInfo: [
+                NSLocalizedDescriptionKey: String(
+                    localized: "No native messaging host is available."
+                )
+            ]
+        ))
     }
 
     private func promptForAccess(
