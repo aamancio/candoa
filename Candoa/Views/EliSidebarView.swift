@@ -36,6 +36,7 @@ struct EliSidebarView: View {
     @State private var attachmentPreviewData: [UUID: Data] = [:]
     @State private var presentedImagePreview: AISidebarImagePreview?
     @State private var isRefreshingEliAccess = true
+    @State private var isMemoryPopoverPresented = false
     @FocusState private var isPromptFocused: Bool
 
     private var activePageTitle: String {
@@ -268,6 +269,7 @@ struct EliSidebarView: View {
         }
         .onDisappear {
             uiTestingState = ""
+            updateSpaceMemoryFromConversation()
             cancelStream()
             speechController.cancelListening()
         }
@@ -355,6 +357,7 @@ struct EliSidebarView: View {
                 symbolName: "square.and.pencil",
                 helpText: "New Eli Conversation"
             ) {
+                updateSpaceMemoryFromConversation()
                 prompt = ""
                 mentionedContext = []
                 attachmentPreviewData = [:]
@@ -364,6 +367,16 @@ struct EliSidebarView: View {
                 includesCurrentPageContext = true
                 lastSubmittedPageContext = nil
                 cancelStream()
+            }
+
+            AISidebarTopBarIconButton(
+                symbolName: "brain",
+                helpText: "Eli Memory"
+            ) {
+                isMemoryPopoverPresented = true
+            }
+            .popover(isPresented: $isMemoryPopoverPresented, arrowEdge: .bottom) {
+                EliMemoryPopoverView(store: store)
             }
 
             Spacer()
@@ -796,14 +809,21 @@ struct EliSidebarView: View {
                 from: pageContext,
                 prompt: submission.prompt
             ) ?? pageContext
+            // Memory joins after compaction and inheritance so it neither
+            // counts as "attached context" for the inherit-last-page rule nor
+            // gets rewritten by the compactor.
+            let memorySection = store.activeSpaceMemorySection()
             await streamRemoteAIResponse(
                 prompt: submission.prompt,
-                context: remoteContext,
+                context: SpaceMemoryPolicy.contextByPrependingMemory(memorySection, to: remoteContext),
                 recentTurns: submission.recentTurns,
                 responseID: responseID,
                 browserControlTabID: submission.browserControlTabID,
                 mentionedTabs: submission.mentionedTabs,
-                agentAttachedContext: submittedContext.agentAttachedContext
+                agentAttachedContext: SpaceMemoryPolicy.agentContextByPrependingMemory(
+                    memorySection,
+                    to: submittedContext.agentAttachedContext
+                )
             )
         }
     }
@@ -1743,6 +1763,25 @@ struct EliSidebarView: View {
             return AIConversationTurn(role: message.role.conversationRole, text: text)
         }
         return Array(turns.suffix(6))
+    }
+
+    /// The full finished conversation, unlike `recentTurns()`'s request
+    /// window — memory extraction reads everything that was said.
+    private func conversationTurns() -> [AIConversationTurn] {
+        messages.compactMap { message in
+            guard message.action == nil, !message.isStreaming else { return nil }
+            let text = message.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !text.isEmpty else { return nil }
+            return AIConversationTurn(role: message.role.conversationRole, text: text)
+        }
+    }
+
+    /// A conversation "ends" when the user starts a new one or closes the
+    /// sidebar; that is when its durable facts get distilled into the active
+    /// Space's memory.
+    private func updateSpaceMemoryFromConversation() {
+        guard hasEliAccess else { return }
+        store.updateSpaceMemory(fromConversation: conversationTurns())
     }
 
     private func cancelStream() {

@@ -510,6 +510,104 @@ struct PersistenceService: @unchecked Sendable {
         }
     }
 
+    // MARK: - Space memory
+
+    /// Eli's saved facts for one Space, oldest first. Reads the view context
+    /// synchronously — the set is capped at `SpaceMemoryPolicy.maximumFactCount`
+    /// rows per Space, so this is a UI-safe fetch.
+    func spaceMemoryFacts(in spaceID: UUID) -> [SpaceMemoryFact] {
+        let context = container.viewContext
+        return context.performAndWait {
+            do {
+                let request = NSFetchRequest<NSManagedObject>(entityName: Entity.spaceMemoryFact)
+                request.predicate = NSPredicate(format: "%K == %@", Key.spaceID, spaceID as NSUUID)
+                // Content breaks createdAt ties so one extraction pass (whose
+                // facts share a timestamp) still lists deterministically.
+                request.sortDescriptors = [
+                    NSSortDescriptor(key: Key.createdAt, ascending: true),
+                    NSSortDescriptor(key: Key.content, ascending: true)
+                ]
+                return try context.fetch(request).compactMap(Self.spaceMemoryFact(from:))
+            } catch {
+                NSLog("\(Self.appName) failed to load space memory: \(error.localizedDescription)")
+                return []
+            }
+        }
+    }
+
+    /// Replaces one Space's fact set with the extractor's updated list.
+    /// Whole-set replacement matches the extraction contract (the model
+    /// returns the complete list) and keeps merge semantics out of Core Data.
+    func replaceSpaceMemoryFacts(with facts: [SpaceMemoryFact], in spaceID: UUID) {
+        let context = makeBackgroundContext()
+        context.mergePolicy = NSMergePolicy(merge: .mergeByPropertyObjectTrumpMergePolicyType)
+        context.performAndWait {
+            do {
+                let request = NSFetchRequest<NSManagedObject>(entityName: Entity.spaceMemoryFact)
+                request.predicate = NSPredicate(format: "%K == %@", Key.spaceID, spaceID as NSUUID)
+                for object in try context.fetch(request) {
+                    context.delete(object)
+                }
+                for fact in facts where fact.spaceID == spaceID {
+                    let object = NSEntityDescription.insertNewObject(
+                        forEntityName: Entity.spaceMemoryFact,
+                        into: context
+                    )
+                    object.setValue(fact.id, forKey: Key.id)
+                    object.setValue(fact.spaceID, forKey: Key.spaceID)
+                    object.setValue(fact.kind.rawValue, forKey: Key.kind)
+                    object.setValue(fact.content, forKey: Key.content)
+                    object.setValue(fact.createdAt, forKey: Key.createdAt)
+                }
+                try context.save()
+            } catch {
+                context.rollback()
+                NSLog("\(Self.appName) failed to save space memory: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    func deleteSpaceMemoryFact(withID id: UUID) {
+        let context = makeBackgroundContext()
+        context.mergePolicy = NSMergePolicy(merge: .mergeByPropertyObjectTrumpMergePolicyType)
+        context.performAndWait {
+            do {
+                let request = NSFetchRequest<NSManagedObject>(entityName: Entity.spaceMemoryFact)
+                request.predicate = NSPredicate(format: "%K == %@", Key.id, id as NSUUID)
+                for object in try context.fetch(request) {
+                    context.delete(object)
+                }
+                try context.save()
+            } catch {
+                context.rollback()
+                NSLog("\(Self.appName) failed to delete space memory fact: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    func deleteSpaceMemoryFacts(in spaceID: UUID) {
+        replaceSpaceMemoryFacts(with: [], in: spaceID)
+    }
+
+    private static func spaceMemoryFact(from object: NSManagedObject) -> SpaceMemoryFact? {
+        guard
+            let id = object.uuid(for: Key.id),
+            let spaceID = object.uuid(for: Key.spaceID),
+            let content = object.string(for: Key.content),
+            !content.isEmpty
+        else {
+            return nil
+        }
+
+        return SpaceMemoryFact(
+            id: id,
+            spaceID: spaceID,
+            kind: object.string(for: Key.kind).flatMap(SpaceMemoryFact.Kind.init(rawValue:)) ?? .profile,
+            content: content,
+            createdAt: object.date(for: Key.createdAt) ?? Date()
+        )
+    }
+
     private func loadCoreDataState() -> BrowserWindowState? {
         let context = container.viewContext
         return Self.loadCoreDataState(in: context)
@@ -551,10 +649,20 @@ struct PersistenceService: @unchecked Sendable {
             object.setValue(space.themeTexture, forKey: Key.themeTexture)
             object.setValue(space.dataStoreID, forKey: Key.dataStoreID)
             object.setValue(space.createdAt, forKey: Key.createdAt)
+            object.setValue(space.isEliMemoryEnabled, forKey: Key.isEliMemoryEnabled)
             spacesByID[space.id] = nil
         }
 
         for object in spacesByID.values {
+            context.delete(object)
+        }
+
+        // Cascade: memory facts belong to their Space and must not outlive
+        // it, so every save sweeps facts whose Space is gone from the state.
+        let stateSpaceIDs = Set(state.spaces.map(\.id))
+        for object in try fetchObjects(entityName: Entity.spaceMemoryFact, in: context) {
+            guard let factSpaceID = object.uuid(for: Key.spaceID),
+                  !stateSpaceIDs.contains(factSpaceID) else { continue }
             context.delete(object)
         }
 
@@ -723,7 +831,8 @@ struct PersistenceService: @unchecked Sendable {
             themeOpacity: object.optionalDouble(for: Key.themeOpacity) ?? 0.5,
             themeTexture: object.optionalDouble(for: Key.themeTexture) ?? 0,
             dataStoreID: object.uuid(for: Key.dataStoreID) ?? id,
-            createdAt: object.date(for: Key.createdAt) ?? Date()
+            createdAt: object.date(for: Key.createdAt) ?? Date(),
+            isEliMemoryEnabled: object.value(forKey: Key.isEliMemoryEnabled) as? Bool ?? true
         )
     }
 
@@ -805,7 +914,8 @@ struct PersistenceService: @unchecked Sendable {
             makeSessionEntity(),
             makeSpaceEntity(),
             makeFolderEntity(),
-            makeTabEntity()
+            makeTabEntity(),
+            makeSpaceMemoryFactEntity()
         ]
         let historyEntities = [makeHistoryVisitEntity()]
 
@@ -867,6 +977,22 @@ struct PersistenceService: @unchecked Sendable {
                 attribute(Key.themeOpacity, .doubleAttributeType),
                 attribute(Key.themeTexture, .doubleAttributeType),
                 attribute(Key.dataStoreID, .UUIDAttributeType),
+                attribute(Key.createdAt, .dateAttributeType, optional: false),
+                // Optional so pre-memory rows read back nil, which decodes
+                // as enabled — the feature's default.
+                attribute(Key.isEliMemoryEnabled, .booleanAttributeType)
+            ]
+        )
+    }
+
+    private static func makeSpaceMemoryFactEntity() -> NSEntityDescription {
+        makeEntity(
+            named: Entity.spaceMemoryFact,
+            properties: [
+                attribute(Key.id, .UUIDAttributeType, optional: false),
+                attribute(Key.spaceID, .UUIDAttributeType, optional: false),
+                attribute(Key.kind, .stringAttributeType, optional: false),
+                attribute(Key.content, .stringAttributeType, optional: false),
                 attribute(Key.createdAt, .dateAttributeType, optional: false)
             ]
         )
@@ -978,6 +1104,7 @@ private enum Entity {
     static let folder = "PersistedBrowserFolder"
     static let tab = "PersistedBrowserTab"
     static let historyVisit = "PersistedHistoryVisit"
+    static let spaceMemoryFact = "PersistedSpaceMemoryFact"
 }
 
 private enum Key {
@@ -1016,6 +1143,9 @@ private enum Key {
     static let lastAccessedAt = "lastAccessedAt"
     static let hasBeenActivated = "hasBeenActivated"
     static let visitedAt = "visitedAt"
+    static let isEliMemoryEnabled = "isEliMemoryEnabled"
+    static let kind = "kind"
+    static let content = "content"
 }
 
 private extension NSManagedObject {

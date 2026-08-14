@@ -341,6 +341,12 @@ final class BrowserStore: ObservableObject {
     var pendingMiniPlayerReturnTabID: UUID?
     var isApplyingRemoteState = false
     var needsWorkspaceSaveAfterRepair = false
+    /// One in-flight memory extraction per Space; a second conversation
+    /// ending while one runs is skipped rather than queued.
+    var eliMemoryExtractionTasks: [UUID: Task<Void, Never>] = [:]
+    /// Transcript length at the last extraction per Space, so reopening and
+    /// re-closing an unchanged conversation never re-extracts it.
+    var eliMemoryLastExtractedTurnCounts: [UUID: Int] = [:]
     let spaceSymbols = [
         "circle.grid.2x2",
         "sparkle",
@@ -525,6 +531,7 @@ final class BrowserStore: ObservableObject {
             .sink { [weak self] _ in self?.objectWillChange.send() }
         configureUITestingDownloadFixtureTrigger()
         configureUITestingTabSwitcherTrigger()
+        seedUITestingSpaceMemoryIfNeeded()
     }
 
 }

@@ -1979,6 +1979,112 @@ final class CandoaUITests: XCTestCase {
         )
     }
 
+    func testEliSpaceMemoryIsManagedAndIsolatedPerSpace() throws {
+        let app = launchApp(fixture: "space-memory")
+        XCTAssertTrue(waitForState(in: app, containing: "space=Personal"), currentState(in: app))
+
+        // A synthesized ⌘E right after launch can race the window's key
+        // status (the openNewTabPalette hazard), so retry until it lands.
+        for _ in 0..<3 {
+            app.typeKey("e", modifierFlags: .command)
+            if element("agent-sidebar", in: app).waitForExistence(timeout: 2) { break }
+        }
+        XCTAssertTrue(element("agent-sidebar", in: app).exists, currentState(in: app))
+
+        // The Personal Space shows only its own facts.
+        openMemoryPopover(in: app)
+        XCTAssertTrue(memoryFact("Alex Fixture", in: app).waitForExistence(timeout: 5))
+        XCTAssertTrue(memoryFact("engineering jobs", in: app).exists)
+        XCTAssertFalse(
+            memoryFact("quarterly budget", in: app).exists,
+            "Work memory must not surface in the Personal Space"
+        )
+
+        // Deleting one fact removes only that row. The transient popover can
+        // self-dismiss under runner load, swallowing the click, so retry
+        // until the deletion lands; the seed order makes the name fact row 0
+        // whenever it is present.
+        for _ in 0..<3 {
+            ensureMemoryPopoverOpen(in: app)
+            guard memoryFact("Alex Fixture", in: app).exists else { break }
+            element("eli-memory-delete-0", in: app).click()
+            _ = waitForDisappearance(of: memoryFact("Alex Fixture", in: app))
+        }
+
+        // The deletion persisted: the reopened popover shows one fact.
+        ensureMemoryPopoverOpen(in: app)
+        XCTAssertTrue(memoryFact("engineering jobs", in: app).waitForExistence(timeout: 5))
+        XCTAssertFalse(memoryFact("Alex Fixture", in: app).exists)
+        dismissMemoryPopover(in: app)
+
+        // The Work Space sees only Work memory.
+        app.typeKey("2", modifierFlags: .control)
+        XCTAssertTrue(waitForState(in: app, containing: "space=Work"), currentState(in: app))
+        openMemoryPopover(in: app)
+        XCTAssertTrue(memoryFact("quarterly budget", in: app).waitForExistence(timeout: 5))
+        XCTAssertFalse(
+            memoryFact("engineering jobs", in: app).exists,
+            "Personal memory must not surface in the Work Space"
+        )
+
+        // Forget All empties this Space without touching the other one.
+        for _ in 0..<3 {
+            ensureMemoryPopoverOpen(in: app)
+            guard memoryFact("quarterly budget", in: app).exists else { break }
+            element("eli-memory-forget-all", in: app).click()
+            _ = waitForDisappearance(of: memoryFact("quarterly budget", in: app))
+        }
+        ensureMemoryPopoverOpen(in: app)
+        XCTAssertFalse(memoryFact("quarterly budget", in: app).exists)
+        dismissMemoryPopover(in: app)
+        app.typeKey("1", modifierFlags: .control)
+        XCTAssertTrue(waitForState(in: app, containing: "space=Personal"), currentState(in: app))
+        openMemoryPopover(in: app)
+        XCTAssertTrue(memoryFact("engineering jobs", in: app).waitForExistence(timeout: 5))
+        dismissMemoryPopover(in: app)
+    }
+
+    /// Opens the memory popover, retrying if a click lands while the sidebar
+    /// or a prior popover transition is still settling.
+    private func openMemoryPopover(in app: XCUIApplication) {
+        for _ in 0..<3 {
+            app.buttons["Eli Memory"].click()
+            if element("eli-memory-toggle", in: app).waitForExistence(timeout: 2) { return }
+        }
+        XCTFail("The Eli memory popover did not open: \(currentState(in: app))")
+    }
+
+    /// Reopens the popover only when it is closed — clicking the memory
+    /// button while it is open would toggle it shut instead.
+    private func ensureMemoryPopoverOpen(in app: XCUIApplication) {
+        if element("eli-memory-toggle", in: app).exists { return }
+        openMemoryPopover(in: app)
+    }
+
+    private func dismissMemoryPopover(in app: XCUIApplication) {
+        for _ in 0..<3 {
+            app.typeKey(.escape, modifierFlags: [])
+            if waitForDisappearance(of: element("eli-memory-toggle", in: app)) { return }
+        }
+        XCTFail("The Eli memory popover did not dismiss")
+    }
+
+    /// Fact rows are SwiftUI Text, which exposes its string through the AX
+    /// value — the identifier/label subscript never matches it. Substring
+    /// matching keeps the lookup robust to layout truncation.
+    private func memoryFact(_ fragment: String, in app: XCUIApplication) -> XCUIElement {
+        app.staticTexts.matching(NSPredicate(format: "value CONTAINS %@", fragment)).firstMatch
+    }
+
+    private func waitForDisappearance(of element: XCUIElement, timeout: TimeInterval = 3) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if !element.exists { return true }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        }
+        return !element.exists
+    }
+
     func testEliUserMessageBubbleUsesAccentPrimaryColor() throws {
         try assertEliUserMessageBubbleTracksAccent(appearanceName: "system")
         try assertEliUserMessageBubbleTracksAccent(appearanceName: "light", forcesLightAppearance: true)
