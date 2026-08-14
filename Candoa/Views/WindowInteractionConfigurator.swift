@@ -18,6 +18,7 @@ struct WindowInteractionConfigurator: NSViewRepresentable {
             coordinator.configure(window: window, autosaveName: autosaveName, isPrivate: isPrivate)
             if let window, let store {
                 BrowserMenuController.shared.register(window: window, store: store)
+                Self.registerForWebExtensions(window: window, store: store)
             }
         }
         return view
@@ -27,17 +28,28 @@ struct WindowInteractionConfigurator: NSViewRepresentable {
         if let view = nsView as? WindowAttachmentView {
             view.configureWindow = { [coordinator = context.coordinator] window in
                 coordinator.configure(window: window, autosaveName: autosaveName, isPrivate: isPrivate)
-                if let window, let store { BrowserMenuController.shared.register(window: window, store: store) }
+                if let window, let store {
+                    BrowserMenuController.shared.register(window: window, store: store)
+                    Self.registerForWebExtensions(window: window, store: store)
+                }
             }
         }
         if let window = nsView.window, let store {
             BrowserMenuController.shared.register(window: window, store: store)
+            Self.registerForWebExtensions(window: window, store: store)
         }
         context.coordinator.configure(
             window: nsView.window,
             autosaveName: autosaveName,
             isPrivate: isPrivate
         )
+    }
+
+    @MainActor
+    private static func registerForWebExtensions(window: NSWindow, store: BrowserStore) {
+        if #available(macOS 15.4, *) {
+            WebExtensionManager.shared.register(window: window, store: store)
+        }
     }
 
     private final class WindowAttachmentView: NSView {

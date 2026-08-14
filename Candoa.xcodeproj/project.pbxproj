@@ -17,6 +17,9 @@
 		010000000000000000000108 /* FaviconService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000008 /* FaviconService.swift */; };
 		010000000000000000000109 /* WKWebViewRepresentable.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000009 /* WKWebViewRepresentable.swift */; };
 		010000000000000000000110 /* WebViewCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000010 /* WebViewCoordinator.swift */; };
+		AE00000000000000000001A3 /* WebExtensionInstaller.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE00000000000000000000A3 /* WebExtensionInstaller.swift */; };
+		AE00000000000000000001A2 /* WebExtensionAdapters.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE00000000000000000000A2 /* WebExtensionAdapters.swift */; };
+		AE00000000000000000001A1 /* WebExtensionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE00000000000000000000A1 /* WebExtensionManager.swift */; };
 		010000000000000000000111 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000011 /* ContentView.swift */; };
 		010000000000000000000169 /* QuickNoteActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000069 /* QuickNoteActivity.swift */; };
 		010000000000000000000112 /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000012 /* SidebarView.swift */; };
@@ -105,6 +108,7 @@
 		DB00000000000000000000B1 /* DefaultBrowserService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB00000000000000000000A1 /* DefaultBrowserService.swift */; };
 		DD0000000000000000000101 /* AppleSignInService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD0000000000000000000001 /* AppleSignInService.swift */; };
 		E1A2B3D4F5C60718293A4B5C /* SettingsPanes.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A2B3C4D5E60718293A4B5C /* SettingsPanes.swift */; };
+		AE00000000000000000001A4 /* ExtensionsSettingsPane.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE00000000000000000000A4 /* ExtensionsSettingsPane.swift */; };
 		E2A2B3D4F5C60718293A4B5C /* EliSettingsPane.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2A2B3C4D5E60718293A4B5C /* EliSettingsPane.swift */; };
 		E3A2B3D4F5C60718293A4B5C /* ShortcutSettingsComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3A2B3C4D5E60718293A4B5C /* ShortcutSettingsComponents.swift */; };
 		E50000000000000000000101 /* AppUpdateBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = E50000000000000000000001 /* AppUpdateBanner.swift */; };
@@ -173,6 +177,9 @@
 		010000000000000000000008 /* FaviconService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FaviconService.swift; sourceTree = "<group>"; };
 		010000000000000000000009 /* WKWebViewRepresentable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WKWebViewRepresentable.swift; sourceTree = "<group>"; };
 		010000000000000000000010 /* WebViewCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebViewCoordinator.swift; sourceTree = "<group>"; };
+		AE00000000000000000000A3 /* WebExtensionInstaller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebExtensionInstaller.swift; sourceTree = "<group>"; };
+		AE00000000000000000000A2 /* WebExtensionAdapters.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebExtensionAdapters.swift; sourceTree = "<group>"; };
+		AE00000000000000000000A1 /* WebExtensionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebExtensionManager.swift; sourceTree = "<group>"; };
 		010000000000000000000011 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		010000000000000000000069 /* QuickNoteActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickNoteActivity.swift; sourceTree = "<group>"; };
 		010000000000000000000012 /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
@@ -287,6 +294,7 @@
 		EF000000000000000000000D /* WebViewCoordinator+PageIntegration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WebViewCoordinator+PageIntegration.swift"; sourceTree = "<group>"; };
 		EF0000000000000000000010 /* AIModelCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIModelCatalog.swift; sourceTree = "<group>"; };
 		F1A2B3C4D5E60718293A4B5C /* SettingsPanes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsPanes.swift; sourceTree = "<group>"; };
+		AE00000000000000000000A4 /* ExtensionsSettingsPane.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionsSettingsPane.swift; sourceTree = "<group>"; };
 		F2A2B3C4D5E60718293A4B5C /* EliSettingsPane.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EliSettingsPane.swift; sourceTree = "<group>"; };
 		F3A2B3C4D5E60718293A4B5C /* ShortcutSettingsComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutSettingsComponents.swift; sourceTree = "<group>"; };
 		F60000000000000000000001 /* ButtonTreatment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ButtonTreatment.swift; sourceTree = "<group>"; };
@@ -433,6 +441,7 @@
 				010000000000000000000034 /* FloatingMiniPlayer.swift */,
 				010000000000000000000035 /* ShortcutSettingsView.swift */,
 				F1A2B3C4D5E60718293A4B5C /* SettingsPanes.swift */,
+				AE00000000000000000000A4 /* ExtensionsSettingsPane.swift */,
 				F2A2B3C4D5E60718293A4B5C /* EliSettingsPane.swift */,
 				F3A2B3C4D5E60718293A4B5C /* ShortcutSettingsComponents.swift */,
 				010000000000000000000041 /* CopiedURLToastView.swift */,
@@ -480,6 +489,9 @@
 			children = (
 				010000000000000000000009 /* WKWebViewRepresentable.swift */,
 				010000000000000000000010 /* WebViewCoordinator.swift */,
+				AE00000000000000000000A3 /* WebExtensionInstaller.swift */,
+				AE00000000000000000000A2 /* WebExtensionAdapters.swift */,
+				AE00000000000000000000A1 /* WebExtensionManager.swift */,
 				BA0000000000000000000001 /* BrowserAgentDriver.swift */,
 				EF0000000000000000000005 /* WebPageScripts.swift */,
 				EF0000000000000000000007 /* WebViewCoordinator+Permissions.swift */,
@@ -781,6 +793,9 @@
 				TS00000000000000000000B1 /* TabSnapshotStore.swift in Sources */,
 				010000000000000000000109 /* WKWebViewRepresentable.swift in Sources */,
 				010000000000000000000110 /* WebViewCoordinator.swift in Sources */,
+				AE00000000000000000001A3 /* WebExtensionInstaller.swift in Sources */,
+				AE00000000000000000001A2 /* WebExtensionAdapters.swift in Sources */,
+				AE00000000000000000001A1 /* WebExtensionManager.swift in Sources */,
 				BA0000000000000000000101 /* BrowserAgentDriver.swift in Sources */,
 				EF0000000000000000000105 /* WebPageScripts.swift in Sources */,
 				EF0000000000000000000107 /* WebViewCoordinator+Permissions.swift in Sources */,
@@ -842,6 +857,7 @@
 				010000000000000000000124 /* FloatingMiniPlayer.swift in Sources */,
 				010000000000000000000125 /* ShortcutSettingsView.swift in Sources */,
 				E1A2B3D4F5C60718293A4B5C /* SettingsPanes.swift in Sources */,
+				AE00000000000000000001A4 /* ExtensionsSettingsPane.swift in Sources */,
 				E2A2B3D4F5C60718293A4B5C /* EliSettingsPane.swift in Sources */,
 				E3A2B3D4F5C60718293A4B5C /* ShortcutSettingsComponents.swift in Sources */,
 				010000000000000000000140 /* ContentBlockerService.swift in Sources */,
