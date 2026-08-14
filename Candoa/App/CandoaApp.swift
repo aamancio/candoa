@@ -119,6 +119,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
 
         updateDockIcon()
         MenuAlternateInstaller.install()
+        DevelopMenuStyler.install()
         webAuthenticationHostService.activate()
         DistributedNotificationCenter.default().addObserver(
             self,
@@ -201,6 +202,143 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
 /// AppKit only honours the flag when the alternate directly follows its base
 /// item and carries the same key equivalent with a different modifier mask,
 /// which is how the two are declared in the View menu.
+/// The Develop menu's device row, shared between the SwiftUI item that
+/// declares it and the AppKit pass that styles it.
+@MainActor
+enum DeviceMenuPresentation {
+    static let deviceName = Host.current().localizedName ?? "Mac"
+
+    static let systemVersionLine: String = {
+        let os = ProcessInfo.processInfo.operatingSystemVersion
+        var version = "\(os.majorVersion).\(os.minorVersion)"
+        if os.patchVersion > 0 {
+            version += ".\(os.patchVersion)"
+        }
+        return "macOS \(version)"
+    }()
+
+    static let menuTitle = "\(deviceName)\n\(systemVersionLine)"
+}
+
+/// Safari's Develop menu carries an icon on every row and renders the
+/// device row as the machine's own icon beside its name over a smaller,
+/// dimmed macOS version. SwiftUI's Commands drop Label images on the menu
+/// bar and flatten the newline, so everything visual lands on the AppKit
+/// items instead. Styling is wiped whenever SwiftUI rebuilds the items —
+/// including the rebuild the tracking notification itself triggers through
+/// the browser store — so it is re-applied in a short burst after each
+/// menu-bar tracking session begins; every pass is idempotent.
+@MainActor
+private enum DevelopMenuStyler {
+    private static var observer: NSObjectProtocol?
+
+    /// SF Symbol per localized row title, mirroring Safari's roster.
+    /// Toggling rows appear under both of their titles.
+    private static let symbolsByTitle: [String: String] = [
+        BrowserCommandTitles.openPageWith: "arrow.up.forward.app",
+        BrowserCommandTitles.userAgent: "globe",
+        BrowserCommandTitles.turnOnDeveloperMode: "hammer",
+        BrowserCommandTitles.turnOffDeveloperMode: "hammer",
+        BrowserCommandTitles.serviceWorkers: "gearshape.2",
+        BrowserCommandTitles.showWebInspector: "macwindow.on.rectangle",
+        BrowserCommandTitles.closeWebInspector: "macwindow.on.rectangle",
+        BrowserCommandTitles.connectWebInspector: "rectangle.connected.to.line.below",
+        BrowserCommandTitles.showJavaScriptConsole: "terminal",
+        BrowserCommandTitles.showPageSource: "chevron.left.forwardslash.chevron.right",
+        BrowserCommandTitles.showPageResources: "folder",
+        BrowserCommandTitles.startTimelineRecording: "record.circle",
+        BrowserCommandTitles.stopTimelineRecording: "record.circle",
+        BrowserCommandTitles.startElementSelection: "cursorarrow.rays",
+        BrowserCommandTitles.stopElementSelection: "cursorarrow.rays",
+        BrowserCommandTitles.emptyCaches: "xmark",
+        BrowserCommandTitles.developerSettings: "gearshape",
+        BrowserCommandTitles.featureFlags: "flag",
+        BrowserCommandTitles.copyURL: "link",
+        BrowserCommandTitles.copyURLAsMarkdown: "doc.on.doc"
+    ]
+
+    static func install() {
+        guard observer == nil else { return }
+
+        observer = NotificationCenter.default.addObserver(
+            forName: NSMenu.didBeginTrackingNotification,
+            object: nil,
+            queue: .main
+        ) { _ in
+            MainActor.assumeIsolated { apply() }
+            // SwiftUI rebuilds triggered by the same notification (the
+            // store nudge, the service-worker refresh) land on later
+            // run-loop turns and hand back plain items; sweep behind them
+            // while the menu is likely still open.
+            for delay in [0.05, 0.15, 0.35, 0.7, 1.2] {
+                DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                    MainActor.assumeIsolated { apply() }
+                }
+            }
+        }
+    }
+
+    private static func apply() {
+        guard let mainMenu = NSApp.mainMenu,
+              let developMenu = mainMenu.items.first(where: {
+                  $0.submenu?.items.contains {
+                      $0.title == DeviceMenuPresentation.menuTitle
+                  } == true
+              })?.submenu
+        else { return }
+
+        for item in developMenu.items {
+            if item.title == DeviceMenuPresentation.menuTitle {
+                styleDeviceItem(item)
+            } else if item.image == nil,
+                      let symbol = symbolsByTitle[item.title],
+                      let icon = NSImage(
+                          systemSymbolName: symbol,
+                          accessibilityDescription: nil
+                      ) {
+                item.image = icon
+            }
+        }
+    }
+
+    private static func styleDeviceItem(_ item: NSMenuItem) {
+        if item.attributedTitle == nil {
+            let title = NSMutableAttributedString(
+                string: DeviceMenuPresentation.deviceName + "\n",
+                attributes: [.font: NSFont.menuFont(ofSize: 0)]
+            )
+            title.append(NSAttributedString(
+                string: DeviceMenuPresentation.systemVersionLine,
+                attributes: [
+                    .font: NSFont.menuFont(ofSize: NSFont.smallSystemFontSize),
+                    .foregroundColor: NSColor.secondaryLabelColor
+                ]
+            ))
+            item.attributedTitle = title
+        }
+
+        if item.image == nil,
+           let icon = NSImage(named: NSImage.computerName)?.copy() as? NSImage {
+            // Tall enough to span both title lines, like Safari's.
+            icon.size = NSSize(width: 28, height: 28)
+            item.image = icon
+        }
+
+        guard let deviceSubmenu = item.submenu else { return }
+        for row in deviceSubmenu.items {
+            if row.title == "Candoa" {
+                if row.image == nil,
+                   let appIcon = NSApp.applicationIconImage.copy() as? NSImage {
+                    appIcon.size = NSSize(width: 16, height: 16)
+                    row.image = appIcon
+                }
+            } else if row.isEnabled {
+                row.indentationLevel = 1
+            }
+        }
+    }
+}
+
 @MainActor
 private enum MenuAlternateInstaller {
     private static var observer: NSObjectProtocol?
@@ -264,15 +402,7 @@ private struct BrowserCommands: Commands {
 
     /// Safari titles the Develop menu's local-targets submenu with the
     /// device itself, name over OS version.
-    private static let deviceMenuTitle: String = {
-        let name = Host.current().localizedName ?? "Mac"
-        let os = ProcessInfo.processInfo.operatingSystemVersion
-        var version = "\(os.majorVersion).\(os.minorVersion)"
-        if os.patchVersion > 0 {
-            version += ".\(os.patchVersion)"
-        }
-        return "\(name)\nmacOS \(version)"
-    }()
+    private static let deviceMenuTitle = DeviceMenuPresentation.menuTitle
 
     var body: some Commands {
         // Grouped to stay inside the commands builder's ten-element limit.
@@ -756,7 +886,7 @@ private struct BrowserCommands: Commands {
         CommandMenu("Develop") {
             // Grouped to stay inside the commands builder's ten-element limit.
             Group {
-                Menu(BrowserCommandTitles.openPageWith) {
+                Menu(BrowserCommandTitles.openPageWith, systemImage: "arrow.up.forward.app") {
                     ForEach(actions?.installedBrowsers ?? []) { browser in
                         Button(browser.name) {
                             actions?.openPageWith(browser)
@@ -771,7 +901,7 @@ private struct BrowserCommands: Commands {
                         || actions?.installedBrowsers.isEmpty != false
                 )
 
-                Menu(BrowserCommandTitles.userAgent) {
+                Menu(BrowserCommandTitles.userAgent, systemImage: "globe") {
                     // Safari's layout: the default, then one group per
                     // browser family, then the free-form Other… sheet.
                     ForEach(UserAgentPreset.menuSections, id: \.self) { section in
@@ -824,7 +954,8 @@ private struct BrowserCommands: Commands {
                 Button(
                     actions?.isDeveloperModeEnabled == true
                         ? BrowserCommandTitles.turnOffDeveloperMode
-                        : BrowserCommandTitles.turnOnDeveloperMode
+                        : BrowserCommandTitles.turnOnDeveloperMode,
+                    systemImage: "hammer"
                 ) {
                     guard let actions else { return }
                     actions.setDeveloperMode(!actions.isDeveloperModeEnabled)
@@ -835,7 +966,7 @@ private struct BrowserCommands: Commands {
 
                 // Safari keeps the submenu present and lists registrations
                 // as informational rows; with none, a disabled placeholder.
-                Menu(BrowserCommandTitles.serviceWorkers) {
+                Menu(BrowserCommandTitles.serviceWorkers, systemImage: "gearshape.2") {
                     if let domains = actions?.serviceWorkerDomains, !domains.isEmpty {
                         ForEach(domains, id: \.self) { domain in
                             Button(domain) {}
@@ -854,32 +985,33 @@ private struct BrowserCommands: Commands {
                 Button(
                     actions?.isWebInspectorVisible == true
                         ? BrowserCommandTitles.closeWebInspector
-                        : BrowserCommandTitles.showWebInspector
+                        : BrowserCommandTitles.showWebInspector,
+                    systemImage: "macwindow.on.rectangle"
                 ) {
                     actions?.toggleWebInspector()
                 }
                 .keyboardShortcut("i", modifiers: [.command, .option])
                 .disabled(actions?.canUseDevelopTools != true)
 
-                Button(BrowserCommandTitles.connectWebInspector) {
+                Button(BrowserCommandTitles.connectWebInspector, systemImage: "rectangle.connected.to.line.below") {
                     actions?.connectWebInspector()
                 }
                 .keyboardShortcut("i", modifiers: [.command, .option, .shift])
                 .disabled(actions?.canUseDevelopTools != true)
 
-                Button(BrowserCommandTitles.showJavaScriptConsole) {
+                Button(BrowserCommandTitles.showJavaScriptConsole, systemImage: "terminal") {
                     actions?.showJavaScriptConsole()
                 }
                 .keyboardShortcut("c", modifiers: [.command, .option])
                 .disabled(actions?.canUseDevelopTools != true)
 
-                Button(BrowserCommandTitles.showPageSource) {
+                Button(BrowserCommandTitles.showPageSource, systemImage: "chevron.left.forwardslash.chevron.right") {
                     actions?.showPageSource()
                 }
                 .keyboardShortcut("u", modifiers: [.command, .option])
                 .disabled(actions?.canUseDevelopTools != true)
 
-                Button(BrowserCommandTitles.showPageResources) {
+                Button(BrowserCommandTitles.showPageResources, systemImage: "folder") {
                     actions?.showPageResources()
                 }
                 .keyboardShortcut("a", modifiers: [.command, .option])
@@ -890,7 +1022,8 @@ private struct BrowserCommands: Commands {
                 Button(
                     actions?.isRecordingTimeline == true
                         ? BrowserCommandTitles.stopTimelineRecording
-                        : BrowserCommandTitles.startTimelineRecording
+                        : BrowserCommandTitles.startTimelineRecording,
+                    systemImage: "record.circle"
                 ) {
                     actions?.toggleTimelineRecording()
                 }
@@ -902,7 +1035,8 @@ private struct BrowserCommands: Commands {
                 Button(
                     actions?.isSelectingElement == true
                         ? BrowserCommandTitles.stopElementSelection
-                        : BrowserCommandTitles.startElementSelection
+                        : BrowserCommandTitles.startElementSelection,
+                    systemImage: "cursorarrow.rays"
                 ) {
                     actions?.toggleElementSelection()
                 }
@@ -912,7 +1046,7 @@ private struct BrowserCommands: Commands {
             }
 
             Group {
-                Button(BrowserCommandTitles.emptyCaches) {
+                Button(BrowserCommandTitles.emptyCaches, systemImage: "xmark") {
                     actions?.emptyCaches()
                 }
                 .keyboardShortcut("e", modifiers: [.command, .option])
@@ -920,23 +1054,23 @@ private struct BrowserCommands: Commands {
 
                 Divider()
 
-                Button(BrowserCommandTitles.developerSettings) {
+                Button(BrowserCommandTitles.developerSettings, systemImage: "gearshape") {
                     SettingsPaneRequest.request(.advanced)
                     openSettings()
                 }
 
-                Button(BrowserCommandTitles.featureFlags) {
+                Button(BrowserCommandTitles.featureFlags, systemImage: "flag") {
                     openWindow(id: AppConfiguration.featureFlagsWindowSceneID)
                 }
 
                 Divider()
 
-                Button(BrowserCommandTitles.copyURL) {
+                Button(BrowserCommandTitles.copyURL, systemImage: "link") {
                     actions?.copyURL()
                 }
                 .disabled(actions == nil)
 
-                Button(BrowserCommandTitles.copyURLAsMarkdown) {
+                Button(BrowserCommandTitles.copyURLAsMarkdown, systemImage: "doc.on.doc") {
                     actions?.copyURLAsMarkdown()
                 }
                 .disabled(actions == nil)
