@@ -1439,6 +1439,10 @@ private struct DeveloperToolbar: View {
         }
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
+        // The borderless menu button re-tints its template label with the
+        // accent, ignoring the label's foregroundStyle; match the sibling
+        // buttons' foreground explicitly.
+        .tint(foreground.opacity(isHoveringControlMenu ? 0.95 : 0.72))
         .fixedSize()
         .onHover { isHoveringControlMenu = $0 }
         .help("Customize Developer Controls")
