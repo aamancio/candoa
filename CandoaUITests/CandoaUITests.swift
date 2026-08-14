@@ -496,6 +496,23 @@ final class CandoaUITests: XCTestCase {
         }
         XCTAssertTrue(sawTextPixel, "URL text is not legible on the developer bar")
 
+        // Control icons share the bar's neutral foreground — none renders
+        // in the saturated accent (the borderless menu button regression).
+        // Stripes only reach ~0.2 blue-dominance, accent glyphs ~0.7.
+        let controlsMenu = window.menuButtons.firstMatch
+        if controlsMenu.exists, controlsMenu.frame.minY - windowFrame.minY < 40 {
+            let menuFrame = controlsMenu.frame
+            for xPt in stride(from: menuFrame.minX - windowFrame.minX, to: menuFrame.maxX - windowFrame.minX, by: 1) {
+                for yPt in stride(from: menuFrame.minY - windowFrame.minY, to: menuFrame.maxY - windowFrame.minY, by: 2) {
+                    let sample = try color(atX: xPt, y: yPt)
+                    XCTAssertLessThan(
+                        sample.blueComponent - sample.redComponent, 0.5,
+                        "a developer bar control renders accent-tinted instead of the bar foreground"
+                    )
+                }
+            }
+        }
+
         // The URL field accepts input: click, retype, and navigate.
         urlField.click()
         window.typeKey("a", modifierFlags: .command)
