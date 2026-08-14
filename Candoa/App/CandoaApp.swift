@@ -33,6 +33,10 @@ struct CandoaApp: App {
         .commands {
             AboutCommands()
             BrowserCommands(userStore: userStore)
+            // Separate struct: BrowserCommands' builder is at the
+            // ten-element limit. Declared last so the menu lands after
+            // Develop, before Window.
+            ExtensionsCommands()
         }
 
         // Private windows: same interface, but the store persists nothing
