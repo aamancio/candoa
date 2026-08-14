@@ -196,7 +196,7 @@ private struct ExtensionsSettingsContent: View {
 
             VStack(alignment: .leading, spacing: 5) {
                 (Text(installation.displayName).fontWeight(.semibold)
-                    + Text(" \(installation.version)").foregroundStyle(.secondary))
+                    + Text(verbatim: " \(installation.version)").foregroundStyle(.secondary))
                     .font(.system(size: 14))
 
                 if let description = manager.displayDescription(for: installation.id),
