@@ -4966,46 +4966,6 @@
         }
       }
     },
-    "Choose what Command-W does on pinned tabs." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Legen Sie fest, was Command-W bei angehefteten Tabs bewirkt."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Elige qué hace Command-W con las pestañas fijadas."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Choisissez l’action de Command-W sur les onglets épinglés."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "固定タブでのCommand-Wの動作を選択します。"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Escolha o que Command-W faz nas abas fixadas."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "选取 Command-W 对固定标签页执行的操作。"
-          }
-        }
-      }
-    },
     "Choose which color scheme sites should use." : {
       "localizations" : {
         "de" : {
@@ -7300,46 +7260,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "自定义开发者控制"
-          }
-        }
-      }
-    },
-    "Cycle within the current scope" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Innerhalb des aktuellen Bereichs wechseln"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Recorrer dentro del ámbito actual"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Parcourir dans la portée actuelle"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "現在のスコープ内で切り替え"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Alternar dentro do escopo atual"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "在当前范围内循环切换"
           }
         }
       }
@@ -12714,46 +12634,6 @@
         }
       }
     },
-    "Ignore pending tabs when cycling" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ausstehende Tabs beim Wechseln ignorieren"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ignorar las pestañas pendientes al recorrer"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ignorer les onglets en attente lors du parcours"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "切り替え時に未読み込みのタブをスキップ"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ignorar abas pendentes ao alternar"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "循环切换时忽略待加载的标签页"
-          }
-        }
-      }
-    },
     "Import from %@…" : {
       "comment" : "Placeholder is a browser name.",
       "localizations" : {
@@ -13152,46 +13032,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "正在安装更新…"
-          }
-        }
-      }
-    },
-    "Keep Ctrl-Tab inside the current tab group." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ctrl-Tab innerhalb der aktuellen Tab-Gruppe halten."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Mantiene Ctrl-Tab dentro del grupo de pestañas actual."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Maintient Ctrl-Tab dans le groupe d’onglets actuel."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ctrl-Tabでの切り替えを現在のタブグループ内に限定します。"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Mantém o Ctrl-Tab dentro do grupo de abas atual."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "让 Ctrl-Tab 保持在当前标签页组内。"
           }
         }
       }
@@ -18439,46 +18279,6 @@
         }
       }
     },
-    "Pinned tab close shortcut" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kurzbefehl zum Schließen angehefteter Tabs"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Atajo para cerrar pestañas fijadas"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Raccourci de fermeture des onglets épinglés"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "固定タブを閉じるショートカット"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Atalho para fechar abas fixadas"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "固定标签页的关闭快捷键"
-          }
-        }
-      }
-    },
     "Play" : {
       "localizations" : {
         "de" : {
@@ -20371,46 +20171,6 @@
         }
       }
     },
-    "Reset" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Zurücksetzen"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Restablecer"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Réinitialiser"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "リセット"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Redefinir"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "重置"
-          }
-        }
-      }
-    },
     "Reset All" : {
       "localizations" : {
         "de" : {
@@ -20531,46 +20291,6 @@
         }
       }
     },
-    "Reset and switch" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Zurücksetzen und wechseln"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Restablecer y cambiar"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Réinitialiser et basculer"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "リセットして切り替え"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Redefinir e trocar"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "重置并切换"
-          }
-        }
-      }
-    },
     "Reset to Arc Controls" : {
       "localizations" : {
         "de" : {
@@ -20647,46 +20367,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "重置为默认"
-          }
-        }
-      }
-    },
-    "Reset, unload, switch" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Zurücksetzen, entladen, wechseln"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Restablecer, descargar, cambiar"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Réinitialiser, décharger, basculer"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "リセット、アンロード、切り替え"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Redefinir, descarregar, trocar"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "重置、卸载、切换"
           }
         }
       }
@@ -24470,46 +24150,6 @@
         }
       }
     },
-    "Skip unloaded tabs with Ctrl-Tab." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nicht geladene Tabs mit Ctrl-Tab überspringen."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Omite las pestañas sin cargar con Ctrl-Tab."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ignore les onglets non chargés avec Ctrl-Tab."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ctrl-Tabで未読み込みのタブをスキップします。"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ignora abas não carregadas com Ctrl-Tab."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "使用 Ctrl-Tab 时跳过未加载的标签页。"
-          }
-        }
-      }
-    },
     "Smile" : {
       "localizations" : {
         "de" : {
@@ -26201,46 +25841,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "总结此页面"
-          }
-        }
-      }
-    },
-    "Switch" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Wechseln"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cambiar"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Basculer"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "切り替え"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Trocar"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "切换"
           }
         }
       }
@@ -28017,46 +27617,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "未知空间"
-          }
-        }
-      }
-    },
-    "Unload and switch" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Entladen und wechseln"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Descargar y cambiar"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Décharger et basculer"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "アンロードして切り替え"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Descarregar e trocar"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "卸载并切换"
           }
         }
       }
