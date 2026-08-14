@@ -60,6 +60,28 @@ final class WebExtensionManager: NSObject, ObservableObject {
         !contextsByInstallationID.isEmpty
     }
 
+    func displayDescription(for installationID: UUID) -> String? {
+        contextsByInstallationID[installationID]?.webExtension.displayDescription
+    }
+
+    /// What the extension can currently reach on the web, for the settings
+    /// pane's plain-language permissions callout.
+    enum WebsiteAccess {
+        case allWebsites
+        case websites([String])
+        case none
+    }
+
+    func websiteAccess(for installationID: UUID) -> WebsiteAccess? {
+        guard let context = contextsByInstallationID[installationID] else { return nil }
+        let patterns = context.currentPermissionMatchPatterns
+        if context.hasAccessToAllURLs || patterns.contains(where: { $0.matchesAllHosts }) {
+            return .allWebsites
+        }
+        let hosts = Set(patterns.compactMap(\.host)).sorted()
+        return hosts.isEmpty ? WebsiteAccess.none : .websites(hosts)
+    }
+
     /// Whether any loaded extension may appear in the given browsing mode —
     /// private windows only surface extensions explicitly granted access.
     func hasLoadedExtensions(forPrivateBrowsing isPrivate: Bool) -> Bool {
