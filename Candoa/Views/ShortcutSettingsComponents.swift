@@ -705,6 +705,20 @@ extension ShortcutDefinition {
         return Self.keyboardShortcut(from: storedShortcut.isEmpty ? defaultShortcut : storedShortcut)
     }
 
+    /// What the menu bar prints for commands whose Safari menu shows the
+    /// bracket alternate rather than the arrow default: Safari's History
+    /// menu displays ⌘[ and ⌘] for Back and Forward while the arrows work
+    /// too. At defaults the menu shows that alternate; once the person
+    /// rebinds the command it follows their binding, and a removed
+    /// shortcut leaves the menu item bare.
+    var menuKeyboardShortcut: KeyboardShortcut? {
+        let storedShortcut = UserDefaults.standard.string(forKey: storageKey) ?? ""
+        guard storedShortcut.isEmpty, let alternate = alternateDefaultShortcuts.last else {
+            return currentKeyboardShortcut
+        }
+        return Self.keyboardShortcut(from: alternate)
+    }
+
     static func keyboardShortcut(from shortcut: String) -> KeyboardShortcut? {
         guard !shortcut.isEmpty, shortcut != "None" else { return nil }
 

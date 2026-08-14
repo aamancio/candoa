@@ -561,7 +561,7 @@ private struct BrowserCommands: Commands {
                 Button(BrowserCommandTitles.newTab) {
                     actions?.newTab()
                 }
-                .keyboardShortcut("t", modifiers: .command)
+                .keyboardShortcut(ShortcutDefinition.newTab.currentKeyboardShortcut)
                 .disabled(actions == nil)
 
                 Button(BrowserCommandTitles.openFile) {
@@ -587,7 +587,7 @@ private struct BrowserCommands: Commands {
                 Button(actions?.isHistoryVisible == true ? "Close History" : "Close Tab") {
                     actions?.closeCurrentTab()
                 }
-                .keyboardShortcut("w", modifiers: .command)
+                .keyboardShortcut(ShortcutDefinition.closeCurrentTab.currentKeyboardShortcut)
                 .disabled(actions == nil)
 
                 Divider()
@@ -644,13 +644,13 @@ private struct BrowserCommands: Commands {
                 Button(BrowserCommandTitles.findNext) {
                     actions?.findNext()
                 }
-                .keyboardShortcut("g", modifiers: .command)
+                .keyboardShortcut(ShortcutDefinition.findNext.currentKeyboardShortcut)
                 .disabled(actions == nil)
 
                 Button(BrowserCommandTitles.findPrevious) {
                     actions?.findPrevious()
                 }
-                .keyboardShortcut("g", modifiers: [.command, .shift])
+                .keyboardShortcut(ShortcutDefinition.findPrevious.currentKeyboardShortcut)
                 .disabled(actions == nil)
             }
         }
@@ -707,7 +707,7 @@ private struct BrowserCommands: Commands {
                 Button(BrowserCommandTitles.stopLoading) {
                     actions?.stopLoading()
                 }
-                .keyboardShortcut(".", modifiers: .command)
+                .keyboardShortcut(ShortcutDefinition.stopLoading.currentKeyboardShortcut)
                 .disabled(actions?.isActiveTabLoading != true)
 
                 Button(BrowserCommandTitles.reloadTab) {
@@ -732,19 +732,19 @@ private struct BrowserCommands: Commands {
                 Button(BrowserCommandTitles.resetZoom) {
                     actions?.resetZoom()
                 }
-                .keyboardShortcut("0", modifiers: .command)
+                .keyboardShortcut(ShortcutDefinition.resetZoom.currentKeyboardShortcut)
                 .disabled(actions == nil)
 
                 Button(BrowserCommandTitles.zoomIn) {
                     actions?.zoomIn()
                 }
-                .keyboardShortcut("=", modifiers: .command)
+                .keyboardShortcut(ShortcutDefinition.zoomIn.currentKeyboardShortcut)
                 .disabled(actions == nil)
 
                 Button(BrowserCommandTitles.zoomOut) {
                     actions?.zoomOut()
                 }
-                .keyboardShortcut("-", modifiers: .command)
+                .keyboardShortcut(ShortcutDefinition.zoomOut.currentKeyboardShortcut)
                 .disabled(actions == nil)
 
                 Divider()
@@ -819,13 +819,13 @@ private struct BrowserCommands: Commands {
                 Button(BrowserCommandTitles.previousTab) {
                     actions?.previousTab()
                 }
-                .keyboardShortcut(.upArrow, modifiers: [.command, .option])
+                .keyboardShortcut(ShortcutDefinition.previousTab.currentKeyboardShortcut)
                 .disabled(actions == nil)
 
                 Button(BrowserCommandTitles.nextTab) {
                     actions?.nextTab()
                 }
-                .keyboardShortcut(.downArrow, modifiers: [.command, .option])
+                .keyboardShortcut(ShortcutDefinition.nextTab.currentKeyboardShortcut)
                 .disabled(actions == nil)
 
                 Button(actions?.isActiveTabPinned == true ? "Unpin Tab" : "Pin Tab") {
@@ -851,7 +851,7 @@ private struct BrowserCommands: Commands {
                 Button(BrowserCommandTitles.clearUnpinnedTabs) {
                     actions?.clearUnpinnedTabs()
                 }
-                .keyboardShortcut("k", modifiers: [.command, .shift])
+                .keyboardShortcut(ShortcutDefinition.clearUnpinnedTabs.currentKeyboardShortcut)
                 .disabled(actions == nil)
             }
 
@@ -901,13 +901,13 @@ private struct BrowserCommands: Commands {
             Button(BrowserCommandTitles.back) {
                 actions?.goBack()
             }
-            .keyboardShortcut("[", modifiers: .command)
+            .keyboardShortcut(ShortcutDefinition.goBack.menuKeyboardShortcut)
             .disabled(actions == nil)
 
             Button(BrowserCommandTitles.forward) {
                 actions?.goForward()
             }
-            .keyboardShortcut("]", modifiers: .command)
+            .keyboardShortcut(ShortcutDefinition.goForward.menuKeyboardShortcut)
             .disabled(actions == nil)
 
             Button(BrowserCommandTitles.home) {
@@ -930,7 +930,7 @@ private struct BrowserCommands: Commands {
             Button(BrowserCommandTitles.reopenClosedTab) {
                 actions?.reopenClosedTab()
             }
-            .keyboardShortcut("t", modifiers: [.command, .shift])
+            .keyboardShortcut(ShortcutDefinition.reopenClosedTab.currentKeyboardShortcut)
             .disabled(actions == nil)
 
             Divider()
@@ -964,13 +964,13 @@ private struct BrowserCommands: Commands {
             Button(BrowserCommandTitles.previousSpace) {
                 actions?.previousSpace()
             }
-            .keyboardShortcut(.leftArrow, modifiers: [.command, .option])
+            .keyboardShortcut(ShortcutDefinition.previousSpace.currentKeyboardShortcut)
             .disabled(actions == nil)
 
             Button(BrowserCommandTitles.nextSpace) {
                 actions?.nextSpace()
             }
-            .keyboardShortcut(.rightArrow, modifiers: [.command, .option])
+            .keyboardShortcut(ShortcutDefinition.nextSpace.currentKeyboardShortcut)
             .disabled(actions == nil)
 
             if let actions, !actions.spaces.isEmpty {
