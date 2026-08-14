@@ -88,46 +88,6 @@ struct SidebarDroppedTabSource: Equatable {
     var placement: SidebarTabDropPlacement
 }
 
-enum PinnedCloseShortcutBehavior: String {
-    case resetUnloadSwitch = "reset-unload-switch"
-    case unloadSwitch = "unload-switch"
-    case resetSwitch = "reset-switch"
-    case switchOnly = "switch"
-    case resetOnly = "reset"
-    case close = "close"
-
-    init(settingValue: String?) {
-        self = settingValue.flatMap(Self.init(rawValue:)) ?? .resetUnloadSwitch
-    }
-
-    var resetsURL: Bool {
-        switch self {
-        case .resetUnloadSwitch, .resetSwitch, .resetOnly:
-            return true
-        case .unloadSwitch, .switchOnly, .close:
-            return false
-        }
-    }
-
-    var unloadsWebView: Bool {
-        switch self {
-        case .resetUnloadSwitch, .unloadSwitch:
-            return true
-        case .resetSwitch, .switchOnly, .resetOnly, .close:
-            return false
-        }
-    }
-
-    var switchesToNextTab: Bool {
-        switch self {
-        case .resetUnloadSwitch, .unloadSwitch, .resetSwitch, .switchOnly:
-            return true
-        case .resetOnly, .close:
-            return false
-        }
-    }
-}
-
 enum InitialOnboardingStep: String, CaseIterable {
     case welcome
     case account
@@ -178,22 +138,8 @@ final class BrowserStore: ObservableObject {
     static let hasCompletedOnboardingKey = "Candoa.InitialOnboarding.Completed"
     static let hasCompletedTourKey = "Candoa.InitialOnboarding.TourCompleted"
 
-    var ignoresPendingTabsWhenCycling: Bool {
-        boolSetting(SettingsOption.ignorePendingTabsWhenCycling, default: false)
-    }
-
-    var scopesControlTabToCurrentGroup: Bool {
-        boolSetting(SettingsOption.ctrlTabCyclesWithinScope, default: false)
-    }
-
     var selectsRecentlyUsedTabOnClose: Bool {
         boolSetting(SettingsOption.selectRecentlyUsedOnClose, default: true)
-    }
-
-    var pinnedCloseShortcutBehavior: PinnedCloseShortcutBehavior {
-        PinnedCloseShortcutBehavior(
-            settingValue: UserDefaults.standard.string(forKey: SettingsOption.pinnedCloseShortcutBehavior)
-        )
     }
 
     var defaultSearchProviderID: String? {

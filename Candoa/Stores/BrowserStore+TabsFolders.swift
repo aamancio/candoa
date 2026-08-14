@@ -263,6 +263,8 @@ extension BrowserStore {
         }
     }
 
+    /// Command-W keeps pinned and favorite tabs in the sidebar: reset the tab
+    /// to its saved URL, switch away, and unload the page instead of closing.
     func performPinnedCloseShortcutIfNeeded(_ id: UUID) -> Bool {
         guard
             let tab = tabs.first(where: { $0.id == id }),
@@ -271,27 +273,15 @@ extension BrowserStore {
             return false
         }
 
-        let behavior = pinnedCloseShortcutBehavior
-        guard behavior != .close else {
-            closeTab(id)
-            return true
-        }
+        let nextTabID = replacementTabIDAfterClosing(id, prefersRecentlyUsed: false)
 
-        let nextTabID = behavior.switchesToNextTab
-            ? replacementTabIDAfterClosing(id, prefersRecentlyUsed: false)
-            : nil
-
-        if behavior.resetsURL {
-            resetSavedURLIfAvailable(for: id, loadsWebView: !behavior.unloadsWebView)
-        }
+        resetSavedURLIfAvailable(for: id, loadsWebView: false)
 
         if let nextTabID {
             switchTab(to: nextTabID)
         }
 
-        if behavior.unloadsWebView {
-            unloadWebView(for: id)
-        }
+        unloadWebView(for: id)
 
         updateNavigationState()
         return true

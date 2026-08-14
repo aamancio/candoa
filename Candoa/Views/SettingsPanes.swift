@@ -313,55 +313,17 @@ internal struct GeneralSettingsPane: View {
 }
 
 internal struct SpacesSettingsPane: View {
-    @AppStorage(SettingsOption.ignorePendingTabsWhenCycling) private var ignorePendingTabsWhenCycling = false
-    @AppStorage(SettingsOption.ctrlTabCyclesWithinScope) private var ctrlTabCyclesWithinScope = false
     @AppStorage(SettingsOption.selectRecentlyUsedOnClose) private var selectRecentlyUsedOnClose = true
-    @AppStorage(SettingsOption.pinnedCloseShortcutBehavior) private var pinnedCloseShortcutBehavior = "reset-unload-switch"
 
     var body: some View {
         SettingsPane {
             VStack(alignment: .leading, spacing: 20) {
                 SettingsCard {
                     SettingsToggleRow(
-                        systemImage: "clock.badge.xmark",
-                        title: String(localized: "Ignore pending tabs when cycling"),
-                        subtitle: String(localized: "Skip unloaded tabs with Ctrl-Tab."),
-                        isOn: $ignorePendingTabsWhenCycling
-                    )
-
-                    SettingsDivider()
-
-                    SettingsToggleRow(
-                        systemImage: "rectangle.3.group",
-                        title: String(localized: "Cycle within the current scope"),
-                        subtitle: String(localized: "Keep Ctrl-Tab inside the current tab group."),
-                        isOn: $ctrlTabCyclesWithinScope
-                    )
-
-                    SettingsDivider()
-
-                    SettingsToggleRow(
                         systemImage: "arrow.left.arrow.right",
                         title: String(localized: "Select recently used tab on close"),
                         subtitle: String(localized: "Return to the tab you used most recently."),
                         isOn: $selectRecentlyUsedOnClose
-                    )
-                }
-
-                SettingsCard {
-                    SettingsPickerRow(
-                        systemImage: "keyboard",
-                        title: String(localized: "Pinned tab close shortcut"),
-                        subtitle: String(localized: "Choose what Command-W does on pinned tabs."),
-                        selection: $pinnedCloseShortcutBehavior,
-                        options: [
-                            SettingsPickerOption(id: "reset-unload-switch", title: String(localized: "Reset, unload, switch")),
-                            SettingsPickerOption(id: "unload-switch", title: String(localized: "Unload and switch")),
-                            SettingsPickerOption(id: "reset-switch", title: String(localized: "Reset and switch")),
-                            SettingsPickerOption(id: "switch", title: String(localized: "Switch")),
-                            SettingsPickerOption(id: "reset", title: String(localized: "Reset")),
-                            SettingsPickerOption(id: "close", title: String(localized: "Close"))
-                        ]
                     )
                 }
             }

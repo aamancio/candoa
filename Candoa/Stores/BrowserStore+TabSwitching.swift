@@ -348,27 +348,15 @@ extension BrowserStore {
     }
 
     func recentTabsForActiveSpace() -> [BrowserTab] {
-        var candidates = tabs.filter {
+        tabs.filter {
             $0.spaceID == activeSpaceID && $0.hasBeenActivated
         }
-
-        if scopesControlTabToCurrentGroup, let activeTab {
-            candidates = candidates.filter { tab in
-                activeTab.isFavorite ? tab.isFavorite : !tab.isFavorite
+        .sorted {
+            if $0.lastAccessedAt == $1.lastAccessedAt {
+                return $0.sortOrder < $1.sortOrder
             }
+            return $0.lastAccessedAt > $1.lastAccessedAt
         }
-
-        if ignoresPendingTabsWhenCycling {
-            candidates = candidates.filter { !isPendingTabForControlTab($0) }
-        }
-
-        return candidates
-            .sorted {
-                if $0.lastAccessedAt == $1.lastAccessedAt {
-                    return $0.sortOrder < $1.sortOrder
-                }
-                return $0.lastAccessedAt > $1.lastAccessedAt
-            }
     }
 
     func markActiveTabAsActivated() {
@@ -376,10 +364,6 @@ extension BrowserStore {
             return
         }
         tabs[index].hasBeenActivated = true
-    }
-
-    func isPendingTabForControlTab(_ tab: BrowserTab) -> Bool {
-        tab.url == nil || tab.isLoading || !webCoordinator.hasLoadedWebView(for: tab.id)
     }
 
     func tabSwitcherPreviewTabs(from candidates: [BrowserTab], selectedTabID: UUID?) -> [BrowserTab] {

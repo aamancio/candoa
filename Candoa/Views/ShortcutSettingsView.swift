@@ -137,10 +137,7 @@ enum SettingsOption {
 
     static let websiteAppearance = prefix + "WebsiteAppearance"
 
-    static let ignorePendingTabsWhenCycling = prefix + "IgnorePendingTabsWhenCycling"
-    static let ctrlTabCyclesWithinScope = prefix + "CtrlTabCyclesWithinScope"
     static let selectRecentlyUsedOnClose = prefix + "SelectRecentlyUsedOnClose"
-    static let pinnedCloseShortcutBehavior = prefix + "PinnedCloseShortcutBehavior"
 
     static let homepage = prefix + "Homepage"
     static let newTabsOpenWith = prefix + "NewTabsOpenWith"
