@@ -193,8 +193,30 @@ internal struct SettingsPickerRow: View {
             }
             .labelsHidden()
             .controlSize(.small)
+            .flexibleControlSizing()
             .frame(width: 190)
         }
+    }
+}
+
+/// Fitted pop-ups (macOS 26's default) hug their longest option, so each
+/// row's pill lands at a different offset inside the reserved slot. Safari
+/// stretches its pop-ups to one shared width; flexible sizing makes the
+/// control fill the frame so every column edge aligns. Earlier systems
+/// stretch pop-ups natively, so no fallback work is needed.
+internal struct FlexibleControlSizing: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(macOS 26.0, *) {
+            content.buttonSizing(.flexible)
+        } else {
+            content
+        }
+    }
+}
+
+extension View {
+    func flexibleControlSizing() -> some View {
+        modifier(FlexibleControlSizing())
     }
 }
 
