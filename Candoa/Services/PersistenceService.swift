@@ -11,15 +11,23 @@ struct PersistenceSyncConfiguration: Equatable {
     var cloudKitContainerIdentifier: String
 
     /// Sync is not a choice: whenever the build carries the CloudKit
-    /// entitlement, workspace and history mirror to the person's private
-    /// iCloud database. No iCloud account signed in simply means the
-    /// container has nothing to talk to. Not wanting a history record is
-    /// what private windows are for.
+    /// entitlement, the workspace mirrors to the person's private iCloud
+    /// database. No iCloud account signed in simply means the container has
+    /// nothing to talk to.
+    ///
+    /// History does NOT mirror yet, and must stay false here: CloudKit
+    /// refuses two persistent stores sharing one container identifier and
+    /// database scope, and the history store is separate from the session
+    /// store — both true crashes every entitled launch in
+    /// setPersistentStoreDescriptions (NSInvalidArgumentException). Mirroring
+    /// history requires its own container (e.g.
+    /// iCloud.app.candoa.browser.history) provisioned and added to the
+    /// entitlements first.
     static var current: PersistenceSyncConfiguration {
         let canUseICloud = CloudKitEntitlements.hasConfiguredContainer
         return PersistenceSyncConfiguration(
             syncsWorkspaceWithICloud: canUseICloud,
-            syncsHistoryWithICloud: canUseICloud,
+            syncsHistoryWithICloud: false,
             cloudKitContainerIdentifier: cloudKitContainerIdentifier
         )
     }

@@ -145,7 +145,7 @@ enum ClearBrowsingDataPrompt {
         lines.append(currentSpace != nil
             ? String(localized: "History is removed from this Space.")
             : String(localized: "History is removed from every Space."))
-        if CloudKitEntitlements.hasConfiguredContainer {
+        if PersistenceService.shared.syncsHistoryWithICloud {
             lines.append(String(localized: "History will also be removed on your other Macs syncing with iCloud."))
         }
         return lines.joined(separator: " ")
