@@ -171,6 +171,9 @@ internal struct GeneralSettingsPane: View {
                         }
                         .labelsHidden()
                         .controlSize(.small)
+                        // Fills the shared 190pt column like every
+                        // SettingsPickerRow (see FlexibleControlSizing).
+                        .flexibleControlSizing()
                         .frame(width: 190)
                     }
 
