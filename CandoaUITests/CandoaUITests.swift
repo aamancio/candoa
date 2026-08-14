@@ -575,7 +575,8 @@ final class CandoaUITests: XCTestCase {
         XCTAssertTrue(enabledClearItem.isHittable)
         enabledClearItem.click()
 
-        let confirmButton = app.sheets.buttons["Clear"].firstMatch
+        // The confirming button carries Safari's wording, "Clear History".
+        let confirmButton = app.sheets.buttons["Clear History"].firstMatch
         XCTAssertTrue(confirmButton.waitForExistence(timeout: 5))
         confirmButton.click()
 

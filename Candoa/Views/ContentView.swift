@@ -491,12 +491,14 @@ struct ContentView: View {
                 for: NSMenu.didBeginTrackingNotification
             )
         ) { notification in
-            // The root menu posts once per menu-bar open: nudge observers so
-            // titles that mirror inspector state (Show/Close Web Inspector,
-            // Start/Stop recordings) catch up with changes made in the
-            // inspector's own UI.
+            // The root menu posts once per menu-bar open: titles that mirror
+            // inspector state (Show/Close Web Inspector, Start/Stop
+            // recordings) catch up with changes made in the inspector's own
+            // UI. The store only nudges observers when that state actually
+            // drifted — an unconditional rebuild would strand "Reload Page
+            // From Origin" as a drawn row of its own (#282).
             guard (notification.object as? NSMenu) === NSApp.mainMenu else { return }
-            store.objectWillChange.send()
+            store.refreshDevelopMenuIfInspectorStateDrifted()
         }
         .onChange(of: store.activeTab?.url) { _, url in
             guard let url else { return }

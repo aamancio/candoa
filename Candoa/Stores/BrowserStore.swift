@@ -285,6 +285,12 @@ final class BrowserStore: ObservableObject {
     var recentlyClosedTabs: [ClosedTabSnapshot] = []
     static let recentlyClosedTabLimit = 50
 
+    /// The inspector-dependent Develop-menu state as of the last menu-bar
+    /// open (or menu-driven toggle); see
+    /// `refreshDevelopMenuIfInspectorStateDrifted()`. Not published — it
+    /// exists to decide whether a nudge is needed, never to drive views.
+    var lastTrackedInspectorMenuState = [false, false, false]
+
     /// Private-browsing mode: web content runs against a non-persistent
     /// data store, and nothing this store does is written anywhere —
     /// no workspace snapshot, no history, no CloudKit, no restoration.

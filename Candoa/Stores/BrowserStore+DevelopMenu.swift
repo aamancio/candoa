@@ -17,9 +17,31 @@ extension BrowserStore {
         return webCoordinator.isWebInspectorVisible(for: activeTabID)
     }
 
+    /// The menu titles that mirror inspector state, as one comparable value:
+    /// Show/Close Web Inspector, Start/Stop Timeline Recording, and
+    /// Start/Stop Element Selection.
+    private var inspectorMenuState: [Bool] {
+        [isWebInspectorVisible, isRecordingTimeline, isSelectingElement]
+    }
+
+    /// Catches up the inspector-mirroring titles with changes made in the
+    /// inspector's own UI, where no store code runs. Called as the menu bar
+    /// begins tracking — but only nudging when the state actually drifted,
+    /// because a rebuild mid-open hands SwiftUI back a plain "Reload Page
+    /// From Origin" item whose row is already drawn, too late for
+    /// MenuAlternateInstaller to fold it back into Reload Page's
+    /// Option-held alternate.
+    func refreshDevelopMenuIfInspectorStateDrifted() {
+        let state = inspectorMenuState
+        guard state != lastTrackedInspectorMenuState else { return }
+        lastTrackedInspectorMenuState = state
+        objectWillChange.send()
+    }
+
     func toggleWebInspector() {
         guard let activeTabID else { return }
         webCoordinator.toggleWebInspector(for: activeTabID)
+        lastTrackedInspectorMenuState = inspectorMenuState
         objectWillChange.send()
     }
 
@@ -53,6 +75,7 @@ extension BrowserStore {
         webCoordinator.toggleTimelineRecording(for: activeTabID)
         // The menu item's title flips with the recording state, which lives
         // in the coordinator; nudge observers so the menu re-renders.
+        lastTrackedInspectorMenuState = inspectorMenuState
         objectWillChange.send()
     }
 
@@ -64,6 +87,7 @@ extension BrowserStore {
     func toggleElementSelection() {
         guard let activeTabID else { return }
         webCoordinator.toggleElementSelection(for: activeTabID)
+        lastTrackedInspectorMenuState = inspectorMenuState
         objectWillChange.send()
     }
 
