@@ -331,6 +331,11 @@ struct NavigationService {
         }
 
         if looksLikeHost(input), let url = URL(string: "https://\(input)") {
+            // Safari defaults localhost and loopback hosts to plain HTTP;
+            // local dev servers rarely serve TLS.
+            if url.isLocalDevelopment, let localURL = URL(string: "http://\(input)") {
+                return localURL
+            }
             return url
         }
 

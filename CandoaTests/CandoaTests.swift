@@ -365,3 +365,41 @@ final class SpaceMemoryTests: XCTestCase {
     }
 
 }
+
+/// Address-bar scheme selection: bare hosts default to HTTPS, except
+/// localhost and loopback hosts, which Safari defaults to plain HTTP.
+final class NavigationSchemeTests: XCTestCase {
+    private let service = NavigationService()
+
+    private func destination(_ input: String) -> String? {
+        service.destinationURL(for: input)?.absoluteString
+    }
+
+    func testBareHostsDefaultToHTTPS() {
+        XCTAssertEqual(destination("example.com"), "https://example.com")
+        XCTAssertEqual(destination("example.com/path"), "https://example.com/path")
+    }
+
+    func testLocalhostDefaultsToHTTP() {
+        XCTAssertEqual(destination("localhost"), "http://localhost")
+        XCTAssertEqual(destination("localhost:3000"), "http://localhost:3000")
+        XCTAssertEqual(destination("localhost:8080/admin"), "http://localhost:8080/admin")
+        XCTAssertEqual(destination("app.localhost:3000"), "http://app.localhost:3000")
+    }
+
+    func testLoopbackAddressesDefaultToHTTP() {
+        XCTAssertEqual(destination("127.0.0.1"), "http://127.0.0.1")
+        XCTAssertEqual(destination("127.0.0.1:3000"), "http://127.0.0.1:3000")
+        XCTAssertEqual(destination("0.0.0.0:8080"), "http://0.0.0.0:8080")
+    }
+
+    func testExplicitSchemeIsPreserved() {
+        XCTAssertEqual(destination("https://localhost:8443"), "https://localhost:8443")
+        XCTAssertEqual(destination("http://example.com"), "http://example.com")
+    }
+
+    func testNonLoopbackAddressesStayHTTPS() {
+        XCTAssertEqual(destination("192.168.1.10:8080"), "https://192.168.1.10:8080")
+        XCTAssertEqual(destination("localhost.example.com"), "https://localhost.example.com")
+    }
+}
