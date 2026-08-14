@@ -298,13 +298,67 @@ private enum DevelopMenuStyler {
     }
 
     private static func isDeviceItem(_ item: NSMenuItem) -> Bool {
-        if item.title == DeviceMenuPresentation.menuTitle { return true }
-        guard #available(macOS 14.4, *) else { return false }
-        return item.title == DeviceMenuPresentation.deviceName
-            && item.subtitle == DeviceMenuPresentation.systemVersionLine
+        item.title == DeviceMenuPresentation.menuTitle
     }
 
-    private static let iconSide: CGFloat = 28
+    private static let iconSide: CGFloat = 26
+
+    /// NSImage.computerName carries transparent padding around the device
+    /// art, which reads as an indent beside the menu's edge-to-edge SF
+    /// Symbols. Crop to the art's alpha bounding box and draw it flush
+    /// left, vertically centered, at Safari's proportions.
+    private static func machineIcon() -> NSImage? {
+        guard let machine = NSImage(named: NSImage.computerName) else { return nil }
+
+        let probe = 64
+        var buffer = [UInt8](repeating: 0, count: probe * probe * 4)
+        guard let context = CGContext(
+            data: &buffer, width: probe, height: probe,
+            bitsPerComponent: 8, bytesPerRow: probe * 4,
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else { return nil }
+        let graphics = NSGraphicsContext(cgContext: context, flipped: false)
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = graphics
+        machine.draw(in: NSRect(x: 0, y: 0, width: probe, height: probe))
+        NSGraphicsContext.restoreGraphicsState()
+
+        var minX = probe, maxX = -1, minY = probe, maxY = -1
+        for y in 0..<probe {
+            for x in 0..<probe where buffer[(y * probe + x) * 4 + 3] > 16 {
+                minX = min(minX, x); maxX = max(maxX, x)
+                minY = min(minY, y); maxY = max(maxY, y)
+            }
+        }
+        guard maxX >= minX, maxY >= minY else { return nil }
+
+        // Buffer rows run top-down while the image's coordinate space is
+        // bottom-up, so the y range flips.
+        let unit = machine.size.width / CGFloat(probe)
+        let art = NSRect(
+            x: CGFloat(minX) * unit,
+            y: CGFloat(probe - 1 - maxY) * unit,
+            width: CGFloat(maxX - minX + 1) * unit,
+            height: CGFloat(maxY - minY + 1) * unit
+        )
+
+        let height = iconSide * art.height / art.width
+        let canvasHeight = max(height, iconSide)
+        let canvas = NSImage(
+            size: NSSize(width: iconSide, height: canvasHeight),
+            flipped: false
+        ) { _ in
+            machine.draw(
+                in: NSRect(x: 0, y: (canvasHeight - height) / 2, width: iconSide, height: height),
+                from: art,
+                operation: .sourceOver,
+                fraction: 1
+            )
+            return true
+        }
+        return canvas
+    }
 
     /// Safari's device row: name over a dimmed subtitle with the machine's
     /// icon centered across both lines. The subtitled item is the system's
@@ -315,23 +369,7 @@ private enum DevelopMenuStyler {
     /// standard small icon. Pre-14.4 the two lines come from an attributed
     /// title with the small icon.
     private static func styleDeviceItem(_ item: NSMenuItem) {
-        if #available(macOS 14.4, *) {
-            if item.title == DeviceMenuPresentation.menuTitle {
-                item.title = DeviceMenuPresentation.deviceName
-                item.subtitle = DeviceMenuPresentation.systemVersionLine
-            }
-            if item.image == nil, let machine = NSImage(named: NSImage.computerName) {
-                item.image = machine
-                let selector = NSSelectorFromString("_setImageSize:")
-                if item.responds(to: selector), let method = item.method(for: selector) {
-                    let setImageSize = unsafeBitCast(
-                        method,
-                        to: (@convention(c) (AnyObject, Selector, NSSize) -> Void).self
-                    )
-                    setImageSize(item, selector, NSSize(width: iconSide, height: iconSide))
-                }
-            }
-        } else if item.attributedTitle == nil {
+        if item.attributedTitle == nil {
             let title = NSMutableAttributedString(
                 string: DeviceMenuPresentation.deviceName + "\n",
                 attributes: [.font: NSFont.menuFont(ofSize: 0)]
@@ -344,8 +382,33 @@ private enum DevelopMenuStyler {
                 ]
             ))
             item.attributedTitle = title
-            if item.image == nil {
-                item.image = NSImage(named: NSImage.computerName)
+        }
+
+        let hasActionImageSelector = NSSelectorFromString("_hasActionImage")
+        let alreadyStyled = item.image != nil
+            || (item.responds(to: hasActionImageSelector)
+                && item.method(for: hasActionImageSelector).map {
+                    unsafeBitCast($0, to: (@convention(c) (AnyObject, Selector) -> Bool).self)(item, hasActionImageSelector)
+                } == true)
+        if !alreadyStyled, let icon = machineIcon() {
+            // The action-image slot is the leading icon column (where the
+            // menu also places SF-symbol images); a plain item.image is a
+            // content image with its own, more inset placement.
+            let actionSelector = NSSelectorFromString("_setActionImage:")
+            if item.responds(to: actionSelector) {
+                _ = item.perform(actionSelector, with: icon)
+            } else {
+                item.image = icon
+            }
+            // Lifts the standard glyph-size clamp; a removed SPI just
+            // leaves the standard small icon.
+            let selector = NSSelectorFromString("_setImageSize:")
+            if item.responds(to: selector), let method = item.method(for: selector) {
+                let setImageSize = unsafeBitCast(
+                    method,
+                    to: (@convention(c) (AnyObject, Selector, NSSize) -> Void).self
+                )
+                setImageSize(item, selector, icon.size)
             }
         }
 
