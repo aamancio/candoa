@@ -117,6 +117,12 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
             UserDefaults.standard.removeObject(forKey: SitePermissionConfiguration.storageKey)
         }
 
+        // UI-test fixtures seed history with current timestamps; the prune
+        // is skipped there anyway to keep launches deterministic.
+        if ProcessInfo.processInfo.environment["CANDOA_UI_TESTING"] != "1" {
+            HistoryRetentionService.shared.activate()
+        }
+
         updateDockIcon()
         MenuAlternateInstaller.install()
         DevelopMenuStyler.install()

@@ -933,7 +933,7 @@ struct ContentView: View {
 
     private func openNewTabFlow() {
         isHistoryPresented = false
-        store.openNewTabCommandPalette()
+        store.openNewTab()
     }
 
     private func toggleSplitView() {

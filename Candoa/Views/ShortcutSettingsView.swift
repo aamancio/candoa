@@ -207,6 +207,12 @@ enum SettingsOption {
     static let pinnedCloseShortcutBehavior = prefix + "PinnedCloseShortcutBehavior"
 
     static let homepage = prefix + "Homepage"
+    static let newTabsOpenWith = prefix + "NewTabsOpenWith"
+    static let historyRetention = prefix + "HistoryRetention"
+    static let downloadLocationMode = prefix + "DownloadLocationMode"
+    static let downloadLocationBookmark = prefix + "DownloadLocationBookmark"
+    static let downloadListRetention = prefix + "DownloadListRetention"
+    static let openSafeDownloads = prefix + "OpenSafeDownloads"
 
     static let defaultSearchProvider = prefix + "DefaultSearchProvider"
     static let showSearchSuggestions = prefix + "ShowSearchSuggestions"

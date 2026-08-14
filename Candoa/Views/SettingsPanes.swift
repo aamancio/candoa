@@ -5,11 +5,19 @@ internal struct GeneralSettingsPane: View {
     @AppStorage(SettingsOption.checkDefaultBrowser) private var checkDefaultBrowser = false
     @AppStorage(SettingsOption.askBeforeQuitting) private var askBeforeQuitting = true
     @AppStorage(SettingsOption.websiteAppearance) private var websiteAppearance = WebsiteAppearance.dark.rawValue
-    @AppStorage(SettingsOption.defaultSearchProvider) private var defaultSearchProvider = NavigationService.searchProviders.first?.id ?? "google"
-    @AppStorage(SettingsOption.showSearchSuggestions) private var showSearchSuggestions = true
     @AppStorage(SettingsOption.homepage) private var homepage = ""
+    @AppStorage(SettingsOption.newTabsOpenWith) private var newTabsOpenWith = NewTabPreference.commandBar.rawValue
+    @AppStorage(SettingsOption.historyRetention) private var historyRetention = HistoryRetentionPreference.afterOneYear.rawValue
+    @AppStorage(SettingsOption.downloadLocationMode) private var downloadLocationMode = DownloadLocationPreference.Mode.downloads.rawValue
+    @AppStorage(SettingsOption.downloadListRetention) private var downloadListRetention = DownloadListRetentionPreference.afterOneDay.rawValue
+    @AppStorage(SettingsOption.openSafeDownloads) private var openSafeDownloads = true
+    @State private var customDownloadFolderName: String?
     @FocusState private var homepageFieldFocused: Bool
     @StateObject private var defaultBrowserService = DefaultBrowserService()
+
+    /// Sentinel picker tag: choosing it opens the folder panel instead of
+    /// becoming a stored mode.
+    private static let otherFolderTag = "other"
 
     /// Stores what was typed as a real address, so "example.com" is saved the
     /// way it will be opened. Anything that is not a web address is discarded
@@ -58,31 +66,151 @@ internal struct GeneralSettingsPane: View {
                 }
 
                 SettingsCard {
+                    SettingsPickerRow(
+                        systemImage: "plus.square.on.square",
+                        title: String(localized: "New tabs open with"),
+                        subtitle: String(localized: "What Command-T and the sidebar's New Tab button show."),
+                        selection: $newTabsOpenWith,
+                        options: [
+                            SettingsPickerOption(
+                                id: NewTabPreference.commandBar.rawValue,
+                                title: String(localized: "Command Bar")
+                            ),
+                            SettingsPickerOption(
+                                id: NewTabPreference.homepage.rawValue,
+                                title: String(localized: "Homepage")
+                            ),
+                            SettingsPickerOption(
+                                id: NewTabPreference.emptyPage.rawValue,
+                                title: String(localized: "Empty Page")
+                            )
+                        ]
+                    )
+
+                    SettingsDivider()
+
                     SettingsRow(
                         systemImage: "house",
                         title: String(localized: "Homepage"),
                         subtitle: String(localized: "Where Shift-Command-H goes. Leave empty for your search engine's home page.")
                     ) {
-                        TextField(
-                            HomepagePreference.defaultURL?.absoluteString ?? "",
-                            text: $homepage
-                        )
-                        .textFieldStyle(.roundedBorder)
-                        .frame(width: 240)
-                        .onSubmit { normalizeHomepage() }
-                        .onChange(of: homepageFieldFocused) { _, focused in
-                            if !focused { normalizeHomepage() }
+                        VStack(alignment: .trailing, spacing: 8) {
+                            TextField(
+                                HomepagePreference.defaultURL?.absoluteString ?? "",
+                                text: $homepage
+                            )
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 240)
+                            .onSubmit { normalizeHomepage() }
+                            .onChange(of: homepageFieldFocused) { _, focused in
+                                if !focused { normalizeHomepage() }
+                            }
+                            .focused($homepageFieldFocused)
+
+                            Button(String(localized: "Set to Current Page")) {
+                                setHomepageToCurrentPage()
+                            }
+                            .buttonTreatment(.secondary)
+                            .controlSize(.small)
                         }
-                        .focused($homepageFieldFocused)
                     }
                 }
 
                 SettingsCard {
+                    SettingsPickerRow(
+                        systemImage: "clock.arrow.circlepath",
+                        title: String(localized: "Remove history items"),
+                        subtitle: String(localized: "Older visits are removed automatically."),
+                        selection: $historyRetention,
+                        options: [
+                            SettingsPickerOption(
+                                id: HistoryRetentionPreference.afterOneDay.rawValue,
+                                title: String(localized: "After one day")
+                            ),
+                            SettingsPickerOption(
+                                id: HistoryRetentionPreference.afterOneWeek.rawValue,
+                                title: String(localized: "After one week")
+                            ),
+                            SettingsPickerOption(
+                                id: HistoryRetentionPreference.afterTwoWeeks.rawValue,
+                                title: String(localized: "After two weeks")
+                            ),
+                            SettingsPickerOption(
+                                id: HistoryRetentionPreference.afterOneMonth.rawValue,
+                                title: String(localized: "After one month")
+                            ),
+                            SettingsPickerOption(
+                                id: HistoryRetentionPreference.afterOneYear.rawValue,
+                                title: String(localized: "After one year")
+                            ),
+                            SettingsPickerOption(
+                                id: HistoryRetentionPreference.manually.rawValue,
+                                title: String(localized: "Manually")
+                            )
+                        ]
+                    )
+                    .onChange(of: historyRetention) { _, _ in
+                        HistoryRetentionService.shared.prune()
+                    }
+                }
+
+                SettingsCard {
+                    SettingsRow(
+                        systemImage: "arrow.down.circle",
+                        title: String(localized: "File download location"),
+                        subtitle: String(localized: "Where downloaded files are saved.")
+                    ) {
+                        Picker("", selection: downloadLocationSelection) {
+                            Text(String(localized: "Downloads")).tag(DownloadLocationPreference.Mode.downloads.rawValue)
+                            if let customDownloadFolderName {
+                                Text(customDownloadFolderName).tag(DownloadLocationPreference.Mode.custom.rawValue)
+                            }
+                            Text(String(localized: "Ask for each download")).tag(DownloadLocationPreference.Mode.ask.rawValue)
+                            Divider()
+                            Text(String(localized: "Other…")).tag(Self.otherFolderTag)
+                        }
+                        .labelsHidden()
+                        .controlSize(.small)
+                        .frame(width: 190)
+                    }
+
+                    SettingsDivider()
+
+                    SettingsPickerRow(
+                        systemImage: "list.bullet.circle",
+                        title: String(localized: "Remove download list items"),
+                        subtitle: String(localized: "Only the list is cleaned up. Files stay on disk."),
+                        selection: $downloadListRetention,
+                        options: [
+                            SettingsPickerOption(
+                                id: DownloadListRetentionPreference.afterOneDay.rawValue,
+                                title: String(localized: "After one day")
+                            ),
+                            SettingsPickerOption(
+                                id: DownloadListRetentionPreference.whenQuitting.rawValue,
+                                title: String(localized: "When quitting Candoa")
+                            ),
+                            SettingsPickerOption(
+                                id: DownloadListRetentionPreference.uponSuccess.rawValue,
+                                title: String(localized: "Upon successful download")
+                            ),
+                            SettingsPickerOption(
+                                id: DownloadListRetentionPreference.manually.rawValue,
+                                title: String(localized: "Manually")
+                            )
+                        ]
+                    )
+                    .onChange(of: downloadListRetention) { _, _ in
+                        DownloadsStore.shared.applyListRetention()
+                    }
+
+                    SettingsDivider()
+
                     SettingsToggleRow(
-                        systemImage: "command",
-                        title: String(localized: "Ask before quitting with Command-Q"),
-                        subtitle: String(localized: "Confirm before quitting the app from the keyboard."),
-                        isOn: $askBeforeQuitting
+                        systemImage: "arrow.down.doc",
+                        title: String(localized: "Open \"safe\" files after downloading"),
+                        subtitle: String(localized: "\"Safe\" files include movies, pictures, sounds, PDFs, and text documents."),
+                        isOn: $openSafeDownloads
                     )
                 }
 
@@ -101,29 +229,19 @@ internal struct GeneralSettingsPane: View {
 
                     SettingsDivider()
 
-                    SettingsPickerRow(
-                        systemImage: "magnifyingglass",
-                        title: String(localized: "Search engine"),
-                        subtitle: String(localized: "Used by the command bar and address field."),
-                        selection: $defaultSearchProvider,
-                        options: NavigationService.defaultSearchProviders.map {
-                            SettingsPickerOption(id: $0.id, title: defaultSearchEngineTitle(for: $0))
-                        }
-                    )
-
-                    SettingsDivider()
-
                     SettingsToggleRow(
-                        systemImage: "lightbulb",
-                        title: String(localized: "Include search suggestions"),
-                        subtitle: String(localized: "Show search completions in the command surface."),
-                        isOn: $showSearchSuggestions
+                        systemImage: "command",
+                        title: String(localized: "Ask before quitting with Command-Q"),
+                        subtitle: String(localized: "Confirm before quitting the app from the keyboard."),
+                        isOn: $askBeforeQuitting
                     )
                 }
 
             }
         }
-        .onAppear(perform: normalizeDefaultSearchProvider)
+        .onAppear {
+            customDownloadFolderName = DownloadLocationPreference.customFolderName
+        }
         // Reactivation is the moment the status can have changed behind our
         // back (the user flipped it in System Settings or another browser).
         .onReceive(
@@ -133,22 +251,47 @@ internal struct GeneralSettingsPane: View {
         }
     }
 
-    private func normalizeDefaultSearchProvider() {
-        let normalizedProvider = NavigationService.defaultSearchProvider(for: defaultSearchProvider)
-        if normalizedProvider.id != defaultSearchProvider {
-            defaultSearchProvider = normalizedProvider.id
-        }
+    /// The stored mode, except that a custom folder whose bookmark no longer
+    /// resolves falls back to showing Downloads — matching where downloads
+    /// actually land in that state.
+    private var downloadLocationSelection: Binding<String> {
+        Binding(
+            get: {
+                if downloadLocationMode == DownloadLocationPreference.Mode.custom.rawValue,
+                   customDownloadFolderName == nil {
+                    return DownloadLocationPreference.Mode.downloads.rawValue
+                }
+                return downloadLocationMode
+            },
+            set: { newValue in
+                if newValue == Self.otherFolderTag {
+                    chooseDownloadFolder()
+                } else {
+                    downloadLocationMode = newValue
+                }
+            }
+        )
     }
 
-    private func defaultSearchEngineTitle(for provider: SearchProvider) -> String {
-        switch provider.id {
-        case "bing":
-            return "Microsoft Bing"
-        case "yahoo":
-            return "Yahoo!"
-        default:
-            return provider.name
-        }
+    private func chooseDownloadFolder() {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.canCreateDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.directoryURL = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first
+
+        guard panel.runModal() == .OK,
+              let url = panel.url,
+              DownloadLocationPreference.adoptCustomFolder(url) else { return }
+        customDownloadFolderName = DownloadLocationPreference.customFolderName
+        downloadLocationMode = DownloadLocationPreference.Mode.custom.rawValue
+    }
+
+    private func setHomepageToCurrentPage() {
+        guard let url = BrowserMenuController.shared.frontmostStore?.activeTab?.url,
+              let normalized = HomepagePreference.normalized(url.absoluteString) else { return }
+        homepage = normalized.absoluteString
     }
 
 }

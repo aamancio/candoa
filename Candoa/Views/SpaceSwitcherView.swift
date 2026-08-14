@@ -98,7 +98,7 @@ struct SpaceSwitcherView: View {
 
     private var newTabButton: some View {
         Button {
-            store.openNewTabCommandPalette()
+            store.openNewTab()
         } label: {
             Image(systemName: "plus")
                 .font(.system(size: 18, weight: .regular))
@@ -305,6 +305,9 @@ private struct DownloadsPopoverView: View {
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("downloads-popover")
         .onAppear {
+            // Day-based list retention is applied when the list is looked
+            // at, not on a timer — same moment Safari uses.
+            downloadsStore.applyListRetention()
             // One filesystem snapshot on open; the session list needs none.
             recentFiles = DownloadListItem.recentDownloads()
         }
@@ -596,7 +599,7 @@ private struct SpaceActionMenu: View {
             }
 
             menuButton(BrowserCommandTitles.newTab, systemImage: "plus") {
-                store.openNewTabCommandPalette()
+                store.openNewTab()
             }
         }
         .padding(10)

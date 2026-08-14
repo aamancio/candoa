@@ -466,9 +466,16 @@ struct PersistenceService: @unchecked Sendable {
         try deleteHistory(.visitedAfter(startDate, spaceID: spaceID))
     }
 
+    /// Retention pruning: drops visits that fell out of the configured
+    /// history window, across every Space.
+    func deleteHistory(visitedBefore cutoff: Date) throws {
+        try deleteHistory(.visitedBefore(cutoff))
+    }
+
     private enum HistoryDeletion: Sendable {
         case ids(Set<UUID>)
         case visitedAfter(Date?, spaceID: UUID?)
+        case visitedBefore(Date)
     }
 
     private func deleteHistory(_ deletion: HistoryDeletion) throws {
@@ -494,6 +501,8 @@ struct PersistenceService: @unchecked Sendable {
                     } else if !predicates.isEmpty {
                         request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: predicates)
                     }
+                case .visitedBefore(let cutoff):
+                    request.predicate = NSPredicate(format: "%K < %@", Key.visitedAt, cutoff as NSDate)
                 }
                 for object in try context.fetch(request) {
                     context.delete(object)

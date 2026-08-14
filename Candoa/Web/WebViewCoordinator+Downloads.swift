@@ -29,14 +29,49 @@ extension WebViewCoordinator {
         decideDestinationUsing response: URLResponse,
         suggestedFilename: String
     ) async -> URL? {
-        guard let downloadsDirectory = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first else {
-            return nil
+        let destination: URL?
+        if DownloadLocationPreference.mode == .ask {
+            destination = await promptForDownloadDestination(
+                suggestedFilename: suggestedFilename,
+                over: download.webView?.window
+            )
+        } else if let directory = DownloadLocationPreference.destinationDirectory {
+            destination = Self.uniqueDestination(for: suggestedFilename, in: directory)
+        } else {
+            destination = nil
         }
 
-        let destination = Self.uniqueDestination(for: suggestedFilename, in: downloadsDirectory)
+        guard let destination else { return nil }
         downloadDestinations[download] = destination
         store?.downloadsStore.begin(download, destination: destination)
         return destination
+    }
+
+    /// The "Ask for each download" flow: one save panel per download,
+    /// sheeted on the originating window when there is one.
+    private func promptForDownloadDestination(
+        suggestedFilename: String,
+        over window: NSWindow?
+    ) async -> URL? {
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = suggestedFilename
+        panel.canCreateDirectories = true
+        panel.directoryURL = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first
+
+        let response: NSApplication.ModalResponse
+        if let window {
+            response = await panel.beginSheetModal(for: window)
+        } else {
+            response = panel.runModal()
+        }
+        guard response == .OK, let url = panel.url else { return nil }
+
+        // The panel already asked about replacing; WKDownload, unlike a
+        // plain write, refuses an existing destination outright.
+        if FileManager.default.fileExists(atPath: url.path) {
+            try? FileManager.default.removeItem(at: url)
+        }
+        return url
     }
 
     func downloadDidFinish(_ download: WKDownload) {
@@ -55,6 +90,14 @@ extension WebViewCoordinator {
             userInfo: nil,
             deliverImmediately: true
         )
+
+        // Safari's "Open 'safe' files after downloading", with a narrower
+        // idea of safe: archives and disk images stay closed (see
+        // SafeDownloadPolicy).
+        if SettingsOption.bool(SettingsOption.openSafeDownloads, default: true),
+           SafeDownloadPolicy.allowsAutomaticOpen(of: destination) {
+            NSWorkspace.shared.open(destination)
+        }
     }
 
     func download(_ download: WKDownload, didFailWithError error: Error, resumeData: Data?) {
@@ -78,12 +121,27 @@ extension WebViewCoordinator {
         mimeType: String,
         originatingURL url: URL
     ) {
-        guard let downloadsDirectory = FileManager.default.urls(
-            for: .downloadsDirectory,
-            in: .userDomainMask
-        ).first else { return }
+        if DownloadLocationPreference.mode == .ask {
+            Task { @MainActor [weak self, weak webView] in
+                guard let self,
+                      let destination = await self.promptForDownloadDestination(
+                          suggestedFilename: suggestedFilename,
+                          over: webView?.window
+                      ) else { return }
+                self.writeDirectSave(data, to: destination, suggestedFilename: suggestedFilename)
+            }
+            return
+        }
 
-        let destination = Self.uniqueDestination(for: suggestedFilename, in: downloadsDirectory)
+        guard let directory = DownloadLocationPreference.destinationDirectory else { return }
+        writeDirectSave(
+            data,
+            to: Self.uniqueDestination(for: suggestedFilename, in: directory),
+            suggestedFilename: suggestedFilename
+        )
+    }
+
+    private func writeDirectSave(_ data: Data, to destination: URL, suggestedFilename: String) {
         do {
             try data.write(to: destination, options: .atomic)
             store?.downloadsStore.recordCompletedSave(at: destination)
