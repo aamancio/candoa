@@ -407,8 +407,12 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
             )
         }
 
+        // Localhost is included so developer-bar tests can exercise real
+        // local-development URLs without a server: neither the app nor the
+        // UI-test runner carries the network-server entitlement, so tests
+        // cannot host one.
         if BrowserStore.isUITesting,
-           url.host == "fixture.candoa.test",
+           url.host == "fixture.candoa.test" || url.isLocalDevelopment,
            let fixtureHTML = ProcessInfo.processInfo.environment["CANDOA_UI_TESTING_PAGE_HTML"] {
             targetWebView.loadHTMLString(fixtureHTML, baseURL: url)
             return
