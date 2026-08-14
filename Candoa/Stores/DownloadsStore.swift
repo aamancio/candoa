@@ -29,6 +29,10 @@ final class DownloadsStore: ObservableObject {
         var destination: URL?
         var phase: Phase
         let startedAt: Date
+        /// When the row left the active state. Day-based list retention
+        /// counts from here, not from startedAt — a download slower than
+        /// the retention window must still get its moment in the list.
+        var settledAt: Date? = nil
 
         var isActive: Bool {
             if case .active = phase { return true }
@@ -110,7 +114,7 @@ final class DownloadsStore: ObservableObject {
         guard let itemID = itemIDsByDownload[download] else { return }
         detach(itemID: itemID, download: download)
         setPhase(phase, forItemID: itemID, onlyWhileActive: true)
-        applyListRetention()
+        settleDidMutate()
     }
 
     // MARK: - User actions
@@ -127,7 +131,8 @@ final class DownloadsStore: ObservableObject {
             detach(itemID: itemID, download: download)
         }
         items[index].phase = .cancelled
-        persistSettledItems()
+        items[index].settledAt = Date()
+        settleDidMutate()
     }
 
     /// Removes settled rows from the list. Never touches the files —
@@ -141,18 +146,34 @@ final class DownloadsStore: ObservableObject {
 
     /// Applies the General pane's "Remove download list items" choice to the
     /// rows already present. Called after every settle, when the popover
-    /// opens, and when the setting changes — never on a timer.
+    /// opens, and when the setting changes — never on a timer. Persists only
+    /// when the pass removed something, so an uneventful popover open costs
+    /// no defaults write.
     func applyListRetention() {
+        if pruneExpiredRows() {
+            persistSettledItems()
+        }
+    }
+
+    /// The funnel for every mutation that settles or removes rows: prune,
+    /// then persist unconditionally (the mutation itself changed state).
+    private func settleDidMutate() {
+        _ = pruneExpiredRows()
+        persistSettledItems()
+    }
+
+    private func pruneExpiredRows() -> Bool {
+        let countBefore = items.count
         switch DownloadListRetentionPreference.current {
         case .afterOneDay:
             let cutoff = Date().addingTimeInterval(-24 * 60 * 60)
-            items.removeAll { !$0.isActive && $0.startedAt < cutoff }
+            items.removeAll { !$0.isActive && ($0.settledAt ?? $0.startedAt) < cutoff }
         case .uponSuccess:
             items.removeAll { $0.phase == .completed }
         case .whenQuitting, .manually:
             break
         }
-        persistSettledItems()
+        return items.count != countBefore
     }
 
     // MARK: - Direct saves (no WKDownload)
@@ -166,11 +187,12 @@ final class DownloadsStore: ObservableObject {
                 filename: destination.lastPathComponent,
                 destination: destination,
                 phase: .completed,
-                startedAt: Date()
+                startedAt: Date(),
+                settledAt: Date()
             ),
             at: 0
         )
-        applyListRetention()
+        settleDidMutate()
     }
 
     func recordFailedSave(filename: String, reason: String) {
@@ -180,11 +202,12 @@ final class DownloadsStore: ObservableObject {
                 filename: filename,
                 destination: nil,
                 phase: .failed(reason: reason),
-                startedAt: Date()
+                startedAt: Date(),
+                settledAt: Date()
             ),
             at: 0
         )
-        persistSettledItems()
+        settleDidMutate()
     }
 
     // MARK: - Persistence
@@ -204,13 +227,17 @@ final class DownloadsStore: ObservableObject {
         var outcome: Outcome
         var failureReason: String?
         var startedAt: Date
+        var settledAt: Date?
     }
 
     private func loadPersistedItems() {
         guard persistsAcrossLaunches else { return }
 
         // "When quitting Candoa" clears the list between launches — the
-        // stored rows are exactly what must not come back.
+        // stored rows are exactly what must not come back. This launch-time
+        // purge is the policy's only deletion; persistSettledItems merely
+        // stops writing, so flipping the setting mid-session and back
+        // doesn't discard the previous launch's rows.
         guard DownloadListRetentionPreference.current != .whenQuitting else {
             UserDefaults.standard.removeObject(forKey: Self.persistedItemsKey)
             return
@@ -233,19 +260,23 @@ final class DownloadsStore: ObservableObject {
                 filename: stored.filename,
                 destination: stored.destinationPath.map { URL(fileURLWithPath: $0) },
                 phase: phase,
-                startedAt: stored.startedAt
+                startedAt: stored.startedAt,
+                settledAt: stored.settledAt
             )
         }
-        applyListRetention()
+
+        // Restored rows may point into the custom download folder; resolving
+        // the bookmark now (it starts security-scope access for the app's
+        // lifetime) keeps their Open/Show-in-Finder actions working even
+        // when the location setting has since moved back to Downloads.
+        _ = DownloadLocationPreference.customFolder
+
+        _ = pruneExpiredRows()
     }
 
     private func persistSettledItems() {
         guard persistsAcrossLaunches else { return }
-
-        guard DownloadListRetentionPreference.current != .whenQuitting else {
-            UserDefaults.standard.removeObject(forKey: Self.persistedItemsKey)
-            return
-        }
+        guard DownloadListRetentionPreference.current != .whenQuitting else { return }
 
         let settled = items.lazy.filter { !$0.isActive }.prefix(Self.persistedItemLimit).map { item in
             let outcome: PersistedItem.Outcome
@@ -263,7 +294,8 @@ final class DownloadsStore: ObservableObject {
                 destinationPath: item.destination?.path,
                 outcome: outcome,
                 failureReason: failureReason,
-                startedAt: item.startedAt
+                startedAt: item.startedAt,
+                settledAt: item.settledAt
             )
         }
 
@@ -280,7 +312,11 @@ final class DownloadsStore: ObservableObject {
     private func setPhase(_ phase: Item.Phase, forItemID itemID: UUID, onlyWhileActive: Bool) {
         guard let index = items.firstIndex(where: { $0.id == itemID }) else { return }
         if onlyWhileActive, !items[index].isActive { return }
+        let wasActive = items[index].isActive
         items[index].phase = phase
+        if wasActive, !items[index].isActive {
+            items[index].settledAt = Date()
+        }
     }
 
     // MARK: - UI-testing seam

@@ -115,6 +115,18 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
         // which read from the argument domain and survive this reset.
         if ProcessInfo.processInfo.environment["CANDOA_UI_TESTING"] == "1" {
             UserDefaults.standard.removeObject(forKey: SitePermissionConfiguration.storageKey)
+            // The General pane's behavior choices leak between runs the same
+            // way, and tests assume the defaults (⌘T arms the palette,
+            // download fixtures survive the popover's retention pass).
+            for key in [
+                SettingsOption.newTabsOpenWith,
+                SettingsOption.historyRetention,
+                SettingsOption.downloadLocationMode,
+                SettingsOption.downloadListRetention,
+                SettingsOption.openSafeDownloads
+            ] {
+                UserDefaults.standard.removeObject(forKey: key)
+            }
         }
 
         // UI-test fixtures seed history with current timestamps; the prune

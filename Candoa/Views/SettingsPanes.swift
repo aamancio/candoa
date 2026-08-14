@@ -265,7 +265,10 @@ internal struct GeneralSettingsPane: View {
             },
             set: { newValue in
                 if newValue == Self.otherFolderTag {
-                    chooseDownloadFolder()
+                    // Deferred: presenting a panel from inside the Binding
+                    // write would nest a run loop in the picker's own
+                    // selection commit.
+                    DispatchQueue.main.async { chooseDownloadFolder() }
                 } else {
                     downloadLocationMode = newValue
                 }
@@ -281,11 +284,21 @@ internal struct GeneralSettingsPane: View {
         panel.allowsMultipleSelection = false
         panel.directoryURL = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first
 
-        guard panel.runModal() == .OK,
-              let url = panel.url,
-              DownloadLocationPreference.adoptCustomFolder(url) else { return }
-        customDownloadFolderName = DownloadLocationPreference.customFolderName
-        downloadLocationMode = DownloadLocationPreference.Mode.custom.rawValue
+        let adopt: (NSApplication.ModalResponse) -> Void = { response in
+            guard response == .OK,
+                  let url = panel.url,
+                  DownloadLocationPreference.adoptCustomFolder(url) else { return }
+            customDownloadFolderName = DownloadLocationPreference.customFolderName
+            downloadLocationMode = DownloadLocationPreference.Mode.custom.rawValue
+        }
+
+        // Sheeted on the Settings window so the rest of the app stays
+        // usable while the chooser is up.
+        if let window = NSApp.keyWindow {
+            panel.beginSheetModal(for: window, completionHandler: adopt)
+        } else {
+            adopt(panel.runModal())
+        }
     }
 
     private func setHomepageToCurrentPage() {

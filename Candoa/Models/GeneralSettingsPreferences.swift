@@ -119,13 +119,27 @@ enum DownloadLocationPreference {
 
     /// The folder for silent downloads (modes downloads/custom). Falls back
     /// to ~/Downloads whenever the custom folder can no longer be resolved —
-    /// deleted, or its bookmark went stale beyond repair.
+    /// deleted, moved to the Trash (the bookmark follows it there, so a bare
+    /// existence check would keep writing into ~/.Trash), or its bookmark
+    /// went stale beyond repair.
     static var destinationDirectory: URL? {
         if mode == .custom, let folder = customFolder,
-           FileManager.default.fileExists(atPath: folder.path) {
+           FileManager.default.fileExists(atPath: folder.path),
+           !isInTrash(folder) {
             return folder
         }
         return FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first
+    }
+
+    private static func isInTrash(_ url: URL) -> Bool {
+        var relationship = FileManager.URLRelationship.other
+        try? FileManager.default.getRelationship(
+            &relationship,
+            of: .trashDirectory,
+            in: .userDomainMask,
+            toItemAt: url
+        )
+        return relationship == .contains
     }
 
     private static func resolveCustomFolderBookmark() -> URL? {
@@ -161,15 +175,23 @@ enum DownloadLocationPreference {
 enum SafeDownloadPolicy {
     private static let safeTypes: [UTType] = [.image, .audiovisualContent, .pdf, .text]
 
+    /// The text and image branches are broader than they look: public.html
+    /// and public.svg-image conform to them, and shell/Python scripts
+    /// conform to .text without conforming to .executable — all verified
+    /// against the live UTType tree. Auto-opening downloaded HTML/SVG hands
+    /// active content a file:// context, so those conformances are denied
+    /// explicitly rather than trusted to the .executable guard.
+    private static let deniedTypes: [UTType] = [
+        .executable, .archive, .diskImage, .html, .svg, .script, .sourceCode
+    ]
+
     static func allowsAutomaticOpen(of url: URL) -> Bool {
         let fileExtension = url.pathExtension
         guard !fileExtension.isEmpty,
               let type = UTType(filenameExtension: fileExtension.lowercased()) else {
             return false
         }
-        guard !type.conforms(to: .executable),
-              !type.conforms(to: .archive),
-              !type.conforms(to: .diskImage) else {
+        guard !deniedTypes.contains(where: { type.conforms(to: $0) }) else {
             return false
         }
         return safeTypes.contains { type.conforms(to: $0) }

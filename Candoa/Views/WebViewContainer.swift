@@ -265,6 +265,10 @@ struct WebViewContainer: View {
             if tab.isWelcomePage {
                 EmptyView()
             } else if tab.url == nil {
+                // Deliberately not openNewTab(): clicking the empty page is
+                // that page's own affordance for summoning the command bar,
+                // whatever "New tabs open with" says — an Empty Page user
+                // would otherwise have no way in from here.
                 EmptyTabSurface {
                     store.openNewTabCommandPalette()
                 }

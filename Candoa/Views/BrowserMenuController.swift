@@ -103,7 +103,10 @@ final class BrowserMenuController: NSObject, NSMenuDelegate {
                 return match
             }
         }
-        return nil
+        // A miniaturized window reports isVisible == false and leaves
+        // orderedWindows, but its store is still the person's browsing
+        // context — better than answering with nothing.
+        return stores.values.first(where: { $0.window != nil })?.store
     }
 
     // MARK: - NSMenuDelegate

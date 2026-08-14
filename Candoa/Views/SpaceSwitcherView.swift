@@ -231,7 +231,9 @@ struct SpaceSwitcherView: View {
     }
 
     private func openDownloadsFolder() {
-        guard let downloadsURL = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first else {
+        // The configured location, so a custom download folder opens itself
+        // rather than ~/Downloads.
+        guard let downloadsURL = DownloadLocationPreference.destinationDirectory else {
             return
         }
 
@@ -437,8 +439,11 @@ private struct DownloadListItem: Identifiable, Equatable {
 
     var id: URL { url }
 
+    @MainActor
     static func recentDownloads(limit: Int = 6) -> [DownloadListItem] {
-        guard let downloadsDirectory = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first else {
+        // The configured location: with a custom download folder, the
+        // fallback list must show the files Candoa actually saved there.
+        guard let downloadsDirectory = DownloadLocationPreference.destinationDirectory else {
             return []
         }
 

@@ -67,9 +67,17 @@ extension WebViewCoordinator {
         guard response == .OK, let url = panel.url else { return nil }
 
         // The panel already asked about replacing; WKDownload, unlike a
-        // plain write, refuses an existing destination outright.
+        // plain write, refuses an existing destination outright. The old
+        // file goes to the Trash rather than being unlinked — the download
+        // hasn't transferred a byte yet, and a mid-transfer failure must
+        // not have cost the person their original. Volumes without a Trash
+        // fall back to deletion, which the panel's Replace consent covers.
         if FileManager.default.fileExists(atPath: url.path) {
-            try? FileManager.default.removeItem(at: url)
+            do {
+                try FileManager.default.trashItem(at: url, resultingItemURL: nil)
+            } catch {
+                try? FileManager.default.removeItem(at: url)
+            }
         }
         return url
     }
@@ -141,6 +149,9 @@ extension WebViewCoordinator {
         )
     }
 
+    /// Direct saves deliberately skip the "open safe files" auto-open:
+    /// they only fire from the PDF viewer's explicit save button, where the
+    /// person is already looking at the content they saved.
     private func writeDirectSave(_ data: Data, to destination: URL, suggestedFilename: String) {
         do {
             try data.write(to: destination, options: .atomic)

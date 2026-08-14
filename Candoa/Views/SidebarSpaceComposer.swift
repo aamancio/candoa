@@ -404,7 +404,7 @@ internal struct UpsertSpaceSidebarComposer: View {
         )
         store.clearSpaceThemePreview()
         store.isCreateSpacePresented = false
-        store.openNewTabCommandPalette()
+        store.openNewTab()
     }
 
 }

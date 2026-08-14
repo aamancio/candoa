@@ -467,8 +467,10 @@ struct PersistenceService: @unchecked Sendable {
     }
 
     /// Retention pruning: drops visits that fell out of the configured
-    /// history window, across every Space.
-    func deleteHistory(visitedBefore cutoff: Date) throws {
+    /// history window, across every Space. Returns how many were removed
+    /// so the caller can skip UI refreshes on a no-op pass.
+    @discardableResult
+    func deleteHistory(visitedBefore cutoff: Date) throws -> Int {
         try deleteHistory(.visitedBefore(cutoff))
     }
 
@@ -478,13 +480,18 @@ struct PersistenceService: @unchecked Sendable {
         case visitedBefore(Date)
     }
 
-    private func deleteHistory(_ deletion: HistoryDeletion) throws {
+    @discardableResult
+    private func deleteHistory(_ deletion: HistoryDeletion) throws -> Int {
         let context = makeBackgroundContext()
         context.mergePolicy = NSMergePolicy(merge: .mergeByPropertyObjectTrumpMergePolicyType)
 
-        try context.performAndWait {
+        return try context.performAndWait {
             do {
                 let request = NSFetchRequest<NSManagedObject>(entityName: Entity.historyVisit)
+                // Deletion needs identity, not attribute data; skipping the
+                // property fault matters for the retention prune, which can
+                // sweep a year of visits in one pass.
+                request.includesPropertyValues = false
                 switch deletion {
                 case .ids(let ids):
                     request.predicate = NSPredicate(format: "%K IN %@", Key.id, Array(ids))
@@ -504,12 +511,14 @@ struct PersistenceService: @unchecked Sendable {
                 case .visitedBefore(let cutoff):
                     request.predicate = NSPredicate(format: "%K < %@", Key.visitedAt, cutoff as NSDate)
                 }
-                for object in try context.fetch(request) {
+                let expired = try context.fetch(request)
+                for object in expired {
                     context.delete(object)
                 }
                 if context.hasChanges {
                     try context.save()
                 }
+                return expired.count
             } catch {
                 context.rollback()
                 throw error
