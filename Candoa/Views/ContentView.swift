@@ -441,23 +441,6 @@ struct ContentView: View {
         .animation(.easeOut(duration: 0.1), value: store.hoveredLinkHref != nil)
         .animation(.easeOut(duration: 0.16), value: store.mediaControllerTabID)
         .focusedSceneValue(\.browserCommandActions, browserCommandActions)
-        .alert(
-            "Relaunch Candoa",
-            isPresented: Binding(
-                get: { store.syncRestartMessage != nil },
-                set: { isPresented in
-                    if !isPresented {
-                        store.syncRestartMessage = nil
-                    }
-                }
-            )
-        ) {
-            Button("OK", role: .cancel) {
-                store.syncRestartMessage = nil
-            }
-        } message: {
-            Text(store.syncRestartMessage ?? "")
-        }
         .onAppear {
             applyWebsiteAppearance()
             updateService.startCheckingForUpdates()

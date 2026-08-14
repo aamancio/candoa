@@ -1,52 +1,6 @@
 import AppKit
 import SwiftUI
 
-enum DockIconPreference: String, CaseIterable, Identifiable {
-    static let storageKey = "Candoa.Settings.DockIconPreference"
-
-    case system
-    case light
-    case dark
-
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .system: return String(localized: "Follow System")
-        case .light: return String(localized: "Light")
-        case .dark: return String(localized: "Dark")
-        }
-    }
-
-    @MainActor
-    var imageName: NSImage.Name {
-        switch self {
-        case .system:
-            return Self.resolvedSystemImageName
-        case .light:
-            return NSImage.Name("DockIconLight")
-        case .dark:
-            return NSImage.Name("DockIconDark")
-        }
-    }
-
-    @MainActor
-    static func updateApplicationIcon() {
-        let storedValue = UserDefaults.standard.string(forKey: storageKey)
-        let preference = DockIconPreference(rawValue: storedValue ?? "") ?? .system
-        guard let image = NSImage(named: preference.imageName) else { return }
-
-        image.isTemplate = false
-        NSApplication.shared.applicationIconImage = image
-    }
-
-    @MainActor
-    private static var resolvedSystemImageName: NSImage.Name {
-        let appearance = NSApplication.shared.effectiveAppearance
-        let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-        return NSImage.Name(isDark ? "DockIconDark" : "DockIconLight")
-    }
-}
 struct SettingsView: View {
     @EnvironmentObject private var userStore: UserStore
     @State private var selectedTab = SettingsTab.general
@@ -77,12 +31,6 @@ struct SettingsView: View {
                 }
                 .tag(SettingsTab.privacy)
 
-            SyncSettingsPane()
-                .tabItem {
-                    Label(SettingsTab.sync.title, systemImage: SettingsTab.sync.symbolName)
-                }
-                .tag(SettingsTab.sync)
-
             EliSettingsPane()
                 .tabItem {
                     Label(SettingsTab.ask.title, systemImage: SettingsTab.ask.symbolName)
@@ -94,12 +42,6 @@ struct SettingsView: View {
                     Label(SettingsTab.shortcuts.title, systemImage: SettingsTab.shortcuts.symbolName)
                 }
                 .tag(SettingsTab.shortcuts)
-
-            IconSettingsPane()
-                .tabItem {
-                    Label(SettingsTab.icon.title, systemImage: SettingsTab.icon.symbolName)
-                }
-                .tag(SettingsTab.icon)
 
             AdvancedSettingsPane()
                 .tabItem {
@@ -150,10 +92,8 @@ internal enum SettingsTab: Hashable {
     case spaces
     case search
     case privacy
-    case sync
     case ask
     case shortcuts
-    case icon
     case advanced
 
     var title: String {
@@ -162,10 +102,8 @@ internal enum SettingsTab: Hashable {
         case .spaces: return String(localized: "Spaces")
         case .search: return String(localized: "Search")
         case .privacy: return String(localized: "Privacy")
-        case .sync: return String(localized: "Sync")
         case .ask: return "Eli"
         case .shortcuts: return String(localized: "Shortcuts")
-        case .icon: return String(localized: "Icon")
         case .advanced: return String(localized: "Advanced")
         }
     }
@@ -176,10 +114,8 @@ internal enum SettingsTab: Hashable {
         case .spaces: return "square.grid.2x2"
         case .search: return "magnifyingglass"
         case .privacy: return "hand.raised"
-        case .sync: return "icloud"
         case .ask: return "sparkles"
         case .shortcuts: return "keyboard"
-        case .icon: return "app.dashed"
         case .advanced: return "slider.horizontal.3"
         }
     }

@@ -10,13 +10,16 @@ struct PersistenceSyncConfiguration: Equatable {
     var syncsHistoryWithICloud: Bool
     var cloudKitContainerIdentifier: String
 
+    /// Sync is not a choice: whenever the build carries the CloudKit
+    /// entitlement, workspace and history mirror to the person's private
+    /// iCloud database. No iCloud account signed in simply means the
+    /// container has nothing to talk to. Not wanting a history record is
+    /// what private windows are for.
     static var current: PersistenceSyncConfiguration {
         let canUseICloud = CloudKitEntitlements.hasConfiguredContainer
         return PersistenceSyncConfiguration(
-            syncsWorkspaceWithICloud: canUseICloud && SyncPreferences.syncsWorkspaceWithICloud,
-            syncsHistoryWithICloud: canUseICloud
-                && SyncPreferences.syncsWorkspaceWithICloud
-                && SyncPreferences.syncsHistoryWithICloud,
+            syncsWorkspaceWithICloud: canUseICloud,
+            syncsHistoryWithICloud: canUseICloud,
             cloudKitContainerIdentifier: cloudKitContainerIdentifier
         )
     }
@@ -30,32 +33,6 @@ struct PersistenceSyncConfiguration: Equatable {
     }
 }
 
-enum SyncPreferences {
-    private static let workspaceKey = "Candoa.Sync.WorkspaceWithICloud"
-    private static let historyKey = "Candoa.Sync.HistoryWithICloud"
-
-    static var syncsWorkspaceWithICloud: Bool {
-        get {
-            guard let storedValue = UserDefaults.standard.object(forKey: workspaceKey) as? Bool else {
-                return true
-            }
-            return storedValue
-        }
-        set {
-            UserDefaults.standard.set(newValue, forKey: workspaceKey)
-            if !newValue {
-                syncsHistoryWithICloud = false
-            }
-        }
-    }
-
-    static var syncsHistoryWithICloud: Bool {
-        get { UserDefaults.standard.bool(forKey: historyKey) }
-        set {
-            UserDefaults.standard.set(newValue, forKey: historyKey)
-        }
-    }
-}
 
 enum CloudKitEntitlements {
     static var hasConfiguredContainer: Bool {

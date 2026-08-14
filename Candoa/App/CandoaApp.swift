@@ -103,7 +103,6 @@ struct CandoaApp: App {
 
 @MainActor
 private final class AppDelegate: NSObject, NSApplicationDelegate {
-    private let appearanceChangedNotification = Notification.Name("AppleInterfaceThemeChangedNotification")
     private let browserPasskeyAuthorizationService = BrowserPasskeyAuthorizationService()
     private let defaultBrowserService = DefaultBrowserService()
     private let webAuthenticationHostService = WebAuthenticationSessionHostService()
@@ -135,16 +134,9 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
             HistoryRetentionService.shared.activate()
         }
 
-        updateDockIcon()
         MenuAlternateInstaller.install()
         DevelopMenuStyler.install()
         webAuthenticationHostService.activate()
-        DistributedNotificationCenter.default().addObserver(
-            self,
-            selector: #selector(systemAppearanceDidChange),
-            name: appearanceChangedNotification,
-            object: nil
-        )
         requestDefaultBrowserRoleIfWanted()
     }
 
@@ -201,13 +193,6 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
     // application(_:open:) would deliver each URL a second time — and on
     // macOS versions where it preempts .onOpenURL, swallow them entirely.
 
-    @objc private func systemAppearanceDidChange(_ notification: Notification) {
-        updateDockIcon()
-    }
-
-    private func updateDockIcon() {
-        DockIconPreference.updateApplicationIcon()
-    }
 }
 
 /// Safari shows "Reload Page From Origin" only while Option is held: it is an

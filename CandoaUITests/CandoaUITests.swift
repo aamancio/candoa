@@ -1414,23 +1414,6 @@ final class CandoaUITests: XCTestCase {
         XCTAssertFalse(app.webViews.firstMatch.exists)
     }
 
-    func testSyncSettingsExplainICloudWorkspaceOwnership() throws {
-        let app = launchApp(cloudKitEntitlement: true)
-        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
-
-        app.typeKey(",", modifierFlags: .command)
-        let syncButton = app.buttons["Sync"]
-        XCTAssertTrue(syncButton.waitForExistence(timeout: 5))
-        syncButton.click()
-
-        XCTAssertTrue(app.staticTexts["Workspace recovery"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Uses this Mac’s Apple Account"].exists)
-        XCTAssertTrue(
-            app.staticTexts[
-                "Candoa subscription sign-in does not control or delete your browser workspace."
-            ].exists
-        )
-    }
 
     func testEliSettingsDefaultToHostedConnectionWithAutomaticModel() throws {
         let app = launchApp()

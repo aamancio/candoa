@@ -315,11 +315,6 @@ final class BrowserStore: ObservableObject {
     @Published var mediaControllerTabID: UUID?
     @Published var dismissedMiniPlayerTabID: UUID?
     @Published var retainedPausedMiniPlayerTabID: UUID?
-    @Published var iCloudWorkspaceSyncEnabled =
-        CloudKitEntitlements.hasConfiguredContainer && SyncPreferences.syncsWorkspaceWithICloud
-    @Published var iCloudHistorySyncEnabled =
-        CloudKitEntitlements.hasConfiguredContainer && SyncPreferences.syncsHistoryWithICloud
-    @Published var syncRestartMessage: String?
     @Published var copiedURLToast: CopiedURLToast?
     @Published var uiTestingVisibleFolderPopoverDescription = "none"
     @Published var uiTestingCommandPaletteQuery = ""

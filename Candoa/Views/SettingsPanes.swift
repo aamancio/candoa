@@ -366,31 +366,6 @@ internal struct SpacesSettingsPane: View {
     }
 }
 
-internal struct IconSettingsPane: View {
-    @AppStorage(DockIconPreference.storageKey) private var selectedIconPreference = DockIconPreference.system.rawValue
-
-    var body: some View {
-        SettingsPane {
-            VStack(alignment: .leading, spacing: 20) {
-                SettingsCard {
-                    HStack(alignment: .top, spacing: 18) {
-                        ForEach(DockIconPreference.allCases) { preference in
-                            DockIconChoice(
-                                preference: preference,
-                                isSelected: selectedIconPreference == preference.rawValue
-                            ) {
-                                selectedIconPreference = preference.rawValue
-                                DockIconPreference.updateApplicationIcon()
-                            }
-                        }
-                    }
-                    .padding(18)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
-            }
-        }
-    }
-}
 
 internal struct SearchSettingsPane: View {
     private let providers = NavigationService.searchProviders
@@ -493,93 +468,6 @@ internal struct PrivacySettingsPane: View {
     }
 }
 
-internal struct SyncSettingsPane: View {
-    @State private var syncsWorkspaceWithICloud = SyncPreferences.syncsWorkspaceWithICloud
-    @State private var syncsHistoryWithICloud = SyncPreferences.syncsHistoryWithICloud
-    @State private var syncMessage: String?
-
-    var body: some View {
-        SettingsPane {
-            VStack(alignment: .leading, spacing: 18) {
-                SettingsSectionTitle("iCloud")
-
-                SettingsCard {
-                    SettingsToggleRow(
-                        systemImage: "square.grid.2x2",
-                        title: String(localized: "Workspace recovery"),
-                        subtitle: CloudKitEntitlements.hasConfiguredContainer
-                            ? String(localized: "Keep Spaces, tabs, pinned sites, and bookmarks available on your Macs.")
-                            : String(localized: "This build is missing the CloudKit entitlement."),
-                        isOn: workspaceSyncBinding
-                    )
-                    .disabled(!CloudKitEntitlements.hasConfiguredContainer)
-
-                    SettingsDivider()
-
-                    SettingsToggleRow(
-                        systemImage: "clock.arrow.circlepath",
-                        title: String(localized: "History"),
-                        subtitle: String(localized: "History sync depends on workspace sync."),
-                        isOn: historySyncBinding
-                    )
-                    .disabled(!CloudKitEntitlements.hasConfiguredContainer || !syncsWorkspaceWithICloud)
-
-                    SettingsDivider()
-
-                    SettingsRow(
-                        systemImage: "person.crop.circle",
-                        title: String(localized: "Uses this Mac’s Apple Account"),
-                        subtitle: String(localized: "Candoa subscription sign-in does not control or delete your browser workspace.")
-                    ) {
-                        EmptyView()
-                    }
-
-                    if let syncMessage {
-                        SettingsDivider()
-
-                        Text(syncMessage)
-                            .font(.callout)
-                            .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 12)
-                    }
-                }
-            }
-        }
-    }
-
-    private var workspaceSyncBinding: Binding<Bool> {
-        Binding {
-            syncsWorkspaceWithICloud
-        } set: { newValue in
-            syncsWorkspaceWithICloud = newValue
-            SyncPreferences.syncsWorkspaceWithICloud = newValue
-            if !newValue {
-                syncsHistoryWithICloud = false
-            }
-            syncMessage = newValue
-                ? String(localized: "Candoa will sync your workspace through the private iCloud database for this Apple Account after relaunch.")
-                : String(localized: "Candoa will keep Spaces and tabs local-only after relaunch.")
-        }
-    }
-
-    private var historySyncBinding: Binding<Bool> {
-        Binding {
-            syncsHistoryWithICloud
-        } set: { newValue in
-            if newValue, !syncsWorkspaceWithICloud {
-                syncsWorkspaceWithICloud = true
-                SyncPreferences.syncsWorkspaceWithICloud = true
-            }
-            syncsHistoryWithICloud = newValue
-            SyncPreferences.syncsHistoryWithICloud = newValue
-            syncMessage = newValue
-                ? String(localized: "Candoa will sync history through your private iCloud database after relaunch.")
-                : String(localized: "Candoa will keep history local-only after relaunch.")
-        }
-    }
-}
 
 internal struct AdvancedSettingsPane: View {
     @AppStorage("CandoaEnableWebInspector") private var isWebInspectorEnabled = false

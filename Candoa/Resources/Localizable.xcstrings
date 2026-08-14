@@ -4200,46 +4200,6 @@
         }
       }
     },
-    "Candoa subscription sign-in does not control or delete your browser workspace." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Die Anmeldung beim Candoa-Abonnement steuert oder löscht Ihren Browser-Arbeitsbereich nicht."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Iniciar sesión en la suscripción de Candoa no controla ni elimina tu espacio de trabajo del navegador."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "La connexion à l’abonnement Candoa ne contrôle ni ne supprime l’espace de travail de votre navigateur."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Candoaサブスクリプションへのサインインによって、ブラウザのワークスペースが操作されたり削除されたりすることはありません。"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "O início de sessão da assinatura do Candoa não controla nem apaga seu espaço de trabalho do navegador."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "登录 Candoa 订阅不会控制或删除你的浏览器工作区。"
-          }
-        }
-      }
-    },
     "Candoa updated — see what's new" : {
       "localizations" : {
         "de" : {
@@ -4276,166 +4236,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Candoa 已更新 — 查看新功能"
-          }
-        }
-      }
-    },
-    "Candoa will keep Spaces and tabs local-only after relaunch." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Candoa behält Spaces und Tabs nach dem Neustart nur lokal."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Candoa mantendrá los Espacios y las pestañas solo en local tras reiniciar la app."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Candoa conservera les Espaces et les onglets en local uniquement après le redémarrage."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "再起動後、Candoaはスペースとタブをローカルのみに保持します。"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "O Candoa manterá os Espaços e as abas apenas neste Mac após o reinício."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "重新启动后，Candoa将仅在本地保留空间和标签页。"
-          }
-        }
-      }
-    },
-    "Candoa will keep history local-only after relaunch." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Candoa behält den Verlauf nach dem Neustart nur lokal."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Candoa mantendrá el historial solo en local tras reiniciar la app."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Candoa conservera l’historique en local uniquement après le redémarrage."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "再起動後、Candoaは履歴をローカルのみに保持します。"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "O Candoa manterá o histórico apenas neste Mac após o reinício."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "重新启动后，Candoa将仅在本地保留历史记录。"
-          }
-        }
-      }
-    },
-    "Candoa will sync history through your private iCloud database after relaunch." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Candoa synchronisiert den Verlauf nach dem Neustart über Ihre private iCloud-Datenbank."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Candoa sincronizará el historial a través de tu base de datos privada de iCloud tras reiniciar la app."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Candoa synchronisera l’historique via votre base de données iCloud privée après le redémarrage."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "再起動後、CandoaはプライベートなiCloudデータベースを通じて履歴を同期します。"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "O Candoa sincronizará o histórico pelo seu banco de dados privado do iCloud após o reinício."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "重新启动后，Candoa将通过你的iCloud私人数据库同步历史记录。"
-          }
-        }
-      }
-    },
-    "Candoa will sync your workspace through the private iCloud database for this Apple Account after relaunch." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Candoa synchronisiert Ihren Arbeitsbereich nach dem Neustart über die private iCloud-Datenbank dieses Apple-Accounts."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Candoa sincronizará tu espacio de trabajo a través de la base de datos privada de iCloud de esta cuenta de Apple tras reiniciar la app."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Candoa synchronisera votre espace de travail via la base de données iCloud privée de ce compte Apple après le redémarrage."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "再起動後、CandoaはこのAppleアカウントのプライベートなiCloudデータベースを通じてワークスペースを同期します。"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "O Candoa sincronizará seu espaço de trabalho pelo banco de dados privado do iCloud desta Conta Apple após o reinício."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "重新启动后，Candoa将通过此Apple账户的iCloud私人数据库同步你的工作区。"
           }
         }
       }
@@ -11415,46 +11215,6 @@
         }
       }
     },
-    "Follow System" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Wie System"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Seguir el sistema"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Suivre le système"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "システムに合わせる"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Seguir o Sistema"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "跟随系统"
-          }
-        }
-      }
-    },
     "Food" : {
       "comment" : "Space icon picker: label for the 'fork.knife' symbol.",
       "localizations" : {
@@ -12467,46 +12227,6 @@
         }
       }
     },
-    "History sync depends on workspace sync." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Die Verlaufssynchronisierung setzt die Arbeitsbereich-Synchronisierung voraus."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "La sincronización del historial depende de la sincronización del espacio de trabajo."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "La synchronisation de l’historique dépend de la synchronisation de l’espace de travail."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "履歴の同期にはワークスペースの同期が必要です。"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "A sincronização do histórico depende da sincronização do espaço de trabalho."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "历史记录同步依赖于工作区同步。"
-          }
-        }
-      }
-    },
     "History will also be removed on your other Macs syncing with iCloud." : {
       "comment" : "Clear History sheet: iCloud note.",
       "extractionState" : "manual",
@@ -12828,46 +12548,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "我在做出该更改前已停止。"
-          }
-        }
-      }
-    },
-    "Icon" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Symbol"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Icono"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Icône"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "アイコン"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ícone"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "图标"
           }
         }
       }
@@ -13512,46 +13192,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "让 Ctrl-Tab 保持在当前标签页组内。"
-          }
-        }
-      }
-    },
-    "Keep Spaces, tabs, pinned sites, and bookmarks available on your Macs." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Halten Sie Spaces, Tabs, angeheftete Websites und Lesezeichen auf Ihren Macs verfügbar."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Mantén los Espacios, las pestañas, los sitios fijados y los marcadores disponibles en tus Mac."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Gardez les Espaces, les onglets, les sites épinglés et les signets disponibles sur vos Mac."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "スペース、タブ、ピン留めしたサイト、ブックマークをお使いのMacで利用できるようにします。"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Mantenha os Espaços, as abas, os sites fixados e os marcadores disponíveis nos seus Macs."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "让空间、标签页、置顶网站和书签在你的所有Mac上保持可用。"
           }
         }
       }
@@ -20086,46 +19726,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "正在刷新页面控件…"
-          }
-        }
-      }
-    },
-    "Relaunch Candoa" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Candoa neu starten"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Reiniciar Candoa"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Relancer Candoa"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Candoaを再起動"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Reabrir o Candoa"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "重新启动 Candoa"
           }
         }
       }
@@ -26726,46 +26326,6 @@
         }
       }
     },
-    "Sync" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Synchronisierung"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sincronización"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Synchronisation"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "同期"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sincronização"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "同步"
-          }
-        }
-      }
-    },
     "TABS" : {
       "comment" : "Uppercase section header in Eli's attachment picker for open browser tabs.",
       "localizations" : {
@@ -27448,46 +27008,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "此页面出现了问题"
-          }
-        }
-      }
-    },
-    "This build is missing the CloudKit entitlement." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Diesem Build fehlt die CloudKit-Berechtigung."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "A esta compilación le falta el permiso de CloudKit."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cette version ne dispose pas de l’autorisation CloudKit."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "このビルドにはCloudKitのエンタイトルメントがありません。"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Esta compilação não tem a permissão do CloudKit."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "此构建版本缺少CloudKit权限。"
           }
         }
       }
@@ -29225,46 +28745,6 @@
         }
       }
     },
-    "Uses this Mac’s Apple Account" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Verwendet den Apple Account dieses Mac"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Usa la Cuenta de Apple de este Mac"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Utilise le compte Apple de ce Mac"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "このMacのAppleアカウントを使用します"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Usa a Conta Apple deste Mac"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "使用这台 Mac 的 Apple 账户"
-          }
-        }
-      }
-    },
     "Using %@…" : {
       "comment" : "Eli progress status; placeholder is a web page control label.",
       "localizations" : {
@@ -30073,46 +29553,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "工作"
-          }
-        }
-      }
-    },
-    "Workspace recovery" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Arbeitsbereich-Wiederherstellung"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Recuperación del espacio de trabajo"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Récupération de l’espace de travail"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ワークスペースの復元"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Recuperação do espaço de trabalho"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "工作区恢复"
           }
         }
       }
