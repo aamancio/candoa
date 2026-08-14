@@ -1558,7 +1558,8 @@ private struct LocalDevelopmentStripedBackground: View {
             context.fill(bounds, with: .color(Color(nsColor: .windowBackgroundColor)))
             context.fill(bounds, with: .color(AppColor.Apple.systemBlue.opacity(0.55)))
 
-            let bandWidth: CGFloat = 14
+            // Wide bands like Arc's — Alex found 14pt too thin.
+            let bandWidth: CGFloat = 24
             let period = bandWidth * 2
             var x: CGFloat = -size.height
             while x < size.width {
