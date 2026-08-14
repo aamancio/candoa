@@ -97,6 +97,27 @@ extension BrowserStore {
         presentCommandPalette()
     }
 
+    /// The new-tab gesture (⌘T, the sidebar's New Tab affordances),
+    /// honoring the General pane's "New tabs open with" choice. The command
+    /// bar is Candoa's native flow and the default; Homepage and Empty Page
+    /// are the Safari behaviors that make sense without a tab bar.
+    func openNewTab() {
+        guard !isInitialOnboardingBlockingBrowsing else { return }
+
+        switch NewTabPreference.current {
+        case .commandBar:
+            openNewTabCommandPalette()
+        case .homepage:
+            guard let url = HomepagePreference.url else {
+                openNewTabCommandPalette()
+                return
+            }
+            _ = newTab(url: url)
+        case .emptyPage:
+            newEmptyTab()
+        }
+    }
+
     func openNewTabCommandPalette() {
         guard !isInitialOnboardingBlockingBrowsing else { return }
 

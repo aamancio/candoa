@@ -473,7 +473,7 @@ extension CommandPaletteView {
     internal func perform(_ command: PaletteCommand, opensNewTab: Bool) {
         switch command.action {
         case .newTab:
-            store.openNewTabCommandPalette()
+            store.openNewTab()
         case .closeCurrentTab:
             store.closeCurrentTab()
         case .duplicateCurrentTab:

@@ -21,7 +21,7 @@ struct ContentView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @EnvironmentObject private var userStore: UserStore
     @AppStorage(SettingsOption.websiteAppearance) private var websiteAppearanceValue =
-        WebsiteAppearance.dark.rawValue
+        WebsiteAppearance.automatic.rawValue
     @SceneStorage("candoa.windowAutosaveID") private var windowAutosaveID = UUID().uuidString
     @State private var isSidebarVisible = true
     @State private var isSidebarHoverRevealed = false
@@ -441,23 +441,6 @@ struct ContentView: View {
         .animation(.easeOut(duration: 0.1), value: store.hoveredLinkHref != nil)
         .animation(.easeOut(duration: 0.16), value: store.mediaControllerTabID)
         .focusedSceneValue(\.browserCommandActions, browserCommandActions)
-        .alert(
-            "Relaunch Candoa",
-            isPresented: Binding(
-                get: { store.syncRestartMessage != nil },
-                set: { isPresented in
-                    if !isPresented {
-                        store.syncRestartMessage = nil
-                    }
-                }
-            )
-        ) {
-            Button("OK", role: .cancel) {
-                store.syncRestartMessage = nil
-            }
-        } message: {
-            Text(store.syncRestartMessage ?? "")
-        }
         .onAppear {
             applyWebsiteAppearance()
             updateService.startCheckingForUpdates()
@@ -933,7 +916,7 @@ struct ContentView: View {
 
     private func openNewTabFlow() {
         isHistoryPresented = false
-        store.openNewTabCommandPalette()
+        store.openNewTab()
     }
 
     private func toggleSplitView() {

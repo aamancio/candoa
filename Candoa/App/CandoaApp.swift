@@ -103,7 +103,6 @@ struct CandoaApp: App {
 
 @MainActor
 private final class AppDelegate: NSObject, NSApplicationDelegate {
-    private let appearanceChangedNotification = Notification.Name("AppleInterfaceThemeChangedNotification")
     private let browserPasskeyAuthorizationService = BrowserPasskeyAuthorizationService()
     private let defaultBrowserService = DefaultBrowserService()
     private let webAuthenticationHostService = WebAuthenticationSessionHostService()
@@ -115,18 +114,29 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
         // which read from the argument domain and survive this reset.
         if ProcessInfo.processInfo.environment["CANDOA_UI_TESTING"] == "1" {
             UserDefaults.standard.removeObject(forKey: SitePermissionConfiguration.storageKey)
+            // The General pane's behavior choices leak between runs the same
+            // way, and tests assume the defaults (⌘T arms the palette,
+            // download fixtures survive the popover's retention pass).
+            for key in [
+                SettingsOption.newTabsOpenWith,
+                SettingsOption.historyRetention,
+                SettingsOption.downloadLocationMode,
+                SettingsOption.downloadListRetention,
+                SettingsOption.openSafeDownloads
+            ] {
+                UserDefaults.standard.removeObject(forKey: key)
+            }
         }
 
-        updateDockIcon()
+        // UI-test fixtures seed history with current timestamps; the prune
+        // is skipped there anyway to keep launches deterministic.
+        if ProcessInfo.processInfo.environment["CANDOA_UI_TESTING"] != "1" {
+            HistoryRetentionService.shared.activate()
+        }
+
         MenuAlternateInstaller.install()
         DevelopMenuStyler.install()
         webAuthenticationHostService.activate()
-        DistributedNotificationCenter.default().addObserver(
-            self,
-            selector: #selector(systemAppearanceDidChange),
-            name: appearanceChangedNotification,
-            object: nil
-        )
         requestDefaultBrowserRoleIfWanted()
     }
 
@@ -183,13 +193,6 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
     // application(_:open:) would deliver each URL a second time — and on
     // macOS versions where it preempts .onOpenURL, swallow them entirely.
 
-    @objc private func systemAppearanceDidChange(_ notification: Notification) {
-        updateDockIcon()
-    }
-
-    private func updateDockIcon() {
-        DockIconPreference.updateApplicationIcon()
-    }
 }
 
 /// Safari shows "Reload Page From Origin" only while Option is held: it is an

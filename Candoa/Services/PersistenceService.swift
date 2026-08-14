@@ -10,13 +10,16 @@ struct PersistenceSyncConfiguration: Equatable {
     var syncsHistoryWithICloud: Bool
     var cloudKitContainerIdentifier: String
 
+    /// Sync is not a choice: whenever the build carries the CloudKit
+    /// entitlement, workspace and history mirror to the person's private
+    /// iCloud database. No iCloud account signed in simply means the
+    /// container has nothing to talk to. Not wanting a history record is
+    /// what private windows are for.
     static var current: PersistenceSyncConfiguration {
         let canUseICloud = CloudKitEntitlements.hasConfiguredContainer
         return PersistenceSyncConfiguration(
-            syncsWorkspaceWithICloud: canUseICloud && SyncPreferences.syncsWorkspaceWithICloud,
-            syncsHistoryWithICloud: canUseICloud
-                && SyncPreferences.syncsWorkspaceWithICloud
-                && SyncPreferences.syncsHistoryWithICloud,
+            syncsWorkspaceWithICloud: canUseICloud,
+            syncsHistoryWithICloud: canUseICloud,
             cloudKitContainerIdentifier: cloudKitContainerIdentifier
         )
     }
@@ -27,33 +30,6 @@ struct PersistenceSyncConfiguration: Equatable {
             syncsHistoryWithICloud: false,
             cloudKitContainerIdentifier: cloudKitContainerIdentifier
         )
-    }
-}
-
-enum SyncPreferences {
-    private static let workspaceKey = "Candoa.Sync.WorkspaceWithICloud"
-    private static let historyKey = "Candoa.Sync.HistoryWithICloud"
-
-    static var syncsWorkspaceWithICloud: Bool {
-        get {
-            guard let storedValue = UserDefaults.standard.object(forKey: workspaceKey) as? Bool else {
-                return true
-            }
-            return storedValue
-        }
-        set {
-            UserDefaults.standard.set(newValue, forKey: workspaceKey)
-            if !newValue {
-                syncsHistoryWithICloud = false
-            }
-        }
-    }
-
-    static var syncsHistoryWithICloud: Bool {
-        get { UserDefaults.standard.bool(forKey: historyKey) }
-        set {
-            UserDefaults.standard.set(newValue, forKey: historyKey)
-        }
     }
 }
 
@@ -466,18 +442,32 @@ struct PersistenceService: @unchecked Sendable {
         try deleteHistory(.visitedAfter(startDate, spaceID: spaceID))
     }
 
+    /// Retention pruning: drops visits that fell out of the configured
+    /// history window, across every Space. Returns how many were removed
+    /// so the caller can skip UI refreshes on a no-op pass.
+    @discardableResult
+    func deleteHistory(visitedBefore cutoff: Date) throws -> Int {
+        try deleteHistory(.visitedBefore(cutoff))
+    }
+
     private enum HistoryDeletion: Sendable {
         case ids(Set<UUID>)
         case visitedAfter(Date?, spaceID: UUID?)
+        case visitedBefore(Date)
     }
 
-    private func deleteHistory(_ deletion: HistoryDeletion) throws {
+    @discardableResult
+    private func deleteHistory(_ deletion: HistoryDeletion) throws -> Int {
         let context = makeBackgroundContext()
         context.mergePolicy = NSMergePolicy(merge: .mergeByPropertyObjectTrumpMergePolicyType)
 
-        try context.performAndWait {
+        return try context.performAndWait {
             do {
                 let request = NSFetchRequest<NSManagedObject>(entityName: Entity.historyVisit)
+                // Deletion needs identity, not attribute data; skipping the
+                // property fault matters for the retention prune, which can
+                // sweep a year of visits in one pass.
+                request.includesPropertyValues = false
                 switch deletion {
                 case .ids(let ids):
                     request.predicate = NSPredicate(format: "%K IN %@", Key.id, Array(ids))
@@ -494,13 +484,17 @@ struct PersistenceService: @unchecked Sendable {
                     } else if !predicates.isEmpty {
                         request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: predicates)
                     }
+                case .visitedBefore(let cutoff):
+                    request.predicate = NSPredicate(format: "%K < %@", Key.visitedAt, cutoff as NSDate)
                 }
-                for object in try context.fetch(request) {
+                let expired = try context.fetch(request)
+                for object in expired {
                     context.delete(object)
                 }
                 if context.hasChanges {
                     try context.save()
                 }
+                return expired.count
             } catch {
                 context.rollback()
                 throw error

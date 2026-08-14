@@ -88,11 +88,25 @@ final class BrowserMenuController: NSObject, NSMenuDelegate {
         }
     }
 
-    private var activeStore: BrowserStore? {
+    private var activeStore: BrowserStore? { frontmostStore }
+
+    /// The store behind the frontmost browser window. Settings' "Set to
+    /// Current Page" asks while its own panel is key, so after the key
+    /// window this walks the window order front-to-back rather than
+    /// settling for any visible window.
+    var frontmostStore: BrowserStore? {
         if let key = NSApp.keyWindow, let match = stores[ObjectIdentifier(key)]?.store {
             return match
         }
-        return stores.values.first(where: { $0.window?.isVisible == true })?.store
+        for window in NSApp.orderedWindows {
+            if window.isVisible, let match = stores[ObjectIdentifier(window)]?.store {
+                return match
+            }
+        }
+        // A miniaturized window reports isVisible == false and leaves
+        // orderedWindows, but its store is still the person's browsing
+        // context — better than answering with nothing.
+        return stores.values.first(where: { $0.window != nil })?.store
     }
 
     // MARK: - NSMenuDelegate

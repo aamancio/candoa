@@ -45,6 +45,8 @@
 		010000000000000000000150 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000050 /* Assets.xcassets */; };
 		010000000000000000000151 /* HistoryVisit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000051 /* HistoryVisit.swift */; };
 		CA00000000000000000A0102 /* HomepagePreference.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA00000000000000000A0002 /* HomepagePreference.swift */; };
+		CA00000000000000000A0104 /* GeneralSettingsPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA00000000000000000A0004 /* GeneralSettingsPreferences.swift */; };
+		CA00000000000000000A0105 /* HistoryRetentionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA00000000000000000A0005 /* HistoryRetentionService.swift */; };
 		010000000000000000000152 /* WorkspaceRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000052 /* WorkspaceRepository.swift */; };
 		010000000000000000000153 /* HistoryRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000053 /* HistoryRepository.swift */; };
 		010000000000000000000154 /* BrowserStore+Eli.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000054 /* BrowserStore+Eli.swift */; };
@@ -202,6 +204,8 @@
 		010000000000000000000050 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		010000000000000000000051 /* HistoryVisit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryVisit.swift; sourceTree = "<group>"; };
 		CA00000000000000000A0002 /* HomepagePreference.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomepagePreference.swift; sourceTree = "<group>"; };
+		CA00000000000000000A0004 /* GeneralSettingsPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneralSettingsPreferences.swift; sourceTree = "<group>"; };
+		CA00000000000000000A0005 /* HistoryRetentionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryRetentionService.swift; sourceTree = "<group>"; };
 		010000000000000000000052 /* WorkspaceRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceRepository.swift; sourceTree = "<group>"; };
 		010000000000000000000053 /* HistoryRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryRepository.swift; sourceTree = "<group>"; };
 		010000000000000000000054 /* BrowserStore+Eli.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+Eli.swift"; sourceTree = "<group>"; };
@@ -373,6 +377,7 @@
 				SI00000000000000000000A1 /* SitePermissions.swift */,
 				010000000000000000000051 /* HistoryVisit.swift */,
 				CA00000000000000000A0002 /* HomepagePreference.swift */,
+				CA00000000000000000A0004 /* GeneralSettingsPreferences.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -440,6 +445,7 @@
 			children = (
 				010000000000000000000006 /* NavigationService.swift */,
 				010000000000000000000007 /* PersistenceService.swift */,
+				CA00000000000000000A0005 /* HistoryRetentionService.swift */,
 				010000000000000000000008 /* FaviconService.swift */,
 				DB00000000000000000000A1 /* DefaultBrowserService.swift */,
 				TS00000000000000000000A1 /* TabSnapshotStore.swift */,
@@ -870,6 +876,8 @@
 				010000000000000000000148 /* EliContextCompactor.swift in Sources */,
 				010000000000000000000151 /* HistoryVisit.swift in Sources */,
 				CA00000000000000000A0102 /* HomepagePreference.swift in Sources */,
+				CA00000000000000000A0104 /* GeneralSettingsPreferences.swift in Sources */,
+				CA00000000000000000A0105 /* HistoryRetentionService.swift in Sources */,
 				010000000000000000000152 /* WorkspaceRepository.swift in Sources */,
 				010000000000000000000153 /* HistoryRepository.swift in Sources */,
 				010000000000000000000154 /* BrowserStore+Eli.swift in Sources */,

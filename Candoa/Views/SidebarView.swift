@@ -1265,7 +1265,7 @@ struct SidebarView: View {
         let isArmed = store.isNewTabPaletteActive
 
         return Button {
-            store.openNewTabCommandPalette()
+            store.openNewTab()
         } label: {
             // contentShape must live inside the label: applied outside the
             // Button it doesn't extend the clickable area, leaving only the

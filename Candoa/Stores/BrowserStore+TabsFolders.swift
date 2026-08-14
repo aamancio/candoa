@@ -151,6 +151,25 @@ extension BrowserStore {
         flushSession()
     }
 
+    /// An Empty Page new tab: a URL-less row that renders the empty surface
+    /// and is filled in place by the first committed navigation (see
+    /// navigate(to:), which treats URL-less active tabs as placeholders).
+    func newEmptyTab() {
+        let targetSpaceID = activeSpaceID
+        let tab = BrowserTab(
+            spaceID: targetSpaceID,
+            sortOrder: nextSortOrder(
+                spaceID: targetSpaceID,
+                isFavorite: false,
+                isPinned: false,
+                folderID: nil
+            )
+        )
+        tabs.insert(tab, at: 0)
+        unsyncedLocalTabIDs.insert(tab.id)
+        switchTab(to: tab.id)
+    }
+
     func newTab(
         url: URL,
         favorite: Bool = false,

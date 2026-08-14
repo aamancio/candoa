@@ -6,49 +6,6 @@ extension BrowserStore {
         saveSnapshot()
     }
 
-    func setWorkspaceICloudSyncEnabled(_ enabled: Bool) {
-        guard iCloudWorkspaceSyncEnabled != enabled else { return }
-
-        if enabled, !CloudKitEntitlements.hasConfiguredContainer {
-            syncRestartMessage = """
-            This build is not signed with the CloudKit entitlement yet. Enable the iCloud capability for iCloud.app.candoa.browser in Xcode, then build with your Apple Developer team.
-            """
-            return
-        }
-
-        iCloudWorkspaceSyncEnabled = enabled
-        SyncPreferences.syncsWorkspaceWithICloud = enabled
-
-        if !enabled {
-            iCloudHistorySyncEnabled = false
-        }
-
-        syncRestartMessage = enabled
-            ? "Candoa will start syncing Spaces and tabs through your iCloud database after you relaunch the app."
-            : "Candoa will return to local-only Spaces and tabs after you relaunch the app."
-    }
-
-    func setHistoryICloudSyncEnabled(_ enabled: Bool) {
-        guard iCloudHistorySyncEnabled != enabled else { return }
-
-        if enabled, !CloudKitEntitlements.hasConfiguredContainer {
-            syncRestartMessage = """
-            This build is not signed with the CloudKit entitlement yet. Enable the iCloud capability for iCloud.app.candoa.browser in Xcode before syncing history.
-            """
-            return
-        }
-
-        if enabled, !iCloudWorkspaceSyncEnabled {
-            setWorkspaceICloudSyncEnabled(true)
-        }
-
-        iCloudHistorySyncEnabled = enabled
-        SyncPreferences.syncsHistoryWithICloud = enabled
-        syncRestartMessage = enabled
-            ? "Candoa will sync browsing history through your iCloud database after you relaunch the app."
-            : "Candoa will keep browsing history local-only after you relaunch the app."
-    }
-
     func configureAutosave() {
         let changes = Publishers.MergeMany(
             $spaces.map { _ in () }.eraseToAnyPublisher(),

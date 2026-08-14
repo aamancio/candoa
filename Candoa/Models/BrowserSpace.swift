@@ -8,7 +8,7 @@ enum WebsiteAppearance: String, CaseIterable, Hashable, Identifiable {
     var id: String { rawValue }
 
     init(storedValue: String?) {
-        self = storedValue.flatMap(Self.init(rawValue:)) ?? .dark
+        self = storedValue.flatMap(Self.init(rawValue:)) ?? .automatic
     }
 }
 

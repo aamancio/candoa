@@ -98,7 +98,7 @@ struct SpaceSwitcherView: View {
 
     private var newTabButton: some View {
         Button {
-            store.openNewTabCommandPalette()
+            store.openNewTab()
         } label: {
             Image(systemName: "plus")
                 .font(.system(size: 18, weight: .regular))
@@ -231,7 +231,9 @@ struct SpaceSwitcherView: View {
     }
 
     private func openDownloadsFolder() {
-        guard let downloadsURL = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first else {
+        // The configured location, so a custom download folder opens itself
+        // rather than ~/Downloads.
+        guard let downloadsURL = DownloadLocationPreference.destinationDirectory else {
             return
         }
 
@@ -305,6 +307,9 @@ private struct DownloadsPopoverView: View {
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("downloads-popover")
         .onAppear {
+            // Day-based list retention is applied when the list is looked
+            // at, not on a timer — same moment Safari uses.
+            downloadsStore.applyListRetention()
             // One filesystem snapshot on open; the session list needs none.
             recentFiles = DownloadListItem.recentDownloads()
         }
@@ -434,8 +439,11 @@ private struct DownloadListItem: Identifiable, Equatable {
 
     var id: URL { url }
 
+    @MainActor
     static func recentDownloads(limit: Int = 6) -> [DownloadListItem] {
-        guard let downloadsDirectory = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first else {
+        // The configured location: with a custom download folder, the
+        // fallback list must show the files Candoa actually saved there.
+        guard let downloadsDirectory = DownloadLocationPreference.destinationDirectory else {
             return []
         }
 
@@ -596,7 +604,7 @@ private struct SpaceActionMenu: View {
             }
 
             menuButton(BrowserCommandTitles.newTab, systemImage: "plus") {
-                store.openNewTabCommandPalette()
+                store.openNewTab()
             }
         }
         .padding(10)

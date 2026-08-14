@@ -313,38 +313,6 @@ internal struct SearchProviderSettingsRow: View {
     }
 }
 
-internal struct DockIconChoice: View {
-    let preference: DockIconPreference
-    let isSelected: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 10) {
-                Image(nsImage: NSImage(named: preference.imageName) ?? NSApplication.shared.applicationIconImage)
-                    .resizable()
-                    .interpolation(.high)
-                    .scaledToFit()
-                    .frame(width: 72, height: 72)
-
-                Text(preference.title)
-                    .font(.system(size: 12))
-                    .foregroundStyle(isSelected ? AppColor.accent : Color.primary)
-            }
-            .padding(10)
-            .frame(width: 124)
-            .background(isSelected ? AppColor.accent.opacity(0.12) : Color(nsColor: .controlBackgroundColor))
-            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .stroke(isSelected ? AppColor.focusRing : Color.primary.opacity(0.08), lineWidth: 1)
-            }
-        }
-        .buttonTreatment(.content)
-        .help(preference.title)
-    }
-}
-
 internal struct ShortcutSettingsRow: View {
     let definition: ShortcutDefinition
 
