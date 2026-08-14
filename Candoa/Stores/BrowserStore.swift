@@ -227,7 +227,6 @@ final class BrowserStore: ObservableObject {
     @Published var isSplitViewEnabled = false
     /// Domains with service-worker registrations in the active window's data
     /// store, for Develop ▸ Service Workers; refreshed as the menu bar opens.
-    @Published var serviceWorkerDomains: [String] = []
     /// Split groups stashed per Space while another Space is frontmost, so
     /// switching away and back revives the split. In-memory only: the
     /// persisted window state carries the frontmost Space's split.

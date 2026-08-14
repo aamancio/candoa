@@ -237,7 +237,6 @@ private enum DevelopMenuStyler {
     private static let symbolsByTitle: [String: String] = [
         BrowserCommandTitles.openPageWith: "arrow.up.forward.app",
         BrowserCommandTitles.userAgent: "globe",
-        BrowserCommandTitles.serviceWorkers: "gearshape.2",
         BrowserCommandTitles.showWebInspector: "macwindow.on.rectangle",
         BrowserCommandTitles.closeWebInspector: "macwindow.on.rectangle",
         BrowserCommandTitles.connectWebInspector: "rectangle.connected.to.line.below",
@@ -1063,22 +1062,10 @@ private struct BrowserCommands: Commands {
                 // Candoa's per-site Developer Mode deliberately has no row
                 // here: the Develop menu mirrors Safari's, and Safari has no
                 // such item. The toggle lives in the Command Palette and the
-                // sidebar's site controls.
-                // Safari keeps the submenu present and lists registrations
-                // as informational rows; with none, a disabled placeholder.
-                Menu(BrowserCommandTitles.serviceWorkers, systemImage: "gearshape.2") {
-                    if let domains = actions?.serviceWorkerDomains, !domains.isEmpty {
-                        ForEach(domains, id: \.self) { domain in
-                            Button(domain) {}
-                                .disabled(true)
-                        }
-                    } else {
-                        Button(BrowserCommandTitles.noServiceWorkers) {}
-                            .disabled(true)
-                    }
-                }
-
-                Divider()
+                // sidebar's site controls. Safari's Service Workers submenu
+                // is also absent: its rows open per-worker inspectors, which
+                // WebKit offers no entry point for, and a submenu of disabled
+                // rows earns no place.
             }
 
             Group {
@@ -1315,7 +1302,6 @@ struct BrowserCommandActions {
     var setUserAgentPreset: (UserAgentPreset) -> Void
     var isCustomUserAgentActive: Bool
     var promptForCustomUserAgent: () -> Void
-    var serviceWorkerDomains: [String]
     var inspectablePages: [BrowserStore.InspectablePage]
     var inspectPage: (UUID) -> Void
     var isWebInspectorVisible: Bool

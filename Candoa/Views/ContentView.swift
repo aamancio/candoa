@@ -508,13 +508,11 @@ struct ContentView: View {
                 for: NSMenu.didBeginTrackingNotification
             )
         ) { notification in
-            // The root menu posts once per menu-bar open: refresh Develop's
-            // Service Workers submenu the way Safari fills it on open, and
-            // nudge observers so titles that mirror inspector state
-            // (Show/Close Web Inspector, Start/Stop recordings) catch up
-            // with changes made in the inspector's own UI.
+            // The root menu posts once per menu-bar open: nudge observers so
+            // titles that mirror inspector state (Show/Close Web Inspector,
+            // Start/Stop recordings) catch up with changes made in the
+            // inspector's own UI.
             guard (notification.object as? NSMenu) === NSApp.mainMenu else { return }
-            store.refreshServiceWorkerRegistrations()
             store.objectWillChange.send()
         }
         .onChange(of: store.activeTab?.url) { _, url in
@@ -665,7 +663,6 @@ struct ContentView: View {
             setUserAgentPreset: { store.setUserAgentPreset($0) },
             isCustomUserAgentActive: store.isCustomUserAgentActive,
             promptForCustomUserAgent: { store.promptForCustomUserAgent() },
-            serviceWorkerDomains: store.serviceWorkerDomains,
             inspectablePages: store.inspectablePages,
             inspectPage: { store.inspectPage($0) },
             isWebInspectorVisible: store.isWebInspectorVisible,

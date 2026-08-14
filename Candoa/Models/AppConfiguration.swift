@@ -72,8 +72,6 @@ enum BrowserCommandTitles {
     static let featureFlagsWindowTitle = String(localized: "Feature Flags")
     static let closeWebInspector = String(localized: "Close Web Inspector")
     static let connectWebInspector = String(localized: "Connect Web Inspector")
-    static let serviceWorkers = String(localized: "Service Workers")
-    static let noServiceWorkers = String(localized: "No Service Workers")
     static let userAgentOther = String(localized: "Other…")
     static let showJavaScriptConsole = String(localized: "Show JavaScript Console")
     static let showPageSource = String(localized: "Show Page Source")
