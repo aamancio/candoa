@@ -104,6 +104,13 @@ struct ShortcutTooltipView: View {
 /// deliver tracking-area enter/exit events. The monitor is passive — it runs
 /// only when the active app receives a genuine mouse-move — and exists only
 /// while at least one tooltip anchor is installed. Main thread only.
+///
+/// The same monitor watches clicks, scrolls, and key presses: any of them
+/// dismisses a visible tooltip AND cancels a pending delayed show, mirroring
+/// system tooltips. Canceling the pending show matters because a context
+/// menu's tracking loop still drains the main queue — without it, a
+/// right-click during the hover delay would pop the tooltip on top of the
+/// open menu.
 @MainActor
 final class ShortcutTooltipController {
     static let shared = ShortcutTooltipController()
@@ -114,17 +121,26 @@ final class ShortcutTooltipController {
     private var moveMonitor: Any?
     private var pendingShow: DispatchWorkItem?
     private var panel: NSPanel?
-    private var dismissMonitor: Any?
 
     private init() {}
 
     func register(_ anchor: ShortcutTooltipAnchorView) {
         anchors.add(anchor)
         guard moveMonitor == nil else { return }
-        moveMonitor = NSEvent.addLocalMonitorForEvents(matching: [.mouseMoved]) { event in
+        moveMonitor = NSEvent.addLocalMonitorForEvents(
+            matching: [
+                .mouseMoved, .leftMouseDown, .rightMouseDown, .otherMouseDown,
+                .scrollWheel, .keyDown,
+            ]
+        ) { event in
             // Local event monitors always run on the main thread.
             MainActor.assumeIsolated {
-                ShortcutTooltipController.shared.handleMouseMoved(event)
+                let controller = ShortcutTooltipController.shared
+                if event.type == .mouseMoved {
+                    controller.handleMouseMoved(event)
+                } else {
+                    controller.dismissForInteraction()
+                }
             }
             return event
         }
@@ -232,7 +248,14 @@ final class ShortcutTooltipController {
 
         self.panel = panel
         panel.orderFront(nil)
-        installDismissMonitor()
+    }
+
+    /// Any click, scroll, or key press dismisses the tooltip immediately and
+    /// cancels a scheduled show. The hovered anchor stays remembered, so the
+    /// tooltip does not re-arm until the pointer leaves and re-enters.
+    private func dismissForInteraction() {
+        cancelPendingShow()
+        hidePanel()
     }
 
     /// Centers the tooltip below the anchor, clamped inside the screen so it
@@ -255,33 +278,12 @@ final class ShortcutTooltipController {
         return origin
     }
 
-    /// Any click, scroll, or key press dismisses the tooltip immediately,
-    /// mirroring system tooltip behavior. The monitor lives only while the
-    /// panel is visible.
-    private func installDismissMonitor() {
-        guard dismissMonitor == nil else { return }
-        dismissMonitor = NSEvent.addLocalMonitorForEvents(
-            matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown, .scrollWheel, .keyDown]
-        ) { event in
-            // Local event monitors always run on the main thread.
-            MainActor.assumeIsolated {
-                ShortcutTooltipController.shared.cancelPendingShow()
-                ShortcutTooltipController.shared.hidePanel()
-            }
-            return event
-        }
-    }
-
     private func cancelPendingShow() {
         pendingShow?.cancel()
         pendingShow = nil
     }
 
     private func hidePanel() {
-        if let dismissMonitor {
-            NSEvent.removeMonitor(dismissMonitor)
-            self.dismissMonitor = nil
-        }
         guard let panel else { return }
         panel.orderOut(nil)
         panel.contentView = nil
