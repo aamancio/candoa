@@ -1800,6 +1800,54 @@ final class CandoaUITests: XCTestCase {
         XCTAssertTrue(waitForState(in: app, containing: "loading=false", timeout: 10), currentState(in: app))
     }
 
+    func testReboundBackShortcutDrivesBackAndRetiresTheBrackets() throws {
+        // Back is rebindable in Settings ▸ Shortcuts, so the menu bar must
+        // follow the person's binding instead of pinning a literal ⌘[ that
+        // stays live alongside the new key (#219). Seeded through the
+        // argument domain, which is what @AppStorage reads first.
+        let app = launchApp(extraLaunchArguments: ["-CandoaShortcut.goBack", "Control-Command-B"])
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
+        XCTAssertTrue(waitForState(in: app, containing: "space=TestingBot"), currentState(in: app))
+
+        // Three visits in one tab, so a wrongly-live ⌘[ plus the real
+        // binding would land two pages back instead of one.
+        app.typeKey("t", modifierFlags: .command)
+        submitCommandPaletteText("https://example.com", in: app)
+        XCTAssertTrue(waitForState(in: app, containing: "url=https://example.com/", timeout: 10), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "loading=false", timeout: 10), currentState(in: app))
+
+        app.typeKey("l", modifierFlags: .command)
+        submitCommandPaletteText("https://example.com/?second", in: app)
+        XCTAssertTrue(waitForState(in: app, containing: "url=https://example.com/?second", timeout: 10), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "loading=false", timeout: 10), currentState(in: app))
+
+        app.typeKey("l", modifierFlags: .command)
+        submitCommandPaletteText("https://example.com/?third", in: app)
+        XCTAssertTrue(waitForState(in: app, containing: "url=https://example.com/?third", timeout: 10), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "loading=false", timeout: 10), currentState(in: app))
+
+        // The retired default must do nothing: still on the third page
+        // after a settle beat.
+        app.typeKey("[", modifierFlags: .command)
+        Thread.sleep(forTimeInterval: 1.0)
+        XCTAssertTrue(
+            currentState(in: app).contains("url=https://example.com/?third"),
+            currentState(in: app)
+        )
+
+        // The person's binding goes back exactly one page — and stays there.
+        app.typeKey("b", modifierFlags: [.control, .command])
+        XCTAssertTrue(
+            waitForState(in: app, containing: "url=https://example.com/?second", timeout: 10),
+            currentState(in: app)
+        )
+        Thread.sleep(forTimeInterval: 1.0)
+        XCTAssertTrue(
+            currentState(in: app).contains("url=https://example.com/?second"),
+            currentState(in: app)
+        )
+    }
+
     func testTestingBotFixtureCoversAddressAndCommandPaletteTabCreation() throws {
         let app = launchApp()
 
