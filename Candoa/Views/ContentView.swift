@@ -22,7 +22,6 @@ struct ContentView: View {
     @EnvironmentObject private var userStore: UserStore
     @AppStorage(SettingsOption.websiteAppearance) private var websiteAppearanceValue =
         WebsiteAppearance.dark.rawValue
-    @AppStorage(DeveloperModeConfiguration.storageKey) private var developerModeOverrides = ""
     @SceneStorage("candoa.windowAutosaveID") private var windowAutosaveID = UUID().uuidString
     @State private var isSidebarVisible = true
     @State private var isSidebarHoverRevealed = false
@@ -659,17 +658,6 @@ struct ContentView: View {
             toggleSplitView: toggleSplitView,
             setSplitLayout: store.setSplitLayout,
             isSplitDisplayed: store.isSplitViewDisplayed,
-            isDeveloperModeAvailable: store.activeTab?.url != nil,
-            isDeveloperModeEnabled: store.activeTab?.url.map {
-                DeveloperModeConfiguration.isEnabled(
-                    for: $0,
-                    storedOverrides: developerModeOverrides
-                )
-            } ?? false,
-            setDeveloperMode: { isEnabled in
-                guard let url = store.activeTab?.url else { return }
-                store.setDeveloperMode(isEnabled, for: url)
-            },
             installedBrowsers: ExternalBrowserService.installedBrowsers(),
             openPageWith: { store.openActivePage(with: $0) },
             canUseDevelopTools: store.canUseDevelopTools,
