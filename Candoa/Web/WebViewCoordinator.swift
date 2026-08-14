@@ -91,7 +91,7 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
     var readerProbedTabIDs = Set<UUID>()
     var hibernationScanTask: Task<Void, Never>?
     private var userDefaultsObserver: NotificationToken?
-    var websiteAppearance = WebsiteAppearance.dark
+    var websiteAppearance = WebsiteAppearance.automatic
     var systemUsesDarkAppearance = false
     var pendingAppearanceNavigationTokens: [UUID: UUID] = [:]
     private lazy var browserAgentDriver = BrowserAgentDriver(

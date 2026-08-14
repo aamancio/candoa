@@ -4,7 +4,7 @@ import SwiftUI
 internal struct GeneralSettingsPane: View {
     @AppStorage(SettingsOption.checkDefaultBrowser) private var checkDefaultBrowser = false
     @AppStorage(SettingsOption.askBeforeQuitting) private var askBeforeQuitting = true
-    @AppStorage(SettingsOption.websiteAppearance) private var websiteAppearance = WebsiteAppearance.dark.rawValue
+    @AppStorage(SettingsOption.websiteAppearance) private var websiteAppearance = WebsiteAppearance.automatic.rawValue
     @AppStorage(SettingsOption.homepage) private var homepage = ""
     @AppStorage(SettingsOption.newTabsOpenWith) private var newTabsOpenWith = NewTabPreference.commandBar.rawValue
     @AppStorage(SettingsOption.historyRetention) private var historyRetention = HistoryRetentionPreference.afterOneYear.rawValue

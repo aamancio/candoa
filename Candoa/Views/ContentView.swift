@@ -21,7 +21,7 @@ struct ContentView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @EnvironmentObject private var userStore: UserStore
     @AppStorage(SettingsOption.websiteAppearance) private var websiteAppearanceValue =
-        WebsiteAppearance.dark.rawValue
+        WebsiteAppearance.automatic.rawValue
     @SceneStorage("candoa.windowAutosaveID") private var windowAutosaveID = UUID().uuidString
     @State private var isSidebarVisible = true
     @State private var isSidebarHoverRevealed = false
