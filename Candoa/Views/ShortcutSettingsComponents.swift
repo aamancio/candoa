@@ -132,7 +132,9 @@ internal struct SettingsRow<Accessory: View>: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            Spacer(minLength: 16)
+            // Guaranteed air between a long subtitle and the trailing
+            // control, so text never crowds a picker at the pane's width.
+            Spacer(minLength: 32)
 
             accessory
         }
