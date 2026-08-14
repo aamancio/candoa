@@ -301,7 +301,15 @@ private enum DevelopMenuStyler {
         item.title == DeviceMenuPresentation.menuTitle
     }
 
-    private static let iconSide: CGFloat = 26
+    private static let iconSide: CGFloat = 24
+    /// Canvas geometry picks the menu's layout mode: at 28pt and wider the
+    /// device row gets the independent layout Safari's has (icon flush
+    /// with the glyph column, text indented past it); narrower canvases
+    /// join the shared icon column and poke left of the small glyphs. The
+    /// trailing pad keeps the width above the threshold, the half-point
+    /// leading pad lands the art on Safari's exact column position.
+    private static let iconLeadingPad: CGFloat = 0.5
+    private static let iconTrailingPad: CGFloat = 4
 
     /// NSImage.computerName carries transparent padding around the device
     /// art, which reads as an indent beside the menu's edge-to-edge SF
@@ -346,11 +354,19 @@ private enum DevelopMenuStyler {
         let height = iconSide * art.height / art.width
         let canvasHeight = max(height, iconSide)
         let canvas = NSImage(
-            size: NSSize(width: iconSide, height: canvasHeight),
+            size: NSSize(
+                width: iconLeadingPad + iconSide + iconTrailingPad,
+                height: canvasHeight
+            ),
             flipped: false
         ) { _ in
             machine.draw(
-                in: NSRect(x: 0, y: (canvasHeight - height) / 2, width: iconSide, height: height),
+                in: NSRect(
+                    x: iconLeadingPad,
+                    y: (canvasHeight - height) / 2,
+                    width: iconSide,
+                    height: height
+                ),
                 from: art,
                 operation: .sourceOver,
                 fraction: 1
@@ -397,6 +413,11 @@ private enum DevelopMenuStyler {
             let actionSelector = NSSelectorFromString("_setActionImage:")
             if item.responds(to: actionSelector) {
                 _ = item.perform(actionSelector, with: icon)
+                // The private setter posts no item-changed notification, so
+                // whether the menu's column layout includes the icon was a
+                // race against first layout; announce the change so the
+                // geometry is recomputed deterministically.
+                item.menu?.itemChanged(item)
             } else {
                 item.image = icon
             }
