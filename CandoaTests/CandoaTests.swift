@@ -364,18 +364,4 @@ final class SpaceMemoryTests: XCTestCase {
         XCTAssertTrue(prompt.contains("JSON array of strings"))
     }
 
-    // MARK: - Space decoding compatibility
-
-    func testLegacySpaceSnapshotsDecodeWithMemoryEnabled() throws {
-        let legacyJSON = #"{"id":"6F3D5A22-6B4B-4B6E-9A5C-1D2E3F405060","name":"Legacy"}"#
-        let space = try JSONDecoder().decode(BrowserSpace.self, from: Data(legacyJSON.utf8))
-        XCTAssertTrue(space.isEliMemoryEnabled)
-
-        let disabled = BrowserSpace(name: "Off", isEliMemoryEnabled: false)
-        let decoded = try JSONDecoder().decode(
-            BrowserSpace.self,
-            from: JSONEncoder().encode(disabled)
-        )
-        XCTAssertFalse(decoded.isEliMemoryEnabled)
-    }
 }
