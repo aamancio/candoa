@@ -194,6 +194,12 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         if #available(macOS 15.1, *) {
             configuration.writingToolsBehavior = .complete
         }
+        // Web extensions ride the shared controller; a private window's pages
+        // stay invisible to them, matching the window's nothing-persists
+        // design.
+        if #available(macOS 15.4, *), !isPrivate {
+            configuration.webExtensionController = WebExtensionManager.shared.controller
+        }
 
         // "Inspect Element" in the web context menu needs WebKit's developer
         // extras; isInspectable alone only permits external inspector attach.
