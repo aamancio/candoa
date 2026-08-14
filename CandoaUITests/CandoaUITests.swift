@@ -408,19 +408,27 @@ final class CandoaUITests: XCTestCase {
     }
 
     func testLocalhostDeveloperBarPaintsPrimaryBlueStripes() throws {
-        let app = launchApp()
+        // No server anywhere (neither the app nor the runner carries the
+        // network-server entitlement): the coordinator's UI-testing fixture
+        // intercept serves this HTML for local-development URLs, so the
+        // localhost navigation is fully self-contained on CI.
+        let host = "localhost:8080"
+        let app = launchApp(extraLaunchEnvironment: [
+            "CANDOA_UI_TESTING_PAGE_HTML":
+                "<!doctype html><html><body style=\"background:#ffffff\"><h1>Candoa dev bar fixture</h1></body></html>"
+        ])
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
 
         openNewTabPalette(in: app)
-        submitCommandPaletteText("localhost:8080", in: app)
+        submitCommandPaletteText(host, in: app)
         XCTAssertTrue(
-            waitForState(in: app, containing: "url=http://localhost:8080/", timeout: 15),
+            waitForState(in: app, containing: "url=http://\(host)/", timeout: 15),
             currentState(in: app)
         )
 
         let window = app.windows.firstMatch
         let urlField = window.textFields
-            .matching(NSPredicate(format: "value CONTAINS %@", "localhost:8080")).firstMatch
+            .matching(NSPredicate(format: "value CONTAINS %@", host)).firstMatch
         XCTAssertTrue(urlField.waitForExistence(timeout: 10), "developer bar URL field missing")
 
         // Let the page settle so the bar is in its resting visual state.
@@ -461,7 +469,7 @@ final class CandoaUITests: XCTestCase {
         for sample in barSamples {
             XCTAssertGreaterThan(
                 sample.blueComponent - sample.redComponent, 0.28,
-                "developer bar is not blue-dominant — occluded or wrong palette"
+                "developer bar is not blue-dominant — occluded or wrong palette; state=\(currentState(in: app))"
             )
             XCTAssertGreaterThan(
                 sample.blueComponent, 0.45,
@@ -511,9 +519,9 @@ final class CandoaUITests: XCTestCase {
         // The URL field accepts input: click, retype, and navigate.
         urlField.click()
         window.typeKey("a", modifierFlags: .command)
-        window.typeText("localhost:8080/dashboard\r")
+        window.typeText("\(host)/dashboard\r")
         XCTAssertTrue(
-            waitForState(in: app, containing: "url=http://localhost:8080/dashboard", timeout: 15),
+            waitForState(in: app, containing: "url=http://\(host)/dashboard", timeout: 15),
             currentState(in: app)
         )
     }
