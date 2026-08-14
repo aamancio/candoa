@@ -1291,6 +1291,7 @@ private struct DeveloperToolbar: View {
     @State private var hoveredControl: DeveloperToolbarControlKind?
     @State private var isHoveringControlMenu = false
     @State private var isSiteInfoPresented = false
+    @State private var isExtensionsPresented = false
     @AppStorage(Self.storageKey) private var storedControlIDs = ""
     @FocusState private var isURLFieldFocused: Bool
 
@@ -1461,6 +1462,21 @@ private struct DeveloperToolbar: View {
                 onSetDeveloperMode: onSetDeveloperMode
             )
         }
+        .popover(
+            isPresented: Binding(
+                get: { control == .extensions && isExtensionsPresented },
+                set: { isPresented in
+                    if control == .extensions {
+                        isExtensionsPresented = isPresented
+                    }
+                }
+            ),
+            arrowEdge: .top
+        ) {
+            if #available(macOS 15.4, *) {
+                ExtensionActionsPopover(isPresented: $isExtensionsPresented)
+            }
+        }
     }
 
     private func shouldInsertSeparator(before index: Int) -> Bool {
@@ -1478,7 +1494,9 @@ private struct DeveloperToolbar: View {
             onToggleSplitView()
         case .siteInfo:
             isSiteInfoPresented = true
-        case .easel, .developerTools, .inspectElement, .extensions:
+        case .extensions:
+            isExtensionsPresented = true
+        case .easel, .developerTools, .inspectElement:
             break
         }
     }
@@ -1608,7 +1626,12 @@ private enum DeveloperToolbarControlKind: String, CaseIterable, Identifiable {
         switch self {
         case .copyURL, .capturePage, .siteInfo, .splitView:
             return true
-        case .easel, .developerTools, .inspectElement, .extensions:
+        case .extensions:
+            if #available(macOS 15.4, *) {
+                return true
+            }
+            return false
+        case .easel, .developerTools, .inspectElement:
             return false
         }
     }
@@ -1665,7 +1688,12 @@ private enum DeveloperToolbarControlKind: String, CaseIterable, Identifiable {
             // Reflect the person's configured shortcut, not the default.
             let caps = ShortcutKeyCaps.current(for: .toggleSplitView).joined()
             return caps.isEmpty ? String(localized: "Set in Settings > Shortcuts") : caps
-        case .easel, .developerTools, .siteInfo, .inspectElement, .extensions:
+        case .extensions:
+            if #available(macOS 15.4, *) {
+                return String(localized: "Manage in Settings > Extensions")
+            }
+            return String(localized: "Extensions require macOS 15.4 or later.")
+        case .easel, .developerTools, .siteInfo, .inspectElement:
             return String(localized: "Not implemented in Candoa yet")
         }
     }

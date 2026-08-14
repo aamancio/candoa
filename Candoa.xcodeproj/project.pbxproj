@@ -109,6 +109,7 @@
 		DD0000000000000000000101 /* AppleSignInService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD0000000000000000000001 /* AppleSignInService.swift */; };
 		E1A2B3D4F5C60718293A4B5C /* SettingsPanes.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A2B3C4D5E60718293A4B5C /* SettingsPanes.swift */; };
 		AE00000000000000000001A4 /* ExtensionsSettingsPane.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE00000000000000000000A4 /* ExtensionsSettingsPane.swift */; };
+		AE00000000000000000001A5 /* ExtensionActionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE00000000000000000000A5 /* ExtensionActionsView.swift */; };
 		E2A2B3D4F5C60718293A4B5C /* EliSettingsPane.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2A2B3C4D5E60718293A4B5C /* EliSettingsPane.swift */; };
 		E3A2B3D4F5C60718293A4B5C /* ShortcutSettingsComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3A2B3C4D5E60718293A4B5C /* ShortcutSettingsComponents.swift */; };
 		E50000000000000000000101 /* AppUpdateBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = E50000000000000000000001 /* AppUpdateBanner.swift */; };
@@ -295,6 +296,7 @@
 		EF0000000000000000000010 /* AIModelCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIModelCatalog.swift; sourceTree = "<group>"; };
 		F1A2B3C4D5E60718293A4B5C /* SettingsPanes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsPanes.swift; sourceTree = "<group>"; };
 		AE00000000000000000000A4 /* ExtensionsSettingsPane.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionsSettingsPane.swift; sourceTree = "<group>"; };
+		AE00000000000000000000A5 /* ExtensionActionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionActionsView.swift; sourceTree = "<group>"; };
 		F2A2B3C4D5E60718293A4B5C /* EliSettingsPane.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EliSettingsPane.swift; sourceTree = "<group>"; };
 		F3A2B3C4D5E60718293A4B5C /* ShortcutSettingsComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutSettingsComponents.swift; sourceTree = "<group>"; };
 		F60000000000000000000001 /* ButtonTreatment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ButtonTreatment.swift; sourceTree = "<group>"; };
@@ -442,6 +444,7 @@
 				010000000000000000000035 /* ShortcutSettingsView.swift */,
 				F1A2B3C4D5E60718293A4B5C /* SettingsPanes.swift */,
 				AE00000000000000000000A4 /* ExtensionsSettingsPane.swift */,
+				AE00000000000000000000A5 /* ExtensionActionsView.swift */,
 				F2A2B3C4D5E60718293A4B5C /* EliSettingsPane.swift */,
 				F3A2B3C4D5E60718293A4B5C /* ShortcutSettingsComponents.swift */,
 				010000000000000000000041 /* CopiedURLToastView.swift */,
@@ -858,6 +861,7 @@
 				010000000000000000000125 /* ShortcutSettingsView.swift in Sources */,
 				E1A2B3D4F5C60718293A4B5C /* SettingsPanes.swift in Sources */,
 				AE00000000000000000001A4 /* ExtensionsSettingsPane.swift in Sources */,
+				AE00000000000000000001A5 /* ExtensionActionsView.swift in Sources */,
 				E2A2B3D4F5C60718293A4B5C /* EliSettingsPane.swift in Sources */,
 				E3A2B3D4F5C60718293A4B5C /* ShortcutSettingsComponents.swift in Sources */,
 				010000000000000000000140 /* ContentBlockerService.swift in Sources */,
