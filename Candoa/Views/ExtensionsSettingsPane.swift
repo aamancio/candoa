@@ -128,6 +128,18 @@ private struct ExtensionsSettingsContent: View {
                     .font(.system(size: 11.5))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
+
+                if installation.isEnabled {
+                    Toggle(String(localized: "Allow in Private Browsing"), isOn: Binding(
+                        get: { installation.allowsPrivateBrowsing },
+                        set: { manager.setAllowsPrivateBrowsing($0, for: installation.id) }
+                    ))
+                    .toggleStyle(.checkbox)
+                    .controlSize(.small)
+                    .font(.system(size: 11.5))
+                    .foregroundStyle(.secondary)
+                    .padding(.top, 2)
+                }
             }
 
             Spacer(minLength: 32)

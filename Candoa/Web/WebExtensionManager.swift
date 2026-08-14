@@ -60,6 +60,15 @@ final class WebExtensionManager: NSObject, ObservableObject {
         !contextsByInstallationID.isEmpty
     }
 
+    /// Whether any loaded extension may appear in the given browsing mode —
+    /// private windows only surface extensions explicitly granted access.
+    func hasLoadedExtensions(forPrivateBrowsing isPrivate: Bool) -> Bool {
+        guard isPrivate else { return hasLoadedExtensions }
+        return installations.contains {
+            $0.allowsPrivateBrowsing && contextsByInstallationID[$0.id] != nil
+        }
+    }
+
     // MARK: - Toolbar actions
 
     struct ActionDescriptor: Identifiable {
@@ -71,10 +80,13 @@ final class WebExtensionManager: NSObject, ObservableObject {
     }
 
     /// The loaded extensions' actions against the focused window's active
-    /// tab, in installation order.
+    /// tab, in installation order. In a private window, only extensions
+    /// granted private-browsing access are listed.
     func actionDescriptors() -> [ActionDescriptor] {
+        let isPrivateWindow = focusedWindowAdapter?.store?.isPrivate ?? false
         let tabAdapter = focusedActiveTabAdapter
         return installations.compactMap { installation in
+            guard !isPrivateWindow || installation.allowsPrivateBrowsing else { return nil }
             guard
                 let context = contextsByInstallationID[installation.id],
                 let action = context.action(for: tabAdapter)
@@ -155,6 +167,16 @@ final class WebExtensionManager: NSObject, ObservableObject {
         }
     }
 
+    func setAllowsPrivateBrowsing(_ allowed: Bool, for installationID: UUID) {
+        guard let index = installations.firstIndex(where: { $0.id == installationID }) else { return }
+        guard installations[index].allowsPrivateBrowsing != allowed else { return }
+        installations[index].allowsPrivateBrowsing = allowed
+        WebExtensionRecords.save(installations)
+        contextsByInstallationID[installationID]?.hasAccessToPrivateData = allowed
+        // Private-window surfaces (sidebar button, menu) key off this.
+        actionRefreshToken = UUID()
+    }
+
     func setEnabled(_ isEnabled: Bool, for installationID: UUID) {
         guard let index = installations.firstIndex(where: { $0.id == installationID }) else { return }
         guard installations[index].isEnabled != isEnabled else { return }
@@ -222,6 +244,7 @@ final class WebExtensionManager: NSObject, ObservableObject {
         // Stable across launches, so the extension's storage survives.
         context.uniqueIdentifier = installation.id.uuidString
         context.isInspectable = WebInspectorConfiguration.isEnabled
+        context.hasAccessToPrivateData = installation.allowsPrivateBrowsing
         for permission in webExtension.requestedPermissions {
             context.setPermissionStatus(.grantedExplicitly, for: permission, expirationDate: nil)
         }
@@ -257,8 +280,9 @@ final class WebExtensionManager: NSObject, ObservableObject {
 
     /// Idempotent — the window configurator calls this on every SwiftUI
     /// update pass, exactly like the menu controller's registration.
+    /// Private windows register too: their adapters report `isPrivate`, and
+    /// only contexts granted `hasAccessToPrivateData` ever see them.
     func register(window: NSWindow, store: BrowserStore) {
-        guard !store.isPrivate else { return }
         let key = ObjectIdentifier(window)
         if let existing = windowAdapters[key], existing.store === store { return }
         unregister(windowKey: key)
@@ -383,18 +407,31 @@ final class WebExtensionManager: NSObject, ObservableObject {
 
 @available(macOS 15.4, *)
 extension WebExtensionManager: WKWebExtensionControllerDelegate {
+    /// Belt and suspenders on top of WebKit's own gating: a context without
+    /// private-data access is never even told private windows exist.
+    private func adapters(
+        _ adapters: [WebExtensionWindowAdapter],
+        visibleTo context: WKWebExtensionContext
+    ) -> [WebExtensionWindowAdapter] {
+        guard !context.hasAccessToPrivateData else { return adapters }
+        return adapters.filter { !($0.store?.isPrivate ?? false) }
+    }
+
     func webExtensionController(
         _ controller: WKWebExtensionController,
         openWindowsFor extensionContext: WKWebExtensionContext
     ) -> [any WKWebExtensionWindow] {
-        orderedWindowAdapters
+        adapters(orderedWindowAdapters, visibleTo: extensionContext)
     }
 
     func webExtensionController(
         _ controller: WKWebExtensionController,
         focusedWindowFor extensionContext: WKWebExtensionContext
     ) -> (any WKWebExtensionWindow)? {
-        focusedWindowAdapter
+        adapters(
+            [focusedWindowAdapter].compactMap { $0 } + orderedWindowAdapters,
+            visibleTo: extensionContext
+        ).first
     }
 
     func webExtensionController(
@@ -403,7 +440,11 @@ extension WebExtensionManager: WKWebExtensionControllerDelegate {
         for extensionContext: WKWebExtensionContext,
         completionHandler: @escaping ((any WKWebExtensionTab)?, (any Error)?) -> Void
     ) {
-        let windowAdapter = (configuration.window as? WebExtensionWindowAdapter) ?? focusedWindowAdapter
+        let windowAdapter = (configuration.window as? WebExtensionWindowAdapter)
+            ?? adapters(
+                [focusedWindowAdapter].compactMap { $0 } + orderedWindowAdapters,
+                visibleTo: extensionContext
+            ).first
         guard let windowAdapter, let store = windowAdapter.store else {
             completionHandler(nil, WKWebExtension.Error(.unknown))
             return
