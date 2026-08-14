@@ -1295,7 +1295,13 @@ private struct DeveloperToolbar: View {
     @AppStorage(Self.storageKey) private var storedControlIDs = ""
     @FocusState private var isURLFieldFocused: Bool
 
-    private var foreground: Color { InterfaceStyle.sidebarText }
+    private var isLocalDevelopment: Bool { url.isLocalDevelopment }
+
+    // Local development wears the brand-blue striped treatment (Arc-style),
+    // which needs the white-on-accent foreground regardless of appearance.
+    private var foreground: Color {
+        isLocalDevelopment ? .white : InterfaceStyle.sidebarText
+    }
 
     private var selectedControlIDs: [String] {
         if storedControlIDs == Self.noControlIDsValue {
@@ -1328,7 +1334,7 @@ private struct DeveloperToolbar: View {
                 .textFieldStyle(.plain)
                 .font(.system(size: 12, weight: .medium, design: .monospaced))
                 .foregroundStyle(foreground.opacity(0.92))
-                .tint(AppColor.accent)
+                .tint(isLocalDevelopment ? foreground : AppColor.accent)
                 .lineLimit(1)
                 .focused($isURLFieldFocused)
                 .onSubmit {
@@ -1374,10 +1380,16 @@ private struct DeveloperToolbar: View {
         .padding(.horizontal, 10)
         .frame(height: 30)
         .frame(maxWidth: .infinity)
-        .background(.regularMaterial)
+        .background {
+            if isLocalDevelopment {
+                LocalDevelopmentStripedBackground()
+            } else {
+                Rectangle().fill(.regularMaterial)
+            }
+        }
         .overlay(alignment: .bottom) {
             Rectangle()
-                .fill(InterfaceStyle.sidebarSeparator)
+                .fill(isLocalDevelopment ? Color.black.opacity(0.18) : InterfaceStyle.sidebarSeparator)
                 .frame(height: 1)
         }
     }
@@ -1515,6 +1527,34 @@ private struct DeveloperToolbar: View {
         storedControlIDs = orderedIDs.isEmpty
             ? Self.noControlIDsValue
             : orderedIDs.joined(separator: ",")
+    }
+}
+
+/// Arc-style local-development banner: the primary blue filled edge to edge,
+/// with wide 45° stripes in a slightly lighter tint so the bar reads as a
+/// deliberate "you are on localhost" surface.
+private struct LocalDevelopmentStripedBackground: View {
+    var body: some View {
+        Canvas { context, size in
+            context.fill(
+                Path(CGRect(origin: .zero, size: size)),
+                with: .color(AppColor.Apple.systemBlue)
+            )
+
+            let bandWidth: CGFloat = 14
+            let period = bandWidth * 2
+            var x: CGFloat = -size.height
+            while x < size.width {
+                var band = Path()
+                band.move(to: CGPoint(x: x, y: size.height))
+                band.addLine(to: CGPoint(x: x + bandWidth, y: size.height))
+                band.addLine(to: CGPoint(x: x + bandWidth + size.height, y: 0))
+                band.addLine(to: CGPoint(x: x + size.height, y: 0))
+                band.closeSubpath()
+                context.fill(band, with: .color(.white.opacity(0.08)))
+                x += period
+            }
+        }
     }
 }
 
