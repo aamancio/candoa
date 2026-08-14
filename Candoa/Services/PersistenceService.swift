@@ -33,7 +33,6 @@ struct PersistenceSyncConfiguration: Equatable {
     }
 }
 
-
 enum CloudKitEntitlements {
     static var hasConfiguredContainer: Bool {
         let environment = ProcessInfo.processInfo.environment

@@ -366,7 +366,6 @@ internal struct SpacesSettingsPane: View {
     }
 }
 
-
 internal struct SearchSettingsPane: View {
     private let providers = NavigationService.searchProviders
     private let defaultSearchProviders = NavigationService.defaultSearchProviders
@@ -467,7 +466,6 @@ internal struct PrivacySettingsPane: View {
         }
     }
 }
-
 
 internal struct AdvancedSettingsPane: View {
     @AppStorage("CandoaEnableWebInspector") private var isWebInspectorEnabled = false

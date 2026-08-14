@@ -1414,7 +1414,6 @@ final class CandoaUITests: XCTestCase {
         XCTAssertFalse(app.webViews.firstMatch.exists)
     }
 
-
     func testEliSettingsDefaultToHostedConnectionWithAutomaticModel() throws {
         let app = launchApp()
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))

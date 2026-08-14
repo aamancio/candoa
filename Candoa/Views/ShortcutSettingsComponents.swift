@@ -313,7 +313,6 @@ internal struct SearchProviderSettingsRow: View {
     }
 }
 
-
 internal struct ShortcutSettingsRow: View {
     let definition: ShortcutDefinition
 
