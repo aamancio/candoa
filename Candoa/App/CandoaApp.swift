@@ -281,14 +281,12 @@ private enum DevelopMenuStyler {
     private static func apply() {
         guard let mainMenu = NSApp.mainMenu,
               let developMenu = mainMenu.items.first(where: {
-                  $0.submenu?.items.contains {
-                      $0.title == DeviceMenuPresentation.menuTitle
-                  } == true
+                  $0.submenu?.items.contains(where: isDeviceItem) == true
               })?.submenu
         else { return }
 
         for item in developMenu.items {
-            if item.title == DeviceMenuPresentation.menuTitle {
+            if isDeviceItem(item) {
                 styleDeviceItem(item)
             } else if item.image == nil,
                       let symbol = symbolsByTitle[item.title],
@@ -301,28 +299,66 @@ private enum DevelopMenuStyler {
         }
     }
 
-    private static func styleDeviceItem(_ item: NSMenuItem) {
-        if item.attributedTitle == nil {
-            let title = NSMutableAttributedString(
-                string: DeviceMenuPresentation.deviceName + "\n",
-                attributes: [.font: NSFont.menuFont(ofSize: 0)]
-            )
-            title.append(NSAttributedString(
-                string: DeviceMenuPresentation.systemVersionLine,
-                attributes: [
-                    .font: NSFont.menuFont(ofSize: NSFont.smallSystemFontSize),
-                    .foregroundColor: NSColor.secondaryLabelColor
-                ]
-            ))
-            item.attributedTitle = title
-        }
+    private static func isDeviceItem(_ item: NSMenuItem) -> Bool {
+        item.title == DeviceMenuPresentation.menuTitle
+    }
 
-        if item.image == nil,
-           let icon = NSImage(named: NSImage.computerName)?.copy() as? NSImage {
-            // Tall enough to span both title lines, like Safari's.
-            icon.size = NSSize(width: 28, height: 28)
-            item.image = icon
+    /// Safari-sized device art: NSMenuItem.image is clamped to standard
+    /// glyph size on current macOS regardless of the image's own size (and
+    /// the 14.4 subtitle form clamps it the same way), so the machine icon
+    /// rides inside the attributed title as a text attachment — text layout
+    /// imposes no clamp. The hanging indent keeps the version line aligned
+    /// under the name, and the attachment's negative offset centers the
+    /// icon across both lines.
+    private static let iconSide: CGFloat = 28
+    private static let iconGap: CGFloat = 8
+
+    private static func styleDeviceItem(_ item: NSMenuItem) {
+        guard item.attributedTitle == nil else { return }
+
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.firstLineHeadIndent = 0
+        paragraph.headIndent = iconSide + iconGap
+
+        let title = NSMutableAttributedString()
+        if let machine = NSImage(named: NSImage.computerName) {
+            let padded = NSImage(
+                size: NSSize(width: iconSide + iconGap, height: iconSide),
+                flipped: false
+            ) { _ in
+                machine.draw(in: NSRect(x: 0, y: 0, width: iconSide, height: iconSide))
+                return true
+            }
+            let attachment = NSTextAttachment()
+            attachment.image = padded
+            attachment.bounds = CGRect(
+                x: 0,
+                y: -9,
+                width: iconSide + iconGap,
+                height: iconSide
+            )
+            title.append(NSAttributedString(attachment: attachment))
         }
+        // A line separator rather than a newline: a newline opens a new
+        // paragraph, where firstLineHeadIndent would put the version line
+        // back at the left edge instead of under the name.
+        title.append(NSAttributedString(
+            string: DeviceMenuPresentation.deviceName + "\u{2028}",
+            attributes: [.font: NSFont.menuFont(ofSize: 0)]
+        ))
+        title.append(NSAttributedString(
+            string: DeviceMenuPresentation.systemVersionLine,
+            attributes: [
+                .font: NSFont.menuFont(ofSize: NSFont.smallSystemFontSize),
+                .foregroundColor: NSColor.secondaryLabelColor
+            ]
+        ))
+        title.addAttribute(
+            .paragraphStyle,
+            value: paragraph,
+            range: NSRange(location: 0, length: title.length)
+        )
+        item.attributedTitle = title
 
         guard let deviceSubmenu = item.submenu else { return }
         for row in deviceSubmenu.items {
