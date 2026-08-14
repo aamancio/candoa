@@ -70,10 +70,11 @@ struct AISidebarTopBarIconButton: View {
     }
 }
 
-/// "What Eli Knows": the per-Space memory surface. Shows every saved fact,
-/// lets the user delete facts one by one or all at once, and carries the
-/// Space's remember on/off switch. Deliberately popover-only, mirroring how
-/// Site Info keeps per-site state next to where it applies.
+/// "What Eli Knows": the per-Space memory surface. Shows every saved fact
+/// and lets the user delete facts one by one or all at once. Memory has no
+/// off switch by design (always on outside private browsing, like sync);
+/// deliberately popover-only, mirroring how Site Info keeps per-site state
+/// next to where it applies.
 struct EliMemoryPopoverView: View {
     @ObservedObject var store: BrowserStore
     @State private var facts: [SpaceMemoryFact] = []
@@ -83,28 +84,16 @@ struct EliMemoryPopoverView: View {
         return name.isEmpty ? String(localized: "This Space") : name
     }
 
-    private var memoryEnabledBinding: Binding<Bool> {
-        Binding(
-            get: { store.isActiveSpaceMemoryEnabled },
-            set: { store.setActiveSpaceMemoryEnabled($0) }
-        )
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
                 Text("What Eli Knows")
                     .font(.system(size: 13.5, weight: .semibold))
+                    .accessibilityIdentifier("eli-memory-title")
                 Text(verbatim: spaceName)
                     .font(.system(size: 11.5))
                     .foregroundStyle(.secondary)
             }
-
-            Toggle("Remember details from conversations", isOn: memoryEnabledBinding)
-                .toggleStyle(.switch)
-                .controlSize(.mini)
-                .font(.system(size: 12.5))
-                .accessibilityIdentifier("eli-memory-toggle")
 
             Divider()
 

@@ -649,7 +649,6 @@ struct PersistenceService: @unchecked Sendable {
             object.setValue(space.themeTexture, forKey: Key.themeTexture)
             object.setValue(space.dataStoreID, forKey: Key.dataStoreID)
             object.setValue(space.createdAt, forKey: Key.createdAt)
-            object.setValue(space.isEliMemoryEnabled, forKey: Key.isEliMemoryEnabled)
             spacesByID[space.id] = nil
         }
 
@@ -831,8 +830,7 @@ struct PersistenceService: @unchecked Sendable {
             themeOpacity: object.optionalDouble(for: Key.themeOpacity) ?? 0.5,
             themeTexture: object.optionalDouble(for: Key.themeTexture) ?? 0,
             dataStoreID: object.uuid(for: Key.dataStoreID) ?? id,
-            createdAt: object.date(for: Key.createdAt) ?? Date(),
-            isEliMemoryEnabled: object.value(forKey: Key.isEliMemoryEnabled) as? Bool ?? true
+            createdAt: object.date(for: Key.createdAt) ?? Date()
         )
     }
 
@@ -977,10 +975,7 @@ struct PersistenceService: @unchecked Sendable {
                 attribute(Key.themeOpacity, .doubleAttributeType),
                 attribute(Key.themeTexture, .doubleAttributeType),
                 attribute(Key.dataStoreID, .UUIDAttributeType),
-                attribute(Key.createdAt, .dateAttributeType, optional: false),
-                // Optional so pre-memory rows read back nil, which decodes
-                // as enabled — the feature's default.
-                attribute(Key.isEliMemoryEnabled, .booleanAttributeType)
+                attribute(Key.createdAt, .dateAttributeType, optional: false)
             ]
         )
     }
@@ -1143,7 +1138,6 @@ private enum Key {
     static let lastAccessedAt = "lastAccessedAt"
     static let hasBeenActivated = "hasBeenActivated"
     static let visitedAt = "visitedAt"
-    static let isEliMemoryEnabled = "isEliMemoryEnabled"
     static let kind = "kind"
     static let content = "content"
 }

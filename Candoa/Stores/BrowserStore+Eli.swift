@@ -3,31 +3,18 @@ import Foundation
 extension BrowserStore {
     // MARK: - Space memory
 
-    /// Memory is a per-Space feature of ordinary windows; private windows
-    /// neither read nor write it.
-    var isActiveSpaceMemoryEnabled: Bool {
-        guard !isPrivate else { return false }
-        return activeSpace?.isEliMemoryEnabled ?? true
-    }
-
-    func setActiveSpaceMemoryEnabled(_ isEnabled: Bool) {
-        guard !isPrivate, let index = spaces.firstIndex(where: { $0.id == activeSpaceID }) else { return }
-        guard spaces[index].isEliMemoryEnabled != isEnabled else { return }
-        spaces[index].isEliMemoryEnabled = isEnabled
-        flushSession()
-    }
-
     func activeSpaceMemoryFacts() -> [SpaceMemoryFact] {
         guard !isPrivate else { return [] }
         return persistenceService.spaceMemoryFacts(in: activeSpaceID)
     }
 
-    /// The labeled block Ask and the browser agent carry, or nil when the
-    /// Space has memory off (or nothing saved). Reads only the active Space,
-    /// which is what keeps one Space's facts out of another's requests.
+    /// The labeled block Ask and the browser agent carry, or nil when
+    /// nothing is saved. Memory is always on outside private browsing —
+    /// deliberately no per-Space opt-out, matching sync. Reads only the
+    /// active Space, which is what keeps one Space's facts out of another's
+    /// requests.
     func activeSpaceMemorySection() -> String? {
-        guard isActiveSpaceMemoryEnabled else { return nil }
-        return SpaceMemoryPolicy.memoryContextSection(for: activeSpaceMemoryFacts())
+        SpaceMemoryPolicy.memoryContextSection(for: activeSpaceMemoryFacts())
     }
 
     func deleteSpaceMemoryFact(_ id: UUID) {
@@ -45,7 +32,7 @@ extension BrowserStore {
     /// Ask conversation. Fire-and-forget: a failed or malformed extraction
     /// leaves existing memory untouched.
     func updateSpaceMemory(fromConversation transcript: [AIConversationTurn]) {
-        guard !isPrivate, isActiveSpaceMemoryEnabled else { return }
+        guard !isPrivate else { return }
         guard transcript.contains(where: { $0.role == .user }) else { return }
         let spaceID = activeSpaceID
         guard transcript.count > (eliMemoryLastExtractedTurnCounts[spaceID] ?? 0) else { return }

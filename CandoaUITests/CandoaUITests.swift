@@ -2049,7 +2049,7 @@ final class CandoaUITests: XCTestCase {
     private func openMemoryPopover(in app: XCUIApplication) {
         for _ in 0..<3 {
             app.buttons["Eli Memory"].click()
-            if element("eli-memory-toggle", in: app).waitForExistence(timeout: 2) { return }
+            if element("eli-memory-title", in: app).waitForExistence(timeout: 2) { return }
         }
         XCTFail("The Eli memory popover did not open: \(currentState(in: app))")
     }
@@ -2057,14 +2057,14 @@ final class CandoaUITests: XCTestCase {
     /// Reopens the popover only when it is closed — clicking the memory
     /// button while it is open would toggle it shut instead.
     private func ensureMemoryPopoverOpen(in app: XCUIApplication) {
-        if element("eli-memory-toggle", in: app).exists { return }
+        if element("eli-memory-title", in: app).exists { return }
         openMemoryPopover(in: app)
     }
 
     private func dismissMemoryPopover(in app: XCUIApplication) {
         for _ in 0..<3 {
             app.typeKey(.escape, modifierFlags: [])
-            if waitForDisappearance(of: element("eli-memory-toggle", in: app)) { return }
+            if waitForDisappearance(of: element("eli-memory-title", in: app)) { return }
         }
         XCTFail("The Eli memory popover did not dismiss")
     }
