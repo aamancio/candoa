@@ -3100,7 +3100,9 @@ final class CandoaUITests: XCTestCase {
             "device submenu should close with the OS version: \(deviceItem.title)"
         )
 
-        XCTAssertTrue(app.menuItems["Turn On Developer Mode"].exists)
+        // Safari has no Developer Mode row, so neither does Candoa's Develop
+        // menu; the per-site toggle lives in the palette and the sidebar.
+        XCTAssertFalse(app.menuItems["Turn On Developer Mode"].exists)
 
         for title in [
             "Show Web Inspector",

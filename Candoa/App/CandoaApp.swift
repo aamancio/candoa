@@ -237,8 +237,6 @@ private enum DevelopMenuStyler {
     private static let symbolsByTitle: [String: String] = [
         BrowserCommandTitles.openPageWith: "arrow.up.forward.app",
         BrowserCommandTitles.userAgent: "globe",
-        BrowserCommandTitles.turnOnDeveloperMode: "hammer",
-        BrowserCommandTitles.turnOffDeveloperMode: "hammer",
         BrowserCommandTitles.serviceWorkers: "gearshape.2",
         BrowserCommandTitles.showWebInspector: "macwindow.on.rectangle",
         BrowserCommandTitles.closeWebInspector: "macwindow.on.rectangle",
@@ -300,65 +298,56 @@ private enum DevelopMenuStyler {
     }
 
     private static func isDeviceItem(_ item: NSMenuItem) -> Bool {
-        item.title == DeviceMenuPresentation.menuTitle
+        if item.title == DeviceMenuPresentation.menuTitle { return true }
+        guard #available(macOS 14.4, *) else { return false }
+        return item.title == DeviceMenuPresentation.deviceName
+            && item.subtitle == DeviceMenuPresentation.systemVersionLine
     }
 
-    /// Safari-sized device art: NSMenuItem.image is clamped to standard
-    /// glyph size on current macOS regardless of the image's own size (and
-    /// the 14.4 subtitle form clamps it the same way), so the machine icon
-    /// rides inside the attributed title as a text attachment — text layout
-    /// imposes no clamp. The hanging indent keeps the version line aligned
-    /// under the name, and the attachment's negative offset centers the
-    /// icon across both lines.
     private static let iconSide: CGFloat = 28
-    private static let iconGap: CGFloat = 8
 
+    /// Safari's device row: name over a dimmed subtitle with the machine's
+    /// icon centered across both lines. The subtitled item is the system's
+    /// own two-line layout; the icon then needs the private
+    /// `-[NSMenuItem _setImageSize:]`, because item images are otherwise
+    /// clamped to standard glyph size no matter the image's own size —
+    /// probed with respondsToSelector, so a removed SPI just leaves the
+    /// standard small icon. Pre-14.4 the two lines come from an attributed
+    /// title with the small icon.
     private static func styleDeviceItem(_ item: NSMenuItem) {
-        guard item.attributedTitle == nil else { return }
-
-        let paragraph = NSMutableParagraphStyle()
-        paragraph.firstLineHeadIndent = 0
-        paragraph.headIndent = iconSide + iconGap
-
-        let title = NSMutableAttributedString()
-        if let machine = NSImage(named: NSImage.computerName) {
-            let padded = NSImage(
-                size: NSSize(width: iconSide + iconGap, height: iconSide),
-                flipped: false
-            ) { _ in
-                machine.draw(in: NSRect(x: 0, y: 0, width: iconSide, height: iconSide))
-                return true
+        if #available(macOS 14.4, *) {
+            if item.title == DeviceMenuPresentation.menuTitle {
+                item.title = DeviceMenuPresentation.deviceName
+                item.subtitle = DeviceMenuPresentation.systemVersionLine
             }
-            let attachment = NSTextAttachment()
-            attachment.image = padded
-            attachment.bounds = CGRect(
-                x: 0,
-                y: -9,
-                width: iconSide + iconGap,
-                height: iconSide
+            if item.image == nil, let machine = NSImage(named: NSImage.computerName) {
+                item.image = machine
+                let selector = NSSelectorFromString("_setImageSize:")
+                if item.responds(to: selector), let method = item.method(for: selector) {
+                    let setImageSize = unsafeBitCast(
+                        method,
+                        to: (@convention(c) (AnyObject, Selector, NSSize) -> Void).self
+                    )
+                    setImageSize(item, selector, NSSize(width: iconSide, height: iconSide))
+                }
+            }
+        } else if item.attributedTitle == nil {
+            let title = NSMutableAttributedString(
+                string: DeviceMenuPresentation.deviceName + "\n",
+                attributes: [.font: NSFont.menuFont(ofSize: 0)]
             )
-            title.append(NSAttributedString(attachment: attachment))
+            title.append(NSAttributedString(
+                string: DeviceMenuPresentation.systemVersionLine,
+                attributes: [
+                    .font: NSFont.menuFont(ofSize: NSFont.smallSystemFontSize),
+                    .foregroundColor: NSColor.secondaryLabelColor
+                ]
+            ))
+            item.attributedTitle = title
+            if item.image == nil {
+                item.image = NSImage(named: NSImage.computerName)
+            }
         }
-        // A line separator rather than a newline: a newline opens a new
-        // paragraph, where firstLineHeadIndent would put the version line
-        // back at the left edge instead of under the name.
-        title.append(NSAttributedString(
-            string: DeviceMenuPresentation.deviceName + "\u{2028}",
-            attributes: [.font: NSFont.menuFont(ofSize: 0)]
-        ))
-        title.append(NSAttributedString(
-            string: DeviceMenuPresentation.systemVersionLine,
-            attributes: [
-                .font: NSFont.menuFont(ofSize: NSFont.smallSystemFontSize),
-                .foregroundColor: NSColor.secondaryLabelColor
-            ]
-        ))
-        title.addAttribute(
-            .paragraphStyle,
-            value: paragraph,
-            range: NSRange(location: 0, length: title.length)
-        )
-        item.attributedTitle = title
 
         guard let deviceSubmenu = item.submenu else { return }
         for row in deviceSubmenu.items {
@@ -987,19 +976,10 @@ private struct BrowserCommands: Commands {
 
                 Divider()
 
-                Button(
-                    actions?.isDeveloperModeEnabled == true
-                        ? BrowserCommandTitles.turnOffDeveloperMode
-                        : BrowserCommandTitles.turnOnDeveloperMode,
-                    systemImage: "hammer"
-                ) {
-                    guard let actions else { return }
-                    actions.setDeveloperMode(!actions.isDeveloperModeEnabled)
-                }
-                .disabled(actions?.isDeveloperModeAvailable != true)
-
-                Divider()
-
+                // Candoa's per-site Developer Mode deliberately has no row
+                // here: the Develop menu mirrors Safari's, and Safari has no
+                // such item. The toggle lives in the Command Palette and the
+                // sidebar's site controls.
                 // Safari keeps the submenu present and lists registrations
                 // as informational rows; with none, a disabled placeholder.
                 Menu(BrowserCommandTitles.serviceWorkers, systemImage: "gearshape.2") {
@@ -1243,9 +1223,6 @@ struct BrowserCommandActions {
     var toggleSplitView: () -> Void
     var setSplitLayout: (SplitViewLayout) -> Void
     var isSplitDisplayed: Bool
-    var isDeveloperModeAvailable: Bool
-    var isDeveloperModeEnabled: Bool
-    var setDeveloperMode: (Bool) -> Void
     var installedBrowsers: [ExternalBrowserService.Browser]
     var openPageWith: (ExternalBrowserService.Browser) -> Void
     var canUseDevelopTools: Bool
