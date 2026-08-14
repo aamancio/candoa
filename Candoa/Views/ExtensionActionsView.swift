@@ -7,11 +7,12 @@ import SwiftUI
 /// constrained, and most people have no extensions installed.
 @available(macOS 15.4, *)
 internal struct SidebarExtensionsButton: View {
+    var isPrivateWindow = false
     @ObservedObject private var manager = WebExtensionManager.shared
     @State private var isPopoverPresented = false
 
     var body: some View {
-        if manager.hasLoadedExtensions {
+        if manager.hasLoadedExtensions(forPrivateBrowsing: isPrivateWindow) {
             Button {
                 isPopoverPresented = true
             } label: {
@@ -127,8 +128,11 @@ private struct ExtensionsMenuItems: View {
     @Environment(\.openSettings) private var openSettings
 
     var body: some View {
-        if manager.hasLoadedExtensions {
-            ForEach(manager.actionDescriptors()) { descriptor in
+        // actionDescriptors already reflects the focused window: in a
+        // private window it lists only extensions granted private access.
+        let descriptors = manager.actionDescriptors()
+        if !descriptors.isEmpty {
+            ForEach(descriptors) { descriptor in
                 Button {
                     manager.performAction(for: descriptor.id)
                 } label: {

@@ -194,10 +194,10 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         if #available(macOS 15.1, *) {
             configuration.writingToolsBehavior = .complete
         }
-        // Web extensions ride the shared controller; a private window's pages
-        // stay invisible to them, matching the window's nothing-persists
-        // design.
-        if #available(macOS 15.4, *), !isPrivate {
+        // Web extensions ride the shared controller. Private windows carry it
+        // too, but only extensions the person explicitly granted "Allow in
+        // Private Browsing" (hasAccessToPrivateData) ever see their pages.
+        if #available(macOS 15.4, *) {
             configuration.webExtensionController = WebExtensionManager.shared.controller
         }
 

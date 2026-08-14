@@ -606,10 +606,10 @@ struct SidebarView: View {
                     .allowsHitTesting(!hidesNavigationControlsForAddressPalette)
 
                 // Appears only once an extension is loaded, so the
-                // width-constrained header pays for it only then. Private
-                // windows never load extensions, so it never shows there.
-                if #available(macOS 15.4, *), !store.isPrivate {
-                    SidebarExtensionsButton()
+                // width-constrained header pays for it only then. In private
+                // windows that means an extension granted private access.
+                if #available(macOS 15.4, *) {
+                    SidebarExtensionsButton(isPrivateWindow: store.isPrivate)
                 }
 
                 Button {

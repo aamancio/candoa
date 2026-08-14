@@ -152,7 +152,41 @@ struct WebExtensionInstallation: Codable, Equatable, Identifiable {
     var displayName: String
     var version: String
     var isEnabled: Bool
+    /// Whether the person granted this extension access to private windows.
+    /// Off by default: extensions observe browsing, so private access is an
+    /// explicit per-extension choice, as in Safari and Chrome.
+    var allowsPrivateBrowsing: Bool
     let installedAt: Date
+
+    init(
+        id: UUID,
+        displayName: String,
+        version: String,
+        isEnabled: Bool,
+        allowsPrivateBrowsing: Bool = false,
+        installedAt: Date
+    ) {
+        self.id = id
+        self.displayName = displayName
+        self.version = version
+        self.isEnabled = isEnabled
+        self.allowsPrivateBrowsing = allowsPrivateBrowsing
+        self.installedAt = installedAt
+    }
+
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        displayName = try container.decode(String.self, forKey: .displayName)
+        version = try container.decode(String.self, forKey: .version)
+        isEnabled = try container.decode(Bool.self, forKey: .isEnabled)
+        // Records written before the private-browsing toggle existed.
+        allowsPrivateBrowsing = try container.decodeIfPresent(
+            Bool.self,
+            forKey: .allowsPrivateBrowsing
+        ) ?? false
+        installedAt = try container.decode(Date.self, forKey: .installedAt)
+    }
 }
 
 /// The installed-extensions list, stored like Site Info's permission
