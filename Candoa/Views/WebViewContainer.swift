@@ -1386,7 +1386,8 @@ private struct DeveloperToolbar: View {
                 controlMenu
             }
         }
-        .padding(.horizontal, 10)
+        .padding(.leading, isLocalDevelopment ? 16 : 10)
+        .padding(.trailing, 10)
         .padding(.leading, contentInsets.leading)
         .padding(.trailing, contentInsets.trailing)
         .frame(height: 30)
@@ -1541,16 +1542,16 @@ private struct DeveloperToolbar: View {
     }
 }
 
-/// Arc-style local-development banner: the primary blue filled edge to edge,
-/// with wide 45° stripes in a slightly lighter tint so the bar reads as a
-/// deliberate "you are on localhost" surface.
+/// Arc-style local-development banner: the primary blue muted into the
+/// chrome (Alex picked 55% over full strength), with wide 45° stripes in a
+/// slightly lighter tint so the bar reads as a deliberate "you are on
+/// localhost" surface without shouting over the chrome.
 private struct LocalDevelopmentStripedBackground: View {
     var body: some View {
         Canvas { context, size in
-            context.fill(
-                Path(CGRect(origin: .zero, size: size)),
-                with: .color(AppColor.Apple.systemBlue)
-            )
+            let bounds = Path(CGRect(origin: .zero, size: size))
+            context.fill(bounds, with: .color(Color(nsColor: .windowBackgroundColor)))
+            context.fill(bounds, with: .color(AppColor.Apple.systemBlue.opacity(0.55)))
 
             let bandWidth: CGFloat = 14
             let period = bandWidth * 2

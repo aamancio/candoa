@@ -455,15 +455,17 @@ final class CandoaUITests: XCTestCase {
             barSamples.append(try color(atX: xPt, y: barY))
         }
 
-        // Primary blue dominates every sample: strongly blue, never slate.
+        // Primary blue dominates every sample. The muted palette blends
+        // system blue 55% into the chrome, so assert blue *dominance* — the
+        // occlusion regression (#310) read slate with a delta of only ~0.15.
         for sample in barSamples {
             XCTAssertGreaterThan(
-                sample.blueComponent, 0.7,
-                "developer bar is not primary blue at full strength"
+                sample.blueComponent - sample.redComponent, 0.28,
+                "developer bar is not blue-dominant — occluded or wrong palette"
             )
-            XCTAssertLessThan(
-                sample.redComponent, 0.45,
-                "developer bar is washed out or occluded"
+            XCTAssertGreaterThan(
+                sample.blueComponent, 0.45,
+                "developer bar is too dark to read as the primary-blue surface"
             )
         }
 
