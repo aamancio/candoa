@@ -8,6 +8,11 @@
 
 /* Begin PBXBuildFile section */
 		010000000000000000000101 /* CandoaApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000001 /* CandoaApp.swift */; };
+		CA76F499B99AC76B2B4EEC0D /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAD04797D6D34FF9826511EF /* AppDelegate.swift */; };
+		CAFD575F360E8589004DC60F /* DevelopMenuStyler.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA2AF3D9CCD4D72BC545D831 /* DevelopMenuStyler.swift */; };
+		CA63E9922D9485412624D82C /* MenuAlternateInstaller.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAFAA465A491152257AB4070 /* MenuAlternateInstaller.swift */; };
+		CA707FE182A25F8B71DC6124 /* BrowserCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = CADA316C62011C0193B77884 /* BrowserCommands.swift */; };
+		CA6FB3CB6C01320443DD3E01 /* BrowserCommandActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAA348F0E336BC80041CE635 /* BrowserCommandActions.swift */; };
 		010000000000000000000102 /* BrowserTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000002 /* BrowserTab.swift */; };
 		010000000000000000000103 /* BrowserSpace.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000003 /* BrowserSpace.swift */; };
 		010000000000000000000104 /* BrowserWindowState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000004 /* BrowserWindowState.swift */; };
@@ -41,6 +46,9 @@
 		010000000000000000000122 /* SidebarRevealMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000032 /* SidebarRevealMonitor.swift */; };
 		010000000000000000000123 /* WindowInteractionConfigurator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000033 /* WindowInteractionConfigurator.swift */; };
 		010000000000000000000124 /* FloatingMiniPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000034 /* FloatingMiniPlayer.swift */; };
+		CAC7EAB7B7187201DFEAC713 /* MiniPlayerControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA94F84A914141F7A72E9C5F /* MiniPlayerControls.swift */; };
+		CA6D108AF7262D97F46E57E8 /* MiniPlayerResize.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAC1C3175517372EC2ABC97D /* MiniPlayerResize.swift */; };
+		CA34D03CADD2319E49A981FD /* CursorHover.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA0C0142FC7B480E54DDD4C9 /* CursorHover.swift */; };
 		010000000000000000000125 /* ShortcutSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000035 /* ShortcutSettingsView.swift */; };
 		010000000000000000000140 /* ContentBlockerService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000040 /* ContentBlockerService.swift */; };
 		010000000000000000000141 /* CopiedURLToastView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000041 /* CopiedURLToastView.swift */; };
@@ -51,6 +59,12 @@
 		010000000000000000000146 /* EliSidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000046 /* EliSidebarView.swift */; };
 		010000000000000000000192 /* SharePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0100000000000000000000f3 /* SharePicker.swift */; };
 		010000000000000000000147 /* EliSidebarComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000047 /* EliSidebarComponents.swift */; };
+		CAC24A9A2DCF844B5373F5FE /* EliSidebarModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA1142A4C6D5C3C0EBDE94EB /* EliSidebarModels.swift */; };
+		CA8D5B1A3D140BF781AF92CD /* EliSidebarComposerControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAE98823C224BDA9444C5F27 /* EliSidebarComposerControls.swift */; };
+		CAD9C2BABF8535AF265B143E /* EliSpeechController.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA2C95A9705ADAE39AA992AF /* EliSpeechController.swift */; };
+		CA4D3730DB4BB9718D9FCC8C /* EliSidebarMessageRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA5F3FB977B0F8216E742318 /* EliSidebarMessageRow.swift */; };
+		CA841189B64D7D3F46F77E12 /* EliMemoryPopover.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAF46B1181F6CCDC3D8925BA /* EliMemoryPopover.swift */; };
+		CAE61EACC3D987AEDC725F72 /* EliSubscriptionGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA82A432C86FEBD1DFF7E0FA /* EliSubscriptionGate.swift */; };
 		010000000000000000000148 /* EliContextCompactor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000048 /* EliContextCompactor.swift */; };
 		010000000000000000000150 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000050 /* Assets.xcassets */; };
 		010000000000000000000151 /* HistoryVisit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000051 /* HistoryVisit.swift */; };
@@ -63,12 +77,29 @@
 		010000000000000000000155 /* BrowserStore+Media.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000055 /* BrowserStore+Media.swift */; };
 		010000000000000000000160 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 010000000000000000000161 /* Sparkle */; };
 		010000000000000000000170 /* CandoaUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000060 /* CandoaUITests.swift */; };
+		CA48EDA59BBFD035A2B7D09A /* CandoaUITests+SplitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAB2EE54E68D89DC9ED47404 /* CandoaUITests+SplitView.swift */; };
+		CA21A09E269885B46E97DF53 /* CandoaUITests+BrowsingAndPrivacy.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA450046AA6C329AA66E8865 /* CandoaUITests+BrowsingAndPrivacy.swift */; };
+		CAF45EF99A22A31025D458FD /* CandoaUITests+DownloadsAndImport.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAFDC2087C832B20BA2346BA /* CandoaUITests+DownloadsAndImport.swift */; };
+		CAD4D39797CE3AEF87CEE2EF /* CandoaUITests+OnboardingAndSpaces.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA57C4F1F5DF752BC2F2AB23 /* CandoaUITests+OnboardingAndSpaces.swift */; };
+		CA885253E521D36DCBAE87E6 /* CandoaUITests+AccountAndEliSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAFE386717AB000E10CE39BD /* CandoaUITests+AccountAndEliSettings.swift */; };
+		CAC6116435D9DBFD2E0CE900 /* CandoaUITests+TabsAndShortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA86FCF8660ECC4D43248FE3 /* CandoaUITests+TabsAndShortcuts.swift */; };
+		CAEC3052673F91852A97A428 /* CandoaUITests+Eli.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAC68FE38CF9BF7A3AB991C0 /* CandoaUITests+Eli.swift */; };
+		CAB573E05533D50E07BE276A /* CandoaUITests+MenusAndSiteInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA81D81865A1D95E1295B6CC /* CandoaUITests+MenusAndSiteInfo.swift */; };
+		CAB1CFB99C461C914657EA83 /* CandoaUITests+Support.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAF278299DA0EB114F46C013 /* CandoaUITests+Support.swift */; };
+		CACE45550886BB1174F97E32 /* EliLiveUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAD4C986355B52C75DFAB112 /* EliLiveUITests.swift */; };
 		010000000000000000000171 /* CommandPaletteView+Layout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000061 /* CommandPaletteView+Layout.swift */; };
 		010000000000000000000172 /* CommandPaletteView+Commands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000062 /* CommandPaletteView+Commands.swift */; };
 		010000000000000000000174 /* CommandPaletteComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000064 /* CommandPaletteComponents.swift */; };
 		010000000000000000000175 /* CommandPaletteModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000065 /* CommandPaletteModels.swift */; };
 		010000000000000000000176 /* AccountService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000066 /* AccountService.swift */; };
 		010000000000000000000177 /* InitialOnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000067 /* InitialOnboardingView.swift */; };
+		CAAD787CB7D5F6DA28D5F9AE /* InitialTourPopover.swift in Sources */ = {isa = PBXBuildFile; fileRef = CACDAD113937BAC24AD303F7 /* InitialTourPopover.swift */; };
+		CA831C5CF1B3C52269454FD6 /* WelcomeOnboardingStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA32C11AB2DF59CB6F2E0C29 /* WelcomeOnboardingStep.swift */; };
+		CA5CD1CEDC2BB77D9409136B /* AccountOnboardingStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA139C67763972BACFF942E1 /* AccountOnboardingStep.swift */; };
+		CA7D01270A89293BEF495AB9 /* ImportOnboardingStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA11F57C54EA4B3C2E92E664 /* ImportOnboardingStep.swift */; };
+		CA5C84236DDFAB6F3E879D3F /* SpaceOnboardingStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAA1C25325B51B5980638C31 /* SpaceOnboardingStep.swift */; };
+		CA1CA0DBB49EDB9286201C0A /* AddressBarOnboardingStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAB929FF1E5C2C645379B1A3 /* AddressBarOnboardingStep.swift */; };
+		CA2FD9F554C2ECB4DF65A93E /* OnboardingSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA29A81E4BDD612B972B0989 /* OnboardingSurface.swift */; };
 		010000000000000000000178 /* BrowserImportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000068 /* BrowserImportService.swift */; };
 		A1B2C3D4E5F60718293A4B5C /* CommandPaletteSearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E4F5A60718293A4B5C /* CommandPaletteSearch.swift */; };
 		A1B2C3D4E5F60718293A4B5E /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B5D /* Localizable.xcstrings */; };
@@ -178,6 +209,11 @@
 
 /* Begin PBXFileReference section */
 		010000000000000000000001 /* CandoaApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CandoaApp.swift; sourceTree = "<group>"; };
+		CAD04797D6D34FF9826511EF /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		CA2AF3D9CCD4D72BC545D831 /* DevelopMenuStyler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevelopMenuStyler.swift; sourceTree = "<group>"; };
+		CAFAA465A491152257AB4070 /* MenuAlternateInstaller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuAlternateInstaller.swift; sourceTree = "<group>"; };
+		CADA316C62011C0193B77884 /* BrowserCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserCommands.swift; sourceTree = "<group>"; };
+		CAA348F0E336BC80041CE635 /* BrowserCommandActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserCommandActions.swift; sourceTree = "<group>"; };
 		010000000000000000000002 /* BrowserTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserTab.swift; sourceTree = "<group>"; };
 		010000000000000000000003 /* BrowserSpace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserSpace.swift; sourceTree = "<group>"; };
 		010000000000000000000004 /* BrowserWindowState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserWindowState.swift; sourceTree = "<group>"; };
@@ -214,6 +250,9 @@
 		010000000000000000000032 /* SidebarRevealMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarRevealMonitor.swift; sourceTree = "<group>"; };
 		010000000000000000000033 /* WindowInteractionConfigurator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowInteractionConfigurator.swift; sourceTree = "<group>"; };
 		010000000000000000000034 /* FloatingMiniPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FloatingMiniPlayer.swift; sourceTree = "<group>"; };
+		CA94F84A914141F7A72E9C5F /* MiniPlayerControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniPlayerControls.swift; sourceTree = "<group>"; };
+		CAC1C3175517372EC2ABC97D /* MiniPlayerResize.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniPlayerResize.swift; sourceTree = "<group>"; };
+		CA0C0142FC7B480E54DDD4C9 /* CursorHover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CursorHover.swift; sourceTree = "<group>"; };
 		010000000000000000000035 /* ShortcutSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutSettingsView.swift; sourceTree = "<group>"; };
 		010000000000000000000040 /* ContentBlockerService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentBlockerService.swift; sourceTree = "<group>"; };
 		010000000000000000000041 /* CopiedURLToastView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CopiedURLToastView.swift; sourceTree = "<group>"; };
@@ -224,6 +263,12 @@
 		010000000000000000000046 /* EliSidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EliSidebarView.swift; sourceTree = "<group>"; };
 		0100000000000000000000f3 /* SharePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharePicker.swift; sourceTree = "<group>"; };
 		010000000000000000000047 /* EliSidebarComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EliSidebarComponents.swift; sourceTree = "<group>"; };
+		CA1142A4C6D5C3C0EBDE94EB /* EliSidebarModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EliSidebarModels.swift; sourceTree = "<group>"; };
+		CAE98823C224BDA9444C5F27 /* EliSidebarComposerControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EliSidebarComposerControls.swift; sourceTree = "<group>"; };
+		CA2C95A9705ADAE39AA992AF /* EliSpeechController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EliSpeechController.swift; sourceTree = "<group>"; };
+		CA5F3FB977B0F8216E742318 /* EliSidebarMessageRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EliSidebarMessageRow.swift; sourceTree = "<group>"; };
+		CAF46B1181F6CCDC3D8925BA /* EliMemoryPopover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EliMemoryPopover.swift; sourceTree = "<group>"; };
+		CA82A432C86FEBD1DFF7E0FA /* EliSubscriptionGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EliSubscriptionGate.swift; sourceTree = "<group>"; };
 		010000000000000000000048 /* EliContextCompactor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EliContextCompactor.swift; sourceTree = "<group>"; };
 		010000000000000000000050 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		010000000000000000000051 /* HistoryVisit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryVisit.swift; sourceTree = "<group>"; };
@@ -235,6 +280,16 @@
 		010000000000000000000054 /* BrowserStore+Eli.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+Eli.swift"; sourceTree = "<group>"; };
 		010000000000000000000055 /* BrowserStore+Media.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+Media.swift"; sourceTree = "<group>"; };
 		010000000000000000000060 /* CandoaUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CandoaUITests.swift; sourceTree = "<group>"; };
+		CAB2EE54E68D89DC9ED47404 /* CandoaUITests+SplitView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CandoaUITests+SplitView.swift"; sourceTree = "<group>"; };
+		CA450046AA6C329AA66E8865 /* CandoaUITests+BrowsingAndPrivacy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CandoaUITests+BrowsingAndPrivacy.swift"; sourceTree = "<group>"; };
+		CAFDC2087C832B20BA2346BA /* CandoaUITests+DownloadsAndImport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CandoaUITests+DownloadsAndImport.swift"; sourceTree = "<group>"; };
+		CA57C4F1F5DF752BC2F2AB23 /* CandoaUITests+OnboardingAndSpaces.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CandoaUITests+OnboardingAndSpaces.swift"; sourceTree = "<group>"; };
+		CAFE386717AB000E10CE39BD /* CandoaUITests+AccountAndEliSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CandoaUITests+AccountAndEliSettings.swift"; sourceTree = "<group>"; };
+		CA86FCF8660ECC4D43248FE3 /* CandoaUITests+TabsAndShortcuts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CandoaUITests+TabsAndShortcuts.swift"; sourceTree = "<group>"; };
+		CAC68FE38CF9BF7A3AB991C0 /* CandoaUITests+Eli.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CandoaUITests+Eli.swift"; sourceTree = "<group>"; };
+		CA81D81865A1D95E1295B6CC /* CandoaUITests+MenusAndSiteInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CandoaUITests+MenusAndSiteInfo.swift"; sourceTree = "<group>"; };
+		CAF278299DA0EB114F46C013 /* CandoaUITests+Support.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CandoaUITests+Support.swift"; sourceTree = "<group>"; };
+		CAD4C986355B52C75DFAB112 /* EliLiveUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EliLiveUITests.swift; sourceTree = "<group>"; };
 		010000000000000000000061 /* CommandPaletteView+Layout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CommandPaletteView+Layout.swift"; sourceTree = "<group>"; };
 		010000000000000000000062 /* CommandPaletteView+Commands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CommandPaletteView+Commands.swift"; sourceTree = "<group>"; };
 		010000000000000000000063 /* CandoaUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CandoaUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -242,6 +297,13 @@
 		010000000000000000000065 /* CommandPaletteModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandPaletteModels.swift; sourceTree = "<group>"; };
 		010000000000000000000066 /* AccountService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountService.swift; sourceTree = "<group>"; };
 		010000000000000000000067 /* InitialOnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InitialOnboardingView.swift; sourceTree = "<group>"; };
+		CACDAD113937BAC24AD303F7 /* InitialTourPopover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InitialTourPopover.swift; sourceTree = "<group>"; };
+		CA32C11AB2DF59CB6F2E0C29 /* WelcomeOnboardingStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeOnboardingStep.swift; sourceTree = "<group>"; };
+		CA139C67763972BACFF942E1 /* AccountOnboardingStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountOnboardingStep.swift; sourceTree = "<group>"; };
+		CA11F57C54EA4B3C2E92E664 /* ImportOnboardingStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportOnboardingStep.swift; sourceTree = "<group>"; };
+		CAA1C25325B51B5980638C31 /* SpaceOnboardingStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpaceOnboardingStep.swift; sourceTree = "<group>"; };
+		CAB929FF1E5C2C645379B1A3 /* AddressBarOnboardingStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddressBarOnboardingStep.swift; sourceTree = "<group>"; };
+		CA29A81E4BDD612B972B0989 /* OnboardingSurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingSurface.swift; sourceTree = "<group>"; };
 		010000000000000000000068 /* BrowserImportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserImportService.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A4B5D /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		DE0000000000000000000007 /* Credits.rtf */ = {isa = PBXFileReference; lastKnownFileType = text.rtf; path = Credits.rtf; sourceTree = "<group>"; };
@@ -389,6 +451,11 @@
 			isa = PBXGroup;
 			children = (
 				010000000000000000000001 /* CandoaApp.swift */,
+				CAD04797D6D34FF9826511EF /* AppDelegate.swift */,
+				CA2AF3D9CCD4D72BC545D831 /* DevelopMenuStyler.swift */,
+				CAFAA465A491152257AB4070 /* MenuAlternateInstaller.swift */,
+				CADA316C62011C0193B77884 /* BrowserCommands.swift */,
+				CAA348F0E336BC80041CE635 /* BrowserCommandActions.swift */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -420,11 +487,24 @@
 				CA00000000000000000A0003 /* ClearBrowsingDataSheet.swift */,
 				CA00000000000000000A0001 /* BrowserMenuController.swift */,
 				010000000000000000000067 /* InitialOnboardingView.swift */,
+				CACDAD113937BAC24AD303F7 /* InitialTourPopover.swift */,
+				CA32C11AB2DF59CB6F2E0C29 /* WelcomeOnboardingStep.swift */,
+				CA139C67763972BACFF942E1 /* AccountOnboardingStep.swift */,
+				CA11F57C54EA4B3C2E92E664 /* ImportOnboardingStep.swift */,
+				CAA1C25325B51B5980638C31 /* SpaceOnboardingStep.swift */,
+				CAB929FF1E5C2C645379B1A3 /* AddressBarOnboardingStep.swift */,
+				CA29A81E4BDD612B972B0989 /* OnboardingSurface.swift */,
 				010000000000000000000045 /* EliSidebarResizeHandle.swift */,
 				010000000000000000000046 /* EliSidebarView.swift */,
 				EF0000000000000000000006 /* EliSidebarSupportingViews.swift */,
 				0100000000000000000000f3 /* SharePicker.swift */,
 				010000000000000000000047 /* EliSidebarComponents.swift */,
+				CA1142A4C6D5C3C0EBDE94EB /* EliSidebarModels.swift */,
+				CAE98823C224BDA9444C5F27 /* EliSidebarComposerControls.swift */,
+				CA2C95A9705ADAE39AA992AF /* EliSpeechController.swift */,
+				CA5F3FB977B0F8216E742318 /* EliSidebarMessageRow.swift */,
+				CAF46B1181F6CCDC3D8925BA /* EliMemoryPopover.swift */,
+				CA82A432C86FEBD1DFF7E0FA /* EliSubscriptionGate.swift */,
 				010000000000000000000012 /* SidebarView.swift */,
 				SI00000000000000000000A2 /* SiteInfoView.swift */,
 				EF000000000000000000000F /* TopAddressBar.swift */,
@@ -467,6 +547,9 @@
 				010000000000000000000032 /* SidebarRevealMonitor.swift */,
 				010000000000000000000033 /* WindowInteractionConfigurator.swift */,
 				010000000000000000000034 /* FloatingMiniPlayer.swift */,
+				CA94F84A914141F7A72E9C5F /* MiniPlayerControls.swift */,
+				CAC1C3175517372EC2ABC97D /* MiniPlayerResize.swift */,
+				CA0C0142FC7B480E54DDD4C9 /* CursorHover.swift */,
 				010000000000000000000035 /* ShortcutSettingsView.swift */,
 				F1A2B3C4D5E60718293A4B5C /* SettingsPanes.swift */,
 				AE00000000000000000000A4 /* ExtensionsSettingsPane.swift */,
@@ -555,6 +638,16 @@
 			isa = PBXGroup;
 			children = (
 				010000000000000000000060 /* CandoaUITests.swift */,
+				CAB2EE54E68D89DC9ED47404 /* CandoaUITests+SplitView.swift */,
+				CA450046AA6C329AA66E8865 /* CandoaUITests+BrowsingAndPrivacy.swift */,
+				CAFDC2087C832B20BA2346BA /* CandoaUITests+DownloadsAndImport.swift */,
+				CA57C4F1F5DF752BC2F2AB23 /* CandoaUITests+OnboardingAndSpaces.swift */,
+				CAFE386717AB000E10CE39BD /* CandoaUITests+AccountAndEliSettings.swift */,
+				CA86FCF8660ECC4D43248FE3 /* CandoaUITests+TabsAndShortcuts.swift */,
+				CAC68FE38CF9BF7A3AB991C0 /* CandoaUITests+Eli.swift */,
+				CA81D81865A1D95E1295B6CC /* CandoaUITests+MenusAndSiteInfo.swift */,
+				CAF278299DA0EB114F46C013 /* CandoaUITests+Support.swift */,
+				CAD4C986355B52C75DFAB112 /* EliLiveUITests.swift */,
 			);
 			path = CandoaUITests;
 			sourceTree = "<group>";
@@ -796,6 +889,11 @@
 			buildActionMask = 2147483647;
 			files = (
 				010000000000000000000101 /* CandoaApp.swift in Sources */,
+				CA76F499B99AC76B2B4EEC0D /* AppDelegate.swift in Sources */,
+				CAFD575F360E8589004DC60F /* DevelopMenuStyler.swift in Sources */,
+				CA63E9922D9485412624D82C /* MenuAlternateInstaller.swift in Sources */,
+				CA707FE182A25F8B71DC6124 /* BrowserCommands.swift in Sources */,
+				CA6FB3CB6C01320443DD3E01 /* BrowserCommandActions.swift in Sources */,
 				010000000000000000000102 /* BrowserTab.swift in Sources */,
 				010000000000000000000103 /* BrowserSpace.swift in Sources */,
 				010000000000000000000104 /* BrowserWindowState.swift in Sources */,
@@ -893,6 +991,9 @@
 				010000000000000000000122 /* SidebarRevealMonitor.swift in Sources */,
 				010000000000000000000123 /* WindowInteractionConfigurator.swift in Sources */,
 				010000000000000000000124 /* FloatingMiniPlayer.swift in Sources */,
+				CAC7EAB7B7187201DFEAC713 /* MiniPlayerControls.swift in Sources */,
+				CA6D108AF7262D97F46E57E8 /* MiniPlayerResize.swift in Sources */,
+				CA34D03CADD2319E49A981FD /* CursorHover.swift in Sources */,
 				010000000000000000000125 /* ShortcutSettingsView.swift in Sources */,
 				E1A2B3D4F5C60718293A4B5C /* SettingsPanes.swift in Sources */,
 				AE00000000000000000001A4 /* ExtensionsSettingsPane.swift in Sources */,
@@ -920,6 +1021,13 @@
 				DD0000000000000000000101 /* AppleSignInService.swift in Sources */,
 				AB7700000000000000000101 /* WebAuthenticationSessionHostService.swift in Sources */,
 				010000000000000000000177 /* InitialOnboardingView.swift in Sources */,
+				CAAD787CB7D5F6DA28D5F9AE /* InitialTourPopover.swift in Sources */,
+				CA831C5CF1B3C52269454FD6 /* WelcomeOnboardingStep.swift in Sources */,
+				CA5CD1CEDC2BB77D9409136B /* AccountOnboardingStep.swift in Sources */,
+				CA7D01270A89293BEF495AB9 /* ImportOnboardingStep.swift in Sources */,
+				CA5C84236DDFAB6F3E879D3F /* SpaceOnboardingStep.swift in Sources */,
+				CA1CA0DBB49EDB9286201C0A /* AddressBarOnboardingStep.swift in Sources */,
+				CA2FD9F554C2ECB4DF65A93E /* OnboardingSurface.swift in Sources */,
 				010000000000000000000178 /* BrowserImportService.swift in Sources */,
 				BB0000000000000000000101 /* BrowserPasskeyAuthorizationService.swift in Sources */,
 				010000000000000000000143 /* EliPromptPolicy.swift in Sources */,
@@ -929,6 +1037,12 @@
 				EF0000000000000000000106 /* EliSidebarSupportingViews.swift in Sources */,
 				010000000000000000000192 /* SharePicker.swift in Sources */,
 				010000000000000000000147 /* EliSidebarComponents.swift in Sources */,
+				CAC24A9A2DCF844B5373F5FE /* EliSidebarModels.swift in Sources */,
+				CA8D5B1A3D140BF781AF92CD /* EliSidebarComposerControls.swift in Sources */,
+				CAD9C2BABF8535AF265B143E /* EliSpeechController.swift in Sources */,
+				CA4D3730DB4BB9718D9FCC8C /* EliSidebarMessageRow.swift in Sources */,
+				CA841189B64D7D3F46F77E12 /* EliMemoryPopover.swift in Sources */,
+				CAE61EACC3D987AEDC725F72 /* EliSubscriptionGate.swift in Sources */,
 				010000000000000000000148 /* EliContextCompactor.swift in Sources */,
 				010000000000000000000151 /* HistoryVisit.swift in Sources */,
 				CA00000000000000000A0102 /* HomepagePreference.swift in Sources */,
@@ -946,6 +1060,16 @@
 			buildActionMask = 2147483647;
 			files = (
 				010000000000000000000170 /* CandoaUITests.swift in Sources */,
+				CA48EDA59BBFD035A2B7D09A /* CandoaUITests+SplitView.swift in Sources */,
+				CA21A09E269885B46E97DF53 /* CandoaUITests+BrowsingAndPrivacy.swift in Sources */,
+				CAF45EF99A22A31025D458FD /* CandoaUITests+DownloadsAndImport.swift in Sources */,
+				CAD4D39797CE3AEF87CEE2EF /* CandoaUITests+OnboardingAndSpaces.swift in Sources */,
+				CA885253E521D36DCBAE87E6 /* CandoaUITests+AccountAndEliSettings.swift in Sources */,
+				CAC6116435D9DBFD2E0CE900 /* CandoaUITests+TabsAndShortcuts.swift in Sources */,
+				CAEC3052673F91852A97A428 /* CandoaUITests+Eli.swift in Sources */,
+				CAB573E05533D50E07BE276A /* CandoaUITests+MenusAndSiteInfo.swift in Sources */,
+				CAB1CFB99C461C914657EA83 /* CandoaUITests+Support.swift in Sources */,
+				CACE45550886BB1174F97E32 /* EliLiveUITests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
