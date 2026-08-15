@@ -450,6 +450,8 @@ struct ContentView: View {
                 toggleSplitView()
             } onSplitLayout: { layout in
                 store.setSplitLayout(layout)
+            } onZoomSplitPane: {
+                store.toggleSplitPaneZoom()
             }
         )
         // isCommandPalettePresented deliberately has no .animation(value:)
@@ -667,6 +669,8 @@ struct ContentView: View {
             toggleSplitView: toggleSplitView,
             setSplitLayout: store.setSplitLayout,
             isSplitDisplayed: store.isSplitViewDisplayed,
+            toggleSplitPaneZoom: store.toggleSplitPaneZoom,
+            isSplitPaneZoomed: store.isSplitPaneZoomed,
             installedBrowsers: ExternalBrowserService.installedBrowsers(),
             openPageWith: { store.openActivePage(with: $0) },
             canUseDevelopTools: store.canUseDevelopTools,

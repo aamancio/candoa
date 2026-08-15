@@ -24914,6 +24914,47 @@
         }
       }
     },
+    "Show All Panes" : {
+      "comment" : "Split View: brings the other panes back after zooming one.",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alle Bereiche anzeigen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostrar todos los paneles"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Afficher tous les panneaux"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "すべてのペインを表示"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostrar Todos os Painéis"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示所有窗格"
+          }
+        }
+      }
+    },
     "Show Downloads" : {
       "localizations" : {
         "de" : {
@@ -32767,6 +32808,47 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "缩小"
+          }
+        }
+      }
+    },
+    "Zoom Pane" : {
+      "comment" : "Split View: fills the surface with the focused pane. Zooming a pane, not the page — the page-zoom items are separate.",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bereich vergrößern"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ampliar panel"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agrandir le panneau"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ペインを拡大"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ampliar Painel"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "放大窗格"
           }
         }
       }

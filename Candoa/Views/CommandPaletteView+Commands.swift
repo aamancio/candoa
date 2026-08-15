@@ -304,6 +304,22 @@ extension CommandPaletteView {
             PaletteCommand(title: BrowserCommandTitles.focusAddressBar, symbolName: "text.cursor", action: .focusAddressBar)
         ]
 
+        // Only while a split is on screen: the palette lists what can be
+        // done now, and zoom has no meaning without panes to zoom between.
+        if store.isSplitViewDisplayed {
+            commands.append(
+                PaletteCommand(
+                    title: store.isSplitPaneZoomed
+                        ? BrowserCommandTitles.showAllSplitPanes
+                        : BrowserCommandTitles.zoomSplitPane,
+                    symbolName: store.isSplitPaneZoomed
+                        ? "arrow.down.right.and.arrow.up.left"
+                        : "arrow.up.left.and.arrow.down.right",
+                    action: .toggleSplitPaneZoom
+                )
+            )
+        }
+
         if store.isPrivate {
             // Private windows have no Spaces to manage.
             commands.removeAll { command in
@@ -482,6 +498,8 @@ extension CommandPaletteView {
             store.reloadActiveTab()
         case .toggleSplitView:
             store.toggleSplitView()
+        case .toggleSplitPaneZoom:
+            store.toggleSplitPaneZoom()
         case .createSpace:
             store.beginSpaceCreation()
         case .focusAddressBar:

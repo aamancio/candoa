@@ -70,28 +70,37 @@ internal struct SplitPaneDivider: View {
 /// Zen-style control pill at a pane's top center, revealed on hover: a
 /// six-dot grab area that drags the pane to another slot (the target pane
 /// highlights, the reorder commits on release — panes never relayout
-/// mid-drag), and an expand toggle that gives the pane the whole surface
-/// and back. The pill's footprint is small so the rest of the page's top
-/// edge stays clickable.
+/// mid-drag), a zoom toggle that gives the pane the whole surface and back,
+/// and an unsplit button. The pill's footprint is small so the rest of the
+/// page's top edge stays clickable.
+///
+/// A zoomed pane's pill drops to the zoom control alone and stops hiding
+/// itself: with the other panes off screen it is the only sign that a split
+/// is still waiting underneath, and forgetting you are in a mode is the one
+/// real cost of zoom. Moving or unsplitting a pane means nothing while it is
+/// the only one showing, so those controls step aside for the way out.
 internal struct SplitPaneControlPill: View {
     /// The pointer is over the pane (reported by the pane host's tracking
     /// area) — the discoverable way the pill reveals itself.
     let isPaneHovered: Bool
     let isDraggingThisPane: Bool
+    let isZoomed: Bool
     let paneIndex: Int
     let onDragChanged: (CGPoint) -> Void
     let onDragEnded: (CGPoint) -> Void
     let onUnsplit: () -> Void
+    let onToggleZoom: () -> Void
 
     @State private var isHovering = false
 
     private var isRevealed: Bool {
-        isPaneHovered || isHovering || isDraggingThisPane
+        isZoomed || isPaneHovered || isHovering || isDraggingThisPane
     }
 
     var body: some View {
         HStack(spacing: 0) {
-            gripDots
+            if !isZoomed {
+                gripDots
                 .frame(width: 34, height: 20)
                 .contentShape(Rectangle())
                 // Grab cursors live in the AppKit layer: the open hand
@@ -117,18 +126,41 @@ internal struct SplitPaneControlPill: View {
                 .accessibilityElement()
                 .accessibilityLabel("Move Pane")
                 .accessibilityIdentifier("split-pane-grip-\(paneIndex)")
+            }
 
-            Button(action: onUnsplit) {
-                Image(systemName: "arrow.down.left.and.arrow.up.right")
-                    .font(.system(size: 10, weight: .semibold))
-                    .frame(width: 26, height: 20)
-                    .contentShape(Rectangle())
+            Button(action: onToggleZoom) {
+                Image(
+                    systemName: isZoomed
+                        ? "arrow.down.right.and.arrow.up.left"
+                        : "arrow.up.left.and.arrow.down.right"
+                )
+                .font(.system(size: 10, weight: .semibold))
+                .frame(width: 26, height: 20)
+                .contentShape(Rectangle())
             }
             .buttonTreatment(.content)
-            .foregroundStyle(.secondary)
-            .help("Unsplit — Move Back to Tab List")
-            .accessibilityLabel("Unsplit")
-            .accessibilityIdentifier("split-pane-unsplit-\(paneIndex)")
+            .foregroundStyle(isZoomed ? AnyShapeStyle(AppColor.accent) : AnyShapeStyle(.secondary))
+            .help(isZoomed ? BrowserCommandTitles.showAllSplitPanes : BrowserCommandTitles.zoomSplitPane)
+            .accessibilityLabel(isZoomed ? BrowserCommandTitles.showAllSplitPanes : BrowserCommandTitles.zoomSplitPane)
+            .accessibilityIdentifier("split-pane-zoom-\(paneIndex)")
+
+            if !isZoomed {
+                // Unsplit used to wear the outward-arrows glyph, which now
+                // belongs to zoom — two buttons in one pill cannot both mean
+                // "make this bigger". The door glyph says what unsplit
+                // actually does: this pane leaves the group.
+                Button(action: onUnsplit) {
+                    Image(systemName: "rectangle.portrait.and.arrow.right")
+                        .font(.system(size: 10, weight: .semibold))
+                        .frame(width: 26, height: 20)
+                        .contentShape(Rectangle())
+                }
+                .buttonTreatment(.content)
+                .foregroundStyle(.secondary)
+                .help("Unsplit — Move Back to Tab List")
+                .accessibilityLabel("Unsplit")
+                .accessibilityIdentifier("split-pane-unsplit-\(paneIndex)")
+            }
         }
         .padding(.horizontal, 4)
         .padding(.vertical, 2)

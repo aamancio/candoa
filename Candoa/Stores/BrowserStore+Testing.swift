@@ -442,6 +442,7 @@ extension BrowserStore {
             "splitActive=\(splitActiveTitle)",
             "splitRatios=\(splitRatioText)",
             "splitLayout=\(splitLayout.rawValue)",
+            "splitZoom=\(zoomedSplitTabID.flatMap { id in activeSplitGroupTabs.first(where: { $0.id == id })?.title } ?? "none")",
             "downloads=\(downloadsStore.uiTestingDescription)",
             "downloadsShown=\(isDownloadsPopoverPresented)",
             "siteInfoShown=\(isSiteInfoPopoverPresented)",

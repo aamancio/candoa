@@ -103,6 +103,18 @@ enum BrowserCommandTitles {
     // instead -- neither word can be read the other way round.
     static let splitLayoutHorizontal = String(localized: "Side by Side")
     static let splitLayoutVertical = String(localized: "Stacked")
+    // Terminals call this zoom, and the pair reads as one reversible action:
+    // the pane fills the surface, then every pane comes back. "Zoom" alone
+    // would collide with the page zoom items in the same menu, so the pane
+    // is always named.
+    static let zoomSplitPane = String(
+        localized: "Zoom Pane",
+        comment: "Split View: fills the surface with the focused pane. Zooming a pane, not the page — the page-zoom items are separate."
+    )
+    static let showAllSplitPanes = String(
+        localized: "Show All Panes",
+        comment: "Split View: brings the other panes back after zooming one."
+    )
 }
 
 enum BrowserDefaults {
