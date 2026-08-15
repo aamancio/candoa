@@ -14,6 +14,7 @@ internal struct EliSettingsPane: View {
     /// Per-provider model lists fetched from the provider's own API with the
     /// available credential; absent entries fall back to the curated catalog.
     @State private var dynamicDirectModels: [AIProvider: [AIModel]] = [:]
+    @State private var profile = UserProfileStore.load()
     @EnvironmentObject private var userStore: UserStore
 
     /// UI-test launches share the real defaults domain, so persistence is
@@ -167,6 +168,8 @@ internal struct EliSettingsPane: View {
                     )
                 }
 
+                profileSection
+
                 if connection == .personalKey {
                     personalKeySection
                 }
@@ -187,6 +190,46 @@ internal struct EliSettingsPane: View {
         }
         .task(id: dynamicModelFetchKey) {
             await refreshDynamicDirectModels()
+        }
+    }
+
+    /// What Eli may type into a form. Everything here is entered by hand —
+    /// nothing arrives from a conversation — and a blank field stays blank on
+    /// the page rather than being guessed at.
+    private var profileSection: some View {
+        Group {
+            SettingsSectionTitle("Your Details")
+
+            SettingsCard {
+                Text("Eli fills these into forms you ask it to complete, and leaves anything you haven't filled in blank. Passwords, payment details, and government IDs are never stored here.")
+                    .font(.system(size: 11.5))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 14)
+                    .padding(.top, 11)
+                    .padding(.bottom, 4)
+
+                SettingsTextFieldRow(title: String(localized: "Given name"), text: $profile.givenName)
+                SettingsTextFieldRow(title: String(localized: "Family name"), text: $profile.familyName)
+                SettingsTextFieldRow(title: String(localized: "Email"), text: $profile.email)
+                SettingsTextFieldRow(title: String(localized: "Phone"), text: $profile.phone)
+                SettingsTextFieldRow(title: String(localized: "Street address"), text: $profile.streetAddress)
+                SettingsTextFieldRow(title: String(localized: "City"), text: $profile.city)
+                SettingsTextFieldRow(title: String(localized: "State or province"), text: $profile.region)
+                SettingsTextFieldRow(title: String(localized: "Postal code"), text: $profile.postalCode)
+                SettingsTextFieldRow(title: String(localized: "Country"), text: $profile.country)
+                SettingsTextFieldRow(title: String(localized: "Organization"), text: $profile.organization)
+                SettingsTextFieldRow(title: String(localized: "Website"), text: $profile.website)
+                    .padding(.bottom, 6)
+            }
+            .accessibilityIdentifier("eli-profile-card")
+        }
+        .onChange(of: profile) { _, updated in
+            // UI-test launches share the real defaults domain, so the pane
+            // never writes a test's typing into the person's own profile.
+            guard !Self.isUITesting else { return }
+            UserProfileStore.save(updated)
         }
     }
 

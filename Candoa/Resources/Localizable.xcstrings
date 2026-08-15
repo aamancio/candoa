@@ -121,6 +121,166 @@
         }
       }
     },
+    "Address bar" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Barra de direcciones"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Barre d’adresse"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adressleiste"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "アドレスバー"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "地址栏"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Barra de endereço"
+          }
+        }
+      }
+    },
+    "Always in view. A slim bar above every page shows where you are." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Siempre a la vista. Una barra fina sobre cada página muestra dónde estás."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toujours visible. Une fine barre au-dessus de chaque page indique où vous êtes."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Immer im Blick. Eine schmale Leiste über jeder Seite zeigt, wo du bist."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "常に表示。各ページの上の細いバーで現在地がわかります。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "始终可见。每个页面上方的细条会显示你所在的位置。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sempre à vista. Uma barra fina acima de cada página mostra onde você está."
+          }
+        }
+      }
+    },
+    "Candoa keeps the address in the sidebar so pages get the whole window. If you’d rather always see it above the page, choose that here." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Candoa guarda la dirección en la barra lateral para que las páginas ocupen toda la ventana. Si prefieres verla siempre encima de la página, elígelo aquí."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Candoa garde l’adresse dans la barre latérale pour que les pages occupent toute la fenêtre. Si vous préférez toujours la voir au-dessus de la page, choisissez cette option ici."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Candoa hält die Adresse in der Seitenleiste, damit Seiten das ganze Fenster bekommen. Wenn du sie lieber immer über der Seite sehen möchtest, wähle das hier."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Candoa はアドレスをサイドバーに置くので、ページがウインドウ全体を使えます。常にページの上に表示したい場合はここで選んでください。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Candoa 将地址放在边栏中，让页面占据整个窗口。如果你更希望始终在页面上方看到它，请在此选择。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O Candoa mantém o endereço na barra lateral para que as páginas ocupem toda a janela. Se preferir vê-lo sempre acima da página, escolha isso aqui."
+          }
+        }
+      }
+    },
+    "City" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stadt"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ciudad"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ville"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "市区町村"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cidade"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "城市"
+          }
+        }
+      }
+    },
     "Clean and focused. Click the sidebar pill or press ⌘L to go somewhere." : {
       "localizations" : {
         "es" : {
@@ -157,6 +317,86 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Limpo e focado. Clique na pílula da barra lateral ou pressione ⌘L para ir a algum lugar."
+          }
+        }
+      }
+    },
+    "Country" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Land"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "País"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pays"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "国"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "País"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "国家/地区"
+          }
+        }
+      }
+    },
+    "Eli fills these into forms you ask it to complete, and leaves anything you haven't filled in blank. Passwords, payment details, and government IDs are never stored here." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eli trägt diese Angaben in Formulare ein, die du ausfüllen lässt, und lässt alles frei, was du nicht angegeben hast. Passwörter, Zahlungsdaten und Ausweisnummern werden hier nie gespeichert."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eli rellena estos datos en los formularios que le pidas completar y deja en blanco lo que no hayas indicado. Aquí nunca se guardan contraseñas, datos de pago ni documentos de identidad."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eli saisit ces informations dans les formulaires que vous lui demandez de remplir et laisse vide tout ce que vous n’avez pas renseigné. Les mots de passe, les moyens de paiement et les pièces d’identité ne sont jamais enregistrés ici."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eli は入力を依頼されたフォームにこれらの情報を記入し、未入力の項目は空欄のままにします。パスワード、支払い情報、公的な身分証番号がここに保存されることはありません。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O Eli preenche esses dados nos formulários que você pedir para completar e deixa em branco o que você não preencheu. Senhas, dados de pagamento e documentos de identidade nunca são guardados aqui."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "当你让 Eli 填写表单时，它会使用这些信息，并将你未填写的项目留空。此处绝不会保存密码、支付信息或政府身份证件号码。"
           }
         }
       }
@@ -201,6 +441,86 @@
         }
       }
     },
+    "Email" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "E-Mail"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Correo electrónico"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "E-mail"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "メール"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "E-mail"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "电子邮件"
+          }
+        }
+      }
+    },
+    "Family name" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nachname"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apellidos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nom"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "姓"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sobrenome"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "姓"
+          }
+        }
+      }
+    },
     "Fill This Page" : {
       "localizations" : {
         "de" : {
@@ -237,6 +557,46 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "填写此页面"
+          }
+        }
+      }
+    },
+    "Given name" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vorname"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nombre"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prénom"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "名"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nome"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "名"
           }
         }
       }
@@ -321,6 +681,126 @@
         }
       }
     },
+    "Keep the address in the sidebar, or show it above the page." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mantén la dirección en la barra lateral o muéstrala encima de la página."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gardez l’adresse dans la barre latérale ou affichez-la au-dessus de la page."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adresse in der Seitenleiste behalten oder über der Seite anzeigen."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "アドレスをサイドバーに置くか、ページの上に表示します。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "将地址保留在边栏中，或显示在页面上方。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mantenha o endereço na barra lateral ou mostre-o acima da página."
+          }
+        }
+      }
+    },
+    "Organization" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Organisation"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Organización"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Organisation"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "組織"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Organização"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "单位"
+          }
+        }
+      }
+    },
+    "Postal code" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Postleitzahl"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Código postal"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Code postal"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "郵便番号"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CEP"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "邮政编码"
+          }
+        }
+      }
+    },
     "Selected" : {
       "localizations" : {
         "es" : {
@@ -357,6 +837,206 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Selecionado"
+          }
+        }
+      }
+    },
+    "State or province" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bundesland oder Provinz"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estado o provincia"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "État ou province"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "都道府県"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estado ou província"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "省/州"
+          }
+        }
+      }
+    },
+    "Street address" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Straße und Hausnummer"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dirección"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adresse"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "住所"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Endereço"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "街道地址"
+          }
+        }
+      }
+    },
+    "The address sits with your tabs, and pages get the whole window." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La dirección está junto a tus pestañas y las páginas ocupan toda la ventana."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’adresse se trouve avec vos onglets et les pages occupent toute la fenêtre."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Adresse steht bei deinen Tabs, und Seiten bekommen das ganze Fenster."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "アドレスはタブと一緒に並び、ページはウインドウ全体を使えます。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "地址与标签页放在一起，页面占据整个窗口。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O endereço fica com suas abas e as páginas ocupam toda a janela."
+          }
+        }
+      }
+    },
+    "The address stays above the page, like a classic browser." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La dirección permanece encima de la página, como en un navegador clásico."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’adresse reste au-dessus de la page, comme dans un navigateur classique."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Adresse bleibt über der Seite, wie in einem klassischen Browser."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "従来のブラウザのように、アドレスがページの上に表示されたままになります。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "地址始终显示在页面上方，就像传统浏览器一样。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O endereço fica acima da página, como em um navegador clássico."
+          }
+        }
+      }
+    },
+    "Where should the address live?" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "¿Dónde quieres la dirección?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Où placer l’adresse ?"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wo soll die Adresse stehen?"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "アドレスはどこに置きますか？"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "地址放在哪里？"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Onde o endereço deve ficar?"
           }
         }
       }
