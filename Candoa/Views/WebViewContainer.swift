@@ -1306,10 +1306,13 @@ private struct DeveloperToolbar: View {
 
     private var isLocalDevelopment: Bool { url.isLocalDevelopment }
 
-    // Local development wears the brand-blue striped treatment (Arc-style),
-    // which needs the white-on-accent foreground regardless of appearance.
+    // One treatment for every developer-mode page. Local development used to
+    // wear a brand-blue striped bar (Arc-style); it drew the eye to the chrome
+    // instead of the page and read as a different app from every other
+    // surface, so the bar now matches the rest of Candoa's chrome and the URL
+    // itself says where you are.
     private var foreground: Color {
-        isLocalDevelopment ? .white : InterfaceStyle.sidebarText
+        InterfaceStyle.sidebarText
     }
 
     private var selectedControlIDs: [String] {
@@ -1343,7 +1346,7 @@ private struct DeveloperToolbar: View {
                 .textFieldStyle(.plain)
                 .font(.system(size: 12, weight: .medium, design: .monospaced))
                 .foregroundStyle(foreground.opacity(0.92))
-                .tint(isLocalDevelopment ? foreground : AppColor.accent)
+                .tint(AppColor.accent)
                 .lineLimit(1)
                 .focused($isURLFieldFocused)
                 .onSubmit {
@@ -1386,22 +1389,16 @@ private struct DeveloperToolbar: View {
                 controlMenu
             }
         }
-        .padding(.leading, isLocalDevelopment ? 16 : 10)
+        .padding(.leading, 10)
         .padding(.trailing, 10)
         .padding(.leading, contentInsets.leading)
         .padding(.trailing, contentInsets.trailing)
         .frame(height: 30)
         .frame(maxWidth: .infinity)
-        .background {
-            if isLocalDevelopment {
-                LocalDevelopmentStripedBackground()
-            } else {
-                Rectangle().fill(.regularMaterial)
-            }
-        }
+        .background(Rectangle().fill(.regularMaterial))
         .overlay(alignment: .bottom) {
             Rectangle()
-                .fill(isLocalDevelopment ? Color.black.opacity(0.18) : InterfaceStyle.sidebarSeparator)
+                .fill(InterfaceStyle.sidebarSeparator)
                 .frame(height: 1)
         }
     }
@@ -1543,36 +1540,6 @@ private struct DeveloperToolbar: View {
         storedControlIDs = orderedIDs.isEmpty
             ? Self.noControlIDsValue
             : orderedIDs.joined(separator: ",")
-    }
-}
-
-/// Arc-style local-development banner: the primary blue muted into the
-/// chrome (55% over the window background — Alex compared full-strength,
-/// gray-with-blue-stripes, and this in situ, and settled here), with wide
-/// 45° stripes in a slightly lighter tint so the bar reads as a deliberate
-/// "you are on localhost" surface without shouting over the chrome.
-private struct LocalDevelopmentStripedBackground: View {
-    var body: some View {
-        Canvas { context, size in
-            let bounds = Path(CGRect(origin: .zero, size: size))
-            context.fill(bounds, with: .color(Color(nsColor: .windowBackgroundColor)))
-            context.fill(bounds, with: .color(AppColor.Apple.systemBlue.opacity(0.55)))
-
-            // Wide bands like Arc's — Alex found 14pt too thin.
-            let bandWidth: CGFloat = 24
-            let period = bandWidth * 2
-            var x: CGFloat = -size.height
-            while x < size.width {
-                var band = Path()
-                band.move(to: CGPoint(x: x, y: size.height))
-                band.addLine(to: CGPoint(x: x + bandWidth, y: size.height))
-                band.addLine(to: CGPoint(x: x + bandWidth + size.height, y: 0))
-                band.addLine(to: CGPoint(x: x + size.height, y: 0))
-                band.closeSubpath()
-                context.fill(band, with: .color(.white.opacity(0.08)))
-                x += period
-            }
-        }
     }
 }
 
