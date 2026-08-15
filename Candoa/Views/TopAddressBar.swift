@@ -1,22 +1,61 @@
 import SwiftUI
 
-/// The persistent address strip above the page for people who chose the
-/// "Top" placement (`AddressBarPlacement.top`).
+/// The leading half of a toolbar above the page: the sidebar toggle when the
+/// sidebar is away, then back, forward, and reload. Shared by the address
+/// strip and the developer bar, which occupy the same slot on different
+/// pages and must present the same controls in the same order.
+internal struct TopToolbarLeadingControls: View {
+    @ObservedObject var store: BrowserStore
+    let isSidebarVisible: Bool
+    let onToggleSidebar: () -> Void
+
+    var body: some View {
+        HStack(spacing: 4) {
+            // The sidebar header carries the toggle whenever it is on screen;
+            // this slot only fills in for it so the window is never left
+            // without a way back to the tabs.
+            if !isSidebarVisible {
+                Button(action: onToggleSidebar) {
+                    Image(systemName: "sidebar.left")
+                }
+                .toolbarIconButton()
+                .shortcutTooltip("Show Sidebar", shortcut: .toggleSidebar)
+                .accessibilityIdentifier("top-sidebar-toggle-button")
+            }
+
+            BrowserNavigationControls(store: store)
+        }
+    }
+}
+
+/// The toolbar above the page for people who chose the "Above the Page"
+/// placement (`AddressBarPlacement.top`).
 ///
-/// It is the sidebar pill relocated, not a second address surface: the lock
-/// opens Site Info, the address opens the command bar, and the hover control
-/// shares the page — the same three affordances, in the slot the developer
-/// bar occupies on local-development pages (which keep that bar instead).
-/// The sidebar hides its own pill while this strip is shown.
+/// It is laid out the way Dia lays its toolbar out — navigation at the leading
+/// edge, the address reading as plain text beside it, and Eli at the trailing
+/// edge — because the placement moves the whole toolbar out of the sidebar,
+/// not just the address. The sidebar hides its own pill and its navigation
+/// controls while this strip is shown, so exactly one copy of each is on
+/// screen. Local-development pages keep the developer bar, which grows the
+/// same navigation cluster under this placement.
 struct TopAddressBar: View {
     @ObservedObject var store: BrowserStore
     let url: URL?
     /// The interface lanes covering the strip's edges, matching the developer
     /// bar so both start at the same visible run.
     let contentInsets: BrowserInterfaceInsets
+    /// Whether the sidebar is pinned open. Its header carries the toggle when
+    /// it is; the strip takes over the leading slot when it is not, so the
+    /// window is never left without a way back to the tabs.
+    let isSidebarVisible: Bool
+    let onToggleSidebar: () -> Void
 
     @State private var isHovering = false
     @State private var sharePicker = SharePickerCoordinator()
+
+    /// Dia's proportions: tall enough that 24pt controls sit in the strip
+    /// with air around them rather than filling it edge to edge.
+    static let height: CGFloat = 38
 
     private var addressText: String {
         guard let url else { return BrowserDefaults.addressPlaceholder }
@@ -30,6 +69,46 @@ struct TopAddressBar: View {
     }
 
     var body: some View {
+        HStack(spacing: 4) {
+            TopToolbarLeadingControls(
+                store: store,
+                isSidebarVisible: isSidebarVisible,
+                onToggleSidebar: onToggleSidebar
+            )
+
+            addressButton
+                .padding(.leading, 6)
+
+            Spacer(minLength: 4)
+
+            if url != nil {
+                shareButton
+            }
+
+            chatButton
+        }
+        .buttonTreatment(.content)
+        .foregroundStyle(InterfaceStyle.sidebarIcon)
+        .padding(.leading, 10)
+        .padding(.trailing, 8)
+        .padding(.leading, contentInsets.leading)
+        .padding(.trailing, contentInsets.trailing)
+        .frame(height: Self.height)
+        .frame(maxWidth: .infinity)
+        .background(Rectangle().fill(.regularMaterial))
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(InterfaceStyle.sidebarSeparator)
+                .frame(height: 1)
+        }
+        .onHover { isHovering = $0 }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("top-address-bar")
+    }
+
+    /// The lock and the address read as one target, the way the sidebar pill
+    /// pairs them: the lock opens Site Info, the text opens the command bar.
+    private var addressButton: some View {
         HStack(spacing: 0) {
             if let url {
                 siteInfoButton(for: url)
@@ -45,64 +124,77 @@ struct TopAddressBar: View {
                             .foregroundStyle(InterfaceStyle.sidebarIcon)
                     }
 
+                    // Lighter than the sidebar pill's semibold: on the strip
+                    // the address is a label beside the controls, not the
+                    // one thing in a lane, and Dia's reads the same way.
                     Text(addressText)
-                        .font(.system(size: 12.5, weight: .medium))
+                        .font(.system(size: 13))
                         .foregroundStyle(InterfaceStyle.sidebarTextSecondary)
                         .lineLimit(1)
                         .truncationMode(.tail)
-
-                    Spacer(minLength: 0)
                 }
-                .padding(.leading, url == nil ? 10 : 6)
-                .frame(height: 30)
+                .padding(.leading, url == nil ? 6 : 4)
+                .padding(.trailing, 6)
+                .frame(height: 26)
                 .contentShape(Rectangle())
             }
             .buttonTreatment(.content)
             .help(BrowserDefaults.addressPlaceholder)
             .accessibilityLabel("Address")
             .accessibilityIdentifier("top-address-button")
+        }
+    }
 
-            if let url {
-                Button {
-                    let tab = store.activeTab
-                    sharePicker.present(
-                        url: url,
-                        title: tab?.title,
-                        faviconData: tab?.faviconData
-                    ) {}
-                } label: {
-                    Image(systemName: "square.and.arrow.up")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(InterfaceStyle.sidebarIcon)
-                        .frame(width: 28, height: 30)
-                        .contentShape(Rectangle())
-                }
-                .buttonTreatment(.content)
-                .background(SharePickerAnchor(coordinator: sharePicker))
-                .help("Share")
-                .accessibilityLabel("Share")
-                .accessibilityIdentifier("top-share-url-button")
-                // Not 0: fully transparent views stop hit-testing, and the
-                // button must keep its click footprint while visually absent.
-                .opacity(isHovering ? 1 : 0.02)
-                .animation(.easeOut(duration: 0.10), value: isHovering)
+    private var shareButton: some View {
+        Button {
+            guard let url else { return }
+            let tab = store.activeTab
+            sharePicker.present(
+                url: url,
+                title: tab?.title,
+                faviconData: tab?.faviconData
+            ) {}
+        } label: {
+            Image(systemName: "square.and.arrow.up")
+        }
+        .toolbarIconButton()
+        .background(SharePickerAnchor(coordinator: sharePicker))
+        .help("Share")
+        .accessibilityLabel("Share")
+        .accessibilityIdentifier("top-share-url-button")
+        // Not 0: fully transparent views stop hit-testing, and the button
+        // must keep its click footprint while visually absent.
+        .opacity(isHovering ? 1 : 0.02)
+        .animation(.easeOut(duration: 0.10), value: isHovering)
+    }
+
+    /// Dia's trailing "Chat" pill: the one control on the strip that carries
+    /// its name, because it opens a panel rather than acting on the page.
+    private var chatButton: some View {
+        Button {
+            store.requestAISidebarToggle()
+        } label: {
+            HStack(spacing: 5) {
+                Image(systemName: "bubble.left")
+                    .font(.system(size: 11.5, weight: .semibold))
+                    // The bubble's thin tail leaves its mass high, so a
+                    // box-centered glyph reads lifted beside the label.
+                    .offset(y: 0.5)
+                Text("Chat")
+                    .font(.system(size: 12, weight: .medium))
             }
+            .foregroundStyle(InterfaceStyle.sidebarText.opacity(0.82))
+            .padding(.horizontal, 9)
+            .frame(height: 26)
+            .background(
+                InterfaceStyle.sidebarControlFill,
+                in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+            )
+            .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         }
-        .padding(.leading, 10)
-        .padding(.trailing, 8)
-        .padding(.leading, contentInsets.leading)
-        .padding(.trailing, contentInsets.trailing)
-        .frame(height: 30)
-        .frame(maxWidth: .infinity)
-        .background(Rectangle().fill(.regularMaterial))
-        .overlay(alignment: .bottom) {
-            Rectangle()
-                .fill(InterfaceStyle.sidebarSeparator)
-                .frame(height: 1)
-        }
-        .onHover { isHovering = $0 }
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("top-address-bar")
+        .buttonTreatment(.content)
+        .shortcutTooltip("Chat", shortcut: .toggleAISidebar)
+        .accessibilityIdentifier("top-chat-button")
     }
 
     /// The lock doubles as the Site Info trigger, the same pairing the sidebar
@@ -114,7 +206,7 @@ struct TopAddressBar: View {
             Image(systemName: siteInfoSymbol)
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(InterfaceStyle.sidebarIcon)
-                .frame(width: 18, height: 30)
+                .frame(width: 18, height: 26)
                 .contentShape(Rectangle())
         }
         .buttonTreatment(.content)

@@ -11,6 +11,9 @@ struct WebViewContainer: View {
     @ObservedObject var store: BrowserStore
     let visibleInterfaceInsets: BrowserInterfaceInsets
     let attachesToTrailingPanel: Bool
+    /// The strip above the page takes over the sidebar's toggle while the
+    /// sidebar is away, so it needs the same action the sidebar header uses.
+    let onToggleSidebar: () -> Void
     /// Extra trailing clip while Eli covers the page beyond the reserved web
     /// layout (widening resize drags, and the close paint-fence hold).
     /// Mask-only: it never reaches the WKWebView's obscured content insets
@@ -223,6 +226,24 @@ struct WebViewContainer: View {
         webContentInsets
     }
 
+    private var usesTopToolbarPlacement: Bool {
+        addressBarPlacement == AddressBarPlacement.top.rawValue
+    }
+
+    /// The sidebar reserves its lane here rather than resizing this view, so
+    /// a leading lane is exactly the state of the sidebar being pinned open.
+    private var isSidebarVisible: Bool {
+        visibleInterfaceInsets.leading > 0
+    }
+
+    private var topToolbarLeadingControls: TopToolbarLeadingControls {
+        TopToolbarLeadingControls(
+            store: store,
+            isSidebarVisible: isSidebarVisible,
+            onToggleSidebar: onToggleSidebar
+        )
+    }
+
     @ViewBuilder
     private func singleTabContent(for tab: BrowserTab) -> some View {
         VStack(spacing: 0) {
@@ -242,6 +263,7 @@ struct WebViewContainer: View {
                     pageTitle: tab.title,
                     faviconData: tab.faviconData,
                     contentInsets: webContentInsets,
+                    leadingControls: usesTopToolbarPlacement ? topToolbarLeadingControls : nil,
                     onSubmitURL: { store.navigateActiveTab(to: $0) },
                     onToggleChat: { store.requestAISidebarToggle() }
                 )
@@ -249,11 +271,13 @@ struct WebViewContainer: View {
                 // earlier siblings' rows; keep the toolbar above it or the
                 // bar renders dimmed behind that fill.
                 .zIndex(1)
-            } else if addressBarPlacement == AddressBarPlacement.top.rawValue {
+            } else if usesTopToolbarPlacement {
                 TopAddressBar(
                     store: store,
                     url: tab.url,
-                    contentInsets: webContentInsets
+                    contentInsets: webContentInsets,
+                    isSidebarVisible: isSidebarVisible,
+                    onToggleSidebar: onToggleSidebar
                 )
                 .zIndex(1)
             }

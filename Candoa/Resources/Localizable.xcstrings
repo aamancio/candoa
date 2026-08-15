@@ -121,126 +121,6 @@
         }
       }
     },
-    "Address bar" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Barra de direcciones"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Barre d’adresse"
-          }
-        },
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Adressleiste"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "アドレスバー"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "地址栏"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Barra de endereço"
-          }
-        }
-      }
-    },
-    "Always in view. A slim bar above every page shows where you are." : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Siempre a la vista. Una barra fina sobre cada página muestra dónde estás."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Toujours visible. Une fine barre au-dessus de chaque page indique où vous êtes."
-          }
-        },
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Immer im Blick. Eine schmale Leiste über jeder Seite zeigt, wo du bist."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "常に表示。各ページの上の細いバーで現在地がわかります。"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "始终可见。每个页面上方的细条会显示你所在的位置。"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sempre à vista. Uma barra fina acima de cada página mostra onde você está."
-          }
-        }
-      }
-    },
-    "Candoa keeps the address in the sidebar so pages get the whole window. If you’d rather always see it above the page, choose that here." : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Candoa guarda la dirección en la barra lateral para que las páginas ocupen toda la ventana. Si prefieres verla siempre encima de la página, elígelo aquí."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Candoa garde l’adresse dans la barre latérale pour que les pages occupent toute la fenêtre. Si vous préférez toujours la voir au-dessus de la page, choisissez cette option ici."
-          }
-        },
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Candoa hält die Adresse in der Seitenleiste, damit Seiten das ganze Fenster bekommen. Wenn du sie lieber immer über der Seite sehen möchtest, wähle das hier."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Candoa はアドレスをサイドバーに置くので、ページがウインドウ全体を使えます。常にページの上に表示したい場合はここで選んでください。"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Candoa 将地址放在边栏中，让页面占据整个窗口。如果你更希望始终在页面上方看到它，请在此选择。"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "O Candoa mantém o endereço na barra lateral para que as páginas ocupem toda a janela. Se preferir vê-lo sempre acima da página, escolha isso aqui."
-          }
-        }
-      }
-    },
     "Clean and focused. Click the sidebar pill or press ⌘L to go somewhere." : {
       "localizations" : {
         "es" : {
@@ -361,46 +241,6 @@
         }
       }
     },
-    "Keep the address in the sidebar, or show it above the page." : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Mantén la dirección en la barra lateral o muéstrala encima de la página."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Gardez l’adresse dans la barre latérale ou affichez-la au-dessus de la page."
-          }
-        },
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Adresse in der Seitenleiste behalten oder über der Seite anzeigen."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "アドレスをサイドバーに置くか、ページの上に表示します。"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "将地址保留在边栏中，或显示在页面上方。"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Mantenha o endereço na barra lateral ou mostre-o acima da página."
-          }
-        }
-      }
-    },
     "Selected" : {
       "localizations" : {
         "es" : {
@@ -437,126 +277,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Selecionado"
-          }
-        }
-      }
-    },
-    "The address sits with your tabs, and pages get the whole window." : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "La dirección está junto a tus pestañas y las páginas ocupan toda la ventana."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "L’adresse se trouve avec vos onglets et les pages occupent toute la fenêtre."
-          }
-        },
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Die Adresse steht bei deinen Tabs, und Seiten bekommen das ganze Fenster."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "アドレスはタブと一緒に並び、ページはウインドウ全体を使えます。"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "地址与标签页放在一起，页面占据整个窗口。"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "O endereço fica com suas abas e as páginas ocupam toda a janela."
-          }
-        }
-      }
-    },
-    "The address stays above the page, like a classic browser." : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "La dirección permanece encima de la página, como en un navegador clásico."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "L’adresse reste au-dessus de la page, comme dans un navigateur classique."
-          }
-        },
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Die Adresse bleibt über der Seite, wie in einem klassischen Browser."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "従来のブラウザのように、アドレスがページの上に表示されたままになります。"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "地址始终显示在页面上方，就像传统浏览器一样。"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "O endereço fica acima da página, como em um navegador clássico."
-          }
-        }
-      }
-    },
-    "Where should the address live?" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "¿Dónde quieres la dirección?"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Où placer l’adresse ?"
-          }
-        },
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Wo soll die Adresse stehen?"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "アドレスはどこに置きますか？"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "地址放在哪里？"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Onde o endereço deve ficar?"
           }
         }
       }
@@ -2263,6 +1983,46 @@
         }
       }
     },
+    "Always in view. A slim toolbar above every page holds the address and its controls." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Immer im Blick. Eine schmale Leiste über jeder Seite trägt die Adresse und ihre Bedienelemente."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Siempre a la vista. Una barra fina sobre cada página reúne la dirección y sus controles."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toujours visible. Une fine barre au-dessus de chaque page regroupe l’adresse et ses commandes."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "常に表示。各ページの上の細いバーにアドレスとそのコントロールが並びます。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sempre à vista. Uma barra fina acima de cada página reúne o endereço e seus controles."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "始终可见。每个页面上方的细条包含地址及其控件。"
+          }
+        }
+      }
+    },
     "Allow" : {
       "comment" : "Button granting a website permission request.",
       "localizations" : {
@@ -3024,6 +2784,46 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "音频"
+          }
+        }
+      }
+    },
+    "Back, forward, reload, and the address stay above the page, like a classic browser." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zurück, Vorwärts, Neu laden und die Adresse bleiben über der Seite, wie in einem klassischen Browser."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Atrás, adelante, recargar y la dirección permanecen encima de la página, como en un navegador clásico."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Précédent, suivant, actualiser et l’adresse restent au-dessus de la page, comme dans un navigateur classique."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "戻る、進む、再読み込み、アドレスが、従来のブラウザのようにページの上に表示されたままになります。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Voltar, avançar, recarregar e o endereço ficam acima da página, como em um navegador clássico."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "后退、前进、重新载入和地址始终显示在页面上方，就像传统浏览器一样。"
           }
         }
       }
@@ -4678,6 +4478,46 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Candoa 在这台 Mac 上找不到你的账户。"
+          }
+        }
+      }
+    },
+    "Candoa keeps the address and its controls in the sidebar so pages get the whole window. If you’d rather always see them above the page, choose that here." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Candoa hält die Adresse und ihre Bedienelemente in der Seitenleiste, damit Seiten das ganze Fenster bekommen. Wenn du sie lieber immer über der Seite sehen möchtest, wähle das hier."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Candoa guarda la dirección y sus controles en la barra lateral para que las páginas ocupen toda la ventana. Si prefieres verlos siempre encima de la página, elígelo aquí."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Candoa garde l’adresse et ses commandes dans la barre latérale pour que les pages occupent toute la fenêtre. Si vous préférez toujours les voir au-dessus de la page, choisissez cette option ici."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Candoa はアドレスとそのコントロールをサイドバーに置くので、ページがウインドウ全体を使えます。常にページの上に表示したい場合はここで選んでください。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O Candoa mantém o endereço e seus controles na barra lateral para que as páginas ocupem toda a janela. Se preferir vê-los sempre acima da página, escolha isso aqui."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Candoa 将地址及其控件放在边栏中，让页面占据整个窗口。如果你更希望始终在页面上方看到它们，请在此选择。"
           }
         }
       }
@@ -14239,6 +14079,46 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "正在安装更新…"
+          }
+        }
+      }
+    },
+    "Keep the address and its controls in the sidebar, or show them above the page." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adresse und ihre Bedienelemente in der Seitenleiste behalten oder über der Seite anzeigen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mantén la dirección y sus controles en la barra lateral o muéstralos encima de la página."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gardez l’adresse et ses commandes dans la barre latérale ou affichez-les au-dessus de la page."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "アドレスとそのコントロールをサイドバーに置くか、ページの上に表示します。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mantenha o endereço e seus controles na barra lateral ou mostre-os acima da página."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "将地址及其控件保留在边栏中，或显示在页面上方。"
           }
         }
       }
@@ -27899,6 +27779,46 @@
         }
       }
     },
+    "The address and its controls sit with your tabs, and pages get the whole window." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Adresse und ihre Bedienelemente stehen bei deinen Tabs, und Seiten bekommen das ganze Fenster."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La dirección y sus controles están junto a tus pestañas y las páginas ocupan toda la ventana."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’adresse et ses commandes se trouvent avec vos onglets et les pages occupent toute la fenêtre."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "アドレスとそのコントロールはタブと一緒に並び、ページはウインドウ全体を使えます。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O endereço e seus controles ficam com suas abas e as páginas ocupam toda a janela."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "地址及其控件与标签页放在一起，页面占据整个窗口。"
+          }
+        }
+      }
+    },
     "That browser tab is no longer open." : {
       "localizations" : {
         "de" : {
@@ -28937,6 +28857,46 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "显示或隐藏边栏"
+          }
+        }
+      }
+    },
+    "Toolbar" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Symbolleiste"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Barra de herramientas"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Barre d’outils"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ツールバー"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Barra de ferramentas"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "工具栏"
           }
         }
       }
@@ -31198,6 +31158,46 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "下载的文件的存储位置。"
+          }
+        }
+      }
+    },
+    "Where should the toolbar live?" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wo soll die Symbolleiste stehen?"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "¿Dónde quieres la barra de herramientas?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Où placer la barre d’outils ?"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ツールバーはどこに置きますか？"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Onde a barra de ferramentas deve ficar?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "工具栏放在哪里？"
           }
         }
       }

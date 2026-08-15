@@ -148,6 +148,7 @@ struct ContentView: View {
                                 leading: isSidebarVisible ? sidebarTotalWidth : 0
                             ),
                             attachesToTrailingPanel: isAISidebarMounted,
+                            onToggleSidebar: toggleSidebar,
                             slideOverTrailingInset: aiSidebarSlideMaskInset
                         )
                         // Resize WebKit once, after Eli has finished sliding over
