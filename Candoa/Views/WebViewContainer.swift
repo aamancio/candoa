@@ -1422,7 +1422,7 @@ private struct DeveloperToolbar: View {
 
             Divider()
 
-            Button("Reset to Arc Controls") {
+            Button("Reset to Default Controls") {
                 storedControlIDs = Self.defaultControlIDs
             }
         } label: {
