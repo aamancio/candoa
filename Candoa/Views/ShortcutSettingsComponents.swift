@@ -172,6 +172,31 @@ internal struct SettingsToggleRow: View {
     }
 }
 
+/// A compact labeled text field for rows that are self-explanatory from their
+/// label — a profile's city needs no sentence under it, and eleven subtitles
+/// would bury the section.
+internal struct SettingsTextFieldRow: View {
+    let title: String
+    @Binding var text: String
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 14) {
+            Text(title)
+                .font(.system(size: 13))
+                .foregroundStyle(.primary)
+                .frame(width: 150, alignment: .leading)
+
+            TextField("", text: $text)
+                .textFieldStyle(.roundedBorder)
+                .controlSize(.small)
+                .frame(maxWidth: .infinity)
+                .accessibilityLabel(title)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 7)
+    }
+}
+
 internal struct SettingsPickerOption: Identifiable {
     let id: String
     let title: String

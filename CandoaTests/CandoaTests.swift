@@ -409,6 +409,75 @@ final class SpaceMemoryTests: XCTestCase {
 
 }
 
+/// The form-fill profile: user-entered, carried only where it is needed.
+final class UserProfileTests: XCTestCase {
+    private let snapshotID = UUID()
+
+    private func page(sensitiveField: Bool) -> BrowserAgentPage {
+        BrowserAgentPage(
+            snapshotID: snapshotID,
+            title: "Page",
+            url: "https://example.com",
+            text: "",
+            controls: [
+                BrowserAgentControl(
+                    ref: "e0",
+                    kind: sensitiveField ? .field : .button,
+                    label: "Email",
+                    url: nil,
+                    disabled: false,
+                    sensitive: sensitiveField
+                )
+            ]
+        )
+    }
+
+    private var profile: UserProfile {
+        var profile = UserProfile()
+        profile.givenName = "Alex"
+        profile.familyName = "Fixture"
+        profile.email = "alex@example.com"
+        return profile
+    }
+
+    func testProfileTravelsOnlyWhenThePageAsksForPersonalDetails() {
+        XCTAssertNil(UserProfilePolicy.profileSection(for: profile, page: page(sensitiveField: false)))
+        XCTAssertNotNil(UserProfilePolicy.profileSection(for: profile, page: page(sensitiveField: true)))
+    }
+
+    func testEmptyProfileAddsNothing() {
+        XCTAssertNil(UserProfilePolicy.profileSection(for: UserProfile(), page: page(sensitiveField: true)))
+        XCTAssertEqual(
+            UserProfilePolicy.agentContext("Goal context", byAppendingProfile: UserProfile(), for: page(sensitiveField: true)),
+            "Goal context"
+        )
+    }
+
+    func testSectionListsFilledValuesAndForbidsInvention() {
+        let section = UserProfilePolicy.profileSection(for: profile, page: page(sensitiveField: true))
+        XCTAssertTrue(section?.contains("- Email: alex@example.com") == true)
+        XCTAssertTrue(section?.contains("- Full name: Alex Fixture") == true, "derived from the two name fields")
+        XCTAssertFalse(section?.contains("Phone") == true, "a blank field is not offered to the model")
+        XCTAssertTrue(section?.contains("never invent") == true)
+    }
+
+    func testValuesAreLengthCapped() {
+        var profile = UserProfile()
+        profile.organization = String(repeating: "a", count: UserProfilePolicy.maximumValueLength + 50)
+        let value = profile.labeledValues.first { $0.label == "Organization" }?.value
+        XCTAssertEqual(value?.count, UserProfilePolicy.maximumValueLength)
+    }
+
+    func testRoundTripsThroughDefaults() throws {
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: "candoa.tests.profile"))
+        defaults.removePersistentDomain(forName: "candoa.tests.profile")
+        XCTAssertTrue(UserProfileStore.load(from: defaults).isEmpty)
+        UserProfileStore.save(profile, to: defaults)
+        XCTAssertEqual(UserProfileStore.load(from: defaults), profile)
+        defaults.removePersistentDomain(forName: "candoa.tests.profile")
+    }
+}
+
 /// Page-scoped fill consent: one approval covers a form's remaining fields,
 /// and covers nothing else.
 final class BrowserAgentFillConsentTests: XCTestCase {

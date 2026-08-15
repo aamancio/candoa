@@ -2,6 +2,40 @@ import AppKit
 import XCTest
 
 extension CandoaUITests {
+    func testEliSettingsEditTheFormFillProfile() throws {
+        let app = launchApp(fixture: "ask")
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
+
+        openEliSettings(in: app)
+
+        XCTAssertTrue(app.staticTexts["Your Details"].waitForExistence(timeout: 5), app.debugDescription)
+        // Subscript lookup caps at 128 characters, so this explainer needs a
+        // predicate rather than a literal identifier.
+        XCTAssertTrue(
+            app.staticTexts.matching(
+                NSPredicate(format: "value CONTAINS %@", "government IDs are never stored here")
+            ).firstMatch.exists,
+            app.debugDescription
+        )
+
+        // Payment and identity fields are deliberately absent, not merely
+        // unused: the profile must not become a place to keep them.
+        for absent in ["Card number", "Date of birth", "Social Security number", "Password"] {
+            XCTAssertFalse(app.staticTexts[absent].exists, "\(absent) must not be a profile field")
+        }
+
+        let givenName = app.textFields["Given name"].firstMatch
+        XCTAssertTrue(givenName.waitForExistence(timeout: 5), app.debugDescription)
+        givenName.click()
+        givenName.typeText("Alex")
+        XCTAssertEqual(givenName.value as? String, "Alex")
+
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = "Eli form-fill profile settings"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+
     func testEliFillsAFormAfterOnePageApprovalAndStillConfirmsSubmit() throws {
         // Three personal fields and a submit button, all structurally
         // sensitive. Without page-scoped consent this run would raise four

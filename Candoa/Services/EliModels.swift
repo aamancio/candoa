@@ -53,6 +53,114 @@ struct SpaceMemoryFact: Identifiable, Equatable, Sendable {
     }
 }
 
+/// The details a person is willing to have Eli type into a form.
+///
+/// Unlike memory, every value here was typed by the user: nothing is inferred
+/// from a conversation, nothing is extracted by a model, and a field left
+/// blank stays blank on the page rather than being guessed. It deliberately
+/// holds no national ID, date of birth, or payment detail — a wrong value in
+/// those is worse than an empty field, and they stay the user's to type.
+struct UserProfile: Codable, Equatable, Sendable {
+    var givenName = ""
+    var familyName = ""
+    var email = ""
+    var phone = ""
+    var streetAddress = ""
+    var city = ""
+    var region = ""
+    var postalCode = ""
+    var country = ""
+    var organization = ""
+    var website = ""
+
+    /// The filled entries, labeled the way a form asks for them. Labels are
+    /// English on purpose: they are read by the model, not shown to the user.
+    var labeledValues: [(label: String, value: String)] {
+        let all: [(String, String)] = [
+            ("Given name", givenName),
+            ("Family name", familyName),
+            ("Full name", fullName),
+            ("Email", email),
+            ("Phone", phone),
+            ("Street address", streetAddress),
+            ("City", city),
+            ("State or province", region),
+            ("Postal code", postalCode),
+            ("Country", country),
+            ("Organization", organization),
+            ("Website", website),
+        ]
+        return all.compactMap { label, value in
+            let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { return nil }
+            return (label, String(trimmed.prefix(UserProfilePolicy.maximumValueLength)))
+        }
+    }
+
+    var fullName: String {
+        [givenName, familyName]
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+    }
+
+    var isEmpty: Bool { labeledValues.isEmpty }
+}
+
+/// Reads and writes the profile. Local to this Mac and global to the app:
+/// a person has one legal name, and a form does not care which Space is open.
+enum UserProfileStore {
+    static func load(from defaults: UserDefaults = .standard) -> UserProfile {
+        guard let data = defaults.string(forKey: SettingsOption.userProfile)?.data(using: .utf8),
+              let profile = try? JSONDecoder().decode(UserProfile.self, from: data) else {
+            return UserProfile()
+        }
+        return profile
+    }
+
+    static func save(_ profile: UserProfile, to defaults: UserDefaults = .standard) {
+        guard let data = try? JSONEncoder().encode(profile),
+              let json = String(data: data, encoding: .utf8) else { return }
+        defaults.set(json, forKey: SettingsOption.userProfile)
+    }
+}
+
+/// When the profile may travel with an agent run, and how it is phrased.
+enum UserProfilePolicy {
+    static let maximumValueLength = 120
+
+    /// The profile rides along only when the page actually asks for personal
+    /// details. A run that never touches a form has no business carrying the
+    /// user's address to the model.
+    static func pageAsksForPersonalDetails(_ page: BrowserAgentPage) -> Bool {
+        page.controls.contains { $0.kind == .field && $0.sensitive }
+    }
+
+    /// The labeled block appended to a run's attached context. The wording
+    /// forbids invention explicitly: an empty field is a correct outcome, a
+    /// plausible guess on a job application is not.
+    static func profileSection(for profile: UserProfile, page: BrowserAgentPage) -> String? {
+        guard pageAsksForPersonalDetails(page) else { return nil }
+        let values = profile.labeledValues
+        guard !values.isEmpty else { return nil }
+        let lines = values.map { "- \($0.label): \($0.value)" }.joined(separator: "\n")
+        return """
+        The user's saved details for filling forms (entered by the user, not inferred). Use them verbatim for fields that match. If a form asks for something not listed here, leave it blank and say so — never invent, estimate, or derive a value:
+        \(lines)
+        """
+    }
+
+    static func agentContext(
+        _ context: String?,
+        byAppendingProfile profile: UserProfile,
+        for page: BrowserAgentPage
+    ) -> String? {
+        guard let section = profileSection(for: profile, page: page) else { return context }
+        guard let context, !context.isEmpty else { return section }
+        return "\(context)\n\n\(section)"
+    }
+}
+
 /// The safety gate and shaping rules for saved memory. The extraction prompt
 /// already forbids secrets; this is the client-side backstop that drops a
 /// fact whenever the model ignores that instruction.

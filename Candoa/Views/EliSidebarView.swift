@@ -1025,11 +1025,21 @@ struct EliSidebarView: View {
                     finishBrowserAgent(state, message: String(localized: "That browser tab is no longer available."))
                     return
                 }
+                // The saved profile joins the run only when this page asks for
+                // personal details, and never from a private window: a run
+                // that never touches a form has no reason to carry the user's
+                // address to the model.
                 let response = try await store.startBrowserAgentRun(
                     runID: state.runID,
                     goal: state.goal,
                     page: page,
-                    attachedContext: attachedContext
+                    attachedContext: store.isPrivate
+                        ? attachedContext
+                        : UserProfilePolicy.agentContext(
+                            attachedContext,
+                            byAppendingProfile: UserProfileStore.load(),
+                            for: page
+                        )
                 )
                 try await continueBrowserAgent(response, page: page, state: state)
             } catch is CancellationError {
