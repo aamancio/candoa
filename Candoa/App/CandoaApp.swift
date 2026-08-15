@@ -126,7 +126,8 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
                 SettingsOption.historyRetention,
                 SettingsOption.downloadLocationMode,
                 SettingsOption.downloadListRetention,
-                SettingsOption.openSafeDownloads
+                SettingsOption.openSafeDownloads,
+                SettingsOption.addressBarPlacement
             ] {
                 UserDefaults.standard.removeObject(forKey: key)
             }

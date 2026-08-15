@@ -5,6 +5,7 @@ internal struct GeneralSettingsPane: View {
     @AppStorage(SettingsOption.checkDefaultBrowser) private var checkDefaultBrowser = false
     @AppStorage(SettingsOption.askBeforeQuitting) private var askBeforeQuitting = true
     @AppStorage(SettingsOption.websiteAppearance) private var websiteAppearance = WebsiteAppearance.automatic.rawValue
+    @AppStorage(SettingsOption.addressBarPlacement) private var addressBarPlacement = AddressBarPlacement.default.rawValue
     @AppStorage(SettingsOption.homepage) private var homepage = ""
     @AppStorage(SettingsOption.newTabsOpenWith) private var newTabsOpenWith = NewTabPreference.commandBar.rawValue
     @AppStorage(SettingsOption.historyRetention) private var historyRetention = HistoryRetentionPreference.afterOneYear.rawValue
@@ -218,6 +219,19 @@ internal struct GeneralSettingsPane: View {
                 }
 
                 SettingsCard {
+                    SettingsPickerRow(
+                        systemImage: "rectangle.topthird.inset.filled",
+                        title: String(localized: "Address bar"),
+                        subtitle: String(localized: "Keep the address in the sidebar, or show it above the page."),
+                        selection: $addressBarPlacement,
+                        options: [
+                            SettingsPickerOption(id: AddressBarPlacement.sidebar.rawValue, title: String(localized: "In the Sidebar")),
+                            SettingsPickerOption(id: AddressBarPlacement.top.rawValue, title: String(localized: "Above the Page"))
+                        ]
+                    )
+
+                    SettingsDivider()
+
                     SettingsPickerRow(
                         systemImage: "macwindow",
                         title: String(localized: "Website appearance"),

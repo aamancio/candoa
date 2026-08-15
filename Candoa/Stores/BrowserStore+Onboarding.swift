@@ -19,7 +19,7 @@ extension BrowserStore {
 
     var isInitialOnboardingBlockingBrowsing: Bool {
         switch initialOnboardingStep {
-        case .welcome, .account, .importData, .space, .restoredWorkspace:
+        case .welcome, .account, .importData, .space, .addressBar, .restoredWorkspace:
             return true
         case .tour, .none:
             return false
@@ -96,7 +96,7 @@ extension BrowserStore {
         activeSpaceID = spaces[index].id
         if initialOnboardingStep == .space {
             seedStarterFavoritesIfNeeded()
-            setInitialOnboardingStep(nextAccountOrTourStep)
+            setInitialOnboardingStep(.addressBar)
         }
         isCreateSpacePresented = false
         recreateWebViewsIfNeeded(
@@ -157,6 +157,14 @@ extension BrowserStore {
         }
     }
 
+    /// The address-bar step commits the chosen placement (the sidebar pill,
+    /// or a strip above the page) and moves on to the account gate or tour.
+    func completeInitialAddressBarSetup(placement: AddressBarPlacement) {
+        guard initialOnboardingStep == .addressBar else { return }
+        AddressBarPlacement.setCurrent(placement)
+        setInitialOnboardingStep(nextAccountOrTourStep)
+    }
+
     func completeInitialWelcome() {
         guard initialOnboardingStep == .welcome else { return }
         setInitialOnboardingStep(.importData)
@@ -171,8 +179,10 @@ extension BrowserStore {
         switch initialOnboardingStep {
         case .space:
             setInitialOnboardingStep(.importData)
-        case .account:
+        case .addressBar:
             setInitialOnboardingStep(.space)
+        case .account:
+            setInitialOnboardingStep(.addressBar)
         case .welcome, .importData, .tour, .restoredWorkspace, .none:
             break
         }

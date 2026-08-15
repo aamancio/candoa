@@ -435,6 +435,7 @@ extension BrowserStore {
             "favorites=\(favoriteTitles)",
             "switcher=\(isTabSwitcherPresented):\(tabSwitcherSelectedTitle)",
             "switcherPreviews=\(tabSwitcherPreviewTitles)",
+            "addressBar=\(AddressBarPlacement.current.rawValue)",
             "split=\(isSplitViewEnabled)",
             "splitDisplayed=\(isSplitViewDisplayed)",
             "splitTabs=\(splitTabTitles)",

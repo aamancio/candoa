@@ -68,6 +68,8 @@ struct SidebarView: View {
     @StateObject private var windowControlsGeometry = WindowControlsGeometry()
     @AppStorage("Candoa.FavoritesDropZoneDismissed") private var isFavoritesDropZoneDismissed = false
     @AppStorage(DeveloperModeConfiguration.storageKey) private var developerModeOverrides = ""
+    @AppStorage(SettingsOption.addressBarPlacement)
+    private var addressBarPlacement = AddressBarPlacement.default.rawValue
 
     // Zen's sidebar geometry: rows sit 8px off the lane edge (6px toolbox
     // padding on macOS plus the 2px tab margin), with 8px inline padding
@@ -254,7 +256,9 @@ struct SidebarView: View {
                 showsWindowControls: showsWindowControls,
                 isSwipingSpaces: isSwipingSpaces
             )
-            addressPill(for: spaceID)
+            if showsAddressPill {
+                addressPill(for: spaceID)
+            }
 
             Spacer(minLength: 0)
 
@@ -327,12 +331,17 @@ struct SidebarView: View {
         }
     }
 
+    /// The pill moves to a strip above the page under the "Top" placement;
+    /// the sidebar then closes the gap it would have occupied.
+    private var showsAddressPill: Bool {
+        addressBarPlacement != AddressBarPlacement.top.rawValue
+    }
+
     private var spaceSwipeTopInset: CGFloat {
         sidebarTopPadding +
             sidebarHeaderHeight +
             sidebarVerticalSpacing +
-            sidebarAddressHeight +
-            sidebarVerticalSpacing
+            (showsAddressPill ? sidebarAddressHeight + sidebarVerticalSpacing : 0)
     }
 
     /// Per-Space page content starts below the hoisted favorites grid, whose
