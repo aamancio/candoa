@@ -429,7 +429,9 @@ internal func dropEdge(for info: DropInfo, axis: SidebarDropAxis = .vertical) ->
 internal func splitDropSide(for info: DropInfo, axis: SidebarDropAxis = .vertical) -> SplitTabDropSide {
     switch axis {
     case .vertical:
-        let rowWidth = max(1, InterfaceStyle.sidebarWidth - 16)
+        // The lane's leading inset only; docked rows run to the lane edge and
+        // lean on the gutter before the page surface for their trailing margin.
+        let rowWidth = max(1, InterfaceStyle.sidebarWidth - 8)
         return info.location.x < rowWidth / 2 ? .leading : .trailing
     case .horizontal:
         return info.location.x < 44 ? .leading : .trailing

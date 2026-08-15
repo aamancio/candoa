@@ -75,7 +75,11 @@ struct SidebarView: View {
     // padding on macOS plus the 2px tab margin), with 8px inline padding
     // inside each row.
     private let leadingInset: CGFloat = 8
-    private let trailingInset: CGFloat = 8
+    /// Docked, the 8pt gutter between the lane and the page surface already is
+    /// the trailing margin — reserving another 8pt here made every row sit 8pt
+    /// off the window edge but 16pt off the page. Only the hover overlay, whose
+    /// lane ends in its own shadowed edge over the page, keeps the inset.
+    private var trailingInset: CGFloat { isSidebarPinned ? 0 : 8 }
     private let windowControlsWidth: CGFloat = 70
     private let spaceLabelToPinnedGap: CGFloat = 3
     private let pinnedSectionSpacing: CGFloat = 8
@@ -163,7 +167,8 @@ struct SidebarView: View {
                 // favorites grid (and its drag-here hint) has no place here.
                 if !store.isPrivate {
                     hoistedFavoritesSection
-                        .padding(.horizontal, leadingInset)
+                        .padding(.leading, leadingInset)
+                        .padding(.trailing, trailingInset)
                         .padding(.top, spaceSwipeTopInset + 1)
                 }
             }
@@ -173,7 +178,8 @@ struct SidebarView: View {
                         store: store,
                         onSelectSpace: animateSpaceSelection
                     )
-                    .padding(.horizontal, leadingInset)
+                    .padding(.leading, leadingInset)
+                    .padding(.trailing, trailingInset)
                     .padding(.bottom, sidebarBottomPadding)
                 }
             }
@@ -264,7 +270,8 @@ struct SidebarView: View {
 
             updateBanner
         }
-        .padding(.horizontal, leadingInset)
+        .padding(.leading, leadingInset)
+        .padding(.trailing, trailingInset)
         .padding(.top, sidebarTopPadding)
         .padding(.bottom, swipeChromeBottomPadding)
     }
@@ -384,7 +391,8 @@ struct SidebarView: View {
                         Color.clear
                     }
                 }
-                .padding(.horizontal, leadingInset)
+                .padding(.leading, leadingInset)
+                .padding(.trailing, trailingInset)
                 .frame(
                     minHeight: contentHeight,
                     alignment: .top
