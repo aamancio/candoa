@@ -25,6 +25,12 @@
 		010000000000000000000112 /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000012 /* SidebarView.swift */; };
 		010000000000000000000113 /* BrowserInterfaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000013 /* BrowserInterfaceView.swift */; };
 		010000000000000000000114 /* WebViewContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000014 /* WebViewContainer.swift */; };
+		5B0000000000000000000101 /* SplitPaneChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B0000000000000000000001 /* SplitPaneChrome.swift */; };
+		5B0000000000000000000102 /* BrowserInterfaceMask.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B0000000000000000000002 /* BrowserInterfaceMask.swift */; };
+		5B0000000000000000000103 /* SplitPaneDropTargets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B0000000000000000000003 /* SplitPaneDropTargets.swift */; };
+		5B0000000000000000000104 /* DeveloperToolbar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B0000000000000000000004 /* DeveloperToolbar.swift */; };
+		5B0000000000000000000105 /* PageLoadingPill.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B0000000000000000000005 /* PageLoadingPill.swift */; };
+		5B0000000000000000000106 /* SpaceSetupCanvas.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B0000000000000000000006 /* SpaceSetupCanvas.swift */; };
 		010000000000000000000115 /* CommandPaletteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000015 /* CommandPaletteView.swift */; };
 		010000000000000000000116 /* TabRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000016 /* TabRowView.swift */; };
 		010000000000000000000117 /* SpaceSwitcherView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000017 /* SpaceSwitcherView.swift */; };
@@ -189,6 +195,12 @@
 		010000000000000000000012 /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
 		010000000000000000000013 /* BrowserInterfaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserInterfaceView.swift; sourceTree = "<group>"; };
 		010000000000000000000014 /* WebViewContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebViewContainer.swift; sourceTree = "<group>"; };
+		5B0000000000000000000001 /* SplitPaneChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplitPaneChrome.swift; sourceTree = "<group>"; };
+		5B0000000000000000000002 /* BrowserInterfaceMask.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserInterfaceMask.swift; sourceTree = "<group>"; };
+		5B0000000000000000000003 /* SplitPaneDropTargets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplitPaneDropTargets.swift; sourceTree = "<group>"; };
+		5B0000000000000000000004 /* DeveloperToolbar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeveloperToolbar.swift; sourceTree = "<group>"; };
+		5B0000000000000000000005 /* PageLoadingPill.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PageLoadingPill.swift; sourceTree = "<group>"; };
+		5B0000000000000000000006 /* SpaceSetupCanvas.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpaceSetupCanvas.swift; sourceTree = "<group>"; };
 		010000000000000000000015 /* CommandPaletteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandPaletteView.swift; sourceTree = "<group>"; };
 		010000000000000000000016 /* TabRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabRowView.swift; sourceTree = "<group>"; };
 		010000000000000000000017 /* SpaceSwitcherView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpaceSwitcherView.swift; sourceTree = "<group>"; };
@@ -432,6 +444,12 @@
 				D4A2B3C4E5F60718293A4B5C /* SidebarDragDrop.swift */,
 				010000000000000000000013 /* BrowserInterfaceView.swift */,
 				010000000000000000000014 /* WebViewContainer.swift */,
+				5B0000000000000000000001 /* SplitPaneChrome.swift */,
+				5B0000000000000000000002 /* BrowserInterfaceMask.swift */,
+				5B0000000000000000000003 /* SplitPaneDropTargets.swift */,
+				5B0000000000000000000004 /* DeveloperToolbar.swift */,
+				5B0000000000000000000005 /* PageLoadingPill.swift */,
+				5B0000000000000000000006 /* SpaceSetupCanvas.swift */,
 				010000000000000000000015 /* CommandPaletteView.swift */,
 				010000000000000000000061 /* CommandPaletteView+Layout.swift */,
 				010000000000000000000062 /* CommandPaletteView+Commands.swift */,
@@ -841,6 +859,12 @@
 				F60000000000000000000102 /* ShortcutTooltip.swift in Sources */,
 				010000000000000000000113 /* BrowserInterfaceView.swift in Sources */,
 				010000000000000000000114 /* WebViewContainer.swift in Sources */,
+				5B0000000000000000000101 /* SplitPaneChrome.swift in Sources */,
+				5B0000000000000000000102 /* BrowserInterfaceMask.swift in Sources */,
+				5B0000000000000000000103 /* SplitPaneDropTargets.swift in Sources */,
+				5B0000000000000000000104 /* DeveloperToolbar.swift in Sources */,
+				5B0000000000000000000105 /* PageLoadingPill.swift in Sources */,
+				5B0000000000000000000106 /* SpaceSetupCanvas.swift in Sources */,
 				010000000000000000000115 /* CommandPaletteView.swift in Sources */,
 				010000000000000000000171 /* CommandPaletteView+Layout.swift in Sources */,
 				010000000000000000000172 /* CommandPaletteView+Commands.swift in Sources */,
