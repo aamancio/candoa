@@ -269,13 +269,6 @@ struct WebViewContainer: View {
                 // earlier siblings' rows; keep the toolbar above it or the
                 // bar renders dimmed behind that fill.
                 .zIndex(1)
-            } else if isSidebarHidden {
-                CollapsedAddressBar(
-                    store: store,
-                    url: tab.url,
-                    contentInsets: webContentInsets
-                )
-                .zIndex(1)
             }
 
             if tab.isWelcomePage {
@@ -315,6 +308,43 @@ struct WebViewContainer: View {
                         .padding(.top, 2)
                         .id(tab.id)
                     }
+            }
+        }
+        .overlay {
+            collapsedAddressBar(for: tab)
+        }
+    }
+
+    /// The hidden-sidebar address strip. It rides over the page rather than
+    /// taking a row of its own and only appears while the pointer is at the
+    /// window's top edge, the way Arc's does: a permanent strip would cost
+    /// every page a band of height that the sidebar was hidden to reclaim.
+    @ViewBuilder
+    private func collapsedAddressBar(for tab: BrowserTab) -> some View {
+        let isDeveloperToolbarShown = tab.url.map {
+            DeveloperModeConfiguration.isEnabled(
+                for: $0,
+                storedOverrides: developerModeOverrides
+            )
+        } ?? false
+
+        if isSidebarHidden, !tab.isWelcomePage, !isDeveloperToolbarShown {
+            ZStack(alignment: .top) {
+                // Spans the surface so its bands can measure from the top
+                // edge; it never takes a click meant for the page.
+                TopEdgeRevealMonitor(
+                    isEnabled: isSidebarHidden,
+                    isRevealed: $store.isCollapsedAddressBarRevealed
+                )
+
+                CollapsedAddressBar(
+                    store: store,
+                    url: tab.url,
+                    contentInsets: webContentInsets
+                )
+                .opacity(store.isCollapsedAddressBarRevealed ? 1 : 0)
+                .allowsHitTesting(store.isCollapsedAddressBarRevealed)
+                .animation(.easeOut(duration: 0.12), value: store.isCollapsedAddressBarRevealed)
             }
         }
     }

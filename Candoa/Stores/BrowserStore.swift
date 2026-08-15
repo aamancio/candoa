@@ -187,6 +187,9 @@ final class BrowserStore: ObservableObject {
     @Published var isCreateSpacePresented = false
     @Published var isDownloadsPopoverPresented = false
     @Published var isSiteInfoPopoverPresented = false
+    /// Whether the hidden-sidebar address strip is showing. Owned here rather
+    /// than by the web surface so the UI-testing state can report it.
+    @Published var isCollapsedAddressBarRevealed = false
     @Published var isPrivacyReportPresented = false
     /// Transient reader-mode mirrors, written by the web coordinator: which
     /// tabs' pages qualify for Reader, and which are showing it right now.
