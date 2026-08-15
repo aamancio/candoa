@@ -440,32 +440,34 @@ final class NavigationSchemeTests: XCTestCase {
         XCTAssertFalse(WebViewCoordinator.isWarmable(URL(string: "candoa://welcome")!))
     }
 
-    // MARK: - Developer-mode address text
+    // MARK: - Address display text
 
-    func testCompactDevelopmentTextKeepsOnlyHostAndPort() {
-        // The pill fits ~17 monospaced characters; a scheme or a path pushes
-        // the host itself out of view.
+    func testDisplayDomainKeepsHostAndPortOnly() {
+        // Zen's urlbarTrim under zen.urlbar.show-domain-only-in-sidebar, and
+        // what Arc's sidebar field shows.
         XCTAssertEqual(
-            URL(string: "http://localhost:8080")!.localDevelopmentCompactDisplayText,
+            URL(string: "https://www.youtube.com/watch?v=abc")!.displayDomainText,
+            "youtube.com"
+        )
+        XCTAssertEqual(
+            URL(string: "http://localhost:8080/financial")!.displayDomainText,
             "localhost:8080"
         )
         XCTAssertEqual(
-            URL(string: "http://localhost:8080/financial?tab=1")!.localDevelopmentCompactDisplayText,
-            "localhost:8080"
-        )
-        XCTAssertEqual(
-            URL(string: "https://127.0.0.1:3000/admin")!.localDevelopmentCompactDisplayText,
-            "127.0.0.1:3000"
+            URL(string: "https://docs.google.com/document/d/1")!.displayDomainText,
+            "docs.google.com"
         )
     }
 
-    func testCompactDevelopmentTextDropsAnAbsentPortAndFallsBackWithoutAHost() {
+    func testDisplayDomainStripsWWWOnlyAsALeadingLabel() {
+        XCTAssertEqual(URL(string: "https://wwwx.example.com/")!.displayDomainText, "wwwx.example.com")
+        XCTAssertEqual(URL(string: "https://cdn.www.example.com/")!.displayDomainText, "cdn.www.example.com")
+        XCTAssertEqual(URL(string: "https://www.example.com/")!.displayDomainText, "example.com")
+    }
+
+    func testDisplayDomainFallsBackForHostlessURLs() {
         XCTAssertEqual(
-            URL(string: "http://localhost/whatever")!.localDevelopmentCompactDisplayText,
-            "localhost"
-        )
-        XCTAssertEqual(
-            URL(string: "file:///tmp/page.html")!.localDevelopmentCompactDisplayText,
+            URL(string: "file:///tmp/page.html")!.displayDomainText,
             "file:///tmp/page.html"
         )
     }

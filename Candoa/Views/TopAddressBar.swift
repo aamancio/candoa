@@ -20,10 +20,7 @@ struct TopAddressBar: View {
 
     private var addressText: String {
         guard let url else { return BrowserDefaults.addressPlaceholder }
-        if let host = url.host(percentEncoded: false) {
-            return host.replacingOccurrences(of: "www.", with: "")
-        }
-        return url.absoluteString
+        return url.displayDomainText
     }
 
     private var siteInfoSymbol: String {
