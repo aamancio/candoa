@@ -442,25 +442,31 @@ final class NavigationSchemeTests: XCTestCase {
 
     // MARK: - Developer-mode address text
 
-    func testCompactDevelopmentTextDropsWebSchemes() {
+    func testCompactDevelopmentTextKeepsOnlyHostAndPort() {
+        // The pill fits ~17 monospaced characters; a scheme or a path pushes
+        // the host itself out of view.
         XCTAssertEqual(
             URL(string: "http://localhost:8080")!.localDevelopmentCompactDisplayText,
             "localhost:8080"
         )
         XCTAssertEqual(
+            URL(string: "http://localhost:8080/financial?tab=1")!.localDevelopmentCompactDisplayText,
+            "localhost:8080"
+        )
+        XCTAssertEqual(
             URL(string: "https://127.0.0.1:3000/admin")!.localDevelopmentCompactDisplayText,
-            "127.0.0.1:3000/admin"
+            "127.0.0.1:3000"
         )
     }
 
-    func testCompactDevelopmentTextKeepsOtherSchemesAndTrimsBareSlash() {
+    func testCompactDevelopmentTextDropsAnAbsentPortAndFallsBackWithoutAHost() {
+        XCTAssertEqual(
+            URL(string: "http://localhost/whatever")!.localDevelopmentCompactDisplayText,
+            "localhost"
+        )
         XCTAssertEqual(
             URL(string: "file:///tmp/page.html")!.localDevelopmentCompactDisplayText,
             "file:///tmp/page.html"
-        )
-        XCTAssertEqual(
-            URL(string: "http://localhost:8080/")!.localDevelopmentCompactDisplayText,
-            "localhost:8080"
         )
     }
 }

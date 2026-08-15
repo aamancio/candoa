@@ -726,9 +726,7 @@ struct SidebarView: View {
 
                     Text(sidebarAddressText(for: url, developerModeEnabled: developerModeEnabled))
                         .lineLimit(1)
-                        // A dev URL that outruns the pill keeps its host and
-                        // its path tail; a bare host only ever loses its end.
-                        .truncationMode(developerModeEnabled ? .middle : .tail)
+                        .truncationMode(.tail)
                         .font(
                             developerModeEnabled
                                 ? .system(size: 13, weight: .medium, design: .monospaced)

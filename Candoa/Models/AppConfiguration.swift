@@ -252,14 +252,16 @@ extension URL {
         return text
     }
 
-    /// The same text without the http/https scheme, for narrow surfaces like
-    /// the sidebar pill where "http://" eats the width the port and path need.
-    /// Other schemes stay — they carry meaning the host alone doesn't.
+    /// Host and port only, for the sidebar pill — roughly 17 monospaced
+    /// characters wide, where a scheme and a path leave nothing legible. Arc
+    /// shows the same thing; the full URL stays one glance away in the
+    /// developer toolbar above the page.
     var localDevelopmentCompactDisplayText: String {
-        let text = localDevelopmentDisplayText
-        for prefix in ["http://", "https://"] where text.hasPrefix(prefix) {
-            return String(text.dropFirst(prefix.count))
+        guard let host = host(percentEncoded: false), !host.isEmpty else {
+            return localDevelopmentDisplayText
         }
-        return text
+
+        guard let port else { return host }
+        return "\(host):\(port)"
     }
 }
