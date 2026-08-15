@@ -55,7 +55,19 @@ enum InterfaceStyle {
     static var sidebarControlFill: Color { subtleTone.opacity(increasesContrast ? 1 : 0.72) }
     static var sidebarControlFillHover: Color { subtleTone.opacity(increasesContrast ? 1 : 0.96) }
     static var sidebarControlFillDropTarget: Color { tertiaryTone.opacity(increasesContrast ? 1 : 0.72) }
-    static var sidebarControlFillActive: Color { AppColor.selectedFill }
+    /// Zen's selected-tab fill: neutral white, not the accent —
+    /// `--tab-background-color-selected: light-dark(rgba(255,255,255,0.85),
+    /// rgba(255,255,255,0.2))`. The accent-tinted fill this replaces is what
+    /// read as a blue glow on every selected row.
+    static var sidebarControlFillActive: Color {
+        Color(nsColor: NSColor(name: nil) { appearance in
+            appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+                ? NSColor.white.withAlphaComponent(0.2)
+                : NSColor.white.withAlphaComponent(0.85)
+        })
+    }
+    /// Zen's row shape on macOS: `--border-radius-medium: 12px`.
+    static let sidebarRowCornerRadius: CGFloat = 12
     static var sidebarControlStroke: Color { separatorTone.opacity(increasesContrast ? 1 : 0.80) }
     static var spaceSetupInputFill: Color {
         spaceSetupSecondaryFill

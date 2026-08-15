@@ -88,7 +88,7 @@ struct TabRowView: View {
         .contentShape(Rectangle())
         .background(rowBackground)
         .background(TabHoverTracker(isHovering: $isHovering))
-        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: InterfaceStyle.sidebarRowCornerRadius, style: .continuous))
         .onTapGesture {
             onSelect()
         }
@@ -108,7 +108,7 @@ struct TabRowView: View {
         }
         .overlay {
             if isHovering {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                RoundedRectangle(cornerRadius: InterfaceStyle.sidebarRowCornerRadius, style: .continuous)
                     .stroke(InterfaceStyle.sidebarControlStroke, lineWidth: 1)
                     .allowsHitTesting(false)
             }
@@ -131,7 +131,7 @@ struct TabRowView: View {
 
     private var rowBackground: Color {
         if isActive {
-            return accentColor.opacity(0.18)
+            return InterfaceStyle.sidebarControlFillActive
         }
         if isHovering {
             return InterfaceStyle.sidebarControlFillHover

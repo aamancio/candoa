@@ -23,10 +23,10 @@ internal struct EssentialTileView: View {
     var body: some View {
         Button(action: onSelect) {
             ZStack {
-                RoundedRectangle(cornerRadius: 11, style: .continuous)
+                RoundedRectangle(cornerRadius: InterfaceStyle.sidebarRowCornerRadius, style: .continuous)
                     .fill(
                         isActive
-                            ? AnyShapeStyle(accentColor.opacity(0.18))
+                            ? AnyShapeStyle(InterfaceStyle.sidebarControlFillActive)
                             : AnyShapeStyle(InterfaceStyle.sidebarControlFill)
                     )
 
@@ -34,12 +34,14 @@ internal struct EssentialTileView: View {
                     .frame(width: 20, height: 20)
             }
             .frame(maxWidth: .infinity, minHeight: 40, maxHeight: 40)
-            .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: InterfaceStyle.sidebarRowCornerRadius, style: .continuous))
             .overlay {
-                RoundedRectangle(cornerRadius: 11, style: .continuous)
+                // Zen draws no border on the selected chip — the fill alone
+                // marks it.
+                RoundedRectangle(cornerRadius: InterfaceStyle.sidebarRowCornerRadius, style: .continuous)
                     .strokeBorder(
                         isActive
-                            ? accentColor.opacity(0.34)
+                            ? InterfaceStyle.sidebarControlStroke
                             : Color.clear,
                         lineWidth: 1
                     )
@@ -212,7 +214,7 @@ internal struct SidebarSplitGroupChip: View {
             return InterfaceStyle.sidebarControlFillHover
         }
         if isActive {
-            return accentColor.opacity(0.12)
+            return InterfaceStyle.sidebarControlFillActive
         }
         return Color.clear
     }
@@ -452,7 +454,7 @@ internal struct FolderSectionView: View {
         .frame(minHeight: 32)
         .contentShape(Rectangle())
         .background(isHovering ? InterfaceStyle.sidebarControlFillHover : Color.clear)
-        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: InterfaceStyle.sidebarRowCornerRadius, style: .continuous))
         .onHover { hovering in
             isHovering = hovering
         }

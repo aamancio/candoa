@@ -254,7 +254,6 @@ struct WebViewContainer: View {
                     url: url,
                     urlText: url.localDevelopmentDisplayText,
                     contentInsets: webContentInsets,
-                    onCopyURL: { store.copyActiveTabURL() },
                     onSubmitURL: { store.navigateActiveTab(to: $0) },
                     onToggleChat: { store.requestAISidebarToggle() }
                 )
@@ -1279,7 +1278,6 @@ private struct DeveloperToolbar: View {
     /// spans the full card, but content placed under a lane is masked away
     /// with it, so the URL field and controls stay inside the visible run.
     let contentInsets: BrowserInterfaceInsets
-    let onCopyURL: () -> Void
     let onSubmitURL: (String) -> Void
     let onToggleChat: () -> Void
 
@@ -1338,7 +1336,9 @@ private struct DeveloperToolbar: View {
 
             Spacer(minLength: 8)
 
-            HStack(spacing: 6) {
+            // Zen's 8px grid: equal 24pt hit boxes on an 8pt gap, so the
+            // optical gap between glyphs stays even.
+            HStack(spacing: 8) {
                 ForEach(DeveloperToolbarControlKind.allCases) { control in
                     toolbarButton(for: control)
                 }
@@ -1371,7 +1371,7 @@ private struct DeveloperToolbar: View {
                     foreground.opacity(hoveredControl == control ? 0.95 : 0.72)
                 )
                 .offset(y: control.inkCorrection)
-                .frame(width: 22, height: 22)
+                .frame(width: 24, height: 24)
                 .background(foreground.opacity(hoveredControl == control ? 0.12 : 0))
                 .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
                 .contentShape(Rectangle())
@@ -1390,8 +1390,6 @@ private struct DeveloperToolbar: View {
 
     private func perform(_ control: DeveloperToolbarControlKind) {
         switch control {
-        case .copyURL:
-            onCopyURL()
         case .share:
             guard let currentURL else { break }
             sharePicker.present(url: currentURL) {}
@@ -1408,7 +1406,6 @@ private struct DeveloperToolbar: View {
 /// View on its shortcut, Developer Mode in the palette and the address pill's
 /// context menu — so the chooser only added a knob and a fourth icon.
 private enum DeveloperToolbarControlKind: String, CaseIterable, Identifiable {
-    case copyURL
     case share
     case chat
 
@@ -1416,8 +1413,6 @@ private enum DeveloperToolbarControlKind: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .copyURL:
-            return String(localized: "Copy Link")
         case .share:
             return String(localized: "Share")
         case .chat:
@@ -1427,8 +1422,6 @@ private enum DeveloperToolbarControlKind: String, CaseIterable, Identifiable {
 
     var symbolName: String {
         switch self {
-        case .copyURL:
-            return "link"
         case .share:
             return "square.and.arrow.up"
         case .chat:
@@ -1445,15 +1438,13 @@ private enum DeveloperToolbarControlKind: String, CaseIterable, Identifiable {
         switch self {
         case .share:
             return -0.5
-        case .copyURL, .chat:
+        case .chat:
             return 0
         }
     }
 
     var shortcutText: String {
         switch self {
-        case .copyURL:
-            return "⇧⌘C"
         case .share:
             return String(localized: "Set in Settings > Shortcuts")
         case .chat:
