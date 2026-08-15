@@ -2067,7 +2067,13 @@ final class CandoaUITests: XCTestCase {
             fixture: "tab-switcher-previews",
             extraLaunchEnvironment: ["CANDOA_UI_TESTING_PREVIEW_WARMUP": "1"]
         )
-        XCTAssertTrue(waitForState(in: app, containing: "active=Current"), currentState(in: app))
+        // The fixture page retitles the active tab from its path ("current");
+        // the dormant tab keeps its stored title because the throwaway
+        // warm-up view never touches tab state.
+        XCTAssertTrue(
+            waitForState(in: app, containing: "url=https://fixture.candoa.test/current"),
+            currentState(in: app)
+        )
 
         postTabSwitcherAction("next")
         XCTAssertTrue(
@@ -2077,7 +2083,7 @@ final class CandoaUITests: XCTestCase {
         // The active tab's card is a live capture; the dormant one arrives
         // once its throwaway load finishes and settles.
         XCTAssertTrue(
-            waitForState(in: app, containing: "switcherPreviews=Current|Dormant", timeout: 15),
+            waitForState(in: app, containing: "switcherPreviews=current|Dormant", timeout: 15),
             currentState(in: app)
         )
         postTabSwitcherAction("release")
