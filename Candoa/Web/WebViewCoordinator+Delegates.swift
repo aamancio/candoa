@@ -25,6 +25,8 @@ extension WebViewCoordinator {
             store?.clearLoadFailure(tabID: tabID)
             // A committed page ends the download-conversion quarantine.
             downloadConvertedTabIDs.remove(tabID)
+            // …and the failed-destination one: this tab is loading again.
+            failedProvisionalURLs[tabID] = nil
         }
         updateStore(from: webView, isLoading: webView.isLoading)
     }
@@ -101,8 +103,25 @@ extension WebViewCoordinator {
 
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
         finishRestoreIfNeeded(for: webView, failed: true)
+        // Quarantine before the failure is published: publishing schedules the
+        // SwiftUI pass that would otherwise re-request this destination.
+        quarantineFailedDestination(for: webView, error: error)
         reportNavigationFailure(for: webView, error: error)
         updateStore(from: webView, isLoading: false)
+    }
+
+    /// Records the destination the tab is pointed at so ensureLoaded stops
+    /// re-requesting it (see `failedProvisionalURLs`). Only failures that
+    /// surface recovery UI count: a cancelled load is ordinary browsing —
+    /// usually one navigation superseding another — and quarantining there
+    /// would strand the successor that is still in flight.
+    private func quarantineFailedDestination(for webView: WKWebView, error: Error) {
+        guard TabLoadFailure.make(from: error as NSError, failedURL: nil) != nil else { return }
+        guard
+            let tabID = tabID(for: webView),
+            let destination = store?.tabs.first(where: { $0.id == tabID })?.url
+        else { return }
+        failedProvisionalURLs[tabID] = destination
     }
 
     private func reportNavigationFailure(for webView: WKWebView, error: Error) {
