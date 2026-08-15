@@ -451,7 +451,7 @@ internal struct FolderSectionView: View {
         .padding(.horizontal, 8)
         .padding(.vertical, 6)
         .padding(.leading, CGFloat(nestingLevel) * 12)
-        .frame(minHeight: 32)
+        .frame(minHeight: 36)
         .contentShape(Rectangle())
         .background(isHovering ? InterfaceStyle.sidebarControlFillHover : Color.clear)
         .clipShape(RoundedRectangle(cornerRadius: InterfaceStyle.sidebarRowCornerRadius, style: .continuous))

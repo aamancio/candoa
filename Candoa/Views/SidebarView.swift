@@ -585,7 +585,8 @@ struct SidebarView: View {
         VStack(alignment: .leading, spacing: 10) {
             spaceAndPinnedSection(for: spaceID)
 
-            VStack(alignment: .leading, spacing: 2) {
+            // Zen's row rhythm: 4pt between rows (2px block margin per side).
+            VStack(alignment: .leading, spacing: 4) {
                 newTabButton
                 tabsSection(for: spaceID)
             }
@@ -977,7 +978,7 @@ struct SidebarView: View {
 
             VStack(alignment: .leading, spacing: pinnedSectionSpacing) {
                 if !pinned.isEmpty {
-                    VStack(spacing: 2) {
+                    VStack(spacing: 4) {
                         ForEach(pinned) { tab in
                             pinnedTabRow(for: tab, pinned: pinned, spaceID: spaceID)
                         }
@@ -989,7 +990,7 @@ struct SidebarView: View {
                 }
 
                 if !folders.isEmpty {
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: 4) {
                         ForEach(folders) { folder in
                             FolderSectionView(
                                 store: store,
@@ -1119,7 +1120,7 @@ struct SidebarView: View {
             .foregroundStyle(InterfaceStyle.sidebarTextSecondary)
             .padding(.horizontal, 8)
             .padding(.vertical, 5)
-            .frame(minHeight: 32)
+            .frame(minHeight: 36)
             .accessibilityElement(children: .combine)
             .accessibilityLabel("Private Browsing")
             .accessibilityIdentifier("private-browsing-label")
@@ -1151,7 +1152,7 @@ struct SidebarView: View {
             .foregroundStyle(InterfaceStyle.sidebarTextSecondary)
             .padding(.horizontal, 8)
             .padding(.vertical, 5)
-            .frame(minHeight: 32)
+            .frame(minHeight: 36)
             .background(
                 isSpaceDropTargeted
                     ? InterfaceStyle.sidebarControlFillDropTarget
@@ -1202,7 +1203,7 @@ struct SidebarView: View {
                         .padding(.vertical, 2)
                 }
             } else {
-                VStack(spacing: 2) {
+                VStack(spacing: 4) {
                     if splitTabs.count >= 2 {
                         SidebarSplitGroupView(
                             store: store,
@@ -1324,7 +1325,7 @@ struct SidebarView: View {
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 6)
-            .frame(minHeight: 32)
+            .frame(minHeight: 36)
             .contentShape(Rectangle())
         }
         .buttonTreatment(.content)
