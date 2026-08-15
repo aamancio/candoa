@@ -16,6 +16,14 @@ extension BrowserStore {
         return readerActiveTabIDs.contains(activeTabID)
     }
 
+    /// Leaves Reader without touching availability, so the tab can re-enter
+    /// it. Escape uses this rather than the toggle: it is an exit, never an
+    /// entrance.
+    func hideReaderForActiveTab() {
+        guard let activeTabID, readerActiveTabIDs.contains(activeTabID) else { return }
+        webCoordinator.hideReader(for: activeTabID)
+    }
+
     func toggleReaderForActiveTab() {
         guard let activeTabID else { return }
         if readerActiveTabIDs.contains(activeTabID) {

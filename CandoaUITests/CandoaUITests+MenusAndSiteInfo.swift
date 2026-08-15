@@ -757,6 +757,61 @@ extension CandoaUITests {
         )
     }
 
+    /// Escape is the other way out of Reader: it exits to the live page and
+    /// leaves the tab free to re-enter, and the find bar still gets the first
+    /// press when both are up.
+    func testEscapeExitsReaderAndFindBarTakesPrecedence() {
+        let app = launchApp(fixture: "reader-article")
+
+        openFixtureTab(path: "reader-article", in: app)
+        XCTAssertTrue(
+            waitForState(in: app, containing: "reader=available:inactive", timeout: 10),
+            currentState(in: app)
+        )
+
+        let webView = app.webViews.firstMatch
+        XCTAssertTrue(webView.waitForExistence(timeout: 10), currentState(in: app))
+
+        let viewMenu = app.menuBarItems["View"]
+        XCTAssertTrue(viewMenu.waitForExistence(timeout: 5))
+        viewMenu.click()
+        let showReaderItem = app.menuItems["Show Reader"]
+        XCTAssertTrue(showReaderItem.waitForExistence(timeout: 5))
+        showReaderItem.click()
+        XCTAssertTrue(
+            waitForState(in: app, containing: "reader=available:active", timeout: 10),
+            currentState(in: app)
+        )
+
+        // Find bar first: one Escape closes it and Reader survives.
+        app.typeKey("f", modifierFlags: .command)
+        XCTAssertTrue(waitForState(in: app, containing: "find=true", timeout: 5), currentState(in: app))
+        app.typeKey(.escape, modifierFlags: [])
+        XCTAssertTrue(waitForState(in: app, containing: "find=false", timeout: 5), currentState(in: app))
+        XCTAssertTrue(
+            waitForState(in: app, containing: "reader=available:active", timeout: 5),
+            currentState(in: app)
+        )
+
+        // The next Escape leaves Reader, and the page comes back intact.
+        app.typeKey(.escape, modifierFlags: [])
+        XCTAssertTrue(
+            waitForState(in: app, containing: "reader=available:inactive", timeout: 10),
+            currentState(in: app)
+        )
+        XCTAssertTrue(
+            webView.links["Fixture Nav Link"].waitForExistence(timeout: 10),
+            currentState(in: app)
+        )
+
+        // Reader stays off; a further Escape is the page's, not ours.
+        app.typeKey(.escape, modifierFlags: [])
+        XCTAssertTrue(
+            waitForState(in: app, containing: "reader=available:inactive", timeout: 5),
+            currentState(in: app)
+        )
+    }
+
     /// A page without article-grade text keeps the reader command disabled.
     func testReaderStaysUnavailableForNonArticlePage() {
         let app = launchApp(fixture: "popup-open")

@@ -70,6 +70,14 @@ struct ContentView: View {
         WebsiteAppearance(storedValue: websiteAppearanceValue)
     }
 
+    /// True while a text field holds the keyboard — the address bar, a tab
+    /// rename, an Eli prompt. AppKit hands those the field editor, so the
+    /// responder is an NSTextView rather than the control itself.
+    private var isEditingTextField: Bool {
+        guard let responder = NSApp.keyWindow?.firstResponder else { return false }
+        return responder is NSTextView || responder is NSTextField
+    }
+
     private var activeThemeHexes: [String] {
         store.activeThemeColorHexes
     }
@@ -386,9 +394,22 @@ struct ContentView: View {
             } onFindPrevious: {
                 store.findPrevious()
             } onEscape: {
-                guard store.isFindBarPresented else { return false }
-                store.dismissFindBar()
-                return true
+                if store.isFindBarPresented {
+                    store.dismissFindBar()
+                    return true
+                }
+                // Reader is the next escape hatch down, but only when nothing
+                // nearer owns the press: the palette and any field being
+                // edited cancel themselves first. Otherwise Escape falls
+                // through to the page, which needs it for its own dialogs and
+                // for leaving HTML full screen.
+                if store.isReaderActiveForActiveTab,
+                   !store.isCommandPalettePresented,
+                   !isEditingTextField {
+                    store.hideReaderForActiveTab()
+                    return true
+                }
+                return false
             } onReload: {
                 store.reloadActiveTab()
             } onReloadFromOrigin: {
