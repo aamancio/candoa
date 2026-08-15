@@ -1136,7 +1136,7 @@ final class CandoaUITests: XCTestCase {
             "Creating the initial Space should ask where the address lives."
         )
         XCTAssertTrue(app.staticTexts["3 of 4"].exists)
-        element("onboarding-address-bar-continue", in: app).click()
+        app.buttons["Continue"].click()
 
         XCTAssertTrue(
             element("account-onboarding", in: app).waitForExistence(timeout: 5),
@@ -1153,12 +1153,12 @@ final class CandoaUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["3 of 4"].exists)
 
         element("onboarding-address-bar-top", in: app).click()
-        element("onboarding-address-bar-continue", in: app).click()
+        app.buttons["Continue"].click()
 
         XCTAssertTrue(waitForState(in: app, containing: "addressBar=top"), currentState(in: app))
         // Back from the account gate returns to the question with the choice kept.
         XCTAssertTrue(element("account-onboarding", in: app).waitForExistence(timeout: 5))
-        element("onboarding-back", in: app).click()
+        app.buttons["Back"].click()
         XCTAssertTrue(element("initial-onboarding-addressBar", in: app).waitForExistence(timeout: 5))
         let topCard = element("onboarding-address-bar-top", in: app)
         XCTAssertTrue(topCard.waitForExistence(timeout: 5))
@@ -1201,7 +1201,9 @@ final class CandoaUITests: XCTestCase {
             .coordinate(withNormalizedOffset: CGVector(dx: 0.05, dy: 0.5))
             .click()
 
-        let addressBarContinue = element("onboarding-address-bar-continue", in: app)
+        // The onboarding surface's own identifier cascades over plain
+        // descendants, so the step's buttons are addressed by title.
+        let addressBarContinue = app.buttons["Continue"]
         XCTAssertTrue(addressBarContinue.waitForExistence(timeout: 10))
         addressBarContinue.click()
 
