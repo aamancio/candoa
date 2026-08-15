@@ -452,10 +452,13 @@ final class CandoaUITests: XCTestCase {
             )?.usingColorSpace(.sRGB))
         }
 
-        // The bar occupies the card's top 30pt (window rows ~8-38). Sample
-        // mid-bar across the window's middle third — clear of the sidebar
-        // and of anything overlapping the trailing edge.
-        let barY: CGFloat = 22
+        // Sample on the URL field's own row — the field sits centered in
+        // the bar, so this tracks the bar wherever the window chrome puts
+        // it (CI runners lay the title strip out differently than local
+        // machines; a hardcoded row sampled empty chrome there). Columns
+        // span the window's middle third — clear of the sidebar and of
+        // anything overlapping the trailing edge.
+        let barY = urlField.frame.midY - windowFrame.minY
         var barSamples: [NSColor] = []
         // Stride avoids aliasing with the stripe bands so samples land
         // on both stripe phases.
