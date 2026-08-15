@@ -119,14 +119,6 @@ enum SidebarRevealConfiguration {
     static let hideDistanceFromLeftEdge: CGFloat = 340
 }
 
-/// The hidden-sidebar address strip's reveal band. Hiding needs the larger
-/// distance so the pointer can cross the strip itself — and reach the lock,
-/// the address, and the copy button — without the strip fading out under it.
-enum AddressBarRevealConfiguration {
-    static let revealDistanceFromTopEdge: CGFloat = 16
-    static let hideDistanceFromTopEdge: CGFloat = 52
-}
-
 enum TabHibernationConfiguration {
     /// Background tabs untouched for this long are hibernated: their
     /// interaction state is captured and the WKWebView (and its WebContent
