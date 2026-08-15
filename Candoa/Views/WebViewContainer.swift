@@ -182,11 +182,18 @@ struct WebViewContainer: View {
         )
     }
 
+    /// The reserved interface lanes in the surface row's own coordinates,
+    /// which is what WebKit's obscured insets and the row's own bars measure
+    /// against.
+    ///
+    /// Two surfacePaddings cancel here: the row already starts one padding in
+    /// from the window edge, and the visible surface starts one padding
+    /// beyond the lane, so inside the row a lane is exactly as wide as it is
+    /// in the window. Reserving one padding *less* — the old arithmetic —
+    /// anchored every page's fixed bottom-left content under the mask, where
+    /// the surface's rounded corner clipped it.
     private var webContentInsets: BrowserInterfaceInsets {
-        BrowserInterfaceInsets(
-            leading: max(0, visibleInterfaceInsets.leading - surfacePadding),
-            trailing: max(0, visibleInterfaceInsets.trailing - surfacePadding)
-        )
+        visibleInterfaceInsets
     }
 
     /// Which window-edge insets a pane needs depends on where the layout
@@ -210,33 +217,10 @@ struct WebViewContainer: View {
     }
 
     /// The masked interface lanes at the split row's own edges, in row
-    /// coordinates — the same "one surfacePadding beyond the web-content
-    /// insets" math as splitPaneAdornmentInsets, hoisted to the whole row.
-    /// splitPaneFrames divides the visible page between these so the cards
-    /// the mask reveals follow the pane ratios.
+    /// coordinates. splitPaneFrames divides the visible page between these so
+    /// the cards the mask reveals follow the pane ratios.
     private var splitRowLaneInsets: BrowserInterfaceInsets {
-        BrowserInterfaceInsets(
-            leading: webContentInsets.leading > 0 ? webContentInsets.leading + surfacePadding : 0,
-            trailing: webContentInsets.trailing > 0 ? webContentInsets.trailing + surfacePadding : 0
-        )
-    }
-
-    /// Insets that wrap a pane's *visible card* for adornments (focus ring,
-    /// control pill, reorder highlight). The interface mask reveals the card
-    /// from the full lane width, measured from the window edge — one
-    /// surfacePadding beyond the web-content insets, which are measured from
-    /// the already-padded row. Adornments padded by the content insets sit
-    /// entirely under the mask on lane-touching sides and vanish.
-    private func splitPaneAdornmentInsets(
-        forPaneAt index: Int,
-        paneCount: Int,
-        layout: SplitViewLayout
-    ) -> BrowserInterfaceInsets {
-        let contentInsets = splitPaneInsets(forPaneAt: index, paneCount: paneCount, layout: layout)
-        return BrowserInterfaceInsets(
-            leading: contentInsets.leading > 0 ? contentInsets.leading + surfacePadding : 0,
-            trailing: contentInsets.trailing > 0 ? contentInsets.trailing + surfacePadding : 0
-        )
+        webContentInsets
     }
 
     @ViewBuilder
@@ -457,7 +441,7 @@ struct WebViewContainer: View {
                     // (sidebar/Eli); only the mask reveals the visible card.
                     // Every pane adornment must wrap the visible card, not
                     // the raw frame, or its edge hides under the lane.
-                    let paneInsets = splitPaneAdornmentInsets(
+                    let paneInsets = splitPaneInsets(
                         forPaneAt: index,
                         paneCount: splitTabs.count,
                         layout: layout
@@ -687,7 +671,7 @@ struct WebViewContainer: View {
         paneCount: Int,
         layout: SplitViewLayout
     ) -> CGRect {
-        let insets = splitPaneAdornmentInsets(forPaneAt: index, paneCount: paneCount, layout: layout)
+        let insets = splitPaneInsets(forPaneAt: index, paneCount: paneCount, layout: layout)
         let frame = frames.indices.contains(index) ? frames[index] : .zero
         return CGRect(
             x: frame.minX + insets.leading,
@@ -706,8 +690,8 @@ struct WebViewContainer: View {
     ) -> CGRect {
         let maxX = frames.map(\.maxX).max() ?? 0
         let maxY = frames.map(\.maxY).max() ?? 0
-        let leading = splitPaneAdornmentInsets(forPaneAt: 0, paneCount: paneCount, layout: layout).leading
-        let trailing = splitPaneAdornmentInsets(
+        let leading = splitPaneInsets(forPaneAt: 0, paneCount: paneCount, layout: layout).leading
+        let trailing = splitPaneInsets(
             forPaneAt: max(paneCount - 1, 0),
             paneCount: paneCount,
             layout: layout
