@@ -29,6 +29,10 @@ struct EliSidebarView: View {
     @State private var selectedMentionIndex = 0
     @State private var streamTask: Task<Void, Never>?
     @State private var includesCurrentPageContext = true
+    /// Panes the user detached from the on-screen context by removing their
+    /// chip. Cleared whenever the current page reattaches, so a later split
+    /// starts with every pane in context again.
+    @State private var excludedPaneTabIDs: Set<UUID> = []
     @State private var lastSubmittedPageContext: AIPageContext?
     @State private var pendingSensitiveAgentAction: PendingSensitiveAgentAction?
     /// Permission to keep filling one page's fields without a dialog per
@@ -51,10 +55,6 @@ struct EliSidebarView: View {
         return title.isEmpty ? String(localized: "Current Page") : title
     }
 
-    private var activePageSubtitle: String {
-        store.activeTab?.url?.host(percentEncoded: false) ?? ""
-    }
-
     private var mentionQuery: String? {
         let text = prompt as NSString
         let selectedRange = NSApp.keyWindow?.firstResponder
@@ -68,16 +68,24 @@ struct EliSidebarView: View {
         return token
     }
 
+    /// What "the current page" means right now: the focused tab, plus the
+    /// other panes when a split view puts more than one page on screen.
+    /// Eli answers about what the user is looking at, and in a split that is
+    /// both pages.
+    private var currentPageTabs: [BrowserTab] {
+        guard includesCurrentPageContext, let activeTab = store.activeTab else { return [] }
+        return ([activeTab] + store.activeSplitTabs)
+            .filter { !excludedPaneTabIDs.contains($0.id) }
+    }
+
     /// Tabs already represented by a context chip: explicit tab mentions plus
-    /// the active tab while the "current page" chip is attached.
+    /// the on-screen pages while the "current page" chips are attached.
     private var attachedTabIDs: Set<UUID> {
         var ids = Set(mentionedContext.compactMap { mention -> UUID? in
             guard case .tab(let tabID) = mention else { return nil }
             return tabID
         })
-        if includesCurrentPageContext, let activeTabID = store.activeTabID {
-            ids.insert(activeTabID)
-        }
+        ids.formUnion(currentPageTabs.map(\.id))
         return ids
     }
 
@@ -181,19 +189,33 @@ struct EliSidebarView: View {
     }
 
     private var contextChips: [AISidebarContextChip] {
-        let currentChip = includesCurrentPageContext ? [
+        // One chip per on-screen page, focused pane first, so a split view
+        // shows the user both of the pages Eli is reading.
+        let currentChips = currentPageTabs.enumerated().map { index, tab in
             AISidebarContextChip(
-                id: "current",
-                title: activePageTitle,
-                subtitle: activePageSubtitle,
-                symbolName: store.activeTab?.faviconSymbol ?? "safari",
-                faviconData: store.activeTab?.faviconData,
+                id: index == 0 ? "current" : Self.paneChipID(for: tab.id),
+                title: index == 0 ? activePageTitle : paneChipTitle(for: tab),
+                subtitle: tab.url?.host(percentEncoded: false) ?? "",
+                symbolName: tab.faviconSymbol,
+                faviconData: tab.faviconData,
                 previewImageData: nil,
                 isRemovable: true
             )
-        ] : []
+        }
 
-        return currentChip + mentionedContext.map { chip(for: $0) }
+        return currentChips + mentionedContext.map { chip(for: $0) }
+    }
+
+    private static let paneChipIDPrefix = "split-pane-"
+
+    private static func paneChipID(for tabID: UUID) -> String {
+        paneChipIDPrefix + tabID.uuidString
+    }
+
+    private func paneChipTitle(for tab: BrowserTab) -> String {
+        let title = tab.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !title.isEmpty { return title }
+        return tab.url?.host(percentEncoded: false) ?? String(localized: "Current Page")
     }
 
     private var hasPersonalEliAccess: Bool {
@@ -303,10 +325,12 @@ struct EliSidebarView: View {
         }
         .onChange(of: store.activeTabID) {
             includesCurrentPageContext = true
+            excludedPaneTabIDs = []
             browserAgentFillConsent = nil
         }
         .onChange(of: store.activeTab?.url) {
             includesCurrentPageContext = true
+            excludedPaneTabIDs = []
         }
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active,
@@ -398,6 +422,7 @@ struct EliSidebarView: View {
                 messages = []
                 pendingSubscriptionSubmission = nil
                 includesCurrentPageContext = true
+                excludedPaneTabIDs = []
                 lastSubmittedPageContext = nil
                 cancelStream()
                 // The transcript restarts at zero, so the extraction window
@@ -782,7 +807,7 @@ struct EliSidebarView: View {
             },
             contextMentions: mentionedContext,
             recentTurns: recentTurns(),
-            currentPageTabID: includesCurrentPageContext ? store.activeTabID : nil,
+            currentPageTabIDs: currentPageTabs.map(\.id),
             browserControlTabID: store.activeTabID,
             mentionedTabs: mentionedContext.compactMap { mention in
                 guard case .tab(let tabID) = mention,
@@ -816,12 +841,13 @@ struct EliSidebarView: View {
         attachmentPreviewData = [:]
         presentedImagePreview = nil
         includesCurrentPageContext = false
+        excludedPaneTabIDs = []
         isMentionMenuPresented = false
 
         streamTask = Task {
             let submittedContext = await combinedContext(
                 for: submission.contextMentions,
-                currentPageTabID: submission.currentPageTabID
+                currentPageTabIDs: submission.currentPageTabIDs
             )
             let submittedPageContext = submittedContext.pageContext
             let pageContext = submittedPageContext.hasAttachedContext
@@ -894,6 +920,7 @@ struct EliSidebarView: View {
             attachmentPreviewData = [:]
             presentedImagePreview = nil
             includesCurrentPageContext = false
+            excludedPaneTabIDs = []
             isMentionMenuPresented = false
         }
     }
@@ -1437,22 +1464,33 @@ struct EliSidebarView: View {
 
     private func combinedContext(
         for mentions: [AISidebarContextMention],
-        currentPageTabID: UUID?
+        currentPageTabIDs: [UUID]
     ) async -> SubmittedEliContext {
-        let currentContext = currentPageTabID != nil
-            ? await store.aiPageContext(for: currentPageTabID)
-            : AIPageContext(title: nil, url: nil, text: nil)
+        var currentContexts: [AIPageContext] = []
+        for tabID in currentPageTabIDs {
+            currentContexts.append(await store.aiPageContext(for: tabID))
+        }
+        // The focused pane still names the submission: inheritance and the
+        // compactor read this title and URL.
+        let currentContext = currentContexts.first ?? AIPageContext(title: nil, url: nil, text: nil)
         var sections: [String] = []
         var agentSections: [String] = []
 
-        if currentPageTabID != nil, !mentions.isEmpty {
-            sections.append(contextSection(title: "Current page", context: currentContext))
+        // A lone unlabelled page stays unlabelled; a split view (or a mention
+        // beside it) needs each page named so the model can tell them apart.
+        if currentContexts.count > 1 || (!currentContexts.isEmpty && !mentions.isEmpty) {
+            for (index, context) in currentContexts.enumerated() {
+                sections.append(contextSection(
+                    title: index == 0 ? "Current page" : "Other split view page",
+                    context: context
+                ))
+            }
         }
 
         for mention in mentions {
             switch mention {
             case .tab(let tabID):
-                guard tabID != currentPageTabID else { continue }
+                guard !currentPageTabIDs.contains(tabID) else { continue }
                 let tabContext = await store.aiPageContext(for: tabID)
                 let section = contextSection(title: "Mentioned tab", context: tabContext)
                 sections.append(section)
@@ -1596,7 +1634,19 @@ struct EliSidebarView: View {
 
     private func removeMention(_ chipID: String) {
         if chipID == "current" {
-            includesCurrentPageContext = false
+            // The focused pane leaves with the flag the rest of the view reads;
+            // in a split the companion panes stay until removed themselves.
+            if let activeTabID = store.activeTabID, !store.activeSplitTabs.isEmpty {
+                excludedPaneTabIDs.insert(activeTabID)
+            } else {
+                includesCurrentPageContext = false
+            }
+            return
+        }
+
+        if chipID.hasPrefix(Self.paneChipIDPrefix),
+           let paneTabID = UUID(uuidString: String(chipID.dropFirst(Self.paneChipIDPrefix.count))) {
+            excludedPaneTabIDs.insert(paneTabID)
             return
         }
 
@@ -1911,6 +1961,7 @@ struct EliSidebarView: View {
         presentedImagePreview = nil
         isFileImporterPresented = false
         includesCurrentPageContext = true
+        excludedPaneTabIDs = []
         lastSubmittedPageContext = nil
         isMentionMenuPresented = false
         isRefreshingEliAccess = false
