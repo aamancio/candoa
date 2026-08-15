@@ -409,6 +409,114 @@ final class SpaceMemoryTests: XCTestCase {
 
 }
 
+/// Page-scoped fill consent: one approval covers a form's remaining fields,
+/// and covers nothing else.
+final class BrowserAgentFillConsentTests: XCTestCase {
+    private let runID = UUID()
+    private let tabID = UUID()
+    private let snapshotID = UUID()
+    private let pageURL = "https://jobs.example.com/apply"
+
+    private func page(url: String? = nil) -> BrowserAgentPage {
+        BrowserAgentPage(
+            snapshotID: snapshotID,
+            title: "Apply",
+            url: url ?? pageURL,
+            text: "",
+            controls: [
+                BrowserAgentControl(ref: "e0", kind: .field, label: "Email", url: nil, disabled: false, sensitive: true),
+                BrowserAgentControl(ref: "e1", kind: .button, label: "Submit", url: nil, disabled: false, sensitive: true),
+                BrowserAgentControl(ref: "e2", kind: .field, label: "Search", url: nil, disabled: false, sensitive: false),
+            ]
+        )
+    }
+
+    private func action(
+        _ kind: PageActionKind,
+        target: String,
+        requiresApproval: Bool = false
+    ) -> BrowserAgentAction {
+        BrowserAgentAction(
+            snapshotID: snapshotID,
+            kind: kind,
+            target: target,
+            value: "alex@example.com",
+            label: "Email",
+            url: nil,
+            requiresApproval: requiresApproval,
+            message: ""
+        )
+    }
+
+    private var consent: BrowserAgentFillConsent {
+        BrowserAgentFillConsent(runID: runID, tabID: tabID, url: pageURL)
+    }
+
+    private func requiresApproval(
+        _ action: BrowserAgentAction,
+        on page: BrowserAgentPage,
+        consent: BrowserAgentFillConsent?
+    ) -> Bool {
+        BrowserAgentPolicy.requiresNativeApproval(
+            for: action,
+            on: page,
+            fillConsent: consent,
+            runID: runID,
+            tabID: tabID
+        )
+    }
+
+    func testWithoutConsentEveryPersonalFillIsConfirmed() {
+        XCTAssertTrue(requiresApproval(action(.fill, target: "e0"), on: page(), consent: nil))
+    }
+
+    func testConsentCoversFurtherFillsOnTheSamePage() {
+        XCTAssertFalse(requiresApproval(action(.fill, target: "e0"), on: page(), consent: consent))
+    }
+
+    func testConsentNeverCoversTheSubmitButton() {
+        XCTAssertTrue(
+            requiresApproval(action(.click, target: "e1"), on: page(), consent: consent),
+            "agreeing to have a form filled is not agreeing to send it"
+        )
+    }
+
+    func testConsentDoesNotSurviveNavigationOrAnotherRun() {
+        XCTAssertTrue(
+            requiresApproval(action(.fill, target: "e0"), on: page(url: "https://jobs.example.com/apply/step-2"), consent: consent),
+            "a new page must ask again"
+        )
+        let otherRun = BrowserAgentFillConsent(runID: UUID(), tabID: tabID, url: pageURL)
+        XCTAssertTrue(requiresApproval(action(.fill, target: "e0"), on: page(), consent: otherRun))
+        let otherTab = BrowserAgentFillConsent(runID: runID, tabID: UUID(), url: pageURL)
+        XCTAssertTrue(requiresApproval(action(.fill, target: "e0"), on: page(), consent: otherTab))
+    }
+
+    func testModelApprovalFlagOutranksConsent() {
+        XCTAssertTrue(
+            requiresApproval(action(.fill, target: "e0", requiresApproval: true), on: page(), consent: consent),
+            "the model's judgment is a floor the consent cannot lower"
+        )
+    }
+
+    func testNonSensitiveFieldsNeverNeededApprovalAnyway() {
+        XCTAssertFalse(requiresApproval(action(.fill, target: "e2"), on: page(), consent: nil))
+    }
+
+    func testOnlyFieldFillsOfferThePageScopedOption() {
+        XCTAssertTrue(
+            BrowserAgentPolicy.allowsPageScopedFillConsent(
+                for: PageActionProposal(kind: .fill, target: "Email", value: "a@b.c", browserAgentControlKind: .field)
+            )
+        )
+        XCTAssertFalse(
+            BrowserAgentPolicy.allowsPageScopedFillConsent(
+                for: PageActionProposal(kind: .click, target: "Submit", value: nil, browserAgentControlKind: .button)
+            )
+        )
+    }
+}
+
 /// Address-bar scheme selection: bare hosts default to HTTPS, except
 /// localhost and loopback hosts, which Safari defaults to plain HTTP.
 final class NavigationSchemeTests: XCTestCase {

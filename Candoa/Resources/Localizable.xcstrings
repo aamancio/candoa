@@ -161,6 +161,86 @@
         }
       }
     },
+    "Eli is ready to enter information in \"%@\". Fill This Page lets Eli complete the other fields here without asking again; sending the form still needs your approval." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eli möchte Informationen in „%@“ eingeben. Mit „Diese Seite ausfüllen“ füllt Eli die übrigen Felder hier ohne erneute Nachfrage aus; das Absenden des Formulars muss weiterhin von dir bestätigt werden."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eli va a introducir información en «%@». «Rellenar esta página» permite que Eli complete los demás campos sin volver a preguntar; enviar el formulario seguirá necesitando tu aprobación."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eli s’apprête à saisir des informations dans « %@ ». « Remplir cette page » permet à Eli de compléter les autres champs sans redemander ; l’envoi du formulaire nécessite toujours votre approbation."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eli が「%@」に情報を入力しようとしています。「このページに入力」を選ぶと、以降このページの他の項目は確認なしで入力されます。フォームの送信には引き続き承認が必要です。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eli está pronto para inserir informações em “%@”. “Preencher esta página” deixa o Eli completar os outros campos sem perguntar de novo; enviar o formulário ainda precisa da sua aprovação."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eli 准备在“%@”中输入信息。选择“填写此页面”后，Eli 将继续填写本页其他字段而不再询问；提交表单仍需你的批准。"
+          }
+        }
+      }
+    },
+    "Fill This Page" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diese Seite ausfüllen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rellenar esta página"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remplir cette page"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このページに入力"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preencher esta página"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "填写此页面"
+          }
+        }
+      }
+    },
     "In the Sidebar" : {
       "localizations" : {
         "es" : {

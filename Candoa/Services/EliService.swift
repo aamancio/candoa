@@ -70,7 +70,7 @@ enum RemoteEliService {
            let fixture = ProcessInfo.processInfo.environment["CANDOA_UI_TESTING_FIXTURE"],
            [
                "ask-agent-navigation", "ask-agent-normalized-navigation", "ask-agent-selection",
-               "ask-agent-mentioned-tab", "ask-agent-waiting"
+               "ask-agent-mentioned-tab", "ask-agent-waiting", "ask-agent-form-fill"
            ].contains(fixture) {
             // The mentioned-tab fixture stands in for the model copying an
             // attached tab's URL into targetTabURL; the others target the

@@ -31,6 +31,10 @@ struct EliSidebarView: View {
     @State private var includesCurrentPageContext = true
     @State private var lastSubmittedPageContext: AIPageContext?
     @State private var pendingSensitiveAgentAction: PendingSensitiveAgentAction?
+    /// Permission to keep filling one page's fields without a dialog per
+    /// field, granted from a fill confirmation and dropped the moment the run,
+    /// the tab, or the page changes.
+    @State private var browserAgentFillConsent: BrowserAgentFillConsent?
     /// A run paused on a wait-for-user handoff (an ad, a sign-in, a CAPTCHA).
     /// The cloud workflow stays alive until Continue resumes it or Stop (or
     /// sidebar teardown) rejects it.
@@ -204,7 +208,7 @@ struct EliSidebarView: View {
         BrowserStore.isUITesting
             && [
                 "ask-agent-navigation", "ask-agent-normalized-navigation", "ask-agent-selection",
-                "ask-agent-mentioned-tab", "ask-agent-waiting"
+                "ask-agent-mentioned-tab", "ask-agent-waiting", "ask-agent-form-fill"
             ].contains(
                 ProcessInfo.processInfo.environment["CANDOA_UI_TESTING_FIXTURE"]
             )
@@ -299,6 +303,7 @@ struct EliSidebarView: View {
         }
         .onChange(of: store.activeTabID) {
             includesCurrentPageContext = true
+            browserAgentFillConsent = nil
         }
         .onChange(of: store.activeTab?.url) {
             includesCurrentPageContext = true
@@ -354,6 +359,13 @@ struct EliSidebarView: View {
             ),
             titleVisibility: .visible
         ) {
+            if let pendingSensitiveAgentAction,
+               BrowserAgentPolicy.allowsPageScopedFillConsent(for: pendingSensitiveAgentAction.action) {
+                Button("Fill This Page", role: .destructive) {
+                    approveSensitiveAgentAction(grantingPageFillConsent: true)
+                }
+                .accessibilityIdentifier("agent-fill-page")
+            }
             Button("Continue", role: .destructive) { approveSensitiveAgentAction() }
             Button("Stop", role: .cancel) { stopPendingSensitiveAgentAction() }
         } message: {
@@ -1085,7 +1097,13 @@ struct EliSidebarView: View {
 
             updateBrowserAgentStatus(state, text: browserAgentStatus(for: pendingAction))
 
-            if BrowserAgentPolicy.requiresNativeApproval(for: pendingAction, on: page) {
+            if BrowserAgentPolicy.requiresNativeApproval(
+                for: pendingAction,
+                on: page,
+                fillConsent: browserAgentFillConsent,
+                runID: state.runID,
+                tabID: state.tabID
+            ) {
                 pendingSensitiveAgentAction = PendingSensitiveAgentAction(
                     action: action,
                     state: state,
@@ -1122,9 +1140,18 @@ struct EliSidebarView: View {
         try await continueBrowserAgent(response, page: page, state: state)
     }
 
-    private func approveSensitiveAgentAction() {
+    private func approveSensitiveAgentAction(grantingPageFillConsent: Bool = false) {
         guard let pending = pendingSensitiveAgentAction else { return }
         pendingSensitiveAgentAction = nil
+        if grantingPageFillConsent {
+            // Scoped to the page that was on screen when the dialog appeared,
+            // so a mid-run navigation cannot inherit it.
+            browserAgentFillConsent = BrowserAgentFillConsent(
+                runID: pending.state.runID,
+                tabID: pending.state.tabID,
+                url: pending.previousURL
+            )
+        }
         browserAgentTask = Task {
             do {
                 try await executeBrowserAgentAction(
@@ -1248,6 +1275,9 @@ struct EliSidebarView: View {
         }
         isResolvingPageAction = false
         browserAgentTask = nil
+        // Consent covers one form on one page during one run; it must never
+        // outlive the run that asked for it.
+        browserAgentFillConsent = nil
     }
 
     private func updateBrowserAgentStatus(_ state: BrowserAgentRunState, text: String) {
@@ -1829,6 +1859,7 @@ struct EliSidebarView: View {
         streamTask = nil
         browserAgentTask?.cancel()
         browserAgentTask = nil
+        browserAgentFillConsent = nil
         if waitingAgentRun != nil {
             // Sidebar teardown or a new conversation while a run is waiting on
             // the user: same contract as a pending sensitive action — finalize

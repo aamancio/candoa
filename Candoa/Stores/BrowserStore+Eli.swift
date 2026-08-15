@@ -191,7 +191,7 @@ extension BrowserStore {
               let fixture = ProcessInfo.processInfo.environment["CANDOA_UI_TESTING_FIXTURE"],
               [
                   "ask-agent-navigation", "ask-agent-normalized-navigation", "ask-agent-selection",
-                  "ask-agent-mentioned-tab", "ask-agent-waiting"
+                  "ask-agent-mentioned-tab", "ask-agent-waiting", "ask-agent-form-fill"
               ].contains(fixture) else { return nil }
         let pageURL = URL(string: page.url)
         let path = pageURL?.fragment.map { "/\($0)" } ?? pageURL?.path
@@ -274,6 +274,35 @@ extension BrowserStore {
             )
         }
 
+        // Fills one personal field per turn, the way a real run does, then
+        // submits. The page reports which fields are already filled, so the
+        // fixture stays stateless between turns.
+        if fixture == "ask-agent-form-fill" {
+            let filled = page.text
+                .range(of: #"filled=(\d+)"#, options: .regularExpression)
+                .map { Int(page.text[$0].dropFirst("filled=".count)) ?? 0 } ?? 0
+            let personalFields = page.controls.filter { $0.kind == .field && $0.sensitive }
+            if filled < personalFields.count {
+                return fixtureActionResponse(
+                    runID: runID,
+                    page: page,
+                    control: personalFields[filled],
+                    kind: .fill,
+                    value: Self.uiTestingFormFillValues[filled]
+                )
+            }
+            if let submit = page.controls.first(where: { $0.label == "Submit Application" }),
+               !page.text.contains("submitted") {
+                return fixtureActionResponse(runID: runID, page: page, control: submit, kind: .click)
+            }
+            return .init(
+                runID: runID,
+                status: .complete,
+                message: "Your application is submitted.",
+                action: nil
+            )
+        }
+
         if fixture == "ask-agent-selection" {
             let normalizedGoal = EliPromptPolicy.normalizedText(goal)
             let control = page.controls.first(where: { $0.label == "Add to Cart" })
@@ -319,12 +348,20 @@ extension BrowserStore {
         )
     }
 
+    /// Canned values for the form-fill fixture, in the page's field order.
+    static let uiTestingFormFillValues = [
+        "Alex Fixture",
+        "alex@fixture.test",
+        "5550000000",
+    ]
+
     private func fixtureActionResponse(
         runID: UUID,
         page: BrowserAgentPage,
         control: BrowserAgentControl,
         kind: PageActionKind,
         message: String = "",
+        value: String = "",
         requiresApproval: Bool = false
     ) -> BrowserAgentRunResponse {
         BrowserAgentRunResponse(
@@ -335,7 +372,7 @@ extension BrowserStore {
                 snapshotID: page.snapshotID,
                 kind: kind,
                 target: control.ref,
-                value: "",
+                value: value,
                 label: control.label,
                 url: control.url,
                 requiresApproval: requiresApproval,
