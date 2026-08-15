@@ -98,20 +98,15 @@ struct EliMemoryPopoverView: View {
         }
     }
 
-    /// Nothing saved yet means there is nothing to explain: one title and one
-    /// line, without the Space name, the divider, or the privacy footnote that
-    /// only earn their room once there are facts to apply them to.
+    /// An empty list needs no heading and no explanation of what memory is —
+    /// just the plain fact that there is nothing here, the way an empty
+    /// history list reads.
     private var emptyBody: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("What Eli Knows")
-                .font(.system(size: 13.5, weight: .semibold))
-                .accessibilityIdentifier("eli-memory-title")
-            Text("Nothing yet. Eli remembers details from your chats.")
-                .font(.system(size: 12.5))
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .frame(width: 250, alignment: .leading)
+        Text("Nothing saved yet.")
+            .font(.system(size: 12.5))
+            .foregroundStyle(.secondary)
+            .accessibilityIdentifier("eli-memory-title")
+            .frame(width: 150, alignment: .leading)
     }
 
     private var factsBody: some View {
