@@ -1291,7 +1291,11 @@ private struct DeveloperToolbar: View {
     let onSetDeveloperMode: (Bool) -> Void
     let onToggleChat: () -> Void
 
-    private static let storageKey = "CandoaDeveloperToolbarControlIDs"
+    // Versioned: the bar's defaults changed to link, chat, and share, and a
+    // set saved under the old defaults would quietly outrank them — including
+    // the one the old Reset button wrote. A new key starts everyone at the
+    // current defaults, with re-customizing one menu away.
+    private static let storageKey = "CandoaDeveloperToolbarControlIDs.v2"
     private static let noControlIDsValue = "none"
     private static let defaultControlIDs = DeveloperToolbarControlKind.allCases
         .filter(\.isDefaultVisible)
