@@ -71,6 +71,11 @@ extension CandoaUITests {
         XCTAssertTrue(element("navigation-back-button", in: app).exists, currentState(in: app))
         XCTAssertTrue(element("navigation-reload-button", in: app).exists, currentState(in: app))
         XCTAssertTrue(element("top-chat-button", in: app).exists, currentState(in: app))
+        // The toggle rides the strip too, and stays there with the sidebar
+        // open — Dia keeps it in one place rather than moving it into the
+        // sidebar it just opened.
+        XCTAssertTrue(element("top-sidebar-toggle-button", in: app).exists, currentState(in: app))
+        XCTAssertFalse(element("sidebar-toggle-button", in: app).exists, currentState(in: app))
         // Exactly one copy of each: the sidebar header gave its cluster up.
         XCTAssertEqual(app.descendants(matching: .any)
             .matching(identifier: "navigation-back-button").count, 1)
@@ -87,8 +92,10 @@ extension CandoaUITests {
         XCTAssertTrue(element("sidebar-address-button", in: app).waitForExistence(timeout: 10))
         XCTAssertFalse(element("top-address-button", in: app).exists)
         XCTAssertFalse(element("top-chat-button", in: app).exists)
-        // Navigation stays in the sidebar header under this placement.
+        XCTAssertFalse(element("top-sidebar-toggle-button", in: app).exists)
+        // Navigation and the toggle stay in the sidebar header here.
         XCTAssertTrue(element("navigation-back-button", in: app).exists, currentState(in: app))
+        XCTAssertTrue(element("sidebar-toggle-button", in: app).exists, currentState(in: app))
         XCTAssertTrue(waitForState(in: app, containing: "addressBar=sidebar"), currentState(in: app))
     }
 
