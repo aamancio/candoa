@@ -63,7 +63,9 @@ struct EliSubmission {
     let contextChips: [AISidebarContextChip]
     let contextMentions: [AISidebarContextMention]
     let recentTurns: [AIConversationTurn]
-    let currentPageTabID: UUID?
+    /// Every page on screen at submission, focused pane first — a split view
+    /// contributes each of its panes, not just the focused one.
+    let currentPageTabIDs: [UUID]
     let browserControlTabID: UUID?
     let mentionedTabs: [EliMentionedTab]
     let inheritedPageContext: AIPageContext?
