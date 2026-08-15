@@ -1133,7 +1133,7 @@ struct SidebarView: View {
                     ? InterfaceStyle.sidebarControlFillDropTarget
                     : Color.clear
             )
-            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: InterfaceStyle.sidebarRowCornerRadius, style: .continuous))
             .contentShape(Rectangle())
             .onDrop(
                 of: [UTType.text],
@@ -1305,13 +1305,13 @@ struct SidebarView: View {
         }
         .buttonTreatment(.content)
         .background(newTabButtonBackground(isArmed: isArmed))
-        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: InterfaceStyle.sidebarRowCornerRadius, style: .continuous))
         .onHover { isHoveringNewTab = $0 }
         .accessibilityIdentifier("sidebar-new-tab-button")
         .initialTourPopover(.commandBar, store: store, arrowEdge: .leading)
         .overlay {
             if isHoveringNewTab && !isArmed && store.draggedTabID == nil {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                RoundedRectangle(cornerRadius: InterfaceStyle.sidebarRowCornerRadius, style: .continuous)
                     .stroke(InterfaceStyle.sidebarControlStroke, lineWidth: 1)
                     .allowsHitTesting(false)
             }
