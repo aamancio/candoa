@@ -1614,15 +1614,13 @@ final class CandoaUITests: XCTestCase {
         XCTAssertTrue(app.menuItems["Claude Fable 5"].exists)
         haikuItem.click()
         XCTAssertTrue(popUpButton(withValue: "Claude Haiku 4.5", in: app).waitForExistence(timeout: 5))
-        let reasoning = popUpButton(withValue: "Low", in: app)
-        XCTAssertTrue(reasoning.waitForExistence(timeout: 5))
-        reasoning.click()
+        clickPopUpButton(withValue: "Low", in: app)
         XCTAssertTrue(app.menuItems["Low"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.menuItems["High"].exists)
         app.typeKey(.escape, modifierFlags: [])
 
         // Switching back to the hosted connection swaps in the plan catalog.
-        popUpButton(withValue: "Personal API key", in: app).click()
+        clickPopUpButton(withValue: "Personal API key", in: app)
         let hostedItem = app.menuItems["Candoa Cloud"]
         XCTAssertTrue(hostedItem.waitForExistence(timeout: 5))
         hostedItem.click()
@@ -1656,9 +1654,7 @@ final class CandoaUITests: XCTestCase {
             app.staticTexts["Current OpenAI models available to your key."]
                 .waitForExistence(timeout: 5)
         )
-        let modelPicker = popUpButton(withValue: "GPT-5.6 Luna", in: app)
-        XCTAssertTrue(modelPicker.waitForExistence(timeout: 5))
-        modelPicker.click()
+        clickPopUpButton(withValue: "GPT-5.6 Luna", in: app)
         let novaItem = app.menuItems["GPT-6 Nova"]
         XCTAssertTrue(novaItem.waitForExistence(timeout: 5))
         XCTAssertTrue(app.menuItems["GPT-6 Mini"].exists)
@@ -1666,20 +1662,16 @@ final class CandoaUITests: XCTestCase {
         XCTAssertTrue(popUpButton(withValue: "GPT-6 Nova", in: app).waitForExistence(timeout: 5))
 
         // Reasoning follows the listed model's declared support.
-        let reasoning = popUpButton(withValue: "Low", in: app)
-        XCTAssertTrue(reasoning.waitForExistence(timeout: 5))
-        reasoning.click()
+        clickPopUpButton(withValue: "Low", in: app)
         XCTAssertTrue(app.menuItems["High"].waitForExistence(timeout: 5))
         app.typeKey(.escape, modifierFlags: [])
 
-        popUpButton(withValue: "GPT-6 Nova", in: app).click()
+        clickPopUpButton(withValue: "GPT-6 Nova", in: app)
         let miniItem = app.menuItems["GPT-6 Mini"]
         XCTAssertTrue(miniItem.waitForExistence(timeout: 5))
         miniItem.click()
         XCTAssertTrue(popUpButton(withValue: "GPT-6 Mini", in: app).waitForExistence(timeout: 5))
-        let clampedReasoning = popUpButton(withValue: "Low", in: app)
-        XCTAssertTrue(clampedReasoning.waitForExistence(timeout: 5))
-        clampedReasoning.click()
+        clickPopUpButton(withValue: "Low", in: app)
         XCTAssertTrue(app.menuItems["Low"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.menuItems["High"].exists)
         app.typeKey(.escape, modifierFlags: [])
@@ -1697,6 +1689,24 @@ final class CandoaUITests: XCTestCase {
         app.popUpButtons.matching(
             NSPredicate(format: "value == %@", value)
         ).firstMatch
+    }
+
+    /// Clicks a settings popup that loaded CI runners occasionally report
+    /// non-hittable right after a previous picker menu dismisses: polls for
+    /// hittability, then falls back to a coordinate click, which skips the
+    /// hit test entirely.
+    private func clickPopUpButton(withValue value: String, in app: XCUIApplication) {
+        let button = popUpButton(withValue: value, in: app)
+        XCTAssertTrue(button.waitForExistence(timeout: 5), "popup with value '\(value)' missing")
+        let deadline = Date().addingTimeInterval(5)
+        while !button.isHittable, Date() < deadline {
+            usleep(200_000)
+        }
+        if button.isHittable {
+            button.click()
+        } else {
+            button.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).click()
+        }
     }
 
     func testNotNowCompletesAccountSetup() throws {
