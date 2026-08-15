@@ -640,31 +640,33 @@ struct SidebarView: View {
             // frame and shifts the whole sidebar's content off-edge.
             Spacer(minLength: 4)
 
-            HStack(spacing: 4) {
-                // Under the "Above the Page" placement these ride the strip
-                // beside the address instead, the way Dia lays its toolbar
-                // out — never both, or the window shows two Back buttons.
-                if showsAddressPill {
+            // Under the "Above the Page" placement this whole cluster rides
+            // the strip beside the address instead, the way Dia lays its
+            // toolbar out — the toggle included, so it keeps one home whether
+            // the sidebar it opens is showing or not. Never both, or the
+            // window shows two Back buttons and two toggles.
+            if showsAddressPill {
+                HStack(spacing: 4) {
                     navigationControls
                         .opacity(hidesNavigationControlsForAddressPalette ? 0 : 1)
                         .allowsHitTesting(!hidesNavigationControlsForAddressPalette)
-                }
 
-                Button {
-                    onToggleSidebar()
-                } label: {
-                    Image(systemName: "sidebar.left")
+                    Button {
+                        onToggleSidebar()
+                    } label: {
+                        Image(systemName: "sidebar.left")
+                    }
+                    .toolbarIconButton()
+                    .shortcutTooltip(
+                        isSidebarPinned ? "Hide Sidebar" : "Show Sidebar",
+                        shortcut: .toggleSidebar
+                    )
+                    .accessibilityIdentifier("sidebar-toggle-button")
                 }
-                .toolbarIconButton()
-                .shortcutTooltip(
-                    isSidebarPinned ? "Hide Sidebar" : "Show Sidebar",
-                    shortcut: .toggleSidebar
-                )
-                .accessibilityIdentifier("sidebar-toggle-button")
+                // Sit the icons on the measured centerline of the native
+                // window buttons, wherever AppKit put them.
+                .offset(y: windowControlsGeometry.controlsCenterOffsetY)
             }
-            // Sit the icons on the measured centerline of the native window
-            // buttons, wherever AppKit put them.
-            .offset(y: windowControlsGeometry.controlsCenterOffsetY)
         }
         .buttonTreatment(.content)
         .foregroundStyle(sidebarIconColor)

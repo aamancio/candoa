@@ -1,9 +1,9 @@
 import SwiftUI
 
-/// The leading half of a toolbar above the page: the sidebar toggle when the
-/// sidebar is away, then back, forward, and reload. Shared by the address
-/// strip and the developer bar, which occupy the same slot on different
-/// pages and must present the same controls in the same order.
+/// The leading half of a toolbar above the page: the sidebar toggle, then
+/// back, forward, and reload. Shared by the address strip and the developer
+/// bar, which occupy the same slot on different pages and must present the
+/// same controls in the same order.
 internal struct TopToolbarLeadingControls: View {
     @ObservedObject var store: BrowserStore
     let isSidebarVisible: Bool
@@ -11,17 +11,19 @@ internal struct TopToolbarLeadingControls: View {
 
     var body: some View {
         HStack(spacing: 4) {
-            // The sidebar header carries the toggle whenever it is on screen;
-            // this slot only fills in for it so the window is never left
-            // without a way back to the tabs.
-            if !isSidebarVisible {
-                Button(action: onToggleSidebar) {
-                    Image(systemName: "sidebar.left")
-                }
-                .toolbarIconButton()
-                .shortcutTooltip("Show Sidebar", shortcut: .toggleSidebar)
-                .accessibilityIdentifier("top-sidebar-toggle-button")
+            // The toggle stays here whether the sidebar is open or away, the
+            // way Dia keeps it: the sidebar header gives its own up under
+            // this placement, so the control never moves out from under the
+            // pointer just because the sidebar it opened is now on screen.
+            Button(action: onToggleSidebar) {
+                Image(systemName: "sidebar.left")
             }
+            .toolbarIconButton()
+            .shortcutTooltip(
+                isSidebarVisible ? "Hide Sidebar" : "Show Sidebar",
+                shortcut: .toggleSidebar
+            )
+            .accessibilityIdentifier("top-sidebar-toggle-button")
 
             BrowserNavigationControls(store: store)
         }
@@ -44,9 +46,9 @@ struct TopAddressBar: View {
     /// The interface lanes covering the strip's edges, matching the developer
     /// bar so both start at the same visible run.
     let contentInsets: BrowserInterfaceInsets
-    /// Whether the sidebar is pinned open. Its header carries the toggle when
-    /// it is; the strip takes over the leading slot when it is not, so the
-    /// window is never left without a way back to the tabs.
+    /// Whether the sidebar is pinned open. The strip owns the toggle either
+    /// way under this placement; this only decides whether it offers to show
+    /// or to hide.
     let isSidebarVisible: Bool
     let onToggleSidebar: () -> Void
 
