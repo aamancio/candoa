@@ -38,7 +38,6 @@ final class WebExtensionManager: NSObject, ObservableObject {
     private var windowObservers: [ObjectIdentifier: [any NSObjectProtocol]] = [:]
     /// Per-window anchor for WebKit's action-popup NSPopovers — the sidebar
     /// header's extensions button registers itself here.
-    private let actionAnchors = NSMapTable<NSWindow, NSView>.weakToWeakObjects()
 
     private override init() {
         controller = WKWebExtensionController(configuration: .default())
@@ -132,10 +131,6 @@ final class WebExtensionManager: NSObject, ObservableObject {
     func performAction(for installationID: UUID) {
         guard let context = contextsByInstallationID[installationID] else { return }
         context.performAction(for: focusedActiveTabAdapter)
-    }
-
-    func registerActionAnchor(_ view: NSView, for window: NSWindow) {
-        actionAnchors.setObject(view, forKey: window)
     }
 
     private var focusedActiveTabAdapter: WebExtensionTabAdapter? {
@@ -550,15 +545,10 @@ extension WebExtensionManager: WKWebExtensionControllerDelegate {
             completionHandler(nil)
             return
         }
-        let window = NSApp.keyWindow
-        if let window,
-           let anchor = actionAnchors.object(forKey: window),
-           anchor.window === window {
-            popover.show(relativeTo: anchor.bounds, of: anchor, preferredEdge: .maxY)
-            completionHandler(nil)
-        } else if let contentView = window?.contentView {
-            // No extensions button on screen (sidebar hidden): fall back to
-            // the window's top edge so the popup still appears.
+        // Actions are triggered from the Extensions menu — there is no
+        // on-screen button to anchor to — so the popup presents from the
+        // window's top edge.
+        if let contentView = NSApp.keyWindow?.contentView {
             let anchorRect = NSRect(x: contentView.bounds.midX, y: contentView.bounds.maxY - 1, width: 1, height: 1)
             popover.show(relativeTo: anchorRect, of: contentView, preferredEdge: .minY)
             completionHandler(nil)

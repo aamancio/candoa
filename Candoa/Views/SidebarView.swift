@@ -636,13 +636,6 @@ struct SidebarView: View {
                     .opacity(hidesNavigationControlsForAddressPalette ? 0 : 1)
                     .allowsHitTesting(!hidesNavigationControlsForAddressPalette)
 
-                // Appears only once an extension is loaded, so the
-                // width-constrained header pays for it only then. In private
-                // windows that means an extension granted private access.
-                if #available(macOS 15.4, *) {
-                    SidebarExtensionsButton(isPrivateWindow: store.isPrivate)
-                }
-
                 Button {
                     onToggleSidebar()
                 } label: {
