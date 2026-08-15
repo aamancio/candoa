@@ -405,12 +405,32 @@ final class NavigationSchemeTests: XCTestCase {
 
     // MARK: - Tab switcher thumbnails (issue #340)
 
-    private func solidImage(width: Int, height: Int) -> NSImage {
-        let image = NSImage(size: NSSize(width: width, height: height))
-        image.lockFocus()
+    /// A filled snapshot of an explicit point size, backed by `scale` pixels
+    /// per point. Built by hand rather than with `lockFocus`, which adopts the
+    /// test machine's display scale and would make these assertions depend on
+    /// whether the run happens on a Retina Mac.
+    private func solidImage(width: Int, height: Int, scale: Int = 1) -> NSImage {
+        let rep = NSBitmapImageRep(
+            bitmapDataPlanes: nil,
+            pixelsWide: width * scale,
+            pixelsHigh: height * scale,
+            bitsPerSample: 8,
+            samplesPerPixel: 4,
+            hasAlpha: true,
+            isPlanar: false,
+            colorSpaceName: .calibratedRGB,
+            bytesPerRow: 0,
+            bitsPerPixel: 0
+        )!
+        rep.size = NSSize(width: width, height: height)
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
         NSColor.red.setFill()
         NSRect(x: 0, y: 0, width: width, height: height).fill()
-        image.unlockFocus()
+        NSGraphicsContext.restoreGraphicsState()
+
+        let image = NSImage(size: NSSize(width: width, height: height))
+        image.addRepresentation(rep)
         return image
     }
 
@@ -430,6 +450,20 @@ final class NavigationSchemeTests: XCTestCase {
         )
         XCTAssertEqual(bitmap.pixelsWide, 300)
         XCTAssertEqual(bitmap.pixelsHigh, 180)
+    }
+
+    func testThumbnailBitmapFillsTheThumbnailFromARetinaSnapshot() throws {
+        // Regression: measuring the source in pixels but drawing from a point
+        // space rect left the page in the bottom-left quadrant (issue #347).
+        let bitmap = try XCTUnwrap(
+            TabSnapshotStore.thumbnailBitmap(from: solidImage(width: 512, height: 320, scale: 2), maxWidth: 320)
+        )
+        XCTAssertEqual(bitmap.pixelsWide, 320)
+        XCTAssertEqual(bitmap.pixelsHigh, 200)
+        for point in [NSPoint(x: 1, y: 1), NSPoint(x: 318, y: 1), NSPoint(x: 1, y: 198), NSPoint(x: 318, y: 198)] {
+            let color = try XCTUnwrap(bitmap.colorAt(x: Int(point.x), y: Int(point.y)))
+            XCTAssertEqual(color.alphaComponent, 1, accuracy: 0.01, "thumbnail corner \(point) is empty")
+        }
     }
 
     func testPreviewWarmupOnlyLoadsWebPages() {

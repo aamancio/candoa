@@ -17,17 +17,43 @@ final class TabSnapshotStore {
 
     init(directoryURL: URL? = TabSnapshotStore.defaultDirectoryURL) {
         self.directoryURL = directoryURL
+        Self.discardOutdatedCaches()
     }
+
+    /// Bumped whenever a bug makes already-written thumbnails not worth
+    /// keeping, so nobody has to look at stale garbage until each tab happens
+    /// to be recaptured. `v1` wrote Retina snapshots with the page squeezed
+    /// into the bottom-left quadrant on white.
+    private nonisolated static let directoryName = "TabSnapshots-v2"
+    private nonisolated static let outdatedDirectoryNames = ["TabSnapshots"]
 
     /// UI test runs share the real bundle's Application Support container;
     /// a nil directory disables persistence so runs stay deterministic and
     /// leave no files behind.
     private nonisolated static var defaultDirectoryURL: URL? {
         guard ProcessInfo.processInfo.environment["CANDOA_UI_TESTING"] != "1" else { return nil }
-        let baseURL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        return baseURL
+        return candoaSupportDirectoryURL?.appendingPathComponent(directoryName, isDirectory: true)
+    }
+
+    private nonisolated static var candoaSupportDirectoryURL: URL? {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?
             .appendingPathComponent("Candoa", isDirectory: true)
-            .appendingPathComponent("TabSnapshots", isDirectory: true)
+    }
+
+    /// Best effort, once per launch: drop thumbnail directories written by
+    /// superseded cache formats. Missing directories are the normal case.
+    private nonisolated static func discardOutdatedCaches() {
+        guard ProcessInfo.processInfo.environment["CANDOA_UI_TESTING"] != "1",
+              let supportURL = candoaSupportDirectoryURL
+        else { return }
+        let outdatedURLs = outdatedDirectoryNames.map {
+            supportURL.appendingPathComponent($0, isDirectory: true)
+        }
+        Task.detached(priority: .utility) {
+            for url in outdatedURLs {
+                try? FileManager.default.removeItem(at: url)
+            }
+        }
     }
 
     func persist(_ image: NSImage, for tabID: UUID, url: URL?) {
@@ -75,6 +101,12 @@ final class TabSnapshotStore {
         let sourceWidth = CGFloat(source.pixelsWide)
         let sourceHeight = CGFloat(source.pixelsHigh)
         guard sourceWidth > maxWidth, sourceWidth > 0, sourceHeight > 0 else { return source }
+        // A rep drawn from a Retina snapshot carries a point size half its
+        // pixel size, and `draw(in:from:)` reads the source rect in points —
+        // so the rect below has to describe the same space the rep does.
+        // Pinning the rep to its pixel size makes the two agree; leaving them
+        // apart drew the page into a corner of the thumbnail (issue #347).
+        source.size = NSSize(width: sourceWidth, height: sourceHeight)
 
         let scale = maxWidth / sourceWidth
         let targetWidth = Int(maxWidth.rounded())
