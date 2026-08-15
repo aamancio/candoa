@@ -1606,7 +1606,6 @@ private struct DeveloperSiteInfoPopover: View {
     }
 }
 
-
 private enum DeveloperToolbarControlKind: String, CaseIterable, Identifiable {
     case copyURL
     case share
