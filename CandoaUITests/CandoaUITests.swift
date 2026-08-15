@@ -407,7 +407,7 @@ final class CandoaUITests: XCTestCase {
         XCTAssertTrue(waitForState(in: app, containing: "active=a-one"), currentState(in: app))
     }
 
-    func testLocalhostDeveloperBarPaintsPrimaryBlueStripes() throws {
+    func testLocalhostDeveloperBarWearsTheChromeTreatment() throws {
         // No server anywhere (neither the app nor the runner carries the
         // network-server entitlement): the coordinator's UI-testing fixture
         // intercept serves this HTML for local-development URLs, so the
@@ -452,63 +452,26 @@ final class CandoaUITests: XCTestCase {
             )?.usingColorSpace(.sRGB))
         }
 
-        // Locate the bar row empirically: AX-frame-to-bitmap Y arithmetic
-        // does not hold across machines (the CI runner's window layout put
-        // the computed row on the page below the bar), so scan the window's
-        // top rows for the most blue-dominant one. Columns span the
-        // window's middle third — clear of the sidebar and of anything
-        // overlapping the trailing edge.
-        // Rows are ranked by their strongest sample: stripe-phase pixels
-        // are deliberately lighter and would drag an average under the
-        // threshold, but the base-phase pixels of a healthy bar always
-        // clear it.
-        var barY: CGFloat = 0
-        var barDominance: CGFloat = -1
-        for yPt in stride(from: CGFloat(4), through: 90, by: 2) {
-            var rowMax: CGFloat = -1
-            for xPt in stride(from: windowFrame.width * 0.4, through: windowFrame.width * 0.6, by: windowFrame.width * 0.05) {
-                let sample = try color(atX: xPt, y: yPt)
-                rowMax = max(rowMax, sample.blueComponent - sample.redComponent)
-            }
-            if rowMax > barDominance {
-                barDominance = rowMax
-                barY = yPt
-            }
-        }
-
-        // Muted primary blue dominates the bar row (system blue at 55%
-        // over the chrome base) — the #310 occlusion regression read slate
-        // with a blue-red delta of only ~0.15, which still fails here.
-        XCTAssertGreaterThan(
-            barDominance, 0.28,
-            "no blue-dominant developer bar row found in the window's top rows — occluded or wrong palette; state=\(currentState(in: app))"
+        // The bar shares the chrome's material, so there is no palette to
+        // scan for: locate it by the URL field itself and check the run of
+        // rows around it. The field's Y is only a starting point — the
+        // AX-frame-to-bitmap mapping does not hold exactly across machines
+        // (the CI runner's window layout shifted it onto the page below).
+        let fieldCenterY = urlField.frame.midY - windowFrame.minY
+        let barRows = stride(
+            from: max(4, fieldCenterY - 20),
+            through: fieldCenterY + 20,
+            by: 2
         )
 
-        var barSamples: [NSColor] = []
-        // Stride avoids aliasing with the stripe bands so samples land
-        // on both stripe phases.
-        for xPt in stride(from: windowFrame.width * 0.35, through: windowFrame.width * 0.65, by: 3) {
-            barSamples.append(try color(atX: xPt, y: barY))
-        }
-
-        // The Arc-style stripes are visible: measured on the red channel,
-        // where the white stripe overlay registers against the blue base.
-        let reds = barSamples.map(\.redComponent)
-        let stripeContrast = (reds.max() ?? 0) - (reds.min() ?? 0)
-        XCTAssertGreaterThan(
-            stripeContrast, 0.015,
-            "developer bar renders flat — diagonal stripes missing"
-        )
-
-        // The URL text renders legibly: near-white pixels exist around the
-        // bar row within the field's leading run (X mapping is reliable;
-        // only Y needed the empirical scan).
+        // The URL text renders legibly against the chrome: light pixels
+        // exist in the field's leading run (X mapping is reliable).
         var sawTextPixel = false
         let fieldLeading = urlField.frame.minX - windowFrame.minX
-        textScan: for yPt in stride(from: max(4, barY - 16), through: barY + 16, by: 2) {
+        textScan: for yPt in barRows {
             for xPt in stride(from: fieldLeading, to: fieldLeading + 220, by: 2) {
                 let sample = try color(atX: xPt, y: yPt)
-                if sample.redComponent > 0.85, sample.greenComponent > 0.85, sample.blueComponent > 0.85 {
+                if sample.brightnessComponent > 0.7 {
                     sawTextPixel = true
                     break textScan
                 }
@@ -518,12 +481,11 @@ final class CandoaUITests: XCTestCase {
 
         // Control icons share the bar's neutral foreground — none renders
         // in the saturated accent (the borderless menu button regression).
-        // Stripes only reach ~0.2 blue-dominance, accent glyphs ~0.7.
         let controlsMenu = window.menuButtons.firstMatch
         if controlsMenu.exists {
             let menuFrame = controlsMenu.frame
             for xPt in stride(from: menuFrame.minX - windowFrame.minX, to: menuFrame.maxX - windowFrame.minX, by: 1) {
-                for yPt in stride(from: max(4, barY - 16), through: barY + 16, by: 2) {
+                for yPt in barRows {
                     let sample = try color(atX: xPt, y: yPt)
                     XCTAssertLessThan(
                         sample.blueComponent - sample.redComponent, 0.5,
