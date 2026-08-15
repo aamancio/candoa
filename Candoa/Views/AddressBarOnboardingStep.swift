@@ -10,8 +10,8 @@ internal struct AddressBarOnboardingStep: View {
             VStack(alignment: .leading, spacing: 18) {
                 OnboardingPageHeader(
                     symbolName: "rectangle.topthird.inset.filled",
-                    title: String(localized: "Where should the address live?"),
-                    detail: String(localized: "Candoa keeps the address in the sidebar so pages get the whole window. If you’d rather always see it above the page, choose that here.")
+                    title: String(localized: "Where should the toolbar live?"),
+                    detail: String(localized: "Candoa keeps the address and its controls in the sidebar so pages get the whole window. If you’d rather always see them above the page, choose that here.")
                 )
 
                 VStack(spacing: 10) {
@@ -82,14 +82,14 @@ extension AddressBarPlacement {
     var onboardingDetail: String {
         switch self {
         case .sidebar: return String(localized: "Clean and focused. Click the sidebar pill or press ⌘L to go somewhere.")
-        case .top: return String(localized: "Always in view. A slim bar above every page shows where you are.")
+        case .top: return String(localized: "Always in view. A slim toolbar above every page holds the address and its controls.")
         }
     }
 
     var onboardingCaption: String {
         switch self {
-        case .sidebar: return String(localized: "The address sits with your tabs, and pages get the whole window.")
-        case .top: return String(localized: "The address stays above the page, like a classic browser.")
+        case .sidebar: return String(localized: "The address and its controls sit with your tabs, and pages get the whole window.")
+        case .top: return String(localized: "Back, forward, reload, and the address stay above the page, like a classic browser.")
         }
     }
 }
@@ -180,6 +180,12 @@ private struct AddressBarPlacementMockup: View {
                                 .fill(Self.trafficLightColors[index].opacity(0.85))
                                 .frame(width: unit * 2.4, height: unit * 2.4)
                         }
+
+                        Spacer(minLength: 0)
+
+                        if placement == .sidebar {
+                            controlGlyphs(color: addressColor, unit: unit)
+                        }
                     }
                     .padding(.top, unit * 0.5)
 
@@ -208,8 +214,11 @@ private struct AddressBarPlacementMockup: View {
                 // Page area.
                 VStack(alignment: .leading, spacing: 0) {
                     if placement == .top {
-                        addressElement(color: addressColor, cornerRadius: unit * 1.6)
-                            .frame(height: unit * 5)
+                        HStack(spacing: unit * 2) {
+                            controlGlyphs(color: addressColor, unit: unit)
+                            addressElement(color: addressColor, cornerRadius: unit * 1.6)
+                                .frame(height: unit * 5)
+                        }
                             .padding(.horizontal, unit * 2)
                             .padding(.vertical, unit * 1.6)
                             .background(Color.primary.opacity(0.04))
@@ -247,6 +256,19 @@ private struct AddressBarPlacementMockup: View {
         Color(red: 1.0, green: 0.74, blue: 0.18),
         Color(red: 0.16, green: 0.79, blue: 0.26)
     ]
+
+    /// Back, forward, and reload, drawn as three short strokes: at 92pt wide
+    /// the real glyphs would be mud, but their count and placement is what
+    /// tells the two placements apart.
+    private func controlGlyphs(color: Color, unit: CGFloat) -> some View {
+        HStack(spacing: unit * 1.4) {
+            ForEach(0..<3, id: \.self) { _ in
+                Capsule(style: .continuous)
+                    .fill(color.opacity(0.55))
+                    .frame(width: unit * 2.2, height: unit * 1.1)
+            }
+        }
+    }
 
     /// The address glyph: a filled capsule with a small lock dot at its start.
     private func addressElement(color: Color, cornerRadius: CGFloat) -> some View {

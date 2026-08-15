@@ -641,9 +641,14 @@ struct SidebarView: View {
             Spacer(minLength: 4)
 
             HStack(spacing: 4) {
-                navigationControls
-                    .opacity(hidesNavigationControlsForAddressPalette ? 0 : 1)
-                    .allowsHitTesting(!hidesNavigationControlsForAddressPalette)
+                // Under the "Above the Page" placement these ride the strip
+                // beside the address instead, the way Dia lays its toolbar
+                // out — never both, or the window shows two Back buttons.
+                if showsAddressPill {
+                    navigationControls
+                        .opacity(hidesNavigationControlsForAddressPalette ? 0 : 1)
+                        .allowsHitTesting(!hidesNavigationControlsForAddressPalette)
+                }
 
                 Button {
                     onToggleSidebar()
@@ -673,35 +678,7 @@ struct SidebarView: View {
     }
 
     private var navigationControls: some View {
-        HStack(spacing: 4) {
-            Button(action: store.goBack) {
-                Image(systemName: "arrow.left")
-            }
-            .disabled(!store.canGoBack)
-            .toolbarIconButton()
-            .shortcutTooltip("Back", shortcut: .goBack)
-
-            Button(action: store.goForward) {
-                Image(systemName: "arrow.right")
-            }
-            .disabled(!store.canGoForward)
-            .toolbarIconButton()
-            .shortcutTooltip("Forward", shortcut: .goForward)
-
-            if store.activeTab?.isLoading == true {
-                Button(action: store.stopLoadingActiveTab) {
-                    Image(systemName: "xmark")
-                }
-                .toolbarIconButton()
-                .shortcutTooltip("Stop", shortcut: .stopLoading)
-            } else {
-                Button(action: store.reloadActiveTab) {
-                    Image(systemName: "arrow.clockwise")
-                }
-                .toolbarIconButton()
-                .shortcutTooltip("Reload", shortcut: .reloadTab)
-            }
-        }
+        BrowserNavigationControls(store: store)
     }
 
     private func addressPill(for spaceID: UUID) -> some View {

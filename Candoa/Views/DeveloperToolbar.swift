@@ -13,6 +13,11 @@ internal struct DeveloperToolbar: View {
     /// spans the full card, but content placed under a lane is masked away
     /// with it, so the URL field and controls stay inside the visible run.
     let contentInsets: BrowserInterfaceInsets
+    /// Non-nil under the "Above the Page" placement, where the sidebar header
+    /// has given up its navigation cluster: the developer bar then carries the
+    /// same leading controls the address strip does, so a local-development
+    /// page is not the one page in that mode without a Back button.
+    let leadingControls: TopToolbarLeadingControls?
     let onSubmitURL: (String) -> Void
     let onToggleChat: () -> Void
 
@@ -39,6 +44,13 @@ internal struct DeveloperToolbar: View {
 
     var body: some View {
         HStack(spacing: 8) {
+            if let leadingControls {
+                leadingControls
+                    .buttonTreatment(.content)
+                    .foregroundStyle(InterfaceStyle.sidebarIcon)
+                    .padding(.trailing, -4)
+            }
+
             TextField("", text: $draftURL)
                 .textFieldStyle(.plain)
                 .font(.system(size: 12, weight: .medium, design: .monospaced))
@@ -79,14 +91,17 @@ internal struct DeveloperToolbar: View {
                 }
             }
         }
-        // The URL is the bar's first content: it needs the same breathing
-        // room from the card's edge that the sidebar gives its own address,
-        // or it reads as hitting the corner.
-        .padding(.leading, 16)
+        // The bar's first content needs the same breathing room from the
+        // card's edge that the sidebar gives its own address, or it reads as
+        // hitting the corner. Icons carry their own hit-box padding, so they
+        // start closer in than a bare URL field would.
+        .padding(.leading, leadingControls == nil ? 16 : 10)
         .padding(.trailing, 10)
         .padding(.leading, contentInsets.leading)
         .padding(.trailing, contentInsets.trailing)
-        .frame(height: 30)
+        // Matching the address strip keeps the page's top edge in one place
+        // whichever bar a tab gets.
+        .frame(height: leadingControls == nil ? 30 : TopAddressBar.height)
         .frame(maxWidth: .infinity)
         .background(Rectangle().fill(.regularMaterial))
         .overlay(alignment: .bottom) {
