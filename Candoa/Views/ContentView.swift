@@ -42,6 +42,7 @@ struct ContentView: View {
     @State private var aiSidebarTransitionGeneration = 0
     @State private var aiSidebarUITestingState = ""
     @State private var aiSidebarMessages: [AISidebarMessage] = []
+    @State private var aiSidebarMemoryWindow = EliMemoryWindow()
     @State private var pendingEliSubscriptionSubmission: EliSubmission?
     @State private var isSignOutConfirmationPresented = false
     @State private var aiSidebarResizeStartWidth: CGFloat?
@@ -729,6 +730,7 @@ struct ContentView: View {
             store: store,
             uiTestingState: $aiSidebarUITestingState,
             messages: $aiSidebarMessages,
+            memoryWindow: $aiSidebarMemoryWindow,
             pendingSubscriptionSubmission: $pendingEliSubscriptionSubmission
         ) {
             toggleAISidebar()
