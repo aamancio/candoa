@@ -255,6 +255,8 @@ struct WebViewContainer: View {
                 DeveloperToolbar(
                     url: url,
                     urlText: url.localDevelopmentDisplayText,
+                    pageTitle: tab.title,
+                    faviconData: tab.faviconData,
                     contentInsets: webContentInsets,
                     onSubmitURL: { store.navigateActiveTab(to: $0) },
                     onToggleChat: { store.requestAISidebarToggle() }
@@ -1283,6 +1285,10 @@ private struct SplitDropPreviewOverlay: View {
 private struct DeveloperToolbar: View {
     let url: URL
     let urlText: String
+    /// The page's own title and site icon, handed to the share sheet so its
+    /// link preview draws complete instead of filling in after a fetch.
+    let pageTitle: String
+    let faviconData: Data?
     /// The interface lanes covering the card's edges. The striped surface
     /// spans the full card, but content placed under a lane is masked away
     /// with it, so the URL field and controls stay inside the visible run.
@@ -1401,7 +1407,11 @@ private struct DeveloperToolbar: View {
         switch control {
         case .share:
             guard let currentURL else { break }
-            sharePicker.present(url: currentURL) {}
+            sharePicker.present(
+                url: currentURL,
+                title: pageTitle,
+                faviconData: faviconData
+            ) {}
         case .chat:
             onToggleChat()
         }
@@ -1438,17 +1448,21 @@ private enum DeveloperToolbarControlKind: String, CaseIterable, Identifiable {
         }
     }
 
-    /// Symbols centered in equal frames still read crooked: their ink is not
-    /// centered in their own boxes. Measured at 11.5pt semibold in a 22pt
-    /// frame, link and bubble.left sit dead center while square.and.arrow.up
-    /// leaves 4.75pt above and 4.00pt below — half a point of lift puts its
-    /// ink on the same line as the others, on a whole device pixel.
+    /// Symbols centered in equal frames still read crooked, and matching their
+    /// ink boxes is not enough: the eye centers on where the ink's *weight*
+    /// falls. Rendered at 11.5pt semibold in a 24pt frame, square.and.arrow.up
+    /// boxes at 12.47 but carries its mass in the tray, centroid 13.26;
+    /// bubble.left boxes dead center at 12.00 while its thin tail leaves the
+    /// body's mass high, centroid 11.27. Box-aligned, the bubble therefore
+    /// reads lifted. Each correction centers the midpoint of box and centroid
+    /// — the optical center — on the frame, rounded to the half point so the
+    /// nudge lands on a whole device pixel: share -0.87 → -1, chat +0.36 → +½.
     var inkCorrection: CGFloat {
         switch self {
         case .share:
-            return -0.5
+            return -1
         case .chat:
-            return 0
+            return 0.5
         }
     }
 
