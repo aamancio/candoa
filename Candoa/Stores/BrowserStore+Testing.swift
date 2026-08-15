@@ -392,6 +392,14 @@ extension BrowserStore {
         spaces.first { $0.id == activeSpaceID }
     }
 
+    /// The hidden-sidebar address strip: absent while the sidebar holds the
+    /// address, otherwise resting out of sight until the pointer reaches the
+    /// window's top edge.
+    private func uiTestingAddressStripDescription(sidebarVisible: Bool) -> String {
+        if sidebarVisible { return "absent" }
+        return isCollapsedAddressBarRevealed ? "shown" : "hidden"
+    }
+
     func uiTestingStateDescription(sidebarVisible: Bool) -> String {
         guard Self.isUITesting else { return "" }
 
@@ -443,6 +451,7 @@ extension BrowserStore {
             "downloads=\(downloadsStore.uiTestingDescription)",
             "downloadsShown=\(isDownloadsPopoverPresented)",
             "siteInfoShown=\(isSiteInfoPopoverPresented)",
+            "addressStrip=\(uiTestingAddressStripDescription(sidebarVisible: sidebarVisible))",
             "privacyReportShown=\(isPrivacyReportPresented)",
             "reader=\(uiTestingReaderDescription)",
             "nav=\(uiTestingNavigationDescription)",
