@@ -31,9 +31,11 @@ internal struct SidebarDisclosureChevron: View {
 
 internal struct SidebarFolderIcon: View {
     var body: some View {
+        // The tab rows' 16pt icon column, so folder names share the tabs'
+        // text edge.
         Image(systemName: "folder")
-            .font(.system(size: 15, weight: .medium))
-            .frame(width: 18, height: 18)
+            .font(.system(size: 14, weight: .medium))
+            .frame(width: 16, height: 16)
         .accessibilityHidden(true)
     }
 }
@@ -66,8 +68,11 @@ struct SidebarView: View {
     @AppStorage("Candoa.FavoritesDropZoneDismissed") private var isFavoritesDropZoneDismissed = false
     @AppStorage(DeveloperModeConfiguration.storageKey) private var developerModeOverrides = ""
 
-    private let leadingInset: CGFloat = 9
-    private let trailingInset: CGFloat = 9
+    // Zen's sidebar geometry: rows sit 8px off the lane edge (6px toolbox
+    // padding on macOS plus the 2px tab margin), with 8px inline padding
+    // inside each row.
+    private let leadingInset: CGFloat = 8
+    private let trailingInset: CGFloat = 8
     private let windowControlsWidth: CGFloat = 70
     private let spaceLabelToPinnedGap: CGFloat = 3
     private let pinnedSectionSpacing: CGFloat = 8
@@ -1078,9 +1083,9 @@ struct SidebarView: View {
             // not a space: no editing, no drops, no context menu.
             HStack(spacing: 8) {
                 Image(systemName: "eye")
-                    .font(.system(size: 15, weight: .medium))
+                    .font(.system(size: 14, weight: .medium))
                     .symbolRenderingMode(.hierarchical)
-                    .frame(width: 18, height: 18)
+                    .frame(width: 16, height: 16)
 
                 Text("Private")
                     .font(.system(size: 13, weight: .semibold))
@@ -1098,15 +1103,17 @@ struct SidebarView: View {
            !space.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             HStack(spacing: 8) {
                 if space.symbolName != BrowserSpace.noIconSymbolName {
+                    // The tab rows' 16pt icon column: an 18pt box here pushed
+                    // the space name 2pt right of every tab title below it.
                     if let emoji = space.iconEmoji {
                         Text(emoji)
-                            .font(.system(size: 15))
-                            .frame(width: 18, height: 18)
+                            .font(.system(size: 14))
+                            .frame(width: 16, height: 16)
                     } else {
                         Image(systemName: space.symbolName)
-                            .font(.system(size: 15, weight: .medium))
+                            .font(.system(size: 14, weight: .medium))
                             .symbolRenderingMode(.hierarchical)
-                            .frame(width: 18, height: 18)
+                            .frame(width: 16, height: 16)
                     }
                 }
 
