@@ -75,6 +75,10 @@ extension WebViewCoordinator {
             DispatchQueue.main.async {
                 guard let self, let image else { return }
                 self.storeWakeSnapshot(image, for: tabID)
+                // Every tab the person has looked at gets a switcher
+                // thumbnail — this run and the next — not just the ones the
+                // switcher happened to capture while they were live.
+                self.store?.didCaptureTabSnapshot(image, for: tabID)
             }
         }
     }

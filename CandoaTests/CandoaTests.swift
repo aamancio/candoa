@@ -402,4 +402,41 @@ final class NavigationSchemeTests: XCTestCase {
         XCTAssertEqual(destination("192.168.1.10:8080"), "https://192.168.1.10:8080")
         XCTAssertEqual(destination("localhost.example.com"), "https://localhost.example.com")
     }
+
+    // MARK: - Tab switcher thumbnails (issue #340)
+
+    private func solidImage(width: Int, height: Int) -> NSImage {
+        let image = NSImage(size: NSSize(width: width, height: height))
+        image.lockFocus()
+        NSColor.red.setFill()
+        NSRect(x: 0, y: 0, width: width, height: height).fill()
+        image.unlockFocus()
+        return image
+    }
+
+    func testThumbnailBitmapDownscalesWideSnapshotsPreservingAspect() throws {
+        // Wake snapshots are captured up to 1024pt wide; the disk cache keeps
+        // them at switcher width so the launch-time load stays cheap.
+        let bitmap = try XCTUnwrap(
+            TabSnapshotStore.thumbnailBitmap(from: solidImage(width: 1024, height: 640), maxWidth: 320)
+        )
+        XCTAssertEqual(bitmap.pixelsWide, 320)
+        XCTAssertEqual(bitmap.pixelsHigh, 200)
+    }
+
+    func testThumbnailBitmapLeavesNarrowSnapshotsAlone() throws {
+        let bitmap = try XCTUnwrap(
+            TabSnapshotStore.thumbnailBitmap(from: solidImage(width: 300, height: 180), maxWidth: 320)
+        )
+        XCTAssertEqual(bitmap.pixelsWide, 300)
+        XCTAssertEqual(bitmap.pixelsHigh, 180)
+    }
+
+    func testPreviewWarmupOnlyLoadsWebPages() {
+        XCTAssertTrue(WebViewCoordinator.isWarmable(URL(string: "https://example.com/a")!))
+        XCTAssertTrue(WebViewCoordinator.isWarmable(URL(string: "HTTP://example.com")!))
+        XCTAssertFalse(WebViewCoordinator.isWarmable(URL(string: "mailto:someone@example.com")!))
+        XCTAssertFalse(WebViewCoordinator.isWarmable(URL(string: "file:///tmp/page.html")!))
+        XCTAssertFalse(WebViewCoordinator.isWarmable(URL(string: "candoa://welcome")!))
+    }
 }

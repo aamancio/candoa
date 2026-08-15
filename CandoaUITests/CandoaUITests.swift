@@ -2058,6 +2058,32 @@ final class CandoaUITests: XCTestCase {
         XCTAssertTrue(waitForState(in: app, containing: "switcher=false"), currentState(in: app))
     }
 
+    func testControlTabWarmsUpPreviewsForTabsNeverDisplayedThisRun() throws {
+        // "Dormant" was visited in a previous session but has no web view
+        // this run, no wake snapshot, and (UI runs disable the disk cache)
+        // no persisted thumbnail — the favicon-placeholder card of #340.
+        // The off-screen warm-up loads it once and its card gets a real image.
+        let app = launchApp(
+            fixture: "tab-switcher-previews",
+            extraLaunchEnvironment: ["CANDOA_UI_TESTING_PREVIEW_WARMUP": "1"]
+        )
+        XCTAssertTrue(waitForState(in: app, containing: "active=Current"), currentState(in: app))
+
+        postTabSwitcherAction("next")
+        XCTAssertTrue(
+            waitForState(in: app, containing: "switcher=true:Dormant"),
+            currentState(in: app)
+        )
+        // The active tab's card is a live capture; the dormant one arrives
+        // once its throwaway load finishes and settles.
+        XCTAssertTrue(
+            waitForState(in: app, containing: "switcherPreviews=Current|Dormant", timeout: 15),
+            currentState(in: app)
+        )
+        postTabSwitcherAction("release")
+        XCTAssertTrue(waitForState(in: app, containing: "switcher=false"), currentState(in: app))
+    }
+
     /// Drives the Ctrl-Tab switcher through the app's distributed-
     /// notification seam; the actions invoke the same store entry points
     /// as the real key monitor's press/release callbacks.
@@ -4076,6 +4102,7 @@ final class CandoaUITests: XCTestCase {
 
     private static let pageHTMLFixtures: [String: String] = [
         "split-view": splitFixturePageHTML,
+        "tab-switcher-previews": splitFixturePageHTML,
         "split-view-spaces": splitFixturePageHTML,
         "split-view-pixels": pixelProbeFixturePageHTML,
         "web-auth": webAuthFixturePageHTML,

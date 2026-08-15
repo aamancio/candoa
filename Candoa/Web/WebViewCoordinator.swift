@@ -83,6 +83,13 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
     var wakeSnapshots: [UUID: NSImage] = [:]
     var restoringTabIDs = Set<UUID>()
     var restoreOverlays: [UUID: NSImageView] = [:]
+    /// Off-screen preview warm-up (WebViewCoordinator+PreviewWarmup): tabs
+    /// waiting for a throwaway load, the one load in flight, and every tab
+    /// tried this run so a page that fails to render is not retried on each
+    /// switcher open.
+    var previewWarmupQueue: [BrowserTab] = []
+    var previewWarmupJob: PreviewWarmupJob?
+    var previewWarmupAttemptedTabIDs = Set<UUID>()
     /// A visible tab's first WebContent crash reloads silently; a repeat
     /// within this window surfaces recovery UI instead of crash-looping.
     var webContentTerminationDates: [UUID: Date] = [:]
@@ -123,6 +130,12 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
             }
         )
 
+        // Launch pass for switcher previews, once restore and first paint
+        // have had time to settle (WebViewCoordinator+PreviewWarmup).
+        DispatchQueue.main.asyncAfter(deadline: .now() + TabSwitcherConfiguration.warmupLaunchDelay) { [weak self] in
+            self?.store?.warmUpTabSwitcherPreviewsIfNeeded()
+        }
+
         hibernationScanTask?.cancel()
         hibernationScanTask = Task { @MainActor [weak self] in
             while !Task.isCancelled {
@@ -140,6 +153,9 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         }
 
         let webView = makeWebView(for: tab)
+        // The real page is about to render; a pending throwaway load for the
+        // same tab would only duplicate the network cost.
+        cancelPreviewWarmup(for: tab.id)
 
         if let interactionState = hibernatedInteractionStates.removeValue(forKey: tab.id) {
             // Waking a hibernated tab: restores the back/forward list, scroll

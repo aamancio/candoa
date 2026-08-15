@@ -434,6 +434,7 @@ extension BrowserStore {
             "folders=\(folderNames)",
             "favorites=\(favoriteTitles)",
             "switcher=\(isTabSwitcherPresented):\(tabSwitcherSelectedTitle)",
+            "switcherPreviews=\(tabSwitcherPreviewTitles)",
             "split=\(isSplitViewEnabled)",
             "splitDisplayed=\(isSplitViewDisplayed)",
             "splitTabs=\(splitTabTitles)",
@@ -465,6 +466,14 @@ extension BrowserStore {
         guard let activeTabID else { return "none" }
         let availability = readerAvailableTabIDs.contains(activeTabID) ? "available" : "unavailable"
         return "\(availability):\(readerActiveTabIDs.contains(activeTabID) ? "active" : "inactive")"
+    }
+
+    /// Titles of tabs whose switcher card has a real page image, in tab
+    /// order — how a test tells a rendered thumbnail from the favicon fallback.
+    private var tabSwitcherPreviewTitles: String {
+        tabs.filter { tabSwitcherSnapshots[$0.id] != nil }
+            .map(\.title)
+            .joined(separator: "|")
     }
 
     private var tabSwitcherSelectedTitle: String {
@@ -762,6 +771,10 @@ extension BrowserStore {
             return inactiveFavoritesFixtureState()
         }
 
+        if fixture == "tab-switcher-previews" {
+            return tabSwitcherPreviewsFixtureState()
+        }
+
         if fixture == "website-appearance" {
             let spaceID = UUID(uuidString: "ACACACAC-ACAC-ACAC-ACAC-ACACACACACAC")!
             let dataStoreID = UUID(uuidString: "ADADADAD-ADAD-ADAD-ADAD-ADADADADADAD")!
@@ -889,6 +902,46 @@ extension BrowserStore {
             tabs: tabs,
             activeSpaceID: firstSpaceID,
             activeTabID: firstTabID
+        )
+    }
+
+    /// Two previously-visited tabs on fixture pages; only "Current" gets a
+    /// web view at launch, so "Dormant" is exactly the switcher-card gap the
+    /// off-screen preview warm-up exists to fill (issue #340).
+    static func tabSwitcherPreviewsFixtureState() -> BrowserWindowState {
+        let spaceID = UUID(uuidString: "58585858-5858-5858-5858-585858585858")!
+        let currentTabID = UUID(uuidString: "69696969-6969-6969-6969-696969696969")!
+        let fixtureDate = Date(timeIntervalSince1970: 1_800_000_000)
+        let space = BrowserSpace(
+            id: spaceID,
+            name: "TestingBot",
+            symbolName: "sparkles",
+            themeAppearance: BrowserSpace.defaultThemeAppearance
+        )
+        let tabs = [
+            BrowserTab(
+                id: currentTabID,
+                title: "Current",
+                url: URL(string: "https://fixture.candoa.test/current")!,
+                spaceID: spaceID,
+                lastAccessedAt: fixtureDate,
+                hasBeenActivated: true
+            ),
+            BrowserTab(
+                title: "Dormant",
+                url: URL(string: "https://fixture.candoa.test/dormant")!,
+                spaceID: spaceID,
+                lastAccessedAt: fixtureDate.addingTimeInterval(-60),
+                hasBeenActivated: true
+            )
+        ]
+
+        return BrowserWindowState(
+            spaces: [space],
+            folders: [],
+            tabs: tabs,
+            activeSpaceID: spaceID,
+            activeTabID: currentTabID
         )
     }
 
