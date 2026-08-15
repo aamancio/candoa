@@ -28,13 +28,16 @@ extension BrowserStore {
         objectWillChange.send()
     }
 
-    /// Runs the memory extraction pass for the active Space over a finished
-    /// Ask conversation. Fire-and-forget: a failed or malformed extraction
-    /// leaves existing memory untouched.
-    func updateSpaceMemory(fromConversation transcript: [AIConversationTurn]) {
+    /// Runs the memory extraction pass over an Ask conversation. Fire-and-forget:
+    /// a failed or malformed extraction leaves existing memory untouched.
+    ///
+    /// `spaceID` is explicit because the conversation outlives the Space
+    /// selection: switching Spaces mid-conversation must distill what was said
+    /// before the switch into the Space it was said in, not into the new one.
+    func updateSpaceMemory(fromConversation transcript: [AIConversationTurn], in spaceID: UUID? = nil) {
         guard !isPrivate else { return }
         guard transcript.contains(where: { $0.role == .user }) else { return }
-        let spaceID = activeSpaceID
+        let spaceID = spaceID ?? activeSpaceID
         guard transcript.count > (eliMemoryLastExtractedTurnCounts[spaceID] ?? 0) else { return }
 
         let existing = persistenceService.spaceMemoryFacts(in: spaceID)
@@ -61,6 +64,34 @@ extension BrowserStore {
             }
             self?.eliMemoryExtractionTasks[spaceID] = nil
         }
+    }
+
+    /// The mid-conversation pass. Extraction costs a request, so it runs only
+    /// when a user turn the extractor has not seen yet actually reads like a
+    /// durable personal detail — the everyday "summarize this page"
+    /// conversation never triggers it.
+    ///
+    /// This is what keeps memory from depending on a clean exit: a quit takes
+    /// the app down before any extraction request could finish, so anything
+    /// that waited for teardown would simply be lost.
+    func updateSpaceMemoryIfConversationRevealedFacts(
+        _ transcript: [AIConversationTurn],
+        in spaceID: UUID? = nil
+    ) {
+        guard !isPrivate else { return }
+        let spaceID = spaceID ?? activeSpaceID
+        let alreadySeen = eliMemoryLastExtractedTurnCounts[spaceID] ?? 0
+        let fresh = transcript.dropFirst(alreadySeen).filter { $0.role == .user }
+        guard fresh.contains(where: { SpaceMemoryPolicy.suggestsDurableFact(in: $0.text) }) else { return }
+        updateSpaceMemory(fromConversation: transcript, in: spaceID)
+    }
+
+    /// Starts a fresh extraction window for a Space. The turn counts that
+    /// guard re-extraction are indexes into the transcript being sent, so a
+    /// new conversation — or a conversation that just moved to this Space —
+    /// has to reset them or its early turns look already-extracted.
+    func resetSpaceMemoryExtractionWindow(for spaceID: UUID) {
+        eliMemoryLastExtractedTurnCounts[spaceID] = 0
     }
 
     private func persistSpaceMemoryUpdate(

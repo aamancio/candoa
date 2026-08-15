@@ -12,6 +12,10 @@ struct EliSidebarView: View {
     @ObservedObject var store: BrowserStore
     @Binding var uiTestingState: String
     @Binding var messages: [AISidebarMessage]
+    /// Memory is Space-scoped but the conversation is not: this marks which
+    /// Space the undistilled turns belong to. A Space switch moves the window
+    /// instead of ending the chat.
+    @Binding var memoryWindow: EliMemoryWindow
     @Binding var pendingSubscriptionSubmission: EliSubmission?
     let onClose: () -> Void
 
@@ -36,7 +40,6 @@ struct EliSidebarView: View {
     @State private var attachmentPreviewData: [UUID: Data] = [:]
     @State private var presentedImagePreview: AISidebarImagePreview?
     @State private var isRefreshingEliAccess = true
-    @State private var isMemoryPopoverPresented = false
     @FocusState private var isPromptFocused: Bool
 
     private var activePageTitle: String {
@@ -255,6 +258,9 @@ struct EliSidebarView: View {
             uiTestingState = uiTestingAgentState
             removeSubscriptionGateIfActive()
             resumePendingSubscriptionSubmissionIfNeeded()
+            if memoryWindow.spaceID == nil {
+                memoryWindow.spaceID = store.activeSpaceID
+            }
             DispatchQueue.main.async {
                 isPromptFocused = true
             }
@@ -275,6 +281,21 @@ struct EliSidebarView: View {
         }
         .onChange(of: uiTestingAgentState) { _, state in
             uiTestingState = state
+        }
+        .onChange(of: store.activeSpaceID) { previousSpaceID, spaceID in
+            moveMemoryWindow(from: previousSpaceID, to: spaceID)
+        }
+        .onChange(of: messages) { _, updated in
+            // Mid-stream the last message is a partial reply; the pass runs
+            // once the turn has settled.
+            guard !updated.contains(where: \.isStreaming) else { return }
+            updateSpaceMemoryIfConversationRevealedFacts()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.willCloseNotification)) { _ in
+            // onDisappear is not guaranteed to run for a closing window, and a
+            // closed window is a finished conversation. The turn-count guard
+            // makes this a no-op when the conversation is already distilled.
+            updateSpaceMemoryFromConversation()
         }
         .onChange(of: store.activeTabID) {
             includesCurrentPageContext = true
@@ -367,16 +388,12 @@ struct EliSidebarView: View {
                 includesCurrentPageContext = true
                 lastSubmittedPageContext = nil
                 cancelStream()
-            }
-
-            AISidebarTopBarIconButton(
-                symbolName: "brain",
-                helpText: "Eli Memory"
-            ) {
-                isMemoryPopoverPresented = true
-            }
-            .popover(isPresented: $isMemoryPopoverPresented, arrowEdge: .bottom) {
-                EliMemoryPopoverView(store: store)
+                // The transcript restarts at zero, so the extraction window
+                // has to as well or the next conversation's first turns look
+                // already-distilled.
+                memoryWindow.startIndex = 0
+                memoryWindow.spaceID = store.activeSpaceID
+                store.resetSpaceMemoryExtractionWindow(for: store.activeSpaceID)
             }
 
             Spacer()
@@ -1765,10 +1782,11 @@ struct EliSidebarView: View {
         return Array(turns.suffix(6))
     }
 
-    /// The full finished conversation, unlike `recentTurns()`'s request
-    /// window — memory extraction reads everything that was said.
+    /// The conversation since the current memory window opened, unlike
+    /// `recentTurns()`'s request window — memory extraction reads everything
+    /// that was said into the Space it is being saved for.
     private func conversationTurns() -> [AIConversationTurn] {
-        messages.compactMap { message in
+        messages.dropFirst(memoryWindow.startIndex).compactMap { message in
             guard message.action == nil, !message.isStreaming else { return nil }
             let text = message.text.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !text.isEmpty else { return nil }
@@ -1776,12 +1794,34 @@ struct EliSidebarView: View {
         }
     }
 
-    /// A conversation "ends" when the user starts a new one or closes the
-    /// sidebar; that is when its durable facts get distilled into the active
-    /// Space's memory.
+    /// A conversation "ends" when the user starts a new one, switches Space,
+    /// or closes the sidebar or window; that is when its durable facts get
+    /// distilled into the Space the conversation belongs to.
     private func updateSpaceMemoryFromConversation() {
         guard hasEliAccess else { return }
-        store.updateSpaceMemory(fromConversation: conversationTurns())
+        store.updateSpaceMemory(fromConversation: conversationTurns(), in: memoryWindow.spaceID)
+    }
+
+    /// The cheap pass that runs while the conversation is still going. Quitting
+    /// the app kills any in-flight extraction, so waiting for a clean teardown
+    /// is not a way to keep facts — this is.
+    private func updateSpaceMemoryIfConversationRevealedFacts() {
+        guard hasEliAccess else { return }
+        store.updateSpaceMemoryIfConversationRevealedFacts(
+            conversationTurns(),
+            in: memoryWindow.spaceID
+        )
+    }
+
+    /// Closes the memory window on the Space being left and opens a fresh one
+    /// on the Space being entered, so neither Space inherits the other's turns.
+    private func moveMemoryWindow(from previousSpaceID: UUID?, to spaceID: UUID) {
+        if let previousSpaceID, previousSpaceID != spaceID {
+            store.updateSpaceMemory(fromConversation: conversationTurns(), in: previousSpaceID)
+        }
+        memoryWindow.startIndex = messages.count
+        memoryWindow.spaceID = spaceID
+        store.resetSpaceMemoryExtractionWindow(for: spaceID)
     }
 
     private func cancelStream() {

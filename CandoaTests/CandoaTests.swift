@@ -302,6 +302,49 @@ final class SpaceMemoryTests: XCTestCase {
         XCTAssertTrue(merged.allSatisfy { $0.spaceID == spaceID })
     }
 
+    // MARK: - Mid-conversation extraction gate
+
+    func testGateFiresOnDurableDetailsAcrossShippingLocales() {
+        let openings = [
+            "My name is Alex and I need help here",
+            "i work at a small design studio",
+            "I live in Lisbon now",
+            "I prefer dark mode everywhere",
+            "Remember that I use metric units",
+            "I'm learning Swift concurrency",
+            "Mein Name ist Alex",
+            "Me llamo Alex y trabajo en Madrid",
+            "Je m'appelle Alex",
+            "Meu nome é Alex",
+            "私の名前はアレックスです",
+            "我叫亚历克斯",
+        ]
+        for opening in openings {
+            XCTAssertTrue(
+                SpaceMemoryPolicy.suggestsDurableFact(in: opening),
+                "expected a durable-fact signal in: \(opening)"
+            )
+        }
+    }
+
+    func testGateIgnoresOrdinaryBrowsingQuestions() {
+        let ordinary = [
+            "Summarize this page",
+            "What is this article about?",
+            "Translate the third paragraph",
+            "Find the pricing table and explain it",
+            "Open the docs in a new tab",
+            "",
+            "   ",
+        ]
+        for prompt in ordinary {
+            XCTAssertFalse(
+                SpaceMemoryPolicy.suggestsDurableFact(in: prompt),
+                "expected no extraction request for: \(prompt)"
+            )
+        }
+    }
+
     // MARK: - Context injection
 
     func testMemorySectionListsFactsAndIsNilWhenEmpty() {

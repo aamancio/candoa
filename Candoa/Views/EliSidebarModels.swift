@@ -69,6 +69,15 @@ struct EliSubmission {
     let inheritedPageContext: AIPageContext?
 }
 
+/// Which Space the conversation's not-yet-distilled turns belong to, and where
+/// in the transcript they start. Lives alongside `messages` above the sidebar:
+/// the sidebar view is destroyed every time Eli is closed, and a window that
+/// reset with it would reopen over turns that were said in another Space.
+struct EliMemoryWindow: Equatable {
+    var startIndex = 0
+    var spaceID: UUID?
+}
+
 struct AISidebarMessage: Identifiable, Equatable {
     var id = UUID()
     let role: AISidebarMessageRole

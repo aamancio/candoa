@@ -96,6 +96,45 @@ enum SpaceMemoryPolicy {
         }
     }
 
+    /// Openings that introduce something durable about the person: who they
+    /// are, what they do, where they are, what they prefer, and explicit
+    /// requests to remember. Deliberately narrow — this gate decides whether
+    /// to spend an extraction request, and the extractor itself still decides
+    /// what (if anything) is worth saving, so a miss costs nothing but a
+    /// delay and a false positive costs one request.
+    ///
+    /// Covered in every shipping locale rather than English alone: an
+    /// English-only gate would quietly make memory a US-only feature.
+    private static let durableFactPatterns = [
+        // English
+        #"(?i)\bmy name('s| is)\b|\bi'?m called\b|\bcall me\b"#,
+        #"(?i)\bi (work|worked) (at|for|as)\b|\bi'?m an? [a-z]+ (engineer|designer|developer|manager|student|teacher|nurse|doctor|writer|founder|lawyer)\b|\bmy (job|company|team|role|title)\b"#,
+        #"(?i)\bi live in\b|\bi'?m based in\b|\bi'?m from\b|\bmy (timezone|time zone|address|birthday)\b"#,
+        #"(?i)\bi (prefer|always|usually|never|hate|love)\b|\bi'?m allergic to\b|\bi don'?t (like|eat|drink|use)\b"#,
+        #"(?i)\bremember (that|this|my)\b|\bkeep in mind\b|\bfor future reference\b|\bnote that i\b"#,
+        #"(?i)\bi'?m (learning|studying|applying|building|training|planning) \b|\bi'?m working on\b"#,
+        // German
+        #"(?i)\bmein name ist\b|\bich hei(ß|ss)e\b|\bich arbeite (bei|als|für)\b|\bich wohne in\b|\bich bevorzuge\b|\bmerk dir\b"#,
+        // Spanish
+        #"(?i)\bme llamo\b|\bmi nombre es\b|\btrabajo (en|como|para)\b|\bvivo en\b|\bprefiero\b|\brecuerda que\b"#,
+        // French
+        #"(?i)\bje m'?appelle\b|\bmon nom est\b|\bje travaille (chez|comme|pour)\b|\bj'?habite (à|a|en|au)\b|\bje préfère\b|\bretiens que\b"#,
+        // Portuguese
+        #"(?i)\bmeu nome é\b|\bme chamo\b|\btrabalho (na|no|em|como|para)\b|\bmoro em\b|\bprefiro\b|\blembre-se de que\b"#,
+        // Japanese
+        #"(私の名前は|私は.{1,12}です|に住んでいます|で働いています|覚えておいて)"#,
+        // Simplified Chinese
+        #"(我叫|我的名字是|我住在|我在.{1,12}工作|我喜欢|我不喜欢|记住我)"#,
+    ]
+
+    static func suggestsDurableFact(in text: String) -> Bool {
+        let candidate = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !candidate.isEmpty else { return false }
+        return durableFactPatterns.contains { pattern in
+            candidate.range(of: pattern, options: .regularExpression) != nil
+        }
+    }
+
     /// The labeled block injected ahead of page context. The wording frames
     /// facts as user-provided background so the model neither treats them as
     /// page content nor repeats them as if the page said them.

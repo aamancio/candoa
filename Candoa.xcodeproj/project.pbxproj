@@ -63,7 +63,6 @@
 		CA8D5B1A3D140BF781AF92CD /* EliSidebarComposerControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAE98823C224BDA9444C5F27 /* EliSidebarComposerControls.swift */; };
 		CAD9C2BABF8535AF265B143E /* EliSpeechController.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA2C95A9705ADAE39AA992AF /* EliSpeechController.swift */; };
 		CA4D3730DB4BB9718D9FCC8C /* EliSidebarMessageRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA5F3FB977B0F8216E742318 /* EliSidebarMessageRow.swift */; };
-		CA841189B64D7D3F46F77E12 /* EliMemoryPopover.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAF46B1181F6CCDC3D8925BA /* EliMemoryPopover.swift */; };
 		CAE61EACC3D987AEDC725F72 /* EliSubscriptionGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA82A432C86FEBD1DFF7E0FA /* EliSubscriptionGate.swift */; };
 		010000000000000000000148 /* EliContextCompactor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000048 /* EliContextCompactor.swift */; };
 		010000000000000000000150 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000050 /* Assets.xcassets */; };
@@ -267,7 +266,6 @@
 		CAE98823C224BDA9444C5F27 /* EliSidebarComposerControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EliSidebarComposerControls.swift; sourceTree = "<group>"; };
 		CA2C95A9705ADAE39AA992AF /* EliSpeechController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EliSpeechController.swift; sourceTree = "<group>"; };
 		CA5F3FB977B0F8216E742318 /* EliSidebarMessageRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EliSidebarMessageRow.swift; sourceTree = "<group>"; };
-		CAF46B1181F6CCDC3D8925BA /* EliMemoryPopover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EliMemoryPopover.swift; sourceTree = "<group>"; };
 		CA82A432C86FEBD1DFF7E0FA /* EliSubscriptionGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EliSubscriptionGate.swift; sourceTree = "<group>"; };
 		010000000000000000000048 /* EliContextCompactor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EliContextCompactor.swift; sourceTree = "<group>"; };
 		010000000000000000000050 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -503,7 +501,6 @@
 				CAE98823C224BDA9444C5F27 /* EliSidebarComposerControls.swift */,
 				CA2C95A9705ADAE39AA992AF /* EliSpeechController.swift */,
 				CA5F3FB977B0F8216E742318 /* EliSidebarMessageRow.swift */,
-				CAF46B1181F6CCDC3D8925BA /* EliMemoryPopover.swift */,
 				CA82A432C86FEBD1DFF7E0FA /* EliSubscriptionGate.swift */,
 				010000000000000000000012 /* SidebarView.swift */,
 				SI00000000000000000000A2 /* SiteInfoView.swift */,
@@ -1041,7 +1038,6 @@
 				CA8D5B1A3D140BF781AF92CD /* EliSidebarComposerControls.swift in Sources */,
 				CAD9C2BABF8535AF265B143E /* EliSpeechController.swift in Sources */,
 				CA4D3730DB4BB9718D9FCC8C /* EliSidebarMessageRow.swift in Sources */,
-				CA841189B64D7D3F46F77E12 /* EliMemoryPopover.swift in Sources */,
 				CAE61EACC3D987AEDC725F72 /* EliSubscriptionGate.swift in Sources */,
 				010000000000000000000148 /* EliContextCompactor.swift in Sources */,
 				010000000000000000000151 /* HistoryVisit.swift in Sources */,
