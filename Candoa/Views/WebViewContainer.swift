@@ -254,12 +254,8 @@ struct WebViewContainer: View {
                     url: url,
                     urlText: url.localDevelopmentDisplayText,
                     contentInsets: webContentInsets,
-                    isSplitViewEnabled: store.isSplitViewDisplayed,
                     onCopyURL: { store.copyActiveTabURL() },
-                    onCapturePage: { store.captureActiveTabPage() },
-                    onToggleSplitView: { store.toggleSplitView() },
                     onSubmitURL: { store.navigateActiveTab(to: $0) },
-                    onSetDeveloperMode: { store.setDeveloperMode($0, for: url) },
                     onToggleChat: { store.requestAISidebarToggle() }
                 )
                 // The web host's opaque surface background paints over
@@ -1283,32 +1279,14 @@ private struct DeveloperToolbar: View {
     /// spans the full card, but content placed under a lane is masked away
     /// with it, so the URL field and controls stay inside the visible run.
     let contentInsets: BrowserInterfaceInsets
-    let isSplitViewEnabled: Bool
     let onCopyURL: () -> Void
-    let onCapturePage: () -> Void
-    let onToggleSplitView: () -> Void
     let onSubmitURL: (String) -> Void
-    let onSetDeveloperMode: (Bool) -> Void
     let onToggleChat: () -> Void
-
-    // Versioned: the bar's defaults changed to link, chat, and share, and a
-    // set saved under the old defaults would quietly outrank them — including
-    // the one the old Reset button wrote. A new key starts everyone at the
-    // current defaults, with re-customizing one menu away.
-    private static let storageKey = "CandoaDeveloperToolbarControlIDs.v2"
-    private static let noControlIDsValue = "none"
-    private static let defaultControlIDs = DeveloperToolbarControlKind.allCases
-        .filter(\.isDefaultVisible)
-        .map(\.id)
-        .joined(separator: ",")
 
     @State private var draftURL = ""
     @State private var hoveredControl: DeveloperToolbarControlKind?
     @State private var isHoveringControlMenu = false
-    @State private var isSiteInfoPresented = false
-    @State private var isExtensionsPresented = false
     @State private var sharePicker = SharePickerCoordinator()
-    @AppStorage(Self.storageKey) private var storedControlIDs = ""
     @FocusState private var isURLFieldFocused: Bool
 
     private var isLocalDevelopment: Bool { url.isLocalDevelopment }
@@ -1320,34 +1298,6 @@ private struct DeveloperToolbar: View {
     // itself says where you are.
     private var foreground: Color {
         InterfaceStyle.sidebarText
-    }
-
-    private var selectedControlIDs: [String] {
-        // UI tests assert the shipped set, and this preference outlives the
-        // fixture workspace — a run would otherwise inherit whatever the
-        // person running it last chose.
-        if BrowserStore.isUITesting {
-            return Self.defaultControlIDs.split(separator: ",").map(String.init)
-        }
-
-        if storedControlIDs == Self.noControlIDsValue {
-            return []
-        }
-
-        let value = storedControlIDs.isEmpty ? Self.defaultControlIDs : storedControlIDs
-        return value
-            .split(separator: ",")
-            .map(String.init)
-            .filter { id in DeveloperToolbarControlKind.allCases.contains { $0.id == id } }
-    }
-
-    private var selectedControlIDSet: Set<String> {
-        Set(selectedControlIDs)
-    }
-
-    private var visibleControls: [DeveloperToolbarControlKind] {
-        let ids = selectedControlIDSet
-        return DeveloperToolbarControlKind.allCases.filter { ids.contains($0.id) }
     }
 
     private var currentURL: URL? {
@@ -1389,18 +1339,9 @@ private struct DeveloperToolbar: View {
             Spacer(minLength: 8)
 
             HStack(spacing: 6) {
-                ForEach(Array(visibleControls.enumerated()), id: \.element.id) { index, control in
-                    if shouldInsertSeparator(before: index) {
-                        Rectangle()
-                            .fill(foreground.opacity(0.18))
-                            .frame(width: 1, height: 16)
-                            .padding(.horizontal, 3)
-                    }
-
+                ForEach(DeveloperToolbarControlKind.allCases) { control in
                     toolbarButton(for: control)
                 }
-
-                controlMenu
             }
         }
         // The URL is the bar's first content: it needs the same breathing
@@ -1420,68 +1361,22 @@ private struct DeveloperToolbar: View {
         }
     }
 
-    private var controlMenu: some View {
-        Menu {
-            Text("Shown Controls")
-
-            ForEach(DeveloperToolbarControlKind.allCases) { control in
-                Button {
-                    toggleControl(control)
-                } label: {
-                    if selectedControlIDSet.contains(control.id) {
-                        Label(control.title(isSplitViewEnabled: isSplitViewEnabled), systemImage: "checkmark")
-                    } else {
-                        Text(control.title(isSplitViewEnabled: isSplitViewEnabled))
-                    }
-                }
-                .disabled(!control.isImplemented)
-            }
-
-            Divider()
-
-            Button("Reset to Default Controls") {
-                storedControlIDs = Self.defaultControlIDs
-            }
-        } label: {
-            Image(systemName: "slider.horizontal.3")
-                .font(.system(size: 11.5, weight: .semibold))
-                .foregroundStyle(foreground.opacity(isHoveringControlMenu ? 0.95 : 0.72))
-                .frame(width: 22, height: 22)
-                .background(foreground.opacity(isHoveringControlMenu ? 0.12 : 0))
-                .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
-                .contentShape(Rectangle())
-        }
-        .menuStyle(.borderlessButton)
-        .menuIndicator(.hidden)
-        // The borderless menu button re-tints its template label with the
-        // accent, ignoring the label's foregroundStyle; match the sibling
-        // buttons' foreground explicitly.
-        .tint(foreground.opacity(isHoveringControlMenu ? 0.95 : 0.72))
-        .fixedSize()
-        .onHover { isHoveringControlMenu = $0 }
-        .help("Customize Developer Controls")
-    }
-
     private func toolbarButton(for control: DeveloperToolbarControlKind) -> some View {
         Button {
             perform(control)
         } label: {
-            Image(systemName: control.symbolName(isSplitViewEnabled: isSplitViewEnabled))
+            Image(systemName: control.symbolName)
                 .font(.system(size: 11.5, weight: .semibold))
                 .foregroundStyle(
-                    foreground.opacity(
-                        control.isImplemented
-                            ? (hoveredControl == control ? 0.95 : 0.72)
-                            : 0.34
-                    )
+                    foreground.opacity(hoveredControl == control ? 0.95 : 0.72)
                 )
+                .offset(y: control.inkCorrection)
                 .frame(width: 22, height: 22)
-                .background(foreground.opacity(hoveredControl == control && control.isImplemented ? 0.12 : 0))
+                .background(foreground.opacity(hoveredControl == control ? 0.12 : 0))
                 .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
                 .contentShape(Rectangle())
         }
         .buttonTreatment(.content)
-        .disabled(!control.isImplemented)
         .background {
             if control == .share {
                 SharePickerAnchor(coordinator: sharePicker)
@@ -1490,45 +1385,7 @@ private struct DeveloperToolbar: View {
         .onHover { isHovering in
             hoveredControl = isHovering ? control : nil
         }
-        .help(control.help(isSplitViewEnabled: isSplitViewEnabled))
-        .popover(
-            isPresented: Binding(
-                get: { control == .siteInfo && isSiteInfoPresented },
-                set: { isPresented in
-                    if control == .siteInfo {
-                        isSiteInfoPresented = isPresented
-                    }
-                }
-            ),
-            arrowEdge: .top
-        ) {
-            DeveloperSiteInfoPopover(
-                url: currentURL,
-                urlText: urlText,
-                isLocalDevelopment: url.isLocalDevelopment,
-                onSetDeveloperMode: onSetDeveloperMode
-            )
-        }
-        .popover(
-            isPresented: Binding(
-                get: { control == .extensions && isExtensionsPresented },
-                set: { isPresented in
-                    if control == .extensions {
-                        isExtensionsPresented = isPresented
-                    }
-                }
-            ),
-            arrowEdge: .top
-        ) {
-            if #available(macOS 15.4, *) {
-                ExtensionActionsPopover(isPresented: $isExtensionsPresented)
-            }
-        }
-    }
-
-    private func shouldInsertSeparator(before index: Int) -> Bool {
-        guard index > 0 else { return false }
-        return visibleControls[index].group != visibleControls[index - 1].group
+        .help(control.help)
     }
 
     private func perform(_ control: DeveloperToolbarControlKind) {
@@ -1540,132 +1397,24 @@ private struct DeveloperToolbar: View {
             sharePicker.present(url: currentURL) {}
         case .chat:
             onToggleChat()
-        case .capturePage:
-            onCapturePage()
-        case .splitView:
-            onToggleSplitView()
-        case .siteInfo:
-            isSiteInfoPresented = true
-        case .extensions:
-            isExtensionsPresented = true
-        case .easel, .developerTools, .inspectElement:
-            break
         }
     }
 
-    private func toggleControl(_ control: DeveloperToolbarControlKind) {
-        var ids = Set(selectedControlIDs)
-        if ids.contains(control.id) {
-            ids.remove(control.id)
-        } else {
-            ids.insert(control.id)
-        }
-
-        let orderedIDs = DeveloperToolbarControlKind.allCases
-            .map(\.id)
-            .filter { ids.contains($0) }
-        storedControlIDs = orderedIDs.isEmpty
-            ? Self.noControlIDsValue
-            : orderedIDs.joined(separator: ",")
-    }
 }
 
-/// The developer-mode surface for a page, reached from the bar's Site Info
-/// control. It carries the one thing that acts — the Developer Mode switch —
-/// and not the address, scheme, and port it used to restate: all three are
-/// already spelled out in the URL two points above it.
-private struct DeveloperSiteInfoPopover: View {
-    let url: URL?
-    let urlText: String
-    let isLocalDevelopment: Bool
-    let onSetDeveloperMode: (Bool) -> Void
-
-    private var hostText: String {
-        url?.host(percentEncoded: false) ?? String(localized: "Local page")
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Toggle(isOn: Binding(
-                get: { true },
-                set: { isEnabled in
-                    onSetDeveloperMode(isEnabled)
-                }
-            )) {
-                Text("Developer Mode")
-                    .font(.system(size: 13, weight: .semibold))
-            }
-
-            Text(
-                isLocalDevelopment
-                    ? "On automatically for local development."
-                    : "On for \(hostText)."
-            )
-            .font(.system(size: 11.5))
-            .foregroundStyle(.secondary)
-            .fixedSize(horizontal: false, vertical: true)
-        }
-        .padding(14)
-        .frame(width: 250, alignment: .leading)
-    }
-}
-
+/// The developer bar's controls. Three, fixed: the bar used to let people
+/// choose from a longer list, but everything else it offered has its own home
+/// — Capture Page in the menu bar, Extensions in the sidebar header, Split
+/// View on its shortcut, Developer Mode in the palette and the address pill's
+/// context menu — so the chooser only added a knob and a fourth icon.
 private enum DeveloperToolbarControlKind: String, CaseIterable, Identifiable {
     case copyURL
     case share
     case chat
-    case easel
-    case capturePage
-    case developerTools
-    case siteInfo
-    case inspectElement
-    case extensions
-    case splitView
 
     var id: String { rawValue }
 
-    var group: Int {
-        switch self {
-        case .copyURL, .share, .chat:
-            return 0
-        case .easel, .capturePage:
-            return 1
-        case .developerTools, .siteInfo, .inspectElement:
-            return 2
-        case .extensions, .splitView:
-            return 3
-        }
-    }
-
-    /// The bar starts at what a local page actually needs — what site this is
-    /// and a way to take the URL with you. Everything else is a tool someone
-    /// can add from the bar's own menu rather than a default everyone pays
-    /// for in width.
-    var isDefaultVisible: Bool {
-        switch self {
-        case .copyURL, .share, .chat:
-            return true
-        case .siteInfo, .capturePage, .splitView, .easel, .developerTools,
-             .inspectElement, .extensions:
-            return false
-        }
-    }
-
-    var isImplemented: Bool {
-        switch self {
-        case .copyURL, .share, .chat, .capturePage, .siteInfo, .splitView:
-            return true
-        case .extensions:
-            if #available(macOS 15.4, *) {
-                return true
-            }
-            return false
-        case .easel, .developerTools, .inspectElement:
-            return false
-        }
-    }
-
-    func title(isSplitViewEnabled: Bool) -> String {
+    var title: String {
         switch self {
         case .copyURL:
             return String(localized: "Copy Link")
@@ -1673,24 +1422,10 @@ private enum DeveloperToolbarControlKind: String, CaseIterable, Identifiable {
             return String(localized: "Share")
         case .chat:
             return String(localized: "Chat")
-        case .easel:
-            return String(localized: "Capture to Easel")
-        case .capturePage:
-            return String(localized: "Capture Page")
-        case .developerTools:
-            return String(localized: "Developer Tools")
-        case .siteInfo:
-            return String(localized: "Site Info")
-        case .inspectElement:
-            return String(localized: "Inspect Element")
-        case .extensions:
-            return String(localized: "Extensions")
-        case .splitView:
-            return isSplitViewEnabled ? BrowserCommandTitles.closeSplitView : BrowserCommandTitles.addSplitView
         }
     }
 
-    func symbolName(isSplitViewEnabled: Bool) -> String {
+    var symbolName: String {
         switch self {
         case .copyURL:
             return "link"
@@ -1698,20 +1433,20 @@ private enum DeveloperToolbarControlKind: String, CaseIterable, Identifiable {
             return "square.and.arrow.up"
         case .chat:
             return "bubble.left"
-        case .easel:
-            return "rectangle.on.rectangle"
-        case .capturePage:
-            return "camera"
-        case .developerTools:
-            return "terminal"
-        case .siteInfo:
-            return "globe"
-        case .inspectElement:
-            return "scope"
-        case .extensions:
-            return "puzzlepiece.extension"
-        case .splitView:
-            return isSplitViewEnabled ? "rectangle.split.2x1.fill" : "rectangle.split.2x1"
+        }
+    }
+
+    /// Symbols centered in equal frames still read crooked: their ink is not
+    /// centered in their own boxes. Measured at 11.5pt semibold in a 22pt
+    /// frame, link and bubble.left sit dead center while square.and.arrow.up
+    /// leaves 4.75pt above and 4.00pt below — half a point of lift puts its
+    /// ink on the same line as the others, on a whole device pixel.
+    var inkCorrection: CGFloat {
+        switch self {
+        case .share:
+            return -0.5
+        case .copyURL, .chat:
+            return 0
         }
     }
 
@@ -1724,24 +1459,11 @@ private enum DeveloperToolbarControlKind: String, CaseIterable, Identifiable {
         case .chat:
             let caps = ShortcutKeyCaps.current(for: .toggleAISidebar).joined()
             return caps.isEmpty ? String(localized: "Set in Settings > Shortcuts") : caps
-        case .capturePage:
-            return String(localized: "Set in Settings > Shortcuts")
-        case .splitView:
-            // Reflect the person's configured shortcut, not the default.
-            let caps = ShortcutKeyCaps.current(for: .toggleSplitView).joined()
-            return caps.isEmpty ? String(localized: "Set in Settings > Shortcuts") : caps
-        case .extensions:
-            if #available(macOS 15.4, *) {
-                return String(localized: "Manage in Settings > Extensions")
-            }
-            return String(localized: "Extensions require macOS 15.4 or later.")
-        case .easel, .developerTools, .siteInfo, .inspectElement:
-            return String(localized: "Not implemented in Candoa yet")
         }
     }
 
-    func help(isSplitViewEnabled: Bool) -> String {
-        "\(title(isSplitViewEnabled: isSplitViewEnabled))\n\(shortcutText)"
+    var help: String {
+        "\(title)\n\(shortcutText)"
     }
 }
 
