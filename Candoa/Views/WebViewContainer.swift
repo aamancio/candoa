@@ -259,7 +259,8 @@ struct WebViewContainer: View {
                     onCapturePage: { store.captureActiveTabPage() },
                     onToggleSplitView: { store.toggleSplitView() },
                     onSubmitURL: { store.navigateActiveTab(to: $0) },
-                    onSetDeveloperMode: { store.setDeveloperMode($0, for: url) }
+                    onSetDeveloperMode: { store.setDeveloperMode($0, for: url) },
+                    onToggleChat: { store.requestAISidebarToggle() }
                 )
                 // The web host's opaque surface background paints over
                 // earlier siblings' rows; keep the toolbar above it or the
@@ -1288,6 +1289,7 @@ private struct DeveloperToolbar: View {
     let onToggleSplitView: () -> Void
     let onSubmitURL: (String) -> Void
     let onSetDeveloperMode: (Bool) -> Void
+    let onToggleChat: () -> Void
 
     private static let storageKey = "CandoaDeveloperToolbarControlIDs"
     private static let noControlIDsValue = "none"
@@ -1301,6 +1303,7 @@ private struct DeveloperToolbar: View {
     @State private var isHoveringControlMenu = false
     @State private var isSiteInfoPresented = false
     @State private var isExtensionsPresented = false
+    @State private var sharePicker = SharePickerCoordinator()
     @AppStorage(Self.storageKey) private var storedControlIDs = ""
     @FocusState private var isURLFieldFocused: Bool
 
@@ -1316,6 +1319,13 @@ private struct DeveloperToolbar: View {
     }
 
     private var selectedControlIDs: [String] {
+        // UI tests assert the shipped set, and this preference outlives the
+        // fixture workspace — a run would otherwise inherit whatever the
+        // person running it last chose.
+        if BrowserStore.isUITesting {
+            return Self.defaultControlIDs.split(separator: ",").map(String.init)
+        }
+
         if storedControlIDs == Self.noControlIDsValue {
             return []
         }
@@ -1389,7 +1399,10 @@ private struct DeveloperToolbar: View {
                 controlMenu
             }
         }
-        .padding(.leading, 10)
+        // The URL is the bar's first content: it needs the same breathing
+        // room from the card's edge that the sidebar gives its own address,
+        // or it reads as hitting the corner.
+        .padding(.leading, 16)
         .padding(.trailing, 10)
         .padding(.leading, contentInsets.leading)
         .padding(.trailing, contentInsets.trailing)
@@ -1465,6 +1478,11 @@ private struct DeveloperToolbar: View {
         }
         .buttonTreatment(.content)
         .disabled(!control.isImplemented)
+        .background {
+            if control == .share {
+                SharePickerAnchor(coordinator: sharePicker)
+            }
+        }
         .onHover { isHovering in
             hoveredControl = isHovering ? control : nil
         }
@@ -1513,6 +1531,11 @@ private struct DeveloperToolbar: View {
         switch control {
         case .copyURL:
             onCopyURL()
+        case .share:
+            guard let currentURL else { break }
+            sharePicker.present(url: currentURL) {}
+        case .chat:
+            onToggleChat()
         case .capturePage:
             onCapturePage()
         case .splitView:
@@ -1543,6 +1566,10 @@ private struct DeveloperToolbar: View {
     }
 }
 
+/// The developer-mode surface for a page, reached from the bar's Site Info
+/// control. It carries the one thing that acts — the Developer Mode switch —
+/// and not the address, scheme, and port it used to restate: all three are
+/// already spelled out in the URL two points above it.
 private struct DeveloperSiteInfoPopover: View {
     let url: URL?
     let urlText: String
@@ -1550,71 +1577,39 @@ private struct DeveloperSiteInfoPopover: View {
     let onSetDeveloperMode: (Bool) -> Void
 
     private var hostText: String {
-        url?.host(percentEncoded: false) ?? "Local page"
-    }
-
-    private var schemeText: String {
-        url?.scheme?.uppercased() ?? "Unknown"
-    }
-
-    private var portText: String {
-        guard let port = url?.port else { return String(localized: "Default") }
-        return String(port)
+        url?.host(percentEncoded: false) ?? String(localized: "Local page")
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Label(hostText, systemImage: "info.circle")
-                .font(.headline)
-
-            Divider()
-
-            DeveloperSiteInfoRow(title: String(localized: "Address"), value: urlText)
-            DeveloperSiteInfoRow(title: String(localized: "Scheme"), value: schemeText)
-            DeveloperSiteInfoRow(title: String(localized: "Port"), value: portText)
-
-            Toggle("Developer Mode", isOn: Binding(
+        VStack(alignment: .leading, spacing: 6) {
+            Toggle(isOn: Binding(
                 get: { true },
                 set: { isEnabled in
                     onSetDeveloperMode(isEnabled)
                 }
-            ))
+            )) {
+                Text("Developer Mode")
+                    .font(.system(size: 13, weight: .semibold))
+            }
 
             Text(
                 isLocalDevelopment
-                    ? "Enabled automatically for local development."
-                    : "Enabled for this site."
+                    ? "On automatically for local development."
+                    : "On for \(hostText)."
             )
-            .font(.system(size: 12))
+            .font(.system(size: 11.5))
             .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
         }
         .padding(14)
-        .frame(width: 300, alignment: .leading)
-    }
-}
-
-private struct DeveloperSiteInfoRow: View {
-    let title: String
-    let value: String
-
-    var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 12) {
-            Text(title)
-                .font(.system(size: 12))
-                .foregroundStyle(.secondary)
-                .frame(width: 62, alignment: .leading)
-
-            Text(value)
-                .font(.system(size: 12, weight: .medium))
-                .lineLimit(3)
-                .textSelection(.enabled)
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
+        .frame(width: 250, alignment: .leading)
     }
 }
 
 private enum DeveloperToolbarControlKind: String, CaseIterable, Identifiable {
     case copyURL
+    case share
+    case chat
     case easel
     case capturePage
     case developerTools
@@ -1627,7 +1622,7 @@ private enum DeveloperToolbarControlKind: String, CaseIterable, Identifiable {
 
     var group: Int {
         switch self {
-        case .copyURL:
+        case .copyURL, .share, .chat:
             return 0
         case .easel, .capturePage:
             return 1
@@ -1644,9 +1639,9 @@ private enum DeveloperToolbarControlKind: String, CaseIterable, Identifiable {
     /// for in width.
     var isDefaultVisible: Bool {
         switch self {
-        case .copyURL, .siteInfo:
+        case .copyURL, .share, .chat:
             return true
-        case .capturePage, .splitView, .easel, .developerTools,
+        case .siteInfo, .capturePage, .splitView, .easel, .developerTools,
              .inspectElement, .extensions:
             return false
         }
@@ -1654,7 +1649,7 @@ private enum DeveloperToolbarControlKind: String, CaseIterable, Identifiable {
 
     var isImplemented: Bool {
         switch self {
-        case .copyURL, .capturePage, .siteInfo, .splitView:
+        case .copyURL, .share, .chat, .capturePage, .siteInfo, .splitView:
             return true
         case .extensions:
             if #available(macOS 15.4, *) {
@@ -1670,6 +1665,10 @@ private enum DeveloperToolbarControlKind: String, CaseIterable, Identifiable {
         switch self {
         case .copyURL:
             return String(localized: "Copy Link")
+        case .share:
+            return String(localized: "Share")
+        case .chat:
+            return String(localized: "Chat")
         case .easel:
             return String(localized: "Capture to Easel")
         case .capturePage:
@@ -1691,6 +1690,10 @@ private enum DeveloperToolbarControlKind: String, CaseIterable, Identifiable {
         switch self {
         case .copyURL:
             return "link"
+        case .share:
+            return "square.and.arrow.up"
+        case .chat:
+            return "bubble.left"
         case .easel:
             return "rectangle.on.rectangle"
         case .capturePage:
@@ -1712,6 +1715,11 @@ private enum DeveloperToolbarControlKind: String, CaseIterable, Identifiable {
         switch self {
         case .copyURL:
             return "⇧⌘C"
+        case .share:
+            return String(localized: "Set in Settings > Shortcuts")
+        case .chat:
+            let caps = ShortcutKeyCaps.current(for: .toggleAISidebar).joined()
+            return caps.isEmpty ? String(localized: "Set in Settings > Shortcuts") : caps
         case .capturePage:
             return String(localized: "Set in Settings > Shortcuts")
         case .splitView:

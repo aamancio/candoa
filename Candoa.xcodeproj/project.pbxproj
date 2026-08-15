@@ -43,6 +43,7 @@
 		010000000000000000000144 /* EliContextSections.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000044 /* EliContextSections.swift */; };
 		010000000000000000000145 /* EliSidebarResizeHandle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000045 /* EliSidebarResizeHandle.swift */; };
 		010000000000000000000146 /* EliSidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000046 /* EliSidebarView.swift */; };
+		010000000000000000000192 /* SharePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0100000000000000000000f3 /* SharePicker.swift */; };
 		010000000000000000000147 /* EliSidebarComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000047 /* EliSidebarComponents.swift */; };
 		010000000000000000000148 /* EliContextCompactor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000048 /* EliContextCompactor.swift */; };
 		010000000000000000000150 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000050 /* Assets.xcassets */; };
@@ -207,6 +208,7 @@
 		010000000000000000000044 /* EliContextSections.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EliContextSections.swift; sourceTree = "<group>"; };
 		010000000000000000000045 /* EliSidebarResizeHandle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EliSidebarResizeHandle.swift; sourceTree = "<group>"; };
 		010000000000000000000046 /* EliSidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EliSidebarView.swift; sourceTree = "<group>"; };
+		0100000000000000000000f3 /* SharePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharePicker.swift; sourceTree = "<group>"; };
 		010000000000000000000047 /* EliSidebarComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EliSidebarComponents.swift; sourceTree = "<group>"; };
 		010000000000000000000048 /* EliContextCompactor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EliContextCompactor.swift; sourceTree = "<group>"; };
 		010000000000000000000050 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -405,6 +407,7 @@
 				010000000000000000000045 /* EliSidebarResizeHandle.swift */,
 				010000000000000000000046 /* EliSidebarView.swift */,
 				EF0000000000000000000006 /* EliSidebarSupportingViews.swift */,
+				0100000000000000000000f3 /* SharePicker.swift */,
 				010000000000000000000047 /* EliSidebarComponents.swift */,
 				010000000000000000000012 /* SidebarView.swift */,
 				SI00000000000000000000A2 /* SiteInfoView.swift */,
@@ -892,6 +895,7 @@
 				010000000000000000000145 /* EliSidebarResizeHandle.swift in Sources */,
 				010000000000000000000146 /* EliSidebarView.swift in Sources */,
 				EF0000000000000000000106 /* EliSidebarSupportingViews.swift in Sources */,
+				010000000000000000000192 /* SharePicker.swift in Sources */,
 				010000000000000000000147 /* EliSidebarComponents.swift in Sources */,
 				010000000000000000000148 /* EliContextCompactor.swift in Sources */,
 				010000000000000000000151 /* HistoryVisit.swift in Sources */,

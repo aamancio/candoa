@@ -38,6 +38,10 @@ extension BrowserStore {
         addressFocusRequestID = UUID()
     }
 
+    func requestAISidebarToggle() {
+        aiSidebarToggleRequestID = UUID()
+    }
+
     func focusSidebarAddressBar() {
         guard !isInitialOnboardingBlockingBrowsing else { return }
 

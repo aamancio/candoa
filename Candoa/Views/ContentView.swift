@@ -506,6 +506,9 @@ struct ContentView: View {
                 await userStore.reconcilePendingSubscriptionIfNeeded(for: url)
             }
         }
+        .onChange(of: store.aiSidebarToggleRequestID) { _, _ in
+            toggleAISidebar()
+        }
         .onChange(of: store.activeSpaceID) { _, _ in
             // A Space is its tabs, and they live in the sidebar. Switching
             // from the menu or the keyboard with the sidebar hidden would
