@@ -22,6 +22,27 @@ enum NewTabPreference: String, CaseIterable {
     }
 }
 
+/// Where the address lives. Candoa is Arc-shaped by default — the address
+/// is a pill in the sidebar and regular pages carry no bar — but people who
+/// want the URL in view above the page can move it to a persistent top strip.
+/// Chosen once during first-run setup and changeable in Settings ▸ General.
+/// Local-development pages keep their developer bar in either placement.
+enum AddressBarPlacement: String, CaseIterable {
+    case sidebar
+    case top
+
+    static let `default`: AddressBarPlacement = .sidebar
+
+    static var current: AddressBarPlacement {
+        let stored = UserDefaults.standard.string(forKey: SettingsOption.addressBarPlacement)
+        return AddressBarPlacement(rawValue: stored ?? "") ?? .default
+    }
+
+    static func setCurrent(_ placement: AddressBarPlacement) {
+        UserDefaults.standard.set(placement.rawValue, forKey: SettingsOption.addressBarPlacement)
+    }
+}
+
 /// How long history visits are kept before automatic removal. Safari's
 /// choices and Safari's default (one year).
 enum HistoryRetentionPreference: String, CaseIterable {

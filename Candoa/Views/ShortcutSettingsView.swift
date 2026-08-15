@@ -145,6 +145,7 @@ enum SettingsOption {
     static let askReasoningEffort = prefix + "AskReasoningEffort"
 
     static let websiteAppearance = prefix + "WebsiteAppearance"
+    static let addressBarPlacement = prefix + "AddressBarPlacement"
 
     static let selectRecentlyUsedOnClose = prefix + "SelectRecentlyUsedOnClose"
 

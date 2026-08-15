@@ -131,6 +131,7 @@
 		EF0000000000000000000107 /* WebViewCoordinator+Permissions.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000000000000007 /* WebViewCoordinator+Permissions.swift */; };
 		EF0000000000000000000108 /* WebViewCoordinator+Hosting.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000000000000008 /* WebViewCoordinator+Hosting.swift */; };
 		EF0000000000000000000109 /* WebViewCoordinator+Hibernation.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000000000000009 /* WebViewCoordinator+Hibernation.swift */; };
+		EF000000000000000000010F /* TopAddressBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF000000000000000000000F /* TopAddressBar.swift */; };
 		EF000000000000000000010E /* WebViewCoordinator+PreviewWarmup.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF000000000000000000000E /* WebViewCoordinator+PreviewWarmup.swift */; };
 		EF000000000000000000010A /* WebViewCoordinator+Media.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF000000000000000000000A /* WebViewCoordinator+Media.swift */; };
 		EF000000000000000000010B /* WebViewCoordinator+Delegates.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF000000000000000000000B /* WebViewCoordinator+Delegates.swift */; };
@@ -292,6 +293,7 @@
 		EF0000000000000000000007 /* WebViewCoordinator+Permissions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WebViewCoordinator+Permissions.swift"; sourceTree = "<group>"; };
 		EF0000000000000000000008 /* WebViewCoordinator+Hosting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WebViewCoordinator+Hosting.swift"; sourceTree = "<group>"; };
 		EF0000000000000000000009 /* WebViewCoordinator+Hibernation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WebViewCoordinator+Hibernation.swift"; sourceTree = "<group>"; };
+		EF000000000000000000000F /* TopAddressBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TopAddressBar.swift; sourceTree = "<group>"; };
 		EF000000000000000000000E /* WebViewCoordinator+PreviewWarmup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WebViewCoordinator+PreviewWarmup.swift"; sourceTree = "<group>"; };
 		EF000000000000000000000A /* WebViewCoordinator+Media.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WebViewCoordinator+Media.swift"; sourceTree = "<group>"; };
 		EF000000000000000000000B /* WebViewCoordinator+Delegates.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WebViewCoordinator+Delegates.swift"; sourceTree = "<group>"; };
@@ -413,6 +415,7 @@
 				010000000000000000000047 /* EliSidebarComponents.swift */,
 				010000000000000000000012 /* SidebarView.swift */,
 				SI00000000000000000000A2 /* SiteInfoView.swift */,
+				EF000000000000000000000F /* TopAddressBar.swift */,
 				PV00000000000000000000A1 /* PrivacyReportView.swift */,
 				E50000000000000000000001 /* AppUpdateBanner.swift */,
 				AB1200000000000000000001 /* WhatsNewBanner.swift */,
@@ -856,6 +859,7 @@
 				AB1200000000000000000102 /* WhatsNewService.swift in Sources */,
 				SI00000000000000000000B1 /* SitePermissions.swift in Sources */,
 				SI00000000000000000000B2 /* SiteInfoView.swift in Sources */,
+				EF000000000000000000010F /* TopAddressBar.swift in Sources */,
 				PV00000000000000000000B1 /* PrivacyReportView.swift in Sources */,
 				RD00000000000000000000B1 /* ReaderMode.swift in Sources */,
 				RD00000000000000000000B2 /* WebViewCoordinator+Reader.swift in Sources */,

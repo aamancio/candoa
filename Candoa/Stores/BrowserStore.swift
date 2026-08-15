@@ -93,13 +93,16 @@ enum InitialOnboardingStep: String, CaseIterable {
     case account
     case importData
     case space
+    /// Where the address lives — sidebar pill (default) or a strip above
+    /// the page. Asked once, changeable in Settings ▸ General.
+    case addressBar
     case tour
     /// A CloudKit restore refilled this Mac with an existing workspace while
     /// first-run setup was still on screen. Replaces the new-user wizard with
     /// a welcome-back acknowledgment; the person already has their Spaces.
     case restoredWorkspace
 
-    static let numberedSetupSteps: [Self] = [.importData, .space, .account]
+    static let numberedSetupSteps: [Self] = [.importData, .space, .addressBar, .account]
 
     var position: Int {
         Self.numberedSetupSteps.firstIndex(of: self).map { $0 + 1 } ?? 0
@@ -496,7 +499,7 @@ final class BrowserStore: ObservableObject {
                 // already in the local store, so show the card again — unless
                 // the workspace vanished, which restarts new-user setup.
                 resumableStep = shouldPresentInitialSpaceSetup ? .welcome : .restoredWorkspace
-            case .welcome, .account, .importData, .space:
+            case .welcome, .account, .importData, .space, .addressBar:
                 resumableStep = storedOnboardingStep
             }
             setInitialOnboardingStep(resumableStep)

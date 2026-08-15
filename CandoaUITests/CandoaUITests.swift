@@ -923,7 +923,7 @@ final class CandoaUITests: XCTestCase {
 
         let spaceStep = element("initial-onboarding-space", in: app)
         XCTAssertTrue(spaceStep.waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["2 of 3"].exists)
+        XCTAssertTrue(app.staticTexts["2 of 4"].exists)
         XCTAssertFalse(element("account-onboarding", in: app).exists)
     }
 
@@ -1129,12 +1129,67 @@ final class CandoaUITests: XCTestCase {
             object: spaceOnboarding
         )
         XCTAssertEqual(XCTWaiter.wait(for: [dismissed], timeout: 5), .completed)
+        // The address-bar placement question sits between the Space and the
+        // account gate; its default keeps the sidebar pill.
+        XCTAssertTrue(
+            element("initial-onboarding-addressBar", in: app).waitForExistence(timeout: 5),
+            "Creating the initial Space should ask where the address lives."
+        )
+        XCTAssertTrue(app.staticTexts["3 of 4"].exists)
+        element("onboarding-address-bar-continue", in: app).click()
+
         XCTAssertTrue(
             element("account-onboarding", in: app).waitForExistence(timeout: 5),
-            "Creating the initial Space should offer Sign in with Apple before starting the tour."
+            "The address-bar step should offer Sign in with Apple before starting the tour."
         )
-        XCTAssertTrue(app.staticTexts["3 of 3"].exists)
+        XCTAssertTrue(app.staticTexts["4 of 4"].exists)
         XCTAssertFalse(element("initial-tour-command-bar", in: app).exists)
+        XCTAssertTrue(waitForState(in: app, containing: "addressBar=sidebar"), currentState(in: app))
+    }
+
+    func testAddressBarOnboardingChoosingTopMovesTheAddressAboveThePage() throws {
+        let app = launchApp(onboardingStep: "addressBar")
+        XCTAssertTrue(element("initial-onboarding-addressBar", in: app).waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["3 of 4"].exists)
+
+        element("onboarding-address-bar-top", in: app).click()
+        element("onboarding-address-bar-continue", in: app).click()
+
+        XCTAssertTrue(waitForState(in: app, containing: "addressBar=top"), currentState(in: app))
+        // Back from the account gate returns to the question with the choice kept.
+        XCTAssertTrue(element("account-onboarding", in: app).waitForExistence(timeout: 5))
+        element("onboarding-back", in: app).click()
+        XCTAssertTrue(element("initial-onboarding-addressBar", in: app).waitForExistence(timeout: 5))
+        let topCard = element("onboarding-address-bar-top", in: app)
+        XCTAssertTrue(topCard.waitForExistence(timeout: 5))
+        XCTAssertTrue(topCard.isSelected, "The previously chosen placement should stay selected")
+    }
+
+    func testTopAddressBarPlacementReplacesTheSidebarPill() throws {
+        let app = launchApp(
+            fixture: "split-view",
+            extraLaunchArguments: ["-Candoa.Settings.ZenOption.AddressBarPlacement", "top"]
+        )
+        openFixtureTab(path: "one", in: app)
+
+        let topAddress = element("top-address-button", in: app)
+        XCTAssertTrue(topAddress.waitForExistence(timeout: 10), currentState(in: app))
+        XCTAssertFalse(element("sidebar-address-button", in: app).exists)
+        XCTAssertTrue(element("top-site-info-button", in: app).exists)
+        XCTAssertTrue(waitForState(in: app, containing: "addressBar=top"), currentState(in: app))
+
+        // The strip's address is the same command bar the sidebar pill opens.
+        topAddress.click()
+        XCTAssertTrue(waitForState(in: app, containing: "palette=true"), currentState(in: app))
+    }
+
+    func testDefaultAddressBarPlacementKeepsTheSidebarPillOnly() throws {
+        let app = launchApp(fixture: "split-view")
+        openFixtureTab(path: "one", in: app)
+
+        XCTAssertTrue(element("sidebar-address-button", in: app).waitForExistence(timeout: 10))
+        XCTAssertFalse(element("top-address-button", in: app).exists)
+        XCTAssertTrue(waitForState(in: app, containing: "addressBar=sidebar"), currentState(in: app))
     }
 
     func testFirstRunSpaceSetupSeedsStarterFavorites() throws {
@@ -1145,6 +1200,10 @@ final class CandoaUITests: XCTestCase {
         createSpaceButton
             .coordinate(withNormalizedOffset: CGVector(dx: 0.05, dy: 0.5))
             .click()
+
+        let addressBarContinue = element("onboarding-address-bar-continue", in: app)
+        XCTAssertTrue(addressBarContinue.waitForExistence(timeout: 10))
+        addressBarContinue.click()
 
         let notNowButton = app.buttons["Not Now"]
         XCTAssertTrue(notNowButton.waitForExistence(timeout: 10))

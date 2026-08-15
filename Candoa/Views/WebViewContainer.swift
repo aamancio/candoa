@@ -17,6 +17,8 @@ struct WebViewContainer: View {
     /// or frame.
     let slideOverTrailingInset: CGFloat
     @AppStorage(DeveloperModeConfiguration.storageKey) private var developerModeOverrides = ""
+    @AppStorage(SettingsOption.addressBarPlacement)
+    private var addressBarPlacement = AddressBarPlacement.default.rawValue
     /// In-flight divider drag. Panes keep their committed widths while it
     /// exists — only the preview line follows the pointer — so the live
     /// WKWebViews never relayout mid-drag; the single web layout happens at
@@ -260,6 +262,13 @@ struct WebViewContainer: View {
                 // The web host's opaque surface background paints over
                 // earlier siblings' rows; keep the toolbar above it or the
                 // bar renders dimmed behind that fill.
+                .zIndex(1)
+            } else if addressBarPlacement == AddressBarPlacement.top.rawValue {
+                TopAddressBar(
+                    store: store,
+                    url: tab.url,
+                    contentInsets: webContentInsets
+                )
                 .zIndex(1)
             }
 
