@@ -84,7 +84,8 @@ struct TabRowView: View {
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 6)
-        .frame(minHeight: 32)
+        // Zen's row height: Firefox's 36pt --tab-min-height, which Zen keeps.
+        .frame(minHeight: 36)
         .contentShape(Rectangle())
         .background(rowBackground)
         .background(TabHoverTracker(isHovering: $isHovering))
