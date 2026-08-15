@@ -67,7 +67,12 @@ struct TopAddressBar: View {
 
             if let url {
                 Button {
-                    sharePicker.present(url: url) {}
+                    let tab = store.activeTab
+                    sharePicker.present(
+                        url: url,
+                        title: tab?.title,
+                        faviconData: tab?.faviconData
+                    ) {}
                 } label: {
                     Image(systemName: "square.and.arrow.up")
                         .font(.system(size: 12, weight: .medium))

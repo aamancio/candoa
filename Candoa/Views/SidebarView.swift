@@ -751,7 +751,12 @@ struct SidebarView: View {
                 // Copy, so nothing is lost, and the pill matches the
                 // developer bar's control.
                 Button {
-                    addressPillSharePicker.present(url: url) {}
+                    let tab = displayedActiveTab(for: spaceID)
+                    addressPillSharePicker.present(
+                        url: url,
+                        title: tab?.title,
+                        faviconData: tab?.faviconData
+                    ) {}
                 } label: {
                     Image(systemName: "square.and.arrow.up")
                         .font(.system(size: 13, weight: .medium))
@@ -870,8 +875,12 @@ struct SidebarView: View {
     }
 
     private func displayedURL(for spaceID: UUID) -> URL? {
+        displayedActiveTab(for: spaceID)?.url
+    }
+
+    private func displayedActiveTab(for spaceID: UUID) -> BrowserTab? {
         guard let tabID = displayedActiveTabID(for: spaceID) else { return nil }
-        return store.tabs.first(where: { $0.id == tabID })?.url
+        return store.tabs.first(where: { $0.id == tabID })
     }
 
     private func sidebarAddressText(
