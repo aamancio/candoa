@@ -11,6 +11,10 @@ struct WebViewContainer: View {
     @ObservedObject var store: BrowserStore
     let visibleInterfaceInsets: BrowserInterfaceInsets
     let attachesToTrailingPanel: Bool
+    /// Whether the sidebar is unpinned. The address lives in the sidebar, so
+    /// the web surface grows its own strip to keep the URL visible and
+    /// editable while the sidebar is away.
+    let isSidebarHidden: Bool
     /// Extra trailing clip while Eli covers the page beyond the reserved web
     /// layout (widening resize drags, and the close paint-fence hold).
     /// Mask-only: it never reaches the WKWebView's obscured content insets
@@ -264,6 +268,13 @@ struct WebViewContainer: View {
                 // The web host's opaque surface background paints over
                 // earlier siblings' rows; keep the toolbar above it or the
                 // bar renders dimmed behind that fill.
+                .zIndex(1)
+            } else if isSidebarHidden {
+                CollapsedAddressBar(
+                    store: store,
+                    url: tab.url,
+                    contentInsets: webContentInsets
+                )
                 .zIndex(1)
             }
 

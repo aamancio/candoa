@@ -1845,6 +1845,39 @@ final class CandoaUITests: XCTestCase {
         assertEqualFrame(webViewHost.frame, expandedSidebarHostFrame)
     }
 
+    func testHidingTheSidebarKeepsTheAddressOnScreen() throws {
+        let app = launchApp()
+
+        XCTAssertTrue(waitForState(in: app, containing: "setup=false"), currentState(in: app))
+
+        app.typeKey("t", modifierFlags: .command)
+        XCTAssertTrue(waitForState(in: app, containing: "newTabPalette=true"), currentState(in: app))
+        submitCommandPaletteText("https://example.com", in: app)
+        XCTAssertTrue(
+            waitForState(in: app, containing: "url=https://example.com/", timeout: 10),
+            currentState(in: app)
+        )
+
+        // The sidebar owns the address while it is pinned; the web surface's
+        // own strip only stands in for it.
+        XCTAssertTrue(element("sidebar-address-button", in: app).waitForExistence(timeout: 5))
+        XCTAssertFalse(element("collapsed-address-button", in: app).exists)
+
+        app.typeKey("s", modifierFlags: .command)
+        XCTAssertTrue(waitForState(in: app, containing: "sidebar=false"), currentState(in: app))
+        XCTAssertTrue(
+            element("collapsed-address-button", in: app).waitForExistence(timeout: 5),
+            currentState(in: app)
+        )
+
+        app.typeKey("s", modifierFlags: .command)
+        XCTAssertTrue(waitForState(in: app, containing: "sidebar=true"), currentState(in: app))
+        XCTAssertTrue(
+            waitForDisappearance(of: element("collapsed-address-button", in: app)),
+            currentState(in: app)
+        )
+    }
+
     func testFreshTabGivesThePageKeyboardFocusWithoutAClick() throws {
         let app = launchApp()
 
