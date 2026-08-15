@@ -289,6 +289,7 @@ struct SidebarView: View {
         GeometryReader { proxy in
             let width = max(proxy.size.width, 1)
 
+            let _ = updateSpaceSwipePageWidth(width)
             SpaceSwipeTrackingView(
                 isEnabled: canSwipeSpaces,
                 contentID: store.activeSpaceID,
@@ -319,6 +320,12 @@ struct SidebarView: View {
         .accessibilityIdentifier("sidebar-space-swipe-area")
     }
 
+    private func updateSpaceSwipePageWidth(_ width: CGFloat) {
+        if spaceSwipePageWidth != width {
+            DispatchQueue.main.async { spaceSwipePageWidth = width }
+        }
+    }
+
     private var spaceSwipeTopInset: CGFloat {
         sidebarTopPadding +
             sidebarHeaderHeight +
@@ -346,6 +353,10 @@ struct SidebarView: View {
 
         return inset
     }
+
+    /// The carousel page width this pass is laying out; spaceSwipePage's
+    /// chrome pin needs it outside the GeometryReader closure.
+    @State private var spaceSwipePageWidth: CGFloat = InterfaceStyle.sidebarWidth
 
     @ViewBuilder
     private func spaceSwipePage(slot: Int, minimumHeight: CGFloat) -> some View {
@@ -378,6 +389,14 @@ struct SidebarView: View {
                         showsWindowControls: slot == 0,
                         isSwipingSpaces: isSpaceSwipePrepared
                     )
+                    // Pinned to the page's width: the chrome shares this
+                    // ZStack with the space content, and a chrome row that
+                    // cannot compress (the header once the extensions button
+                    // joins it) would otherwise inflate the ZStack past the
+                    // fixed page frame — SwiftUI centers the overflow, and
+                    // every row in the Space shifts half the excess off the
+                    // window edge and paints over the Zen insets.
+                    .frame(width: spaceSwipePageWidth)
                 }
             }
             .allowsHitTesting(slot == 0)
@@ -581,7 +600,12 @@ struct SidebarView: View {
         showsWindowControls: Bool,
         isSwipingSpaces: Bool = false
     ) -> some View {
-        HStack(alignment: .center, spacing: 6) {
+        // Every width here is part of a budget: with the extensions button
+        // loaded this row carries five 24pt buttons beside the 70pt window
+        // controls, and its fixed members must never exceed the 218pt the
+        // chrome's padding leaves in the 234pt lane — an over-wide header
+        // pushes the whole Space page off the window edge.
+        HStack(alignment: .center, spacing: 4) {
             Group {
                 if showsWindowControls {
                     WindowControlsView(
@@ -603,9 +627,9 @@ struct SidebarView: View {
             // HStack: this row's fixed members already nearly fill the
             // 234pt sidebar, and any added layout width overflows the
             // frame and shifts the whole sidebar's content off-edge.
-            Spacer(minLength: 8)
+            Spacer(minLength: 4)
 
-            HStack(spacing: 6) {
+            HStack(spacing: 4) {
                 navigationControls
                     .opacity(hidesNavigationControlsForAddressPalette ? 0 : 1)
                     .allowsHitTesting(!hidesNavigationControlsForAddressPalette)
@@ -645,7 +669,7 @@ struct SidebarView: View {
     }
 
     private var navigationControls: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 4) {
             Button(action: store.goBack) {
                 Image(systemName: "arrow.left")
             }

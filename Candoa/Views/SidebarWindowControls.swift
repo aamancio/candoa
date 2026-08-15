@@ -668,7 +668,9 @@ internal struct ToolbarIconButtonStyle: ButtonStyle {
             configuration.label
                 .font(.system(size: 15, weight: .medium))
                 .symbolRenderingMode(.hierarchical)
-                .frame(width: 25, height: 25)
+                // Part of the sidebar header's width budget: five of these
+                // must fit beside the window controls in the 234pt lane.
+                .frame(width: 24, height: 24)
                 .background(
                     RoundedRectangle(cornerRadius: 6, style: .continuous)
                         .fill(highlight)
