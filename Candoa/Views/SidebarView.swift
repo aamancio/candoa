@@ -56,6 +56,7 @@ struct SidebarView: View {
 
     @State private var isHoveringNewTab = false
     @State private var isHoveringAddressPill = false
+    @State private var addressPillSharePicker = SharePickerCoordinator()
     @State private var isSpaceDropTargeted = false
     @State private var isSpaceSwipePrepared = false
     @State private var isSettlingSpaceSwipe = false
@@ -744,19 +745,23 @@ struct SidebarView: View {
             .accessibilityIdentifier("sidebar-address-button")
 
             if let url {
+                // Share rather than a bare copy: the sheet's first row is
+                // Copy, so nothing is lost, and the pill matches the
+                // developer bar's control.
                 Button {
-                    store.copyURL(url)
+                    addressPillSharePicker.present(url: url) {}
                 } label: {
-                    Image(systemName: "link")
+                    Image(systemName: "square.and.arrow.up")
                         .font(.system(size: 13, weight: .medium))
                         .foregroundStyle(InterfaceStyle.sidebarIcon)
                         .frame(width: 30, height: 40)
                         .contentShape(Rectangle())
                 }
                 .buttonTreatment(.content)
-                .help("Copy URL")
-                .accessibilityLabel("Copy URL")
-                .accessibilityIdentifier("sidebar-copy-url-button")
+                .background(SharePickerAnchor(coordinator: addressPillSharePicker))
+                .help("Share")
+                .accessibilityLabel("Share")
+                .accessibilityIdentifier("sidebar-share-url-button")
                 // Not 0: fully transparent views stop hit-testing, and the
                 // button must keep its click footprint while visually absent.
                 .opacity(isHoveringAddressPill ? 1 : 0.02)

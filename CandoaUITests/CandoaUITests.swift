@@ -3065,31 +3065,24 @@ final class CandoaUITests: XCTestCase {
         )
     }
 
-    /// The address pill's trailing link button copies the displayed page's
-    /// URL. The button is hover-revealed but keeps a trace-opacity click
+    /// The address pill's trailing button opens the system share picker for
+    /// the displayed page (its first row is Copy, so copying stays one step
+    /// away). The button is hover-revealed but keeps a trace-opacity click
     /// footprint, so the test can address it without winning a hover race.
-    func testAddressPillCopyButtonCopiesURL() {
+    func testAddressPillShareButtonOpensSharePicker() {
         let app = launchApp(fixture: "popup-open")
 
         openFixtureTab(path: "popup", in: app)
 
-        NSPasteboard.general.clearContents()
+        let shareButton = element("sidebar-share-url-button", in: app)
+        XCTAssertTrue(shareButton.waitForExistence(timeout: 5), currentState(in: app))
+        shareButton.click()
 
-        let copyButton = element("sidebar-copy-url-button", in: app)
-        XCTAssertTrue(copyButton.waitForExistence(timeout: 5), currentState(in: app))
-        copyButton.click()
-
-        let expectation = XCTNSPredicateExpectation(
-            predicate: NSPredicate { _, _ in
-                NSPasteboard.general.string(forType: .string) == "https://fixture.candoa.test/popup"
-            },
-            object: nil
-        )
-        XCTAssertEqual(
-            XCTWaiter().wait(for: [expectation], timeout: 5),
-            .completed,
-            "pasteboard holds \(NSPasteboard.general.string(forType: .string) ?? "nil")"
-        )
+        // The NSSharingServicePicker menu is app-hosted; its Copy item is the
+        // stable first entry across macOS versions.
+        let copyItem = app.menuItems["Copy"]
+        XCTAssertTrue(copyItem.waitForExistence(timeout: 5), currentState(in: app))
+        app.typeKey(.escape, modifierFlags: [])
     }
 
     /// Candoa ▸ Site Info presents the same popover from the menu bar, in the
