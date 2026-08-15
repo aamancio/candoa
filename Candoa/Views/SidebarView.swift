@@ -724,7 +724,7 @@ struct SidebarView: View {
                             .foregroundStyle(InterfaceStyle.sidebarIcon)
                     }
 
-                    Text(sidebarAddressText(for: url, developerModeEnabled: developerModeEnabled))
+                    Text(sidebarAddressText(for: url))
                         .lineLimit(1)
                         .truncationMode(.tail)
                         .font(
@@ -883,23 +883,11 @@ struct SidebarView: View {
         return store.tabs.first(where: { $0.id == tabID })
     }
 
-    private func sidebarAddressText(
-        for url: URL?,
-        developerModeEnabled: Bool
-    ) -> String {
-        guard let url else {
-            return "Search..."
-        }
-
-        if developerModeEnabled {
-            return url.localDevelopmentCompactDisplayText
-        }
-
-        if let host = url.host(percentEncoded: false) {
-            return host.replacingOccurrences(of: "www.", with: "")
-        }
-
-        return url.absoluteString
+    // Developer pages read the same way as any other: the domain, with the
+    // port that tells two local servers apart. Only the monospaced face marks
+    // them out, and the full URL lives in the developer toolbar above.
+    private func sidebarAddressText(for url: URL?) -> String {
+        url?.displayDomainText ?? "Search..."
     }
 
     // MARK: - Favorites

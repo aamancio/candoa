@@ -252,16 +252,27 @@ extension URL {
         return text
     }
 
-    /// Host and port only, for the sidebar pill — roughly 17 monospaced
-    /// characters wide, where a scheme and a path leave nothing legible. Arc
-    /// shows the same thing; the full URL stays one glance away in the
-    /// developer toolbar above the page.
-    var localDevelopmentCompactDisplayText: String {
+    /// What the address surfaces show at rest: the domain, nothing else.
+    ///
+    /// This is Zen's `gZenUIManager.urlbarTrim` under
+    /// `zen.urlbar.show-domain-only-in-sidebar` — take the host, drop a
+    /// *leading* "www." (only a prefix: "wwwx.example.com" is its own host),
+    /// and keep an explicit port, which is part of the origin and the whole
+    /// point on a local development page. Arc's sidebar field reads the same.
+    ///
+    /// Hostless URLs (file:, data:) have no domain to show, so they keep
+    /// their full text.
+    var displayDomainText: String {
         guard let host = host(percentEncoded: false), !host.isEmpty else {
             return localDevelopmentDisplayText
         }
 
-        guard let port else { return host }
-        return "\(host):\(port)"
+        var text = host
+        if text.hasPrefix("www.") {
+            text.removeFirst(4)
+        }
+
+        guard let port else { return text }
+        return "\(text):\(port)"
     }
 }
