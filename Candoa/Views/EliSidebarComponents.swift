@@ -85,6 +85,36 @@ struct EliMemoryPopoverView: View {
     }
 
     var body: some View {
+        Group {
+            if facts.isEmpty {
+                emptyBody
+            } else {
+                factsBody
+            }
+        }
+        .padding(14)
+        .onAppear {
+            facts = store.activeSpaceMemoryFacts()
+        }
+    }
+
+    /// Nothing saved yet means there is nothing to explain: one title and one
+    /// line, without the Space name, the divider, or the privacy footnote that
+    /// only earn their room once there are facts to apply them to.
+    private var emptyBody: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("What Eli Knows")
+                .font(.system(size: 13.5, weight: .semibold))
+                .accessibilityIdentifier("eli-memory-title")
+            Text("Nothing yet. Eli remembers details from your chats.")
+                .font(.system(size: 12.5))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(width: 250, alignment: .leading)
+    }
+
+    private var factsBody: some View {
         VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
                 Text("What Eli Knows")
@@ -97,41 +127,29 @@ struct EliMemoryPopoverView: View {
 
             Divider()
 
-            if facts.isEmpty {
-                Text("Eli hasn't saved anything in this Space yet.")
-                    .font(.system(size: 12.5))
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.vertical, 6)
-            } else {
-                // A plain stack, not a ScrollView: scroll content inside an
-                // NSPopover reports offset accessibility frames, which makes
-                // the rows unclickable for AX clients. The fact cap keeps the
-                // list popover-sized.
-                VStack(alignment: .leading, spacing: 2) {
-                    ForEach(Array(facts.enumerated()), id: \.element.id) { index, fact in
-                        factRow(fact, index: index)
-                    }
+            // A plain stack, not a ScrollView: scroll content inside an
+            // NSPopover reports offset accessibility frames, which makes
+            // the rows unclickable for AX clients. The fact cap keeps the
+            // list popover-sized.
+            VStack(alignment: .leading, spacing: 2) {
+                ForEach(Array(facts.enumerated()), id: \.element.id) { index, fact in
+                    factRow(fact, index: index)
                 }
-
-                Button("Forget All", role: .destructive) {
-                    store.deleteActiveSpaceMemory()
-                    facts = []
-                }
-                .controlSize(.small)
-                .accessibilityIdentifier("eli-memory-forget-all")
             }
+
+            Button("Forget All", role: .destructive) {
+                store.deleteActiveSpaceMemory()
+                facts = []
+            }
+            .controlSize(.small)
+            .accessibilityIdentifier("eli-memory-forget-all")
 
             Text("Saved details stay in this Space and never leave it.")
                 .font(.system(size: 11))
                 .foregroundStyle(.tertiary)
                 .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(14)
         .frame(width: 320)
-        .onAppear {
-            facts = store.activeSpaceMemoryFacts()
-        }
     }
 
     private func factRow(_ fact: SpaceMemoryFact, index: Int) -> some View {

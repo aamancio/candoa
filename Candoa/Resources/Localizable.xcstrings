@@ -9443,46 +9443,6 @@
         }
       }
     },
-    "Eli hasn't saved anything in this Space yet." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Eli hat in diesem Space noch nichts gespeichert."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Eli aún no ha guardado nada en este Espacio."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Eli n’a encore rien enregistré dans cet Espace."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Eliはこのスペースにまだ何も保存していません。"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "O Eli ainda não salvou nada neste Espaço."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Eli 尚未在此空间中保存任何内容。"
-          }
-        }
-      }
-    },
     "Eli hit a problem reading this page and stopped. Please try again." : {
       "localizations" : {
         "de" : {
@@ -17708,6 +17668,46 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "什么都不会留下"
+          }
+        }
+      }
+    },
+    "Nothing yet. Eli remembers details from your chats." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Noch nichts. Eli merkt sich Details aus Ihren Chats."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nada todavía. Eli recuerda detalles de tus chats."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rien pour l’instant. Eli retient des détails de vos conversations."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "まだ何もありません。Eli はチャットの内容を覚えていきます。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nada ainda. O Eli lembra detalhes das suas conversas."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "还没有内容。Eli 会记住你聊天中的细节。"
           }
         }
       }
