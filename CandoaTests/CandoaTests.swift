@@ -439,4 +439,28 @@ final class NavigationSchemeTests: XCTestCase {
         XCTAssertFalse(WebViewCoordinator.isWarmable(URL(string: "file:///tmp/page.html")!))
         XCTAssertFalse(WebViewCoordinator.isWarmable(URL(string: "candoa://welcome")!))
     }
+
+    // MARK: - Developer-mode address text
+
+    func testCompactDevelopmentTextDropsWebSchemes() {
+        XCTAssertEqual(
+            URL(string: "http://localhost:8080")!.localDevelopmentCompactDisplayText,
+            "localhost:8080"
+        )
+        XCTAssertEqual(
+            URL(string: "https://127.0.0.1:3000/admin")!.localDevelopmentCompactDisplayText,
+            "127.0.0.1:3000/admin"
+        )
+    }
+
+    func testCompactDevelopmentTextKeepsOtherSchemesAndTrimsBareSlash() {
+        XCTAssertEqual(
+            URL(string: "file:///tmp/page.html")!.localDevelopmentCompactDisplayText,
+            "file:///tmp/page.html"
+        )
+        XCTAssertEqual(
+            URL(string: "http://localhost:8080/")!.localDevelopmentCompactDisplayText,
+            "localhost:8080"
+        )
+    }
 }

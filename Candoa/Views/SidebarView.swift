@@ -726,7 +726,9 @@ struct SidebarView: View {
 
                     Text(sidebarAddressText(for: url, developerModeEnabled: developerModeEnabled))
                         .lineLimit(1)
-                        .truncationMode(.tail)
+                        // A dev URL that outruns the pill keeps its host and
+                        // its path tail; a bare host only ever loses its end.
+                        .truncationMode(developerModeEnabled ? .middle : .tail)
                         .font(
                             developerModeEnabled
                                 ? .system(size: 13, weight: .medium, design: .monospaced)
@@ -892,7 +894,7 @@ struct SidebarView: View {
         }
 
         if developerModeEnabled {
-            return url.localDevelopmentDisplayText
+            return url.localDevelopmentCompactDisplayText
         }
 
         if let host = url.host(percentEncoded: false) {

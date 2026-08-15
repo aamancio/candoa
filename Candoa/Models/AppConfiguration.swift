@@ -251,4 +251,15 @@ extension URL {
         }
         return text
     }
+
+    /// The same text without the http/https scheme, for narrow surfaces like
+    /// the sidebar pill where "http://" eats the width the port and path need.
+    /// Other schemes stay — they carry meaning the host alone doesn't.
+    var localDevelopmentCompactDisplayText: String {
+        let text = localDevelopmentDisplayText
+        for prefix in ["http://", "https://"] where text.hasPrefix(prefix) {
+            return String(text.dropFirst(prefix.count))
+        }
+        return text
+    }
 }
