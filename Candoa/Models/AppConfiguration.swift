@@ -154,6 +154,20 @@ enum TabSwitcherConfiguration {
     static let holdRevealDelay: TimeInterval = 0.18
 
     static let snapshotWidth: CGFloat = 320
+
+    /// Off-screen preview warm-up: a tab with no thumbnail from any source
+    /// is loaded once in a throwaway, unhosted web view of this size, then
+    /// captured. Loads run one at a time, spaced out, and give up after the
+    /// timeout so a hung page cannot stall the queue.
+    static let warmupViewportSize = CGSize(width: 1024, height: 640)
+    static let warmupLoadTimeout: TimeInterval = 15
+    /// didFinish precedes first paint of late-arriving content; a short
+    /// settle keeps thumbnails from capturing a half-rendered page.
+    static let warmupSettleDelay: TimeInterval = 0.6
+    static let warmupSpacing: TimeInterval = 0.5
+    /// The launch pass waits for session restore and first paint to settle
+    /// before spending network and CPU on tabs nobody has looked at yet.
+    static let warmupLaunchDelay: TimeInterval = 5
 }
 
 /// Per-site Developer Mode mirrors Arc's behavior: local servers opt in by

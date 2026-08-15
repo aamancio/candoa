@@ -300,7 +300,8 @@ extension BrowserStore {
 
     /// A tab without a live web view still gets a real preview: reuse the
     /// hibernation wake snapshot when the tab slept this session, else the
-    /// thumbnail persisted by a previous run.
+    /// thumbnail persisted by a previous run. A tab with neither is loaded
+    /// off-screen once so its card fills in (and stays filled next run).
     private func loadFallbackTabSwitcherSnapshot(for tab: BrowserTab) {
         if let wakeSnapshot = webCoordinator.wakeSnapshots[tab.id] {
             tabSwitcherSnapshots[tab.id] = wakeSnapshot
@@ -310,12 +311,40 @@ extension BrowserStore {
         guard !isPrivate else { return }
         let tabID = tab.id
         Task { @MainActor [weak self] in
-            guard
-                let image = await TabSnapshotStore.shared.loadSnapshot(for: tabID),
-                let self,
-                self.tabSwitcherSnapshots[tabID] == nil
-            else { return }
-            self.tabSwitcherSnapshots[tabID] = image
+            let image = await TabSnapshotStore.shared.loadSnapshot(for: tabID)
+            guard let self, self.tabSwitcherSnapshots[tabID] == nil else { return }
+            if let image {
+                self.tabSwitcherSnapshots[tabID] = image
+            } else if let tab = self.tabs.first(where: { $0.id == tabID }) {
+                self.webCoordinator.warmUpPreview(for: tab)
+            }
+        }
+    }
+
+    /// A page image captured outside the switcher (a wake snapshot on
+    /// switch-away, or an off-screen warm-up) becomes that tab's card and,
+    /// outside private windows, its on-disk thumbnail for the next run.
+    func didCaptureTabSnapshot(_ image: NSImage, for tabID: UUID) {
+        guard let tab = tabs.first(where: { $0.id == tabID }) else { return }
+        tabSwitcherSnapshots[tabID] = image
+        guard !isPrivate else { return }
+        TabSnapshotStore.shared.persist(image, for: tabID, url: tab.url)
+    }
+
+    /// Launch pass: the active space's switcher candidates that have no live
+    /// web view and no thumbnail on disk are warmed up off-screen, so the
+    /// first Control-Tab of the run shows real pages rather than favicons.
+    func warmUpTabSwitcherPreviewsIfNeeded() {
+        guard !isPrivate else { return }
+        let candidates = tabSwitcherPreviewTabs(from: recentTabsForActiveSpace(), selectedTabID: activeTabID)
+            .filter { !webCoordinator.hasLoadedWebView(for: $0.id) && tabSwitcherSnapshots[$0.id] == nil }
+        guard !candidates.isEmpty else { return }
+        Task { @MainActor [weak self] in
+            for tab in candidates {
+                guard await !TabSnapshotStore.shared.hasSnapshot(for: tab.id) else { continue }
+                guard let self, self.tabs.contains(where: { $0.id == tab.id }) else { return }
+                self.webCoordinator.warmUpPreview(for: tab)
+            }
         }
     }
 

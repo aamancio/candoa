@@ -39,10 +39,10 @@ final class TabSnapshotStore {
 
         // Encoding happens here on the main actor — at switcher thumbnail
         // size it is trivially cheap, and it keeps the detached work to
-        // Sendable Data plus file IO.
+        // Sendable Data plus file IO. Wake snapshots arrive wider than the
+        // switcher needs; scale them down so the cache stays thumbnail-sized.
         guard
-            let tiff = image.tiffRepresentation,
-            let bitmap = NSBitmapImageRep(data: tiff),
+            let bitmap = Self.thumbnailBitmap(from: image, maxWidth: TabSwitcherConfiguration.snapshotWidth),
             let data = bitmap.representation(using: .jpeg, properties: [.compressionFactor: 0.75])
         else { return }
 
@@ -55,6 +55,58 @@ final class TabSnapshotStore {
                 NSLog("Candoa failed to persist a tab snapshot: \(error.localizedDescription)")
             }
         }
+    }
+
+    /// Whether a thumbnail already exists on disk, without decoding it. The
+    /// preview warm-up uses this to skip tabs a previous run already covered.
+    func hasSnapshot(for tabID: UUID) async -> Bool {
+        guard let directoryURL else { return false }
+        let path = Self.fileURL(for: tabID, in: directoryURL).path
+        return await Task.detached(priority: .utility) {
+            FileManager.default.fileExists(atPath: path)
+        }.value
+    }
+
+    /// Re-encodes `image` as an sRGB bitmap no wider than `maxWidth`,
+    /// preserving aspect ratio. Images already within the limit are returned
+    /// at their native pixel size.
+    nonisolated static func thumbnailBitmap(from image: NSImage, maxWidth: CGFloat) -> NSBitmapImageRep? {
+        guard let tiff = image.tiffRepresentation, let source = NSBitmapImageRep(data: tiff) else { return nil }
+        let sourceWidth = CGFloat(source.pixelsWide)
+        let sourceHeight = CGFloat(source.pixelsHigh)
+        guard sourceWidth > maxWidth, sourceWidth > 0, sourceHeight > 0 else { return source }
+
+        let scale = maxWidth / sourceWidth
+        let targetWidth = Int(maxWidth.rounded())
+        let targetHeight = max(1, Int((sourceHeight * scale).rounded()))
+        guard let target = NSBitmapImageRep(
+            bitmapDataPlanes: nil,
+            pixelsWide: targetWidth,
+            pixelsHigh: targetHeight,
+            bitsPerSample: 8,
+            samplesPerPixel: 4,
+            hasAlpha: true,
+            isPlanar: false,
+            colorSpaceName: .calibratedRGB,
+            bytesPerRow: 0,
+            bitsPerPixel: 0
+        ) else { return nil }
+        target.size = NSSize(width: targetWidth, height: targetHeight)
+
+        NSGraphicsContext.saveGraphicsState()
+        defer { NSGraphicsContext.restoreGraphicsState() }
+        guard let context = NSGraphicsContext(bitmapImageRep: target) else { return nil }
+        NSGraphicsContext.current = context
+        context.imageInterpolation = .high
+        source.draw(
+            in: NSRect(x: 0, y: 0, width: targetWidth, height: targetHeight),
+            from: NSRect(x: 0, y: 0, width: sourceWidth, height: sourceHeight),
+            operation: .copy,
+            fraction: 1,
+            respectFlipped: false,
+            hints: nil
+        )
+        return target
     }
 
     func loadSnapshot(for tabID: UUID) async -> NSImage? {
