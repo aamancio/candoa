@@ -6,6 +6,7 @@ struct CommandPaletteView: View {
     @State internal var query = ""
     @State internal var selectedSearchProvider: SearchProvider?
     @State internal var selectedCommandIndex = 0
+    @State internal var suppressesAutocomplete = false
     @State internal var fieldFocusRequestID = UUID()
     @FocusState internal var isSearchFocused: Bool
     @Environment(\.colorScheme) internal var colorScheme
@@ -59,6 +60,7 @@ struct CommandPaletteView: View {
             query = store.commandPaletteInitialText
             selectedSearchProvider = nil
             selectedCommandIndex = 0
+            suppressesAutocomplete = false
             fieldFocusRequestID = UUID()
             focusSearchField()
         }
@@ -68,7 +70,12 @@ struct CommandPaletteView: View {
         .onChange(of: fieldFocusRequestID) { _, _ in
             focusSearchField()
         }
-        .onChange(of: query) { _, _ in
+        .onChange(of: query) { previousQuery, newQuery in
+            // Deleting has to be able to reach the text: completing again on
+            // every keystroke would hand the deleted characters straight back
+            // as a longer highlight, so the palette leaves the query alone
+            // until typing resumes — the way Safari's address field does.
+            suppressesAutocomplete = newQuery.count < previousQuery.count
             selectedCommandIndex = 0
             store.setUITestingCommandPaletteQuery(query)
         }

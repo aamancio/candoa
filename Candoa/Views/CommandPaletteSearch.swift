@@ -112,7 +112,9 @@ extension CommandPaletteView {
     internal var autocompleteSuggestion: PaletteAutocompleteSuggestion? {
         autocompleteSuggestion(
             for: query,
-            allowsProviderSuggestions: selectedSearchProvider == nil && !isResumingSearchURL
+            allowsProviderSuggestions: selectedSearchProvider == nil
+                && !isResumingSearchURL
+                && !suppressesAutocomplete
         )
     }
 
