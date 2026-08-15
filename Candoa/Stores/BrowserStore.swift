@@ -242,6 +242,10 @@ final class BrowserStore: ObservableObject {
     /// rather than its own `onAppear` so a second Command-F — when the bar is
     /// already up — refocuses and selects the query, the way Safari does.
     @Published var findFocusRequestID = UUID()
+    /// Bumped when something outside the window chrome asks for Eli — the
+    /// developer bar's Chat button. Sidebar visibility itself lives in the
+    /// view that owns the layout.
+    @Published var aiSidebarToggleRequestID = UUID()
     /// Position of the current match among all of them, or nil when there is
     /// nothing to count yet — an empty query, or a page the in-page find
     /// engine could not tally.
