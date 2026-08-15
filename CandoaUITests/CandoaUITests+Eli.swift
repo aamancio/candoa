@@ -2,6 +2,58 @@ import AppKit
 import XCTest
 
 extension CandoaUITests {
+    func testEliFillsAFormAfterOnePageApprovalAndStillConfirmsSubmit() throws {
+        // Three personal fields and a submit button, all structurally
+        // sensitive. Without page-scoped consent this run would raise four
+        // separate confirmations.
+        let app = launchApp(fixture: "ask-agent-form-fill")
+
+        app.typeKey("e", modifierFlags: .command)
+        XCTAssertTrue(element("agent-sidebar", in: app).waitForExistence(timeout: 5), currentState(in: app))
+        submitAskText("fill out this application for me", in: app)
+
+        // The first personal field asks, and offers to cover the page.
+        XCTAssertTrue(app.staticTexts["Confirm this action?"].waitForExistence(timeout: 8), app.debugDescription)
+        let fillPage = element("agent-fill-page", in: app)
+        XCTAssertTrue(fillPage.waitForExistence(timeout: 5), app.debugDescription)
+
+        let approvalAttachment = XCTAttachment(screenshot: app.windows.firstMatch.screenshot())
+        approvalAttachment.name = "Eli page-scoped fill approval"
+        approvalAttachment.lifetime = .keepAlways
+        add(approvalAttachment)
+
+        fillPage.click()
+
+        // The remaining fields fill without another dialog, and the page's own
+        // status line is the proof they landed.
+        XCTAssertTrue(
+            app.staticTexts["filled=3 name-ok email-ok phone-ok"].waitForExistence(timeout: 15),
+            app.debugDescription
+        )
+
+        // Sending the form is a separate decision and still asks.
+        XCTAssertTrue(app.staticTexts["Confirm this action?"].waitForExistence(timeout: 8), app.debugDescription)
+        XCTAssertTrue(
+            app.staticTexts[
+                "Eli is ready to activate \"Submit Application\". This may make a consequential change to your account."
+            ].exists,
+            app.debugDescription
+        )
+        XCTAssertFalse(
+            element("agent-fill-page", in: app).exists,
+            "the page-scoped option must never appear on a submit confirmation"
+        )
+
+        let continueButton = app.sheets.buttons["Continue"].firstMatch
+        XCTAssertTrue(continueButton.exists, app.debugDescription)
+        continueButton.click()
+
+        XCTAssertTrue(
+            waitForAskState(in: app, containing: "lastAssistant=[Your application is submitted.]", timeout: 15),
+            askState(in: app)
+        )
+    }
+
     func testEliUserMessageBubbleUsesAccentPrimaryColor() throws {
         try assertEliUserMessageBubbleTracksAccent(appearanceName: "system")
         try assertEliUserMessageBubbleTracksAccent(appearanceName: "light", forcesLightAppearance: true)

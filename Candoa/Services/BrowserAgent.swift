@@ -258,13 +258,34 @@ extension BrowserAgentAction {
     }
 }
 
+/// Permission to type into the personal fields of one page, granted once so a
+/// long form is not one modal per field. Scoped to the run, the tab, and the
+/// exact URL that was on screen when it was granted: a new page, a new run, or
+/// a different tab has to ask again.
+struct BrowserAgentFillConsent: Equatable, Sendable {
+    let runID: UUID
+    let tabID: UUID
+    let url: String
+
+    func covers(runID: UUID, tabID: UUID, url: String) -> Bool {
+        self.runID == runID && self.tabID == tabID && self.url == url
+    }
+}
+
 enum BrowserAgentPolicy {
     /// The model's `requiresApproval` judgment is a floor, never a ceiling: an action
     /// that targets a structurally sensitive control (per the snapshot's DOM semantics)
     /// must be confirmed natively even when the server marked it routine.
+    ///
+    /// `fillConsent` is the one thing that can lower the bar, and only for
+    /// typing into a field on the page it was granted for. Buttons are never
+    /// covered: agreeing to have a form filled is not agreeing to send it.
     static func requiresNativeApproval(
         for action: BrowserAgentAction,
-        on page: BrowserAgentPage
+        on page: BrowserAgentPage,
+        fillConsent: BrowserAgentFillConsent? = nil,
+        runID: UUID? = nil,
+        tabID: UUID? = nil
     ) -> Bool {
         if action.requiresApproval { return true }
         guard action.kind != .scroll else { return false }
@@ -272,7 +293,38 @@ enum BrowserAgentPolicy {
         // control here and is intentionally not sensitive on its own: it loads
         // natively in the tab and is reversible with Back. The model's
         // `requiresApproval` judgment above still gates it.
-        return page.controls.first(where: { $0.ref == action.target })?.sensitive == true
+        guard let control = page.controls.first(where: { $0.ref == action.target }),
+              control.sensitive else {
+            return false
+        }
+        if isCoveredByFillConsent(action, control: control, page: page, fillConsent: fillConsent, runID: runID, tabID: tabID) {
+            return false
+        }
+        return true
+    }
+
+    /// Whether a page-scoped consent already covers this action. Deliberately
+    /// narrow: a fill, into a field, on the page the consent names.
+    static func isCoveredByFillConsent(
+        _ action: BrowserAgentAction,
+        control: BrowserAgentControl,
+        page: BrowserAgentPage,
+        fillConsent: BrowserAgentFillConsent?,
+        runID: UUID?,
+        tabID: UUID?
+    ) -> Bool {
+        guard action.kind == .fill, control.kind == .field,
+              let fillConsent, let runID, let tabID else {
+            return false
+        }
+        return fillConsent.covers(runID: runID, tabID: tabID, url: page.url)
+    }
+
+    /// Whether this confirmation should offer to cover the rest of the page's
+    /// fields. Only a fill into a field qualifies — the offer would be
+    /// meaningless on a click, and dangerous on a submit.
+    static func allowsPageScopedFillConsent(for action: PageActionProposal) -> Bool {
+        action.kind == .fill && action.browserAgentControlKind == .field
     }
 
     static func sensitiveConfirmationMessage(for action: PageActionProposal) -> String {
@@ -282,7 +334,10 @@ enum BrowserAgentPolicy {
         case .select:
             return String(localized: "Eli is ready to select \"\(action.value ?? action.target)\". Review this choice before continuing.")
         case .fill:
-            return String(localized: "Eli is ready to enter information in \"\(action.target)\". Review it before continuing.")
+            guard allowsPageScopedFillConsent(for: action) else {
+                return String(localized: "Eli is ready to enter information in \"\(action.target)\". Review it before continuing.")
+            }
+            return String(localized: "Eli is ready to enter information in \"\(action.target)\". Fill This Page lets Eli complete the other fields here without asking again; sending the form still needs your approval.")
         case .navigate:
             return String(localized: "Eli is ready to open \"\(action.target)\". Review the destination before continuing.")
         case .scroll:

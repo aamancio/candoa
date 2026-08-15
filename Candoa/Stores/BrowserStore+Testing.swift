@@ -639,6 +639,32 @@ extension BrowserStore {
             )
         }
 
+        if fixture == "ask-agent-form-fill" {
+            let spaceID = UUID(uuidString: "ADADADAD-ADAD-ADAD-ADAD-ADADADADADAD")!
+            let tabID = UUID(uuidString: "CDCDCDCD-CDCD-CDCD-CDCD-CDCDCDCDCDCD")!
+            let space = BrowserSpace(
+                id: spaceID,
+                name: "TestingBot",
+                symbolName: "sparkles",
+                themeAppearance: BrowserSpace.defaultThemeAppearance
+            )
+            let tab = BrowserTab(
+                id: tabID,
+                title: "Job Application",
+                url: URL(string: "https://fixture.candoa.test/apply")!,
+                faviconSymbol: "doc.text",
+                spaceID: spaceID,
+                hasBeenActivated: true
+            )
+            return BrowserWindowState(
+                spaces: [space],
+                folders: [],
+                tabs: [tab],
+                activeSpaceID: spaceID,
+                activeTabID: tabID
+            )
+        }
+
         if fixture == "ask-agent-waiting" {
             let spaceID = UUID(uuidString: "AFAFAFAF-AFAF-AFAF-AFAF-AFAFAFAFAFAF")!
             let tabID = UUID(uuidString: "CECECECE-CECE-CECE-CECE-CECECECECECE")!
