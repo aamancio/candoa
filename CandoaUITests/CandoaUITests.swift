@@ -1845,38 +1845,6 @@ final class CandoaUITests: XCTestCase {
         assertEqualFrame(webViewHost.frame, expandedSidebarHostFrame)
     }
 
-    func testHidingTheSidebarKeepsTheAddressOnScreen() throws {
-        let app = launchApp()
-
-        XCTAssertTrue(waitForState(in: app, containing: "setup=false"), currentState(in: app))
-
-        app.typeKey("t", modifierFlags: .command)
-        XCTAssertTrue(waitForState(in: app, containing: "newTabPalette=true"), currentState(in: app))
-        submitCommandPaletteText("https://example.com", in: app)
-        XCTAssertTrue(
-            waitForState(in: app, containing: "url=https://example.com/", timeout: 10),
-            currentState(in: app)
-        )
-
-        // The sidebar owns the address while it is pinned; the web surface's
-        // own strip only stands in for it.
-        XCTAssertTrue(element("sidebar-address-button", in: app).waitForExistence(timeout: 5))
-        XCTAssertTrue(waitForState(in: app, containing: "addressStrip=absent"), currentState(in: app))
-
-        // With the sidebar away the strip mounts, but rides over the page out
-        // of sight until the pointer reaches the window's top edge. (The
-        // reveal runs on mouse-moved events, which XCUITest's synthetic hover
-        // does not produce, so only its resting state is asserted here.)
-        app.typeKey("s", modifierFlags: .command)
-        XCTAssertTrue(waitForState(in: app, containing: "sidebar=false"), currentState(in: app))
-        XCTAssertTrue(waitForState(in: app, containing: "addressStrip=hidden"), currentState(in: app))
-
-        app.typeKey("s", modifierFlags: .command)
-        XCTAssertTrue(waitForState(in: app, containing: "sidebar=true"), currentState(in: app))
-        XCTAssertTrue(waitForState(in: app, containing: "addressStrip=absent"), currentState(in: app))
-    }
-
-
     func testFreshTabGivesThePageKeyboardFocusWithoutAClick() throws {
         let app = launchApp()
 

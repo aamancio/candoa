@@ -11,10 +11,6 @@ struct WebViewContainer: View {
     @ObservedObject var store: BrowserStore
     let visibleInterfaceInsets: BrowserInterfaceInsets
     let attachesToTrailingPanel: Bool
-    /// Whether the sidebar is unpinned. The address lives in the sidebar, so
-    /// the web surface grows its own strip to keep the URL visible and
-    /// editable while the sidebar is away.
-    let isSidebarHidden: Bool
     /// Extra trailing clip while Eli covers the page beyond the reserved web
     /// layout (widening resize drags, and the close paint-fence hold).
     /// Mask-only: it never reaches the WKWebView's obscured content insets
@@ -308,43 +304,6 @@ struct WebViewContainer: View {
                         .padding(.top, 2)
                         .id(tab.id)
                     }
-            }
-        }
-        .overlay {
-            collapsedAddressBar(for: tab)
-        }
-    }
-
-    /// The hidden-sidebar address strip. It rides over the page rather than
-    /// taking a row of its own and only appears while the pointer is at the
-    /// window's top edge, the way Arc's does: a permanent strip would cost
-    /// every page a band of height that the sidebar was hidden to reclaim.
-    @ViewBuilder
-    private func collapsedAddressBar(for tab: BrowserTab) -> some View {
-        let isDeveloperToolbarShown = tab.url.map {
-            DeveloperModeConfiguration.isEnabled(
-                for: $0,
-                storedOverrides: developerModeOverrides
-            )
-        } ?? false
-
-        if isSidebarHidden, !tab.isWelcomePage, !isDeveloperToolbarShown {
-            ZStack(alignment: .top) {
-                // Spans the surface so its bands can measure from the top
-                // edge; it never takes a click meant for the page.
-                TopEdgeRevealMonitor(
-                    isEnabled: isSidebarHidden,
-                    isRevealed: $store.isCollapsedAddressBarRevealed
-                )
-
-                CollapsedAddressBar(
-                    store: store,
-                    url: tab.url,
-                    contentInsets: webContentInsets
-                )
-                .opacity(store.isCollapsedAddressBarRevealed ? 1 : 0)
-                .allowsHitTesting(store.isCollapsedAddressBarRevealed)
-                .animation(.easeOut(duration: 0.12), value: store.isCollapsedAddressBarRevealed)
             }
         }
     }
@@ -1712,11 +1671,16 @@ private enum DeveloperToolbarControlKind: String, CaseIterable, Identifiable {
         }
     }
 
+    /// The bar starts at what a local page actually needs — what site this is
+    /// and a way to take the URL with you. Everything else is a tool someone
+    /// can add from the bar's own menu rather than a default everyone pays
+    /// for in width.
     var isDefaultVisible: Bool {
         switch self {
-        case .copyURL, .capturePage, .siteInfo, .splitView:
+        case .copyURL, .siteInfo:
             return true
-        case .easel, .developerTools, .inspectElement, .extensions:
+        case .capturePage, .splitView, .easel, .developerTools,
+             .inspectElement, .extensions:
             return false
         }
     }

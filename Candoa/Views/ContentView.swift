@@ -93,30 +93,6 @@ struct ContentView: View {
         store.isInitialOnboardingBlockingBrowsing
     }
 
-    // Keep the WebKit host at one stable width when the left or right sidebar
-    // toggles. WebKit paints through a remote layer; resizing that host
-    // exposes or stretches the previous frame before the WebContent process
-    // catches up and makes pages flash their scrollbars. Both sidebar lanes
-    // are reserved inside WebViewContainer instead.
-    private var webSurface: some View {
-        WebViewContainer(
-            store: store,
-            visibleInterfaceInsets: BrowserInterfaceInsets(
-                leading: isSidebarVisible ? sidebarTotalWidth : 0
-            ),
-            attachesToTrailingPanel: isAISidebarMounted,
-            isSidebarHidden: !isSidebarVisible,
-            slideOverTrailingInset: aiSidebarSlideMaskInset
-        )
-        // Resize WebKit once, after Eli has finished sliding over this lane.
-        // Keeping this out of the animation avoids per-frame web layout while
-        // placing WebKit's own overlay scroller at the visible page edge.
-        .padding(
-            .trailing,
-            isAISidebarReservingWebLayout ? reservedAISidebarInset : 0
-        )
-    }
-
     var body: some View {
         let currentAISidebarWidth = clampedAISidebarWidth(CGFloat(aiSidebarWidth))
         let currentAISidebarInset = isAISidebarMounted
@@ -166,7 +142,22 @@ struct ContentView: View {
                         // previous frame before the WebContent process catches up
                         // and makes pages flash their scrollbars. Both sidebar
                         // lanes are reserved inside WebViewContainer instead.
-                        webSurface
+                        WebViewContainer(
+                            store: store,
+                            visibleInterfaceInsets: BrowserInterfaceInsets(
+                                leading: isSidebarVisible ? sidebarTotalWidth : 0
+                            ),
+                            attachesToTrailingPanel: isAISidebarMounted,
+                            slideOverTrailingInset: aiSidebarSlideMaskInset
+                        )
+                        // Resize WebKit once, after Eli has finished sliding over
+                        // this lane. Keeping this out of the animation avoids
+                        // per-frame web layout while placing WebKit's own overlay
+                        // scroller at the visible page edge.
+                        .padding(
+                            .trailing,
+                            isAISidebarReservingWebLayout ? reservedAISidebarInset : 0
+                        )
 
                         if isAISidebarMounted {
                             aiSidebarLayout(width: currentAISidebarWidth)
