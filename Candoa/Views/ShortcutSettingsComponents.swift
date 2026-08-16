@@ -172,6 +172,31 @@ internal struct SettingsToggleRow: View {
     }
 }
 
+/// A compact labeled text field for rows that are self-explanatory from their
+/// label — a profile's city needs no sentence under it, and eleven subtitles
+/// would bury the section.
+internal struct SettingsTextFieldRow: View {
+    let title: String
+    @Binding var text: String
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 14) {
+            Text(title)
+                .font(.system(size: 13))
+                .foregroundStyle(.primary)
+                .frame(width: 150, alignment: .leading)
+
+            TextField("", text: $text)
+                .textFieldStyle(.roundedBorder)
+                .controlSize(.small)
+                .frame(maxWidth: .infinity)
+                .accessibilityLabel(title)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 7)
+    }
+}
+
 internal struct SettingsPickerOption: Identifiable {
     let id: String
     let title: String
@@ -541,6 +566,11 @@ enum ShortcutDefinition: String, CaseIterable, Identifiable {
     case toggleSplitView
     case splitLayoutHorizontal
     case splitLayoutVertical
+    case zoomSplitPane
+    case focusNextSplitPane
+    case focusPreviousSplitPane
+    case unsplitPane
+    case splitWithTab
     case findInPage
     case findNext
     case findPrevious
@@ -579,6 +609,11 @@ enum ShortcutDefinition: String, CaseIterable, Identifiable {
         case .toggleSplitView: return BrowserCommandTitles.splitViewMenu
         case .splitLayoutHorizontal: return BrowserCommandTitles.splitLayoutHorizontal
         case .splitLayoutVertical: return BrowserCommandTitles.splitLayoutVertical
+        case .zoomSplitPane: return BrowserCommandTitles.zoomSplitPane
+        case .focusNextSplitPane: return BrowserCommandTitles.focusNextSplitPane
+        case .focusPreviousSplitPane: return BrowserCommandTitles.focusPreviousSplitPane
+        case .unsplitPane: return BrowserCommandTitles.unsplitPane
+        case .splitWithTab: return BrowserCommandTitles.splitWithTab
         case .findInPage: return BrowserCommandTitles.findInPage
         case .findNext: return BrowserCommandTitles.findNext
         case .findPrevious: return BrowserCommandTitles.findPrevious
@@ -597,7 +632,8 @@ enum ShortcutDefinition: String, CaseIterable, Identifiable {
             return String(localized: "Capture")
         case .toggleAISidebar:
             return String(localized: "AI")
-        case .toggleSplitView, .splitLayoutHorizontal, .splitLayoutVertical:
+        case .toggleSplitView, .splitLayoutHorizontal, .splitLayoutVertical, .zoomSplitPane,
+             .focusNextSplitPane, .focusPreviousSplitPane, .unsplitPane, .splitWithTab:
             return String(localized: "Split View")
         case .goBack, .goForward, .nextRecentTab, .previousRecentTab, .nextTab, .previousTab, .nextSpace, .previousSpace:
             return String(localized: "Navigation")
@@ -635,6 +671,19 @@ enum ShortcutDefinition: String, CaseIterable, Identifiable {
         case .toggleSplitView: return "Command-\\"
         case .splitLayoutHorizontal: return "Control-Command-H"
         case .splitLayoutVertical: return "Control-Command-V"
+        // Alex's call: Shift on the split key takes the pane OUT (unsplit),
+        // Control zooms — the shifted form pairs with the toggle as its
+        // undo, and zoom sits with the other Control-Command pane keys.
+        case .zoomSplitPane: return "Control-Command-\\"
+        // Brackets step through things elsewhere on the Mac (tabs in
+        // Terminal, panes in Xcode), and Control-Command is the split
+        // view's own modifier pair (H/V above).
+        case .focusNextSplitPane: return "Control-Command-]"
+        case .focusPreviousSplitPane: return "Control-Command-["
+        case .unsplitPane: return "Shift-Command-\\"
+        // The last free modifier on the split key: ⌘\ opens, ⇧⌘\ zooms,
+        // ⌃⌘\ unsplits, ⌥⌘\ picks what to split with.
+        case .splitWithTab: return "Option-Command-\\"
         case .findInPage: return "Command-F"
         case .findNext: return "Command-G"
         case .findPrevious: return "Shift-Command-G"
@@ -667,6 +716,11 @@ enum ShortcutDefinition: String, CaseIterable, Identifiable {
         case .captureFullPage: return "camera"
         case .toggleSplitView, .splitLayoutHorizontal: return "rectangle.split.2x1"
         case .splitLayoutVertical: return "rectangle.split.1x2"
+        case .zoomSplitPane: return "arrow.up.left.and.arrow.down.right"
+        case .focusNextSplitPane: return "rectangle.righthalf.inset.filled.arrow.right"
+        case .focusPreviousSplitPane: return "rectangle.lefthalf.inset.filled.arrow.left"
+        case .unsplitPane: return "rectangle.portrait.and.arrow.right"
+        case .splitWithTab: return "rectangle.split.2x1.fill"
         case .copyURL, .copyURLAsMarkdown: return "link"
         case .findInPage, .findNext, .findPrevious: return "magnifyingglass"
         case .reloadTab: return "arrow.clockwise"

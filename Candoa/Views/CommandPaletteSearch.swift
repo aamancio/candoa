@@ -92,7 +92,10 @@ extension CommandPaletteView {
     }
 
     internal var placeholderText: String {
-        selectedSearchProvider == nil ? "Search or Enter URL..." : "Search..."
+        if store.commandPaletteSplitsWithSelection {
+            return String(localized: "Split with a tab or URL…", comment: "Command bar placeholder while choosing what to split the current pane with.")
+        }
+        return selectedSearchProvider == nil ? "Search or Enter URL..." : "Search..."
     }
 
     internal var isResumingSearchURL: Bool {

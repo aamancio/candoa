@@ -66,6 +66,20 @@ extension CandoaUITests {
         XCTAssertTrue(element("top-site-info-button", in: app).exists)
         XCTAssertTrue(waitForState(in: app, containing: "addressBar=top"), currentState(in: app))
 
+        // The whole toolbar moves, not just the address: navigation rides the
+        // strip and Eli gets the trailing slot, the way Dia lays its bar out.
+        XCTAssertTrue(element("navigation-back-button", in: app).exists, currentState(in: app))
+        XCTAssertTrue(element("navigation-reload-button", in: app).exists, currentState(in: app))
+        XCTAssertTrue(element("top-chat-button", in: app).exists, currentState(in: app))
+        // The toggle rides the strip too, and stays there with the sidebar
+        // open — Dia keeps it in one place rather than moving it into the
+        // sidebar it just opened.
+        XCTAssertTrue(element("top-sidebar-toggle-button", in: app).exists, currentState(in: app))
+        XCTAssertFalse(element("sidebar-toggle-button", in: app).exists, currentState(in: app))
+        // Exactly one copy of each: the sidebar header gave its cluster up.
+        XCTAssertEqual(app.descendants(matching: .any)
+            .matching(identifier: "navigation-back-button").count, 1)
+
         // The strip's address is the same command bar the sidebar pill opens.
         topAddress.click()
         XCTAssertTrue(waitForState(in: app, containing: "palette=true"), currentState(in: app))
@@ -77,6 +91,11 @@ extension CandoaUITests {
 
         XCTAssertTrue(element("sidebar-address-button", in: app).waitForExistence(timeout: 10))
         XCTAssertFalse(element("top-address-button", in: app).exists)
+        XCTAssertFalse(element("top-chat-button", in: app).exists)
+        XCTAssertFalse(element("top-sidebar-toggle-button", in: app).exists)
+        // Navigation and the toggle stay in the sidebar header here.
+        XCTAssertTrue(element("navigation-back-button", in: app).exists, currentState(in: app))
+        XCTAssertTrue(element("sidebar-toggle-button", in: app).exists, currentState(in: app))
         XCTAssertTrue(waitForState(in: app, containing: "addressBar=sidebar"), currentState(in: app))
     }
 

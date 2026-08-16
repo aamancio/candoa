@@ -63,10 +63,21 @@ struct EliSubmission {
     let contextChips: [AISidebarContextChip]
     let contextMentions: [AISidebarContextMention]
     let recentTurns: [AIConversationTurn]
-    let currentPageTabID: UUID?
+    /// Every page on screen at submission, focused pane first — a split view
+    /// contributes each of its panes, not just the focused one.
+    let currentPageTabIDs: [UUID]
     let browserControlTabID: UUID?
     let mentionedTabs: [EliMentionedTab]
     let inheritedPageContext: AIPageContext?
+}
+
+/// Which Space the conversation's not-yet-distilled turns belong to, and where
+/// in the transcript they start. Lives alongside `messages` above the sidebar:
+/// the sidebar view is destroyed every time Eli is closed, and a window that
+/// reset with it would reopen over turns that were said in another Space.
+struct EliMemoryWindow: Equatable {
+    var startIndex = 0
+    var spaceID: UUID?
 }
 
 struct AISidebarMessage: Identifiable, Equatable {

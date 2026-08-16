@@ -38,6 +38,10 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
     let onPreviousSpace: () -> Void
     let onToggleSplit: () -> Void
     let onSplitLayout: (SplitViewLayout) -> Void
+    let onZoomSplitPane: () -> Void
+    let onFocusSplitPane: (Int) -> Void
+    let onUnsplitPane: () -> Void
+    let onSplitWithTab: () -> Void
 
     func makeCoordinator() -> Coordinator {
         let coordinator = Coordinator()
@@ -93,6 +97,10 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
         coordinator.onPreviousSpace = onPreviousSpace
         coordinator.onToggleSplit = onToggleSplit
         coordinator.onSplitLayout = onSplitLayout
+        coordinator.onZoomSplitPane = onZoomSplitPane
+        coordinator.onFocusSplitPane = onFocusSplitPane
+        coordinator.onUnsplitPane = onUnsplitPane
+        coordinator.onSplitWithTab = onSplitWithTab
     }
 
     @MainActor
@@ -132,6 +140,10 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
         var onPreviousSpace: () -> Void = {}
         var onToggleSplit: () -> Void = {}
         var onSplitLayout: (SplitViewLayout) -> Void = { _ in }
+        var onZoomSplitPane: () -> Void = {}
+        var onFocusSplitPane: (Int) -> Void = { _ in }
+        var onUnsplitPane: () -> Void = {}
+        var onSplitWithTab: () -> Void = {}
         /// Written only from MainActor-isolated methods; `nonisolated(unsafe)`
         /// so the nonisolated deinit can tear the monitor down.
         private nonisolated(unsafe) var monitor: Any?
@@ -320,6 +332,31 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
 
             if Self.matchesConfiguredShortcut(.splitLayoutVertical, event) {
                 onSplitLayout(.vertical)
+                return nil
+            }
+
+            if Self.matchesConfiguredShortcut(.zoomSplitPane, event) {
+                onZoomSplitPane()
+                return nil
+            }
+
+            if Self.matchesConfiguredShortcut(.focusNextSplitPane, event) {
+                onFocusSplitPane(1)
+                return nil
+            }
+
+            if Self.matchesConfiguredShortcut(.focusPreviousSplitPane, event) {
+                onFocusSplitPane(-1)
+                return nil
+            }
+
+            if Self.matchesConfiguredShortcut(.unsplitPane, event) {
+                onUnsplitPane()
+                return nil
+            }
+
+            if Self.matchesConfiguredShortcut(.splitWithTab, event) {
+                onSplitWithTab()
                 return nil
             }
 

@@ -709,6 +709,50 @@ internal extension View {
     }
 }
 
+/// Back, forward, and reload — the three controls that follow the address
+/// wherever it lives. The sidebar header owns them under the "In the Sidebar"
+/// placement; the strip above the page owns them under "Above the Page", so
+/// only one copy is ever on screen.
+internal struct BrowserNavigationControls: View {
+    @ObservedObject var store: BrowserStore
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Button(action: store.goBack) {
+                Image(systemName: "arrow.left")
+            }
+            .disabled(!store.canGoBack)
+            .toolbarIconButton()
+            .shortcutTooltip("Back", shortcut: .goBack)
+            .accessibilityIdentifier("navigation-back-button")
+
+            Button(action: store.goForward) {
+                Image(systemName: "arrow.right")
+            }
+            .disabled(!store.canGoForward)
+            .toolbarIconButton()
+            .shortcutTooltip("Forward", shortcut: .goForward)
+            .accessibilityIdentifier("navigation-forward-button")
+
+            if store.activeTab?.isLoading == true {
+                Button(action: store.stopLoadingActiveTab) {
+                    Image(systemName: "xmark")
+                }
+                .toolbarIconButton()
+                .shortcutTooltip("Stop", shortcut: .stopLoading)
+                .accessibilityIdentifier("navigation-stop-button")
+            } else {
+                Button(action: store.reloadActiveTab) {
+                    Image(systemName: "arrow.clockwise")
+                }
+                .toolbarIconButton()
+                .shortcutTooltip("Reload", shortcut: .reloadTab)
+                .accessibilityIdentifier("navigation-reload-button")
+            }
+        }
+    }
+}
+
 // MARK: - Shared interface styling
 
 /// Candoa's semantic color tokens. Native controls follow the person's macOS

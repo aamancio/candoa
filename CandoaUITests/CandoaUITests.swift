@@ -65,7 +65,45 @@ final class CandoaUITests: XCTestCase {
     </html>
     """
 
+    /// A job application: three personal fields the snapshot marks sensitive
+    /// (their autocomplete tokens), plus a submit button that is sensitive
+    /// because it sends them. The status line reports how many fields are
+    /// filled — a count, not labels, so the fixture agent can pick the next
+    /// field without depending on how the snapshot happens to label it.
+    static let applicationFormFixturePageHTML = """
+    <!doctype html>
+    <html>
+      <head><meta charset="utf-8"><title>Job Application</title></head>
+      <body>
+        <h1>Job Application</h1>
+        <form id="application">
+          <label>Full name <input id="name" autocomplete="name"></label>
+          <label>Email <input id="email" type="email"></label>
+          <label>Phone <input id="phone" type="tel"></label>
+          <button type="submit">Submit Application</button>
+        </form>
+        <p id="status">filled=0</p>
+        <script>
+          const form = document.getElementById("application");
+          const status = document.getElementById("status");
+          const render = () => {
+            const filled = ["name", "email", "phone"]
+              .filter((id) => document.getElementById(id).value.trim() !== "");
+            status.textContent = "filled=" + filled.length + " " + filled.map((id) => id + "-ok").join(" ");
+          };
+          form.addEventListener("input", render);
+          form.addEventListener("submit", (event) => {
+            event.preventDefault();
+            render();
+            status.textContent += " submitted";
+          });
+        </script>
+      </body>
+    </html>
+    """
+
     static let pageHTMLFixtures: [String: String] = [
+        "ask-agent-form-fill": applicationFormFixturePageHTML,
         "split-view": splitFixturePageHTML,
         "tab-switcher-previews": splitFixturePageHTML,
         "split-view-spaces": splitFixturePageHTML,

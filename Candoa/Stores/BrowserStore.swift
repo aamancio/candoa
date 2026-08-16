@@ -174,6 +174,13 @@ final class BrowserStore: ObservableObject {
     /// How the split group's panes are arranged (columns, rows, or a grid).
     @Published var splitLayout: SplitViewLayout = .horizontal
     @Published var isSplitViewEnabled = false
+    /// The focused pane fills the surface alone while the split stays intact
+    /// behind it. Deliberately not part of `BrowserWindowState`: zoom is a
+    /// way of looking at a split, not a property of it, so it never persists
+    /// and never syncs — a relaunch comes back to every pane on screen. Read
+    /// through `zoomedSplitTabID` / `isSplitPaneZoomed`, which validate it
+    /// against the displayed group.
+    @Published var isSplitPaneZoomRequested = false
     /// Domains with service-worker registrations in the active window's data
     /// store, for Develop ▸ Service Workers; refreshed as the menu bar opens.
     /// Split groups stashed per Space while another Space is frontmost, so
@@ -187,6 +194,10 @@ final class BrowserStore: ObservableObject {
     @Published var commandPalettePrefersCurrentTabNavigation = false
     @Published var commandPaletteWasOpenedFromSidebarAddress = false
     @Published var commandPaletteOpensNewTab = false
+    /// The palette is choosing what to split the current pane with: rows are
+    /// the Space's other tabs (a pick joins the split) and a typed address
+    /// opens in a fresh pane. Keyboard route to what a sidebar drag does.
+    @Published var commandPaletteSplitsWithSelection = false
     @Published var isCreateSpacePresented = false
     @Published var isDownloadsPopoverPresented = false
     @Published var isSiteInfoPopoverPresented = false

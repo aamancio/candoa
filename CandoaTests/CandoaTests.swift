@@ -302,6 +302,49 @@ final class SpaceMemoryTests: XCTestCase {
         XCTAssertTrue(merged.allSatisfy { $0.spaceID == spaceID })
     }
 
+    // MARK: - Mid-conversation extraction gate
+
+    func testGateFiresOnDurableDetailsAcrossShippingLocales() {
+        let openings = [
+            "My name is Alex and I need help here",
+            "i work at a small design studio",
+            "I live in Lisbon now",
+            "I prefer dark mode everywhere",
+            "Remember that I use metric units",
+            "I'm learning Swift concurrency",
+            "Mein Name ist Alex",
+            "Me llamo Alex y trabajo en Madrid",
+            "Je m'appelle Alex",
+            "Meu nome é Alex",
+            "私の名前はアレックスです",
+            "我叫亚历克斯",
+        ]
+        for opening in openings {
+            XCTAssertTrue(
+                SpaceMemoryPolicy.suggestsDurableFact(in: opening),
+                "expected a durable-fact signal in: \(opening)"
+            )
+        }
+    }
+
+    func testGateIgnoresOrdinaryBrowsingQuestions() {
+        let ordinary = [
+            "Summarize this page",
+            "What is this article about?",
+            "Translate the third paragraph",
+            "Find the pricing table and explain it",
+            "Open the docs in a new tab",
+            "",
+            "   ",
+        ]
+        for prompt in ordinary {
+            XCTAssertFalse(
+                SpaceMemoryPolicy.suggestsDurableFact(in: prompt),
+                "expected no extraction request for: \(prompt)"
+            )
+        }
+    }
+
     // MARK: - Context injection
 
     func testMemorySectionListsFactsAndIsNilWhenEmpty() {
@@ -364,6 +407,183 @@ final class SpaceMemoryTests: XCTestCase {
         XCTAssertTrue(prompt.contains("JSON array of strings"))
     }
 
+}
+
+/// The form-fill profile: user-entered, carried only where it is needed.
+final class UserProfileTests: XCTestCase {
+    private let snapshotID = UUID()
+
+    private func page(sensitiveField: Bool) -> BrowserAgentPage {
+        BrowserAgentPage(
+            snapshotID: snapshotID,
+            title: "Page",
+            url: "https://example.com",
+            text: "",
+            controls: [
+                BrowserAgentControl(
+                    ref: "e0",
+                    kind: sensitiveField ? .field : .button,
+                    label: "Email",
+                    url: nil,
+                    disabled: false,
+                    sensitive: sensitiveField
+                )
+            ]
+        )
+    }
+
+    private var profile: UserProfile {
+        var profile = UserProfile()
+        profile.givenName = "Alex"
+        profile.familyName = "Fixture"
+        profile.email = "alex@example.com"
+        return profile
+    }
+
+    func testProfileTravelsOnlyWhenThePageAsksForPersonalDetails() {
+        XCTAssertNil(UserProfilePolicy.profileSection(for: profile, page: page(sensitiveField: false)))
+        XCTAssertNotNil(UserProfilePolicy.profileSection(for: profile, page: page(sensitiveField: true)))
+    }
+
+    func testEmptyProfileAddsNothing() {
+        XCTAssertNil(UserProfilePolicy.profileSection(for: UserProfile(), page: page(sensitiveField: true)))
+        XCTAssertEqual(
+            UserProfilePolicy.agentContext("Goal context", byAppendingProfile: UserProfile(), for: page(sensitiveField: true)),
+            "Goal context"
+        )
+    }
+
+    func testSectionListsFilledValuesAndForbidsInvention() {
+        let section = UserProfilePolicy.profileSection(for: profile, page: page(sensitiveField: true))
+        XCTAssertTrue(section?.contains("- Email: alex@example.com") == true)
+        XCTAssertTrue(section?.contains("- Full name: Alex Fixture") == true, "derived from the two name fields")
+        XCTAssertFalse(section?.contains("Phone") == true, "a blank field is not offered to the model")
+        XCTAssertTrue(section?.contains("never invent") == true)
+    }
+
+    func testValuesAreLengthCapped() {
+        var profile = UserProfile()
+        profile.organization = String(repeating: "a", count: UserProfilePolicy.maximumValueLength + 50)
+        let value = profile.labeledValues.first { $0.label == "Organization" }?.value
+        XCTAssertEqual(value?.count, UserProfilePolicy.maximumValueLength)
+    }
+
+    func testRoundTripsThroughDefaults() throws {
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: "candoa.tests.profile"))
+        defaults.removePersistentDomain(forName: "candoa.tests.profile")
+        XCTAssertTrue(UserProfileStore.load(from: defaults).isEmpty)
+        UserProfileStore.save(profile, to: defaults)
+        XCTAssertEqual(UserProfileStore.load(from: defaults), profile)
+        defaults.removePersistentDomain(forName: "candoa.tests.profile")
+    }
+}
+
+/// Page-scoped fill consent: one approval covers a form's remaining fields,
+/// and covers nothing else.
+final class BrowserAgentFillConsentTests: XCTestCase {
+    private let runID = UUID()
+    private let tabID = UUID()
+    private let snapshotID = UUID()
+    private let pageURL = "https://jobs.example.com/apply"
+
+    private func page(url: String? = nil) -> BrowserAgentPage {
+        BrowserAgentPage(
+            snapshotID: snapshotID,
+            title: "Apply",
+            url: url ?? pageURL,
+            text: "",
+            controls: [
+                BrowserAgentControl(ref: "e0", kind: .field, label: "Email", url: nil, disabled: false, sensitive: true),
+                BrowserAgentControl(ref: "e1", kind: .button, label: "Submit", url: nil, disabled: false, sensitive: true),
+                BrowserAgentControl(ref: "e2", kind: .field, label: "Search", url: nil, disabled: false, sensitive: false),
+            ]
+        )
+    }
+
+    private func action(
+        _ kind: PageActionKind,
+        target: String,
+        requiresApproval: Bool = false
+    ) -> BrowserAgentAction {
+        BrowserAgentAction(
+            snapshotID: snapshotID,
+            kind: kind,
+            target: target,
+            value: "alex@example.com",
+            label: "Email",
+            url: nil,
+            requiresApproval: requiresApproval,
+            message: ""
+        )
+    }
+
+    private var consent: BrowserAgentFillConsent {
+        BrowserAgentFillConsent(runID: runID, tabID: tabID, url: pageURL)
+    }
+
+    private func requiresApproval(
+        _ action: BrowserAgentAction,
+        on page: BrowserAgentPage,
+        consent: BrowserAgentFillConsent?
+    ) -> Bool {
+        BrowserAgentPolicy.requiresNativeApproval(
+            for: action,
+            on: page,
+            fillConsent: consent,
+            runID: runID,
+            tabID: tabID
+        )
+    }
+
+    func testWithoutConsentEveryPersonalFillIsConfirmed() {
+        XCTAssertTrue(requiresApproval(action(.fill, target: "e0"), on: page(), consent: nil))
+    }
+
+    func testConsentCoversFurtherFillsOnTheSamePage() {
+        XCTAssertFalse(requiresApproval(action(.fill, target: "e0"), on: page(), consent: consent))
+    }
+
+    func testConsentNeverCoversTheSubmitButton() {
+        XCTAssertTrue(
+            requiresApproval(action(.click, target: "e1"), on: page(), consent: consent),
+            "agreeing to have a form filled is not agreeing to send it"
+        )
+    }
+
+    func testConsentDoesNotSurviveNavigationOrAnotherRun() {
+        XCTAssertTrue(
+            requiresApproval(action(.fill, target: "e0"), on: page(url: "https://jobs.example.com/apply/step-2"), consent: consent),
+            "a new page must ask again"
+        )
+        let otherRun = BrowserAgentFillConsent(runID: UUID(), tabID: tabID, url: pageURL)
+        XCTAssertTrue(requiresApproval(action(.fill, target: "e0"), on: page(), consent: otherRun))
+        let otherTab = BrowserAgentFillConsent(runID: runID, tabID: UUID(), url: pageURL)
+        XCTAssertTrue(requiresApproval(action(.fill, target: "e0"), on: page(), consent: otherTab))
+    }
+
+    func testModelApprovalFlagOutranksConsent() {
+        XCTAssertTrue(
+            requiresApproval(action(.fill, target: "e0", requiresApproval: true), on: page(), consent: consent),
+            "the model's judgment is a floor the consent cannot lower"
+        )
+    }
+
+    func testNonSensitiveFieldsNeverNeededApprovalAnyway() {
+        XCTAssertFalse(requiresApproval(action(.fill, target: "e2"), on: page(), consent: nil))
+    }
+
+    func testOnlyFieldFillsOfferThePageScopedOption() {
+        XCTAssertTrue(
+            BrowserAgentPolicy.allowsPageScopedFillConsent(
+                for: PageActionProposal(kind: .fill, target: "Email", value: "a@b.c", browserAgentControlKind: .field)
+            )
+        )
+        XCTAssertFalse(
+            BrowserAgentPolicy.allowsPageScopedFillConsent(
+                for: PageActionProposal(kind: .click, target: "Submit", value: nil, browserAgentControlKind: .button)
+            )
+        )
+    }
 }
 
 /// Address-bar scheme selection: bare hosts default to HTTPS, except
@@ -472,5 +692,87 @@ final class NavigationSchemeTests: XCTestCase {
         XCTAssertFalse(WebViewCoordinator.isWarmable(URL(string: "mailto:someone@example.com")!))
         XCTAssertFalse(WebViewCoordinator.isWarmable(URL(string: "file:///tmp/page.html")!))
         XCTAssertFalse(WebViewCoordinator.isWarmable(URL(string: "candoa://welcome")!))
+    }
+
+    // MARK: - Address display text
+
+    func testDisplayDomainKeepsHostAndPortOnly() {
+        // Zen's urlbarTrim under zen.urlbar.show-domain-only-in-sidebar, and
+        // what Arc's sidebar field shows.
+        XCTAssertEqual(
+            URL(string: "https://www.youtube.com/watch?v=abc")!.displayDomainText,
+            "youtube.com"
+        )
+        XCTAssertEqual(
+            URL(string: "http://localhost:8080/financial")!.displayDomainText,
+            "localhost:8080"
+        )
+        XCTAssertEqual(
+            URL(string: "https://docs.google.com/document/d/1")!.displayDomainText,
+            "docs.google.com"
+        )
+    }
+
+    func testDisplayDomainStripsWWWOnlyAsALeadingLabel() {
+        XCTAssertEqual(URL(string: "https://wwwx.example.com/")!.displayDomainText, "wwwx.example.com")
+        XCTAssertEqual(URL(string: "https://cdn.www.example.com/")!.displayDomainText, "cdn.www.example.com")
+        XCTAssertEqual(URL(string: "https://www.example.com/")!.displayDomainText, "example.com")
+    }
+
+    func testDisplayDomainFallsBackForHostlessURLs() {
+        XCTAssertEqual(
+            URL(string: "file:///tmp/page.html")!.displayDomainText,
+            "file:///tmp/page.html"
+        )
+    }
+}
+
+/// The command palette teaches shortcuts by mapping each row's action back to
+/// its rebindable `ShortcutDefinition` (issue #370). Pure logic: no palette
+/// UI or persistence involved.
+final class PaletteShortcutTests: XCTestCase {
+    func testBaseActionsMapToTheirShortcutDefinitions() {
+        XCTAssertEqual(PaletteAction.newTab.shortcutDefinition, .newTab)
+        XCTAssertEqual(PaletteAction.closeCurrentTab.shortcutDefinition, .closeCurrentTab)
+        XCTAssertEqual(PaletteAction.reloadTab.shortcutDefinition, .reloadTab)
+        XCTAssertEqual(PaletteAction.focusAddressBar.shortcutDefinition, .focusAddressBar)
+        XCTAssertEqual(PaletteAction.toggleSplitView.shortcutDefinition, .toggleSplitView)
+        XCTAssertEqual(PaletteAction.toggleSplitPaneZoom.shortcutDefinition, .zoomSplitPane)
+        XCTAssertEqual(PaletteAction.focusSplitPane(1).shortcutDefinition, .focusNextSplitPane)
+        XCTAssertEqual(PaletteAction.focusSplitPane(-1).shortcutDefinition, .focusPreviousSplitPane)
+        XCTAssertEqual(PaletteAction.unsplitPane.shortcutDefinition, .unsplitPane)
+        XCTAssertEqual(PaletteAction.togglePinTab.shortcutDefinition, .pinOrUnpinTab)
+    }
+
+    func testPaletteOnlyActionsHaveNoShortcut() {
+        XCTAssertNil(PaletteAction.duplicateCurrentTab.shortcutDefinition)
+        XCTAssertNil(PaletteAction.createSpace.shortcutDefinition)
+        XCTAssertNil(PaletteAction.setDeveloperMode(true).shortcutDefinition)
+        XCTAssertNil(PaletteAction.navigate("https://example.com").shortcutDefinition)
+        XCTAssertNil(PaletteAction.switchTab(UUID()).shortcutDefinition)
+        XCTAssertNil(PaletteAction.switchSpace(UUID()).shortcutDefinition)
+    }
+
+    func testCommandKeysFollowTheStoredRebind() {
+        let key = ShortcutDefinition.reloadTab.storageKey
+        let previous = UserDefaults.standard.string(forKey: key)
+        defer {
+            if let previous {
+                UserDefaults.standard.set(previous, forKey: key)
+            } else {
+                UserDefaults.standard.removeObject(forKey: key)
+            }
+        }
+
+        let command = PaletteCommand(title: "Reload", symbolName: "arrow.clockwise", action: .reloadTab)
+
+        UserDefaults.standard.removeObject(forKey: key)
+        XCTAssertEqual(command.shortcutKeys, ["⌘", "R"])
+
+        UserDefaults.standard.set("Shift-Command-R", forKey: key)
+        XCTAssertEqual(command.shortcutKeys, ["⇧", "⌘", "R"])
+
+        UserDefaults.standard.set(ShortcutDefinition.removedValue, forKey: key)
+        XCTAssertEqual(command.shortcutKeys, [])
     }
 }

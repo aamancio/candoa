@@ -442,6 +442,7 @@ extension BrowserStore {
             "splitActive=\(splitActiveTitle)",
             "splitRatios=\(splitRatioText)",
             "splitLayout=\(splitLayout.rawValue)",
+            "splitZoom=\(zoomedSplitTabID.flatMap { id in activeSplitGroupTabs.first(where: { $0.id == id })?.title } ?? "none")",
             "downloads=\(downloadsStore.uiTestingDescription)",
             "downloadsShown=\(isDownloadsPopoverPresented)",
             "siteInfoShown=\(isSiteInfoPopoverPresented)",
@@ -627,6 +628,32 @@ extension BrowserStore {
                 title: "Membership Home",
                 url: URL(string: "https://fixture.candoa.test/home")!,
                 faviconSymbol: "person.crop.circle",
+                spaceID: spaceID,
+                hasBeenActivated: true
+            )
+            return BrowserWindowState(
+                spaces: [space],
+                folders: [],
+                tabs: [tab],
+                activeSpaceID: spaceID,
+                activeTabID: tabID
+            )
+        }
+
+        if fixture == "ask-agent-form-fill" {
+            let spaceID = UUID(uuidString: "ADADADAD-ADAD-ADAD-ADAD-ADADADADADAD")!
+            let tabID = UUID(uuidString: "CDCDCDCD-CDCD-CDCD-CDCD-CDCDCDCDCDCD")!
+            let space = BrowserSpace(
+                id: spaceID,
+                name: "TestingBot",
+                symbolName: "sparkles",
+                themeAppearance: BrowserSpace.defaultThemeAppearance
+            )
+            let tab = BrowserTab(
+                id: tabID,
+                title: "Job Application",
+                url: URL(string: "https://fixture.candoa.test/apply")!,
+                faviconSymbol: "doc.text",
                 spaceID: spaceID,
                 hasBeenActivated: true
             )

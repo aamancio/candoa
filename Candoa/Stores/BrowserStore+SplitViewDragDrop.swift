@@ -134,6 +134,92 @@ extension BrowserStore {
         splitTabIDs = []
         splitPaneRatios = []
         splitLayout = .horizontal
+        isSplitPaneZoomRequested = false
+    }
+
+    // MARK: - Pane zoom
+
+    /// The pane currently filling the surface on its own, or nil while every
+    /// pane is on screen.
+    ///
+    /// Zoom is a flag on the lane, not a tab id: it means "the focused pane
+    /// has the surface", so wherever focus goes the zoom follows. That is
+    /// what lets Focus Next Pane page through a zoomed split, and it closes
+    /// the trap where a chip click or Control-Tab could hand focus to a pane
+    /// the zoom was hiding. Computed, never stored as an id: a suspended
+    /// group (active tab outside it) reads as not zoomed, and browsing back
+    /// to a member finds the pane still zoomed, the way pane ratios survive
+    /// the same trip.
+    var zoomedSplitTabID: UUID? {
+        guard
+            isSplitPaneZoomRequested,
+            isSplitViewDisplayed,
+            let activeTabID,
+            splitGroupTabIDs().contains(activeTabID)
+        else {
+            return nil
+        }
+        return activeTabID
+    }
+
+    var isSplitPaneZoomed: Bool {
+        zoomedSplitTabID != nil
+    }
+
+    /// Fills the surface with the focused pane, or restores the split when a
+    /// pane already has it. Same command both ways: the gesture that zooms in
+    /// is the gesture that gets you back, which is what makes the mode safe to
+    /// enter. Escape is deliberately not bound — it is already stacked behind
+    /// Reader and the find bar.
+    func toggleSplitPaneZoom() {
+        if isSplitPaneZoomed {
+            isSplitPaneZoomRequested = false
+            return
+        }
+        guard let activeTabID, isSplitViewDisplayed, splitGroupTabIDs().contains(activeTabID) else { return }
+        isSplitPaneZoomRequested = true
+    }
+
+    /// Zooms a named pane (the pane pill's own button). The pane takes focus
+    /// on the way in, since it is about to be the only one on screen.
+    func zoomSplitPane(_ id: UUID) {
+        guard isSplitViewDisplayed, splitGroupTabIDs().contains(id) else { return }
+        if activeTabID != id {
+            focusSplitTab(id)
+        }
+        isSplitPaneZoomRequested = true
+    }
+
+    /// Drops the zoom whenever the group's membership changes, so a zoomed
+    /// pane can never hide a pane the person just added — dropping a tab into
+    /// a zoomed split would otherwise land it somewhere invisible. Reordering
+    /// and resizing keep the zoom; only who is in the group matters.
+    func pruneSplitPaneZoom(previousIDs: [UUID], currentIDs: [UUID]) {
+        guard isSplitPaneZoomRequested, previousIDs != currentIDs else { return }
+        isSplitPaneZoomRequested = false
+    }
+
+    // MARK: - Pane focus
+
+    /// Moves focus to the neighbouring pane in layout order, wrapping at the
+    /// ends. Panes are ordinary tabs so Next Tab already reaches them, but
+    /// it walks every other tab in the Space on the way; this is the
+    /// pane-only step a keyboard-driven split needs. With a pane zoomed the
+    /// zoom follows focus, so the same key pages through the group at full
+    /// size.
+    func focusAdjacentSplitPane(offset: Int) {
+        guard isSplitViewDisplayed, let activeTabID else { return }
+        let groupIDs = splitGroupTabIDs()
+        guard let currentIndex = groupIDs.firstIndex(of: activeTabID), groupIDs.count >= 2 else { return }
+        let nextIndex = (currentIndex + offset + groupIDs.count) % groupIDs.count
+        focusSplitTab(groupIDs[nextIndex])
+    }
+
+    /// The keyboard form of the pill's Unsplit: the focused pane leaves the
+    /// group and keeps the surface as an ordinary tab.
+    func unsplitFocusedPane() {
+        guard isSplitViewDisplayed, let activeTabID, splitGroupTabIDs().contains(activeTabID) else { return }
+        removeTabFromSplit(activeTabID, focusRemovedTab: true)
     }
 
     /// Switches the displayed split between side-by-side and stacked
@@ -224,6 +310,10 @@ extension BrowserStore {
         splitPaneRatios = []
         splitLayout = .horizontal
         isSplitViewEnabled = false
+        // A Space switch tears the group down and rebuilds it on return.
+        // Ratios and layout ride along in the suspended state; the zoom does
+        // not — coming back to a Space should show the split you left it as.
+        isSplitPaneZoomRequested = false
     }
 
     func restoreSplitState(for spaceID: UUID) {
@@ -549,6 +639,7 @@ extension BrowserStore {
             .map { $0 }
         let previousIDs = splitTabIDs
         let previousRatios = splitPaneRatios
+        pruneSplitPaneZoom(previousIDs: previousIDs, currentIDs: validIDs.count >= 2 ? validIDs : [])
 
         guard validIDs.count >= 2 else {
             splitTabIDs = []

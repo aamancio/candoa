@@ -143,6 +143,9 @@ enum SettingsOption {
     static let askDirectModel = prefix + "AskDirectModel"
     static let askDirectModelInfo = prefix + "AskDirectModelInfo"
     static let askReasoningEffort = prefix + "AskReasoningEffort"
+    /// JSON `UserProfile`: the details Eli may type into a form. Local to this
+    /// Mac and global to the app.
+    static let userProfile = prefix + "UserProfile"
 
     static let websiteAppearance = prefix + "WebsiteAppearance"
     static let addressBarPlacement = prefix + "AddressBarPlacement"

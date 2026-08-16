@@ -282,6 +282,13 @@ internal struct BrowserCommands: Commands {
                     .keyboardShortcut(ShortcutDefinition.toggleSplitView.currentKeyboardShortcut)
                     .disabled(actions == nil)
 
+                    // Works from a single tab too: it starts the split.
+                    Button(BrowserCommandTitles.splitWithTab) {
+                        actions?.splitWithTab()
+                    }
+                    .keyboardShortcut(ShortcutDefinition.splitWithTab.currentKeyboardShortcut)
+                    .disabled(actions == nil)
+
                     // Rearranging only means something while a split is on
                     // screen, so these grey out instead of silently doing
                     // nothing.
@@ -295,6 +302,39 @@ internal struct BrowserCommands: Commands {
                         actions?.setSplitLayout(.vertical)
                     }
                     .keyboardShortcut(ShortcutDefinition.splitLayoutVertical.currentKeyboardShortcut)
+                    .disabled(actions?.isSplitDisplayed != true)
+
+                    // One item for both directions, like the split toggle
+                    // above: the same key gets you in and back out, and the
+                    // title says which way it is about to go.
+                    Button(
+                        actions?.isSplitPaneZoomed == true
+                            ? BrowserCommandTitles.showAllSplitPanes
+                            : BrowserCommandTitles.zoomSplitPane
+                    ) {
+                        actions?.toggleSplitPaneZoom()
+                    }
+                    .keyboardShortcut(ShortcutDefinition.zoomSplitPane.currentKeyboardShortcut)
+                    .disabled(actions?.isSplitDisplayed != true)
+
+                    Divider()
+
+                    Button(BrowserCommandTitles.focusNextSplitPane) {
+                        actions?.focusSplitPane(1)
+                    }
+                    .keyboardShortcut(ShortcutDefinition.focusNextSplitPane.currentKeyboardShortcut)
+                    .disabled(actions?.isSplitDisplayed != true)
+
+                    Button(BrowserCommandTitles.focusPreviousSplitPane) {
+                        actions?.focusSplitPane(-1)
+                    }
+                    .keyboardShortcut(ShortcutDefinition.focusPreviousSplitPane.currentKeyboardShortcut)
+                    .disabled(actions?.isSplitDisplayed != true)
+
+                    Button(BrowserCommandTitles.unsplitPane) {
+                        actions?.unsplitPane()
+                    }
+                    .keyboardShortcut(ShortcutDefinition.unsplitPane.currentKeyboardShortcut)
                     .disabled(actions?.isSplitDisplayed != true)
                 }
 

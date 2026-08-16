@@ -161,33 +161,19 @@ internal struct SidebarSplitGroupChip: View {
     @State private var isHovering = false
     @State private var isHoveringCloseButton = false
 
+    private let closeButtonWidth: CGFloat = 16
+
     var body: some View {
-        HStack(spacing: 6) {
-            faviconImage
-                .frame(width: 16, height: 16)
-
-            Spacer(minLength: 2)
-
-            Button(action: onClose) {
-                Image(systemName: "xmark")
-                    .font(.system(size: 10, weight: .semibold))
-                    .frame(width: 16, height: 16)
-                    .contentShape(Rectangle())
-            }
-            .buttonTreatment(.content)
-            .foregroundStyle(InterfaceStyle.sidebarIcon)
-            .background(
-                Circle()
-                    .fill(isHoveringCloseButton ? InterfaceStyle.sidebarControlFillHover : Color.clear)
-            )
-            .opacity(showsCloseButton ? 1 : 0)
-            .accessibilityHidden(!showsCloseButton)
-            .help("Close Tab")
-            .onHover { isHoveringCloseButton = $0 }
-        }
-        .padding(.horizontal, 8)
-        .frame(maxWidth: .infinity, minHeight: 28)
-        .contentShape(Rectangle())
+        faviconImage
+            .frame(width: 16, height: 16)
+            .padding(.horizontal, 8)
+            // The close button floats over the trailing edge instead of holding
+            // a slot, so a resting chip centres its favicon rather than pinning
+            // it left of a reserved gap. Only a hovered pill makes room.
+            .padding(.trailing, showsCloseButton ? closeButtonWidth + 6 : 0)
+            .frame(maxWidth: .infinity, minHeight: 28)
+            .overlay(alignment: .trailing) { closeButton }
+            .contentShape(Rectangle())
         .background(chipBackground)
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         .onTapGesture(perform: onSelect)
@@ -207,6 +193,26 @@ internal struct SidebarSplitGroupChip: View {
         .animation(.easeOut(duration: 0.10), value: showsCloseButton)
         .animation(.easeOut(duration: 0.10), value: isHovering)
         .animation(.easeOut(duration: 0.10), value: isHoveringCloseButton)
+    }
+
+    private var closeButton: some View {
+        Button(action: onClose) {
+            Image(systemName: "xmark")
+                .font(.system(size: 10, weight: .semibold))
+                .frame(width: closeButtonWidth, height: closeButtonWidth)
+                .contentShape(Rectangle())
+        }
+        .buttonTreatment(.content)
+        .foregroundStyle(InterfaceStyle.sidebarIcon)
+        .background(
+            Circle()
+                .fill(isHoveringCloseButton ? InterfaceStyle.sidebarControlFillHover : Color.clear)
+        )
+        .padding(.trailing, 8)
+        .opacity(showsCloseButton ? 1 : 0)
+        .accessibilityHidden(!showsCloseButton)
+        .help("Close Tab")
+        .onHover { isHoveringCloseButton = $0 }
     }
 
     private var chipBackground: Color {

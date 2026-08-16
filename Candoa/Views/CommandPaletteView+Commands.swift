@@ -104,6 +104,10 @@ extension CommandPaletteView {
     }
 
     internal func commandCandidates(for trimmedQuery: String, isResumingSearchURL: Bool = false) -> [PaletteCommand] {
+        if store.commandPaletteSplitsWithSelection {
+            return splitWithCandidates(for: trimmedQuery)
+        }
+
         // Open tabs rank above history matches (Arc's ordering), which also
         // lets the dedupe keep the tab row when a page exists as both.
         let commands = tabCommands + historyCommands(for: trimmedQuery) + spaceCommands + baseCommands
@@ -167,6 +171,44 @@ extension CommandPaletteView {
         }
 
         return [navigateCommand] + commands
+    }
+
+    /// Split With… mode: the Space's other tabs, most recent first, minus
+    /// the panes already on screen; a typed entry offers to open in a new
+    /// pane. No history, providers or commands — the question is only
+    /// "which tab beside this one", and everything else is noise.
+    internal func splitWithCandidates(for trimmedQuery: String) -> [PaletteCommand] {
+        let excludedIDs = store.activeSplitGroupTabIDs.union([store.activeTabID].compactMap { $0 })
+        let tabRows = store.tabs
+            .filter { $0.spaceID == store.activeSpaceID && !excludedIDs.contains($0.id) }
+            .sorted {
+                if $0.lastAccessedAt == $1.lastAccessedAt {
+                    return $0.sortOrder < $1.sortOrder
+                }
+                return $0.lastAccessedAt > $1.lastAccessedAt
+            }
+            .map { tab in
+                PaletteCommand(
+                    title: tab.title,
+                    detail: hostDisplayText(for: tab.url),
+                    symbolName: tab.faviconSymbol,
+                    faviconData: tab.faviconData,
+                    searchText: "\(tab.title) \(tab.url?.absoluteString ?? "")",
+                    sourceLabel: "Tab",
+                    style: .tab,
+                    action: .splitWithTab(tab.id)
+                )
+            }
+
+        guard !trimmedQuery.isEmpty else { return tabRows }
+        let navigateCommand = PaletteCommand(
+            title: String(localized: "Search or Go to \"\(trimmedQuery)\""),
+            detail: String(localized: "Open in new pane", comment: "Command bar row detail in Split With… mode."),
+            symbolName: "rectangle.split.2x1",
+            searchText: trimmedQuery,
+            action: .splitWithNavigate(trimmedQuery)
+        )
+        return tabRows + [navigateCommand]
     }
 
     internal var defaultSuggestions: [PaletteCommand] {
@@ -303,6 +345,43 @@ extension CommandPaletteView {
             PaletteCommand(title: BrowserCommandTitles.createSpace, symbolName: "square.grid.2x2", action: .createSpace),
             PaletteCommand(title: BrowserCommandTitles.focusAddressBar, symbolName: "text.cursor", action: .focusAddressBar)
         ]
+
+        // Only while a split is on screen: the palette lists what can be
+        // done now, and zoom has no meaning without panes to zoom between.
+        if store.isSplitViewDisplayed {
+            commands.append(
+                PaletteCommand(
+                    title: store.isSplitPaneZoomed
+                        ? BrowserCommandTitles.showAllSplitPanes
+                        : BrowserCommandTitles.zoomSplitPane,
+                    symbolName: store.isSplitPaneZoomed
+                        ? "arrow.down.right.and.arrow.up.left"
+                        : "arrow.up.left.and.arrow.down.right",
+                    action: .toggleSplitPaneZoom
+                )
+            )
+            commands.append(
+                PaletteCommand(
+                    title: BrowserCommandTitles.focusNextSplitPane,
+                    symbolName: "rectangle.righthalf.inset.filled.arrow.right",
+                    action: .focusSplitPane(1)
+                )
+            )
+            commands.append(
+                PaletteCommand(
+                    title: BrowserCommandTitles.focusPreviousSplitPane,
+                    symbolName: "rectangle.lefthalf.inset.filled.arrow.left",
+                    action: .focusSplitPane(-1)
+                )
+            )
+            commands.append(
+                PaletteCommand(
+                    title: BrowserCommandTitles.unsplitPane,
+                    symbolName: "rectangle.portrait.and.arrow.right",
+                    action: .unsplitPane
+                )
+            )
+        }
 
         if store.isPrivate {
             // Private windows have no Spaces to manage.
@@ -482,6 +561,12 @@ extension CommandPaletteView {
             store.reloadActiveTab()
         case .toggleSplitView:
             store.toggleSplitView()
+        case .toggleSplitPaneZoom:
+            store.toggleSplitPaneZoom()
+        case .focusSplitPane(let offset):
+            store.focusAdjacentSplitPane(offset: offset)
+        case .unsplitPane:
+            store.unsplitFocusedPane()
         case .createSpace:
             store.beginSpaceCreation()
         case .focusAddressBar:
@@ -510,6 +595,10 @@ extension CommandPaletteView {
             }
         case .switchTab(let id):
             store.switchTab(to: id)
+        case .splitWithTab(let id):
+            store.openSplitView(with: id)
+        case .splitWithNavigate(let input):
+            store.splitActivePane(navigatingTo: input)
         case .switchSpace(let id):
             store.switchSpace(to: id)
         }

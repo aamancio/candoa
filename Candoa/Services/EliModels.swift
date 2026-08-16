@@ -53,6 +53,114 @@ struct SpaceMemoryFact: Identifiable, Equatable, Sendable {
     }
 }
 
+/// The details a person is willing to have Eli type into a form.
+///
+/// Unlike memory, every value here was typed by the user: nothing is inferred
+/// from a conversation, nothing is extracted by a model, and a field left
+/// blank stays blank on the page rather than being guessed. It deliberately
+/// holds no national ID, date of birth, or payment detail — a wrong value in
+/// those is worse than an empty field, and they stay the user's to type.
+struct UserProfile: Codable, Equatable, Sendable {
+    var givenName = ""
+    var familyName = ""
+    var email = ""
+    var phone = ""
+    var streetAddress = ""
+    var city = ""
+    var region = ""
+    var postalCode = ""
+    var country = ""
+    var organization = ""
+    var website = ""
+
+    /// The filled entries, labeled the way a form asks for them. Labels are
+    /// English on purpose: they are read by the model, not shown to the user.
+    var labeledValues: [(label: String, value: String)] {
+        let all: [(String, String)] = [
+            ("Given name", givenName),
+            ("Family name", familyName),
+            ("Full name", fullName),
+            ("Email", email),
+            ("Phone", phone),
+            ("Street address", streetAddress),
+            ("City", city),
+            ("State or province", region),
+            ("Postal code", postalCode),
+            ("Country", country),
+            ("Organization", organization),
+            ("Website", website),
+        ]
+        return all.compactMap { label, value in
+            let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { return nil }
+            return (label, String(trimmed.prefix(UserProfilePolicy.maximumValueLength)))
+        }
+    }
+
+    var fullName: String {
+        [givenName, familyName]
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+    }
+
+    var isEmpty: Bool { labeledValues.isEmpty }
+}
+
+/// Reads and writes the profile. Local to this Mac and global to the app:
+/// a person has one legal name, and a form does not care which Space is open.
+enum UserProfileStore {
+    static func load(from defaults: UserDefaults = .standard) -> UserProfile {
+        guard let data = defaults.string(forKey: SettingsOption.userProfile)?.data(using: .utf8),
+              let profile = try? JSONDecoder().decode(UserProfile.self, from: data) else {
+            return UserProfile()
+        }
+        return profile
+    }
+
+    static func save(_ profile: UserProfile, to defaults: UserDefaults = .standard) {
+        guard let data = try? JSONEncoder().encode(profile),
+              let json = String(data: data, encoding: .utf8) else { return }
+        defaults.set(json, forKey: SettingsOption.userProfile)
+    }
+}
+
+/// When the profile may travel with an agent run, and how it is phrased.
+enum UserProfilePolicy {
+    static let maximumValueLength = 120
+
+    /// The profile rides along only when the page actually asks for personal
+    /// details. A run that never touches a form has no business carrying the
+    /// user's address to the model.
+    static func pageAsksForPersonalDetails(_ page: BrowserAgentPage) -> Bool {
+        page.controls.contains { $0.kind == .field && $0.sensitive }
+    }
+
+    /// The labeled block appended to a run's attached context. The wording
+    /// forbids invention explicitly: an empty field is a correct outcome, a
+    /// plausible guess on a job application is not.
+    static func profileSection(for profile: UserProfile, page: BrowserAgentPage) -> String? {
+        guard pageAsksForPersonalDetails(page) else { return nil }
+        let values = profile.labeledValues
+        guard !values.isEmpty else { return nil }
+        let lines = values.map { "- \($0.label): \($0.value)" }.joined(separator: "\n")
+        return """
+        The user's saved details for filling forms (entered by the user, not inferred). Use them verbatim for fields that match. If a form asks for something not listed here, leave it blank and say so — never invent, estimate, or derive a value:
+        \(lines)
+        """
+    }
+
+    static func agentContext(
+        _ context: String?,
+        byAppendingProfile profile: UserProfile,
+        for page: BrowserAgentPage
+    ) -> String? {
+        guard let section = profileSection(for: profile, page: page) else { return context }
+        guard let context, !context.isEmpty else { return section }
+        return "\(context)\n\n\(section)"
+    }
+}
+
 /// The safety gate and shaping rules for saved memory. The extraction prompt
 /// already forbids secrets; this is the client-side backstop that drops a
 /// fact whenever the model ignores that instruction.
@@ -93,6 +201,45 @@ enum SpaceMemoryPolicy {
     static func containsSensitiveContent(_ content: String) -> Bool {
         sensitivePatterns.contains { pattern in
             content.range(of: pattern, options: .regularExpression) != nil
+        }
+    }
+
+    /// Openings that introduce something durable about the person: who they
+    /// are, what they do, where they are, what they prefer, and explicit
+    /// requests to remember. Deliberately narrow — this gate decides whether
+    /// to spend an extraction request, and the extractor itself still decides
+    /// what (if anything) is worth saving, so a miss costs nothing but a
+    /// delay and a false positive costs one request.
+    ///
+    /// Covered in every shipping locale rather than English alone: an
+    /// English-only gate would quietly make memory a US-only feature.
+    private static let durableFactPatterns = [
+        // English
+        #"(?i)\bmy name('s| is)\b|\bi'?m called\b|\bcall me\b"#,
+        #"(?i)\bi (work|worked) (at|for|as)\b|\bi'?m an? [a-z]+ (engineer|designer|developer|manager|student|teacher|nurse|doctor|writer|founder|lawyer)\b|\bmy (job|company|team|role|title)\b"#,
+        #"(?i)\bi live in\b|\bi'?m based in\b|\bi'?m from\b|\bmy (timezone|time zone|address|birthday)\b"#,
+        #"(?i)\bi (prefer|always|usually|never|hate|love)\b|\bi'?m allergic to\b|\bi don'?t (like|eat|drink|use)\b"#,
+        #"(?i)\bremember (that|this|my)\b|\bkeep in mind\b|\bfor future reference\b|\bnote that i\b"#,
+        #"(?i)\bi'?m (learning|studying|applying|building|training|planning) \b|\bi'?m working on\b"#,
+        // German
+        #"(?i)\bmein name ist\b|\bich hei(ß|ss)e\b|\bich arbeite (bei|als|für)\b|\bich wohne in\b|\bich bevorzuge\b|\bmerk dir\b"#,
+        // Spanish
+        #"(?i)\bme llamo\b|\bmi nombre es\b|\btrabajo (en|como|para)\b|\bvivo en\b|\bprefiero\b|\brecuerda que\b"#,
+        // French
+        #"(?i)\bje m'?appelle\b|\bmon nom est\b|\bje travaille (chez|comme|pour)\b|\bj'?habite (à|a|en|au)\b|\bje préfère\b|\bretiens que\b"#,
+        // Portuguese
+        #"(?i)\bmeu nome é\b|\bme chamo\b|\btrabalho (na|no|em|como|para)\b|\bmoro em\b|\bprefiro\b|\blembre-se de que\b"#,
+        // Japanese
+        #"(私の名前は|私は.{1,12}です|に住んでいます|で働いています|覚えておいて)"#,
+        // Simplified Chinese
+        #"(我叫|我的名字是|我住在|我在.{1,12}工作|我喜欢|我不喜欢|记住我)"#,
+    ]
+
+    static func suggestsDurableFact(in text: String) -> Bool {
+        let candidate = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !candidate.isEmpty else { return false }
+        return durableFactPatterns.contains { pattern in
+            candidate.range(of: pattern, options: .regularExpression) != nil
         }
     }
 

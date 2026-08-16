@@ -221,8 +221,8 @@ internal struct GeneralSettingsPane: View {
                 SettingsCard {
                     SettingsPickerRow(
                         systemImage: "rectangle.topthird.inset.filled",
-                        title: String(localized: "Address bar"),
-                        subtitle: String(localized: "Keep the address in the sidebar, or show it above the page."),
+                        title: String(localized: "Toolbar"),
+                        subtitle: String(localized: "Keep the address and its controls in the sidebar, or show them above the page."),
                         selection: $addressBarPlacement,
                         options: [
                             SettingsPickerOption(id: AddressBarPlacement.sidebar.rawValue, title: String(localized: "In the Sidebar")),

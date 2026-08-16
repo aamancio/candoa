@@ -12,6 +12,10 @@ struct EliSidebarView: View {
     @ObservedObject var store: BrowserStore
     @Binding var uiTestingState: String
     @Binding var messages: [AISidebarMessage]
+    /// Memory is Space-scoped but the conversation is not: this marks which
+    /// Space the undistilled turns belong to. A Space switch moves the window
+    /// instead of ending the chat.
+    @Binding var memoryWindow: EliMemoryWindow
     @Binding var pendingSubscriptionSubmission: EliSubmission?
     let onClose: () -> Void
 
@@ -25,8 +29,16 @@ struct EliSidebarView: View {
     @State private var selectedMentionIndex = 0
     @State private var streamTask: Task<Void, Never>?
     @State private var includesCurrentPageContext = true
+    /// Panes the user detached from the on-screen context by removing their
+    /// chip. Cleared whenever the current page reattaches, so a later split
+    /// starts with every pane in context again.
+    @State private var excludedPaneTabIDs: Set<UUID> = []
     @State private var lastSubmittedPageContext: AIPageContext?
     @State private var pendingSensitiveAgentAction: PendingSensitiveAgentAction?
+    /// Permission to keep filling one page's fields without a dialog per
+    /// field, granted from a fill confirmation and dropped the moment the run,
+    /// the tab, or the page changes.
+    @State private var browserAgentFillConsent: BrowserAgentFillConsent?
     /// A run paused on a wait-for-user handoff (an ad, a sign-in, a CAPTCHA).
     /// The cloud workflow stays alive until Continue resumes it or Stop (or
     /// sidebar teardown) rejects it.
@@ -36,16 +48,11 @@ struct EliSidebarView: View {
     @State private var attachmentPreviewData: [UUID: Data] = [:]
     @State private var presentedImagePreview: AISidebarImagePreview?
     @State private var isRefreshingEliAccess = true
-    @State private var isMemoryPopoverPresented = false
     @FocusState private var isPromptFocused: Bool
 
     private var activePageTitle: String {
         let title = store.activeTab?.title.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         return title.isEmpty ? String(localized: "Current Page") : title
-    }
-
-    private var activePageSubtitle: String {
-        store.activeTab?.url?.host(percentEncoded: false) ?? ""
     }
 
     private var mentionQuery: String? {
@@ -61,16 +68,24 @@ struct EliSidebarView: View {
         return token
     }
 
+    /// What "the current page" means right now: the focused tab, plus the
+    /// other panes when a split view puts more than one page on screen.
+    /// Eli answers about what the user is looking at, and in a split that is
+    /// both pages.
+    private var currentPageTabs: [BrowserTab] {
+        guard includesCurrentPageContext, let activeTab = store.activeTab else { return [] }
+        return ([activeTab] + store.activeSplitTabs)
+            .filter { !excludedPaneTabIDs.contains($0.id) }
+    }
+
     /// Tabs already represented by a context chip: explicit tab mentions plus
-    /// the active tab while the "current page" chip is attached.
+    /// the on-screen pages while the "current page" chips are attached.
     private var attachedTabIDs: Set<UUID> {
         var ids = Set(mentionedContext.compactMap { mention -> UUID? in
             guard case .tab(let tabID) = mention else { return nil }
             return tabID
         })
-        if includesCurrentPageContext, let activeTabID = store.activeTabID {
-            ids.insert(activeTabID)
-        }
+        ids.formUnion(currentPageTabs.map(\.id))
         return ids
     }
 
@@ -174,19 +189,33 @@ struct EliSidebarView: View {
     }
 
     private var contextChips: [AISidebarContextChip] {
-        let currentChip = includesCurrentPageContext ? [
+        // One chip per on-screen page, focused pane first, so a split view
+        // shows the user both of the pages Eli is reading.
+        let currentChips = currentPageTabs.enumerated().map { index, tab in
             AISidebarContextChip(
-                id: "current",
-                title: activePageTitle,
-                subtitle: activePageSubtitle,
-                symbolName: store.activeTab?.faviconSymbol ?? "safari",
-                faviconData: store.activeTab?.faviconData,
+                id: index == 0 ? "current" : Self.paneChipID(for: tab.id),
+                title: index == 0 ? activePageTitle : paneChipTitle(for: tab),
+                subtitle: tab.url?.host(percentEncoded: false) ?? "",
+                symbolName: tab.faviconSymbol,
+                faviconData: tab.faviconData,
                 previewImageData: nil,
                 isRemovable: true
             )
-        ] : []
+        }
 
-        return currentChip + mentionedContext.map { chip(for: $0) }
+        return currentChips + mentionedContext.map { chip(for: $0) }
+    }
+
+    private static let paneChipIDPrefix = "split-pane-"
+
+    private static func paneChipID(for tabID: UUID) -> String {
+        paneChipIDPrefix + tabID.uuidString
+    }
+
+    private func paneChipTitle(for tab: BrowserTab) -> String {
+        let title = tab.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !title.isEmpty { return title }
+        return tab.url?.host(percentEncoded: false) ?? String(localized: "Current Page")
     }
 
     private var hasPersonalEliAccess: Bool {
@@ -201,7 +230,7 @@ struct EliSidebarView: View {
         BrowserStore.isUITesting
             && [
                 "ask-agent-navigation", "ask-agent-normalized-navigation", "ask-agent-selection",
-                "ask-agent-mentioned-tab", "ask-agent-waiting"
+                "ask-agent-mentioned-tab", "ask-agent-waiting", "ask-agent-form-fill"
             ].contains(
                 ProcessInfo.processInfo.environment["CANDOA_UI_TESTING_FIXTURE"]
             )
@@ -255,6 +284,9 @@ struct EliSidebarView: View {
             uiTestingState = uiTestingAgentState
             removeSubscriptionGateIfActive()
             resumePendingSubscriptionSubmissionIfNeeded()
+            if memoryWindow.spaceID == nil {
+                memoryWindow.spaceID = store.activeSpaceID
+            }
             DispatchQueue.main.async {
                 isPromptFocused = true
             }
@@ -276,11 +308,29 @@ struct EliSidebarView: View {
         .onChange(of: uiTestingAgentState) { _, state in
             uiTestingState = state
         }
+        .onChange(of: store.activeSpaceID) { previousSpaceID, spaceID in
+            moveMemoryWindow(from: previousSpaceID, to: spaceID)
+        }
+        .onChange(of: messages) { _, updated in
+            // Mid-stream the last message is a partial reply; the pass runs
+            // once the turn has settled.
+            guard !updated.contains(where: \.isStreaming) else { return }
+            updateSpaceMemoryIfConversationRevealedFacts()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.willCloseNotification)) { _ in
+            // onDisappear is not guaranteed to run for a closing window, and a
+            // closed window is a finished conversation. The turn-count guard
+            // makes this a no-op when the conversation is already distilled.
+            updateSpaceMemoryFromConversation()
+        }
         .onChange(of: store.activeTabID) {
             includesCurrentPageContext = true
+            excludedPaneTabIDs = []
+            browserAgentFillConsent = nil
         }
         .onChange(of: store.activeTab?.url) {
             includesCurrentPageContext = true
+            excludedPaneTabIDs = []
         }
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active,
@@ -333,6 +383,13 @@ struct EliSidebarView: View {
             ),
             titleVisibility: .visible
         ) {
+            if let pendingSensitiveAgentAction,
+               BrowserAgentPolicy.allowsPageScopedFillConsent(for: pendingSensitiveAgentAction.action) {
+                Button("Fill This Page", role: .destructive) {
+                    approveSensitiveAgentAction(grantingPageFillConsent: true)
+                }
+                .accessibilityIdentifier("agent-fill-page")
+            }
             Button("Continue", role: .destructive) { approveSensitiveAgentAction() }
             Button("Stop", role: .cancel) { stopPendingSensitiveAgentAction() }
         } message: {
@@ -365,18 +422,15 @@ struct EliSidebarView: View {
                 messages = []
                 pendingSubscriptionSubmission = nil
                 includesCurrentPageContext = true
+                excludedPaneTabIDs = []
                 lastSubmittedPageContext = nil
                 cancelStream()
-            }
-
-            AISidebarTopBarIconButton(
-                symbolName: "brain",
-                helpText: "Eli Memory"
-            ) {
-                isMemoryPopoverPresented = true
-            }
-            .popover(isPresented: $isMemoryPopoverPresented, arrowEdge: .bottom) {
-                EliMemoryPopoverView(store: store)
+                // The transcript restarts at zero, so the extraction window
+                // has to as well or the next conversation's first turns look
+                // already-distilled.
+                memoryWindow.startIndex = 0
+                memoryWindow.spaceID = store.activeSpaceID
+                store.resetSpaceMemoryExtractionWindow(for: store.activeSpaceID)
             }
 
             Spacer()
@@ -753,7 +807,7 @@ struct EliSidebarView: View {
             },
             contextMentions: mentionedContext,
             recentTurns: recentTurns(),
-            currentPageTabID: includesCurrentPageContext ? store.activeTabID : nil,
+            currentPageTabIDs: currentPageTabs.map(\.id),
             browserControlTabID: store.activeTabID,
             mentionedTabs: mentionedContext.compactMap { mention in
                 guard case .tab(let tabID) = mention,
@@ -787,12 +841,13 @@ struct EliSidebarView: View {
         attachmentPreviewData = [:]
         presentedImagePreview = nil
         includesCurrentPageContext = false
+        excludedPaneTabIDs = []
         isMentionMenuPresented = false
 
         streamTask = Task {
             let submittedContext = await combinedContext(
                 for: submission.contextMentions,
-                currentPageTabID: submission.currentPageTabID
+                currentPageTabIDs: submission.currentPageTabIDs
             )
             let submittedPageContext = submittedContext.pageContext
             let pageContext = submittedPageContext.hasAttachedContext
@@ -865,6 +920,7 @@ struct EliSidebarView: View {
             attachmentPreviewData = [:]
             presentedImagePreview = nil
             includesCurrentPageContext = false
+            excludedPaneTabIDs = []
             isMentionMenuPresented = false
         }
     }
@@ -996,11 +1052,21 @@ struct EliSidebarView: View {
                     finishBrowserAgent(state, message: String(localized: "That browser tab is no longer available."))
                     return
                 }
+                // The saved profile joins the run only when this page asks for
+                // personal details, and never from a private window: a run
+                // that never touches a form has no reason to carry the user's
+                // address to the model.
                 let response = try await store.startBrowserAgentRun(
                     runID: state.runID,
                     goal: state.goal,
                     page: page,
-                    attachedContext: attachedContext
+                    attachedContext: store.isPrivate
+                        ? attachedContext
+                        : UserProfilePolicy.agentContext(
+                            attachedContext,
+                            byAppendingProfile: UserProfileStore.load(),
+                            for: page
+                        )
                 )
                 try await continueBrowserAgent(response, page: page, state: state)
             } catch is CancellationError {
@@ -1068,7 +1134,13 @@ struct EliSidebarView: View {
 
             updateBrowserAgentStatus(state, text: browserAgentStatus(for: pendingAction))
 
-            if BrowserAgentPolicy.requiresNativeApproval(for: pendingAction, on: page) {
+            if BrowserAgentPolicy.requiresNativeApproval(
+                for: pendingAction,
+                on: page,
+                fillConsent: browserAgentFillConsent,
+                runID: state.runID,
+                tabID: state.tabID
+            ) {
                 pendingSensitiveAgentAction = PendingSensitiveAgentAction(
                     action: action,
                     state: state,
@@ -1105,9 +1177,18 @@ struct EliSidebarView: View {
         try await continueBrowserAgent(response, page: page, state: state)
     }
 
-    private func approveSensitiveAgentAction() {
+    private func approveSensitiveAgentAction(grantingPageFillConsent: Bool = false) {
         guard let pending = pendingSensitiveAgentAction else { return }
         pendingSensitiveAgentAction = nil
+        if grantingPageFillConsent {
+            // Scoped to the page that was on screen when the dialog appeared,
+            // so a mid-run navigation cannot inherit it.
+            browserAgentFillConsent = BrowserAgentFillConsent(
+                runID: pending.state.runID,
+                tabID: pending.state.tabID,
+                url: pending.previousURL
+            )
+        }
         browserAgentTask = Task {
             do {
                 try await executeBrowserAgentAction(
@@ -1231,6 +1312,9 @@ struct EliSidebarView: View {
         }
         isResolvingPageAction = false
         browserAgentTask = nil
+        // Consent covers one form on one page during one run; it must never
+        // outlive the run that asked for it.
+        browserAgentFillConsent = nil
     }
 
     private func updateBrowserAgentStatus(_ state: BrowserAgentRunState, text: String) {
@@ -1380,22 +1464,33 @@ struct EliSidebarView: View {
 
     private func combinedContext(
         for mentions: [AISidebarContextMention],
-        currentPageTabID: UUID?
+        currentPageTabIDs: [UUID]
     ) async -> SubmittedEliContext {
-        let currentContext = currentPageTabID != nil
-            ? await store.aiPageContext(for: currentPageTabID)
-            : AIPageContext(title: nil, url: nil, text: nil)
+        var currentContexts: [AIPageContext] = []
+        for tabID in currentPageTabIDs {
+            currentContexts.append(await store.aiPageContext(for: tabID))
+        }
+        // The focused pane still names the submission: inheritance and the
+        // compactor read this title and URL.
+        let currentContext = currentContexts.first ?? AIPageContext(title: nil, url: nil, text: nil)
         var sections: [String] = []
         var agentSections: [String] = []
 
-        if currentPageTabID != nil, !mentions.isEmpty {
-            sections.append(contextSection(title: "Current page", context: currentContext))
+        // A lone unlabelled page stays unlabelled; a split view (or a mention
+        // beside it) needs each page named so the model can tell them apart.
+        if currentContexts.count > 1 || (!currentContexts.isEmpty && !mentions.isEmpty) {
+            for (index, context) in currentContexts.enumerated() {
+                sections.append(contextSection(
+                    title: index == 0 ? "Current page" : "Other split view page",
+                    context: context
+                ))
+            }
         }
 
         for mention in mentions {
             switch mention {
             case .tab(let tabID):
-                guard tabID != currentPageTabID else { continue }
+                guard !currentPageTabIDs.contains(tabID) else { continue }
                 let tabContext = await store.aiPageContext(for: tabID)
                 let section = contextSection(title: "Mentioned tab", context: tabContext)
                 sections.append(section)
@@ -1539,7 +1634,19 @@ struct EliSidebarView: View {
 
     private func removeMention(_ chipID: String) {
         if chipID == "current" {
-            includesCurrentPageContext = false
+            // The focused pane leaves with the flag the rest of the view reads;
+            // in a split the companion panes stay until removed themselves.
+            if let activeTabID = store.activeTabID, !store.activeSplitTabs.isEmpty {
+                excludedPaneTabIDs.insert(activeTabID)
+            } else {
+                includesCurrentPageContext = false
+            }
+            return
+        }
+
+        if chipID.hasPrefix(Self.paneChipIDPrefix),
+           let paneTabID = UUID(uuidString: String(chipID.dropFirst(Self.paneChipIDPrefix.count))) {
+            excludedPaneTabIDs.insert(paneTabID)
             return
         }
 
@@ -1765,10 +1872,11 @@ struct EliSidebarView: View {
         return Array(turns.suffix(6))
     }
 
-    /// The full finished conversation, unlike `recentTurns()`'s request
-    /// window — memory extraction reads everything that was said.
+    /// The conversation since the current memory window opened, unlike
+    /// `recentTurns()`'s request window — memory extraction reads everything
+    /// that was said into the Space it is being saved for.
     private func conversationTurns() -> [AIConversationTurn] {
-        messages.compactMap { message in
+        messages.dropFirst(memoryWindow.startIndex).compactMap { message in
             guard message.action == nil, !message.isStreaming else { return nil }
             let text = message.text.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !text.isEmpty else { return nil }
@@ -1776,12 +1884,34 @@ struct EliSidebarView: View {
         }
     }
 
-    /// A conversation "ends" when the user starts a new one or closes the
-    /// sidebar; that is when its durable facts get distilled into the active
-    /// Space's memory.
+    /// A conversation "ends" when the user starts a new one, switches Space,
+    /// or closes the sidebar or window; that is when its durable facts get
+    /// distilled into the Space the conversation belongs to.
     private func updateSpaceMemoryFromConversation() {
         guard hasEliAccess else { return }
-        store.updateSpaceMemory(fromConversation: conversationTurns())
+        store.updateSpaceMemory(fromConversation: conversationTurns(), in: memoryWindow.spaceID)
+    }
+
+    /// The cheap pass that runs while the conversation is still going. Quitting
+    /// the app kills any in-flight extraction, so waiting for a clean teardown
+    /// is not a way to keep facts — this is.
+    private func updateSpaceMemoryIfConversationRevealedFacts() {
+        guard hasEliAccess else { return }
+        store.updateSpaceMemoryIfConversationRevealedFacts(
+            conversationTurns(),
+            in: memoryWindow.spaceID
+        )
+    }
+
+    /// Closes the memory window on the Space being left and opens a fresh one
+    /// on the Space being entered, so neither Space inherits the other's turns.
+    private func moveMemoryWindow(from previousSpaceID: UUID?, to spaceID: UUID) {
+        if let previousSpaceID, previousSpaceID != spaceID {
+            store.updateSpaceMemory(fromConversation: conversationTurns(), in: previousSpaceID)
+        }
+        memoryWindow.startIndex = messages.count
+        memoryWindow.spaceID = spaceID
+        store.resetSpaceMemoryExtractionWindow(for: spaceID)
     }
 
     private func cancelStream() {
@@ -1789,6 +1919,7 @@ struct EliSidebarView: View {
         streamTask = nil
         browserAgentTask?.cancel()
         browserAgentTask = nil
+        browserAgentFillConsent = nil
         if waitingAgentRun != nil {
             // Sidebar teardown or a new conversation while a run is waiting on
             // the user: same contract as a pending sensitive action — finalize
@@ -1830,6 +1961,7 @@ struct EliSidebarView: View {
         presentedImagePreview = nil
         isFileImporterPresented = false
         includesCurrentPageContext = true
+        excludedPaneTabIDs = []
         lastSubmittedPageContext = nil
         isMentionMenuPresented = false
         isRefreshingEliAccess = false

@@ -66,6 +66,11 @@ struct BrowserCommandActions {
     var toggleSplitView: () -> Void
     var setSplitLayout: (SplitViewLayout) -> Void
     var isSplitDisplayed: Bool
+    var toggleSplitPaneZoom: () -> Void
+    var isSplitPaneZoomed: Bool
+    var focusSplitPane: (Int) -> Void
+    var unsplitPane: () -> Void
+    var splitWithTab: () -> Void
     var installedBrowsers: [ExternalBrowserService.Browser]
     var openPageWith: (ExternalBrowserService.Browser) -> Void
     var canUseDevelopTools: Bool

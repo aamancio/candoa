@@ -103,6 +103,34 @@ enum BrowserCommandTitles {
     // instead -- neither word can be read the other way round.
     static let splitLayoutHorizontal = String(localized: "Side by Side")
     static let splitLayoutVertical = String(localized: "Stacked")
+    // Terminals call this zoom, and the pair reads as one reversible action:
+    // the pane fills the surface, then every pane comes back. "Zoom" alone
+    // would collide with the page zoom items in the same menu, so the pane
+    // is always named.
+    static let zoomSplitPane = String(
+        localized: "Zoom Pane",
+        comment: "Split View: fills the surface with the focused pane. Zooming a pane, not the page — the page-zoom items are separate."
+    )
+    static let showAllSplitPanes = String(
+        localized: "Show All Panes",
+        comment: "Split View: brings the other panes back after zooming one."
+    )
+    static let focusNextSplitPane = String(
+        localized: "Focus Next Pane",
+        comment: "Split View: moves keyboard focus to the next pane in the split."
+    )
+    static let focusPreviousSplitPane = String(
+        localized: "Focus Previous Pane",
+        comment: "Split View: moves keyboard focus to the previous pane in the split."
+    )
+    static let splitWithTab = String(
+        localized: "Split With…",
+        comment: "Split View: opens the command bar to pick a tab (or type an address) to place beside the current pane."
+    )
+    static let unsplitPane = String(
+        localized: "Unsplit Pane",
+        comment: "Split View: takes the focused pane out of the split; the tab returns to the tab list and keeps the page."
+    )
 }
 
 enum BrowserDefaults {
@@ -164,6 +192,13 @@ enum TabSwitcherConfiguration {
     /// didFinish precedes first paint of late-arriving content; a short
     /// settle keeps thumbnails from capturing a half-rendered page.
     static let warmupSettleDelay: TimeInterval = 0.6
+    /// After the settle, capture waits for the page to go network-quiet:
+    /// its resource count must hold still for one quiet period. Single-page
+    /// apps (YouTube, mail clients) draw their shell from fetches that start
+    /// after didFinish, so a fixed delay alone snapshots their skeleton.
+    /// The wait is capped so a page that never stops polling still gets a card.
+    static let warmupQuietPeriod: TimeInterval = 0.5
+    static let warmupQuietWaitCap: TimeInterval = 4
     static let warmupSpacing: TimeInterval = 0.5
     /// The launch pass waits for session restore and first paint to settle
     /// before spending network and CPU on tabs nobody has looked at yet.
@@ -250,5 +285,29 @@ extension URL {
             text.removeLast()
         }
         return text
+    }
+
+    /// What the address surfaces show at rest: the domain, nothing else.
+    ///
+    /// This is Zen's `gZenUIManager.urlbarTrim` under
+    /// `zen.urlbar.show-domain-only-in-sidebar` — take the host, drop a
+    /// *leading* "www." (only a prefix: "wwwx.example.com" is its own host),
+    /// and keep an explicit port, which is part of the origin and the whole
+    /// point on a local development page. Arc's sidebar field reads the same.
+    ///
+    /// Hostless URLs (file:, data:) have no domain to show, so they keep
+    /// their full text.
+    var displayDomainText: String {
+        guard let host = host(percentEncoded: false), !host.isEmpty else {
+            return localDevelopmentDisplayText
+        }
+
+        var text = host
+        if text.hasPrefix("www.") {
+            text.removeFirst(4)
+        }
+
+        guard let port else { return text }
+        return "\(text):\(port)"
     }
 }

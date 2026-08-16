@@ -75,7 +75,11 @@ struct SidebarView: View {
     // padding on macOS plus the 2px tab margin), with 8px inline padding
     // inside each row.
     private let leadingInset: CGFloat = 8
-    private let trailingInset: CGFloat = 8
+    /// Docked, the 8pt gutter between the lane and the page surface already is
+    /// the trailing margin — reserving another 8pt here made every row sit 8pt
+    /// off the window edge but 16pt off the page. Only the hover overlay, whose
+    /// lane ends in its own shadowed edge over the page, keeps the inset.
+    private var trailingInset: CGFloat { isSidebarPinned ? 0 : 8 }
     private let windowControlsWidth: CGFloat = 70
     private let spaceLabelToPinnedGap: CGFloat = 3
     private let pinnedSectionSpacing: CGFloat = 8
@@ -163,7 +167,8 @@ struct SidebarView: View {
                 // favorites grid (and its drag-here hint) has no place here.
                 if !store.isPrivate {
                     hoistedFavoritesSection
-                        .padding(.horizontal, leadingInset)
+                        .padding(.leading, leadingInset)
+                        .padding(.trailing, trailingInset)
                         .padding(.top, spaceSwipeTopInset + 1)
                 }
             }
@@ -173,7 +178,8 @@ struct SidebarView: View {
                         store: store,
                         onSelectSpace: animateSpaceSelection
                     )
-                    .padding(.horizontal, leadingInset)
+                    .padding(.leading, leadingInset)
+                    .padding(.trailing, trailingInset)
                     .padding(.bottom, sidebarBottomPadding)
                 }
             }
@@ -264,7 +270,8 @@ struct SidebarView: View {
 
             updateBanner
         }
-        .padding(.horizontal, leadingInset)
+        .padding(.leading, leadingInset)
+        .padding(.trailing, trailingInset)
         .padding(.top, sidebarTopPadding)
         .padding(.bottom, swipeChromeBottomPadding)
     }
@@ -384,7 +391,8 @@ struct SidebarView: View {
                         Color.clear
                     }
                 }
-                .padding(.horizontal, leadingInset)
+                .padding(.leading, leadingInset)
+                .padding(.trailing, trailingInset)
                 .frame(
                     minHeight: contentHeight,
                     alignment: .top
@@ -640,26 +648,33 @@ struct SidebarView: View {
             // frame and shifts the whole sidebar's content off-edge.
             Spacer(minLength: 4)
 
-            HStack(spacing: 4) {
-                navigationControls
-                    .opacity(hidesNavigationControlsForAddressPalette ? 0 : 1)
-                    .allowsHitTesting(!hidesNavigationControlsForAddressPalette)
+            // Under the "Above the Page" placement this whole cluster rides
+            // the strip beside the address instead, the way Dia lays its
+            // toolbar out — the toggle included, so it keeps one home whether
+            // the sidebar it opens is showing or not. Never both, or the
+            // window shows two Back buttons and two toggles.
+            if showsAddressPill {
+                HStack(spacing: 4) {
+                    navigationControls
+                        .opacity(hidesNavigationControlsForAddressPalette ? 0 : 1)
+                        .allowsHitTesting(!hidesNavigationControlsForAddressPalette)
 
-                Button {
-                    onToggleSidebar()
-                } label: {
-                    Image(systemName: "sidebar.left")
+                    Button {
+                        onToggleSidebar()
+                    } label: {
+                        Image(systemName: "sidebar.left")
+                    }
+                    .toolbarIconButton()
+                    .shortcutTooltip(
+                        isSidebarPinned ? "Hide Sidebar" : "Show Sidebar",
+                        shortcut: .toggleSidebar
+                    )
+                    .accessibilityIdentifier("sidebar-toggle-button")
                 }
-                .toolbarIconButton()
-                .shortcutTooltip(
-                    isSidebarPinned ? "Hide Sidebar" : "Show Sidebar",
-                    shortcut: .toggleSidebar
-                )
-                .accessibilityIdentifier("sidebar-toggle-button")
+                // Sit the icons on the measured centerline of the native
+                // window buttons, wherever AppKit put them.
+                .offset(y: windowControlsGeometry.controlsCenterOffsetY)
             }
-            // Sit the icons on the measured centerline of the native window
-            // buttons, wherever AppKit put them.
-            .offset(y: windowControlsGeometry.controlsCenterOffsetY)
         }
         .buttonTreatment(.content)
         .foregroundStyle(sidebarIconColor)
@@ -673,35 +688,7 @@ struct SidebarView: View {
     }
 
     private var navigationControls: some View {
-        HStack(spacing: 4) {
-            Button(action: store.goBack) {
-                Image(systemName: "arrow.left")
-            }
-            .disabled(!store.canGoBack)
-            .toolbarIconButton()
-            .shortcutTooltip("Back", shortcut: .goBack)
-
-            Button(action: store.goForward) {
-                Image(systemName: "arrow.right")
-            }
-            .disabled(!store.canGoForward)
-            .toolbarIconButton()
-            .shortcutTooltip("Forward", shortcut: .goForward)
-
-            if store.activeTab?.isLoading == true {
-                Button(action: store.stopLoadingActiveTab) {
-                    Image(systemName: "xmark")
-                }
-                .toolbarIconButton()
-                .shortcutTooltip("Stop", shortcut: .stopLoading)
-            } else {
-                Button(action: store.reloadActiveTab) {
-                    Image(systemName: "arrow.clockwise")
-                }
-                .toolbarIconButton()
-                .shortcutTooltip("Reload", shortcut: .reloadTab)
-            }
-        }
+        BrowserNavigationControls(store: store)
     }
 
     private func addressPill(for spaceID: UUID) -> some View {
@@ -724,7 +711,7 @@ struct SidebarView: View {
                             .foregroundStyle(InterfaceStyle.sidebarIcon)
                     }
 
-                    Text(sidebarAddressText(for: url, developerModeEnabled: developerModeEnabled))
+                    Text(sidebarAddressText(for: url))
                         .lineLimit(1)
                         .truncationMode(.tail)
                         .font(
@@ -883,23 +870,11 @@ struct SidebarView: View {
         return store.tabs.first(where: { $0.id == tabID })
     }
 
-    private func sidebarAddressText(
-        for url: URL?,
-        developerModeEnabled: Bool
-    ) -> String {
-        guard let url else {
-            return "Search..."
-        }
-
-        if developerModeEnabled {
-            return url.localDevelopmentDisplayText
-        }
-
-        if let host = url.host(percentEncoded: false) {
-            return host.replacingOccurrences(of: "www.", with: "")
-        }
-
-        return url.absoluteString
+    // Developer pages read the same way as any other: the domain, with the
+    // port that tells two local servers apart. Only the monospaced face marks
+    // them out, and the full URL lives in the developer toolbar above.
+    private func sidebarAddressText(for url: URL?) -> String {
+        url?.displayDomainText ?? "Search..."
     }
 
     // MARK: - Favorites

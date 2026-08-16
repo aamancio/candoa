@@ -42,6 +42,7 @@ struct ContentView: View {
     @State private var aiSidebarTransitionGeneration = 0
     @State private var aiSidebarUITestingState = ""
     @State private var aiSidebarMessages: [AISidebarMessage] = []
+    @State private var aiSidebarMemoryWindow = EliMemoryWindow()
     @State private var pendingEliSubscriptionSubmission: EliSubmission?
     @State private var isSignOutConfirmationPresented = false
     @State private var aiSidebarResizeStartWidth: CGFloat?
@@ -67,6 +68,14 @@ struct ContentView: View {
 
     private var websiteAppearance: WebsiteAppearance {
         WebsiteAppearance(storedValue: websiteAppearanceValue)
+    }
+
+    /// True while a text field holds the keyboard — the address bar, a tab
+    /// rename, an Eli prompt. AppKit hands those the field editor, so the
+    /// responder is an NSTextView rather than the control itself.
+    private var isEditingTextField: Bool {
+        guard let responder = NSApp.keyWindow?.firstResponder else { return false }
+        return responder is NSTextView || responder is NSTextField
     }
 
     private var activeThemeHexes: [String] {
@@ -148,6 +157,7 @@ struct ContentView: View {
                                 leading: isSidebarVisible ? sidebarTotalWidth : 0
                             ),
                             attachesToTrailingPanel: isAISidebarMounted,
+                            onToggleSidebar: toggleSidebar,
                             slideOverTrailingInset: aiSidebarSlideMaskInset
                         )
                         // Resize WebKit once, after Eli has finished sliding over
@@ -384,9 +394,22 @@ struct ContentView: View {
             } onFindPrevious: {
                 store.findPrevious()
             } onEscape: {
-                guard store.isFindBarPresented else { return false }
-                store.dismissFindBar()
-                return true
+                if store.isFindBarPresented {
+                    store.dismissFindBar()
+                    return true
+                }
+                // Reader is the next escape hatch down, but only when nothing
+                // nearer owns the press: the palette and any field being
+                // edited cancel themselves first. Otherwise Escape falls
+                // through to the page, which needs it for its own dialogs and
+                // for leaving HTML full screen.
+                if store.isReaderActiveForActiveTab,
+                   !store.isCommandPalettePresented,
+                   !isEditingTextField {
+                    store.hideReaderForActiveTab()
+                    return true
+                }
+                return false
             } onReload: {
                 store.reloadActiveTab()
             } onReloadFromOrigin: {
@@ -427,6 +450,14 @@ struct ContentView: View {
                 toggleSplitView()
             } onSplitLayout: { layout in
                 store.setSplitLayout(layout)
+            } onZoomSplitPane: {
+                store.toggleSplitPaneZoom()
+            } onFocusSplitPane: { offset in
+                store.focusAdjacentSplitPane(offset: offset)
+            } onUnsplitPane: {
+                store.unsplitFocusedPane()
+            } onSplitWithTab: {
+                store.openSplitWithCommandPalette()
             }
         )
         // isCommandPalettePresented deliberately has no .animation(value:)
@@ -644,6 +675,11 @@ struct ContentView: View {
             toggleSplitView: toggleSplitView,
             setSplitLayout: store.setSplitLayout,
             isSplitDisplayed: store.isSplitViewDisplayed,
+            toggleSplitPaneZoom: store.toggleSplitPaneZoom,
+            isSplitPaneZoomed: store.isSplitPaneZoomed,
+            focusSplitPane: store.focusAdjacentSplitPane,
+            unsplitPane: store.unsplitFocusedPane,
+            splitWithTab: store.openSplitWithCommandPalette,
             installedBrowsers: ExternalBrowserService.installedBrowsers(),
             openPageWith: { store.openActivePage(with: $0) },
             canUseDevelopTools: store.canUseDevelopTools,
@@ -728,6 +764,7 @@ struct ContentView: View {
             store: store,
             uiTestingState: $aiSidebarUITestingState,
             messages: $aiSidebarMessages,
+            memoryWindow: $aiSidebarMemoryWindow,
             pendingSubscriptionSubmission: $pendingEliSubscriptionSubmission
         ) {
             toggleAISidebar()

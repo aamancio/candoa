@@ -11,6 +11,9 @@ struct WebViewContainer: View {
     @ObservedObject var store: BrowserStore
     let visibleInterfaceInsets: BrowserInterfaceInsets
     let attachesToTrailingPanel: Bool
+    /// The strip above the page takes over the sidebar's toggle while the
+    /// sidebar is away, so it needs the same action the sidebar header uses.
+    let onToggleSidebar: () -> Void
     /// Extra trailing clip while Eli covers the page beyond the reserved web
     /// layout (widening resize drags, and the close paint-fence hold).
     /// Mask-only: it never reaches the WKWebView's obscured content insets
@@ -182,11 +185,18 @@ struct WebViewContainer: View {
         )
     }
 
+    /// The reserved interface lanes in the surface row's own coordinates,
+    /// which is what WebKit's obscured insets and the row's own bars measure
+    /// against.
+    ///
+    /// Two surfacePaddings cancel here: the row already starts one padding in
+    /// from the window edge, and the visible surface starts one padding
+    /// beyond the lane, so inside the row a lane is exactly as wide as it is
+    /// in the window. Reserving one padding *less* — the old arithmetic —
+    /// anchored every page's fixed bottom-left content under the mask, where
+    /// the surface's rounded corner clipped it.
     private var webContentInsets: BrowserInterfaceInsets {
-        BrowserInterfaceInsets(
-            leading: max(0, visibleInterfaceInsets.leading - surfacePadding),
-            trailing: max(0, visibleInterfaceInsets.trailing - surfacePadding)
-        )
+        visibleInterfaceInsets
     }
 
     /// Which window-edge insets a pane needs depends on where the layout
@@ -210,32 +220,27 @@ struct WebViewContainer: View {
     }
 
     /// The masked interface lanes at the split row's own edges, in row
-    /// coordinates — the same "one surfacePadding beyond the web-content
-    /// insets" math as splitPaneAdornmentInsets, hoisted to the whole row.
-    /// splitPaneFrames divides the visible page between these so the cards
-    /// the mask reveals follow the pane ratios.
+    /// coordinates. splitPaneFrames divides the visible page between these so
+    /// the cards the mask reveals follow the pane ratios.
     private var splitRowLaneInsets: BrowserInterfaceInsets {
-        BrowserInterfaceInsets(
-            leading: webContentInsets.leading > 0 ? webContentInsets.leading + surfacePadding : 0,
-            trailing: webContentInsets.trailing > 0 ? webContentInsets.trailing + surfacePadding : 0
-        )
+        webContentInsets
     }
 
-    /// Insets that wrap a pane's *visible card* for adornments (focus ring,
-    /// control pill, reorder highlight). The interface mask reveals the card
-    /// from the full lane width, measured from the window edge — one
-    /// surfacePadding beyond the web-content insets, which are measured from
-    /// the already-padded row. Adornments padded by the content insets sit
-    /// entirely under the mask on lane-touching sides and vanish.
-    private func splitPaneAdornmentInsets(
-        forPaneAt index: Int,
-        paneCount: Int,
-        layout: SplitViewLayout
-    ) -> BrowserInterfaceInsets {
-        let contentInsets = splitPaneInsets(forPaneAt: index, paneCount: paneCount, layout: layout)
-        return BrowserInterfaceInsets(
-            leading: contentInsets.leading > 0 ? contentInsets.leading + surfacePadding : 0,
-            trailing: contentInsets.trailing > 0 ? contentInsets.trailing + surfacePadding : 0
+    private var usesTopToolbarPlacement: Bool {
+        addressBarPlacement == AddressBarPlacement.top.rawValue
+    }
+
+    /// The sidebar reserves its lane here rather than resizing this view, so
+    /// a leading lane is exactly the state of the sidebar being pinned open.
+    private var isSidebarVisible: Bool {
+        visibleInterfaceInsets.leading > 0
+    }
+
+    private var topToolbarLeadingControls: TopToolbarLeadingControls {
+        TopToolbarLeadingControls(
+            store: store,
+            isSidebarVisible: isSidebarVisible,
+            onToggleSidebar: onToggleSidebar
         )
     }
 
@@ -258,6 +263,7 @@ struct WebViewContainer: View {
                     pageTitle: tab.title,
                     faviconData: tab.faviconData,
                     contentInsets: webContentInsets,
+                    leadingControls: usesTopToolbarPlacement ? topToolbarLeadingControls : nil,
                     onSubmitURL: { store.navigateActiveTab(to: $0) },
                     onToggleChat: { store.requestAISidebarToggle() }
                 )
@@ -265,11 +271,13 @@ struct WebViewContainer: View {
                 // earlier siblings' rows; keep the toolbar above it or the
                 // bar renders dimmed behind that fill.
                 .zIndex(1)
-            } else if addressBarPlacement == AddressBarPlacement.top.rawValue {
+            } else if usesTopToolbarPlacement {
                 TopAddressBar(
                     store: store,
                     url: tab.url,
-                    contentInsets: webContentInsets
+                    contentInsets: webContentInsets,
+                    isSidebarVisible: isSidebarVisible,
+                    onToggleSidebar: onToggleSidebar
                 )
                 .zIndex(1)
             }
@@ -441,30 +449,49 @@ struct WebViewContainer: View {
         GeometryReader { proxy in
             let spacing = surfacePadding
             let layout = store.splitLayout
+            // A zoomed pane takes the row alone. Its partners are not rendered
+            // at a token size — they leave the hierarchy entirely, which is
+            // the state every background tab is already in (the coordinator
+            // owns the web views, not these hosts), so nothing reloads and no
+            // hidden page reflows to a sliver and back. Unzooming re-hosts
+            // them exactly the way switching tabs does.
+            let zoomedIndex = store.zoomedSplitTabID.flatMap { zoomedID in
+                splitTabs.firstIndex { $0.id == zoomedID }
+            }
+            let visibleTabs = zoomedIndex.map { [splitTabs[$0]] } ?? splitTabs
             let ratios = store.splitPaneRatios(forPaneCount: splitTabs.count)
-            let frames = Self.splitPaneFrames(
-                layout: layout,
-                ratios: ratios,
-                in: proxy.size,
-                spacing: spacing,
-                laneInsets: splitRowLaneInsets
-            )
+            let frames = zoomedIndex == nil
+                ? Self.splitPaneFrames(
+                    layout: layout,
+                    ratios: ratios,
+                    in: proxy.size,
+                    spacing: spacing,
+                    laneInsets: splitRowLaneInsets
+                )
+                : [CGRect(origin: .zero, size: proxy.size)]
 
             ZStack(alignment: .topLeading) {
-                ForEach(Array(splitTabs.enumerated()), id: \.element.id) { index, splitTab in
-                    let frame = frames.indices.contains(index) ? frames[index] : .zero
+                ForEach(Array(visibleTabs.enumerated()), id: \.element.id) { slot, splitTab in
+                    let frame = frames.indices.contains(slot) ? frames[slot] : .zero
+                    // The pane's own index in the group, which the zoomed row
+                    // keeps even though it renders in slot 0: hover tracking,
+                    // the pill's identity and the pane's accessibility
+                    // identifier all address panes by it, and none of them
+                    // should shift under the person when a pane zooms.
+                    let paneIndex = zoomedIndex ?? slot
                     // A pane's frame runs under the reserved interface lanes
                     // (sidebar/Eli); only the mask reveals the visible card.
                     // Every pane adornment must wrap the visible card, not
-                    // the raw frame, or its edge hides under the lane.
-                    let paneInsets = splitPaneAdornmentInsets(
-                        forPaneAt: index,
-                        paneCount: splitTabs.count,
+                    // the raw frame, or its edge hides under the lane. A
+                    // zoomed pane spans the row, so it reserves both lanes.
+                    let paneInsets = splitPaneInsets(
+                        forPaneAt: slot,
+                        paneCount: visibleTabs.count,
                         layout: layout
                     )
 
                     browserSurface {
-                        webPane(for: splitTab, at: index, in: splitTabs)
+                        webPane(for: splitTab, at: paneIndex, obscuredContentInsets: paneInsets)
                     }
                     .overlay {
                         // The focused pane carries a restrained accent ring on
@@ -486,11 +513,12 @@ struct WebViewContainer: View {
                     }
                     .overlay(alignment: .top) {
                         SplitPaneControlPill(
-                            isPaneHovered: hoveredSplitPaneIndex == index,
-                            isDraggingThisPane: splitPaneReorder?.sourceIndex == index,
-                            paneIndex: index,
+                            isPaneHovered: hoveredSplitPaneIndex == paneIndex,
+                            isDraggingThisPane: splitPaneReorder?.sourceIndex == paneIndex,
+                            isZoomed: zoomedIndex != nil,
+                            paneIndex: paneIndex,
                             onDragChanged: { location in
-                                splitPaneReorder = SplitPaneReorderState(sourceIndex: index, location: location)
+                                splitPaneReorder = SplitPaneReorderState(sourceIndex: paneIndex, location: location)
                             },
                             onDragEnded: { location in
                                 splitPaneReorder = nil
@@ -500,12 +528,19 @@ struct WebViewContainer: View {
                                 // A pane's edge bands re-stack the layout,
                                 // Zen-style; the middle keeps the slot swap.
                                 if let side = Self.splitPaneDropEdge(at: location, inPaneFrame: frames[targetIndex]) {
-                                    store.moveSplitPane(from: index, toEdge: side, of: targetIndex)
+                                    store.moveSplitPane(from: paneIndex, toEdge: side, of: targetIndex)
                                 } else {
-                                    store.moveSplitPane(from: index, to: targetIndex)
+                                    store.moveSplitPane(from: paneIndex, to: targetIndex)
                                 }
                             },
                             onUnsplit: { store.removeTabFromSplit(splitTab.id, focusRemovedTab: true) },
+                            onToggleZoom: {
+                                if zoomedIndex == nil {
+                                    store.zoomSplitPane(splitTab.id)
+                                } else {
+                                    store.toggleSplitPaneZoom()
+                                }
+                            }
                         )
                         // Below the row dividers' 7pt overhang so the pill
                         // and a divider strip never contend for the pointer.
@@ -518,7 +553,10 @@ struct WebViewContainer: View {
                     .offset(x: frame.minX, y: frame.minY)
                 }
 
-                splitDividers(layout: layout, frames: frames, spacing: spacing, in: proxy.size)
+                // Nothing to resize while one pane holds the row.
+                if zoomedIndex == nil {
+                    splitDividers(layout: layout, frames: frames, spacing: spacing, in: proxy.size)
+                }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             // The reorder adornments must be an overlay, not ZStack siblings:
@@ -527,8 +565,11 @@ struct WebViewContainer: View {
             // pane pill and focus ring rely on the same hosting). Mounted
             // only during a drag so the idle row keeps its hover cursors
             // (divider resize arrows, grip hand) unobstructed.
+            // `frames` describes one pane while zoomed, so a drag that somehow
+            // outlives a zoom (the keyboard toggle fires mid-drag) must not
+            // read it against the full group.
             .overlay {
-                if splitPaneReorder != nil {
+                if splitPaneReorder != nil, zoomedIndex == nil {
                     splitReorderOverlay(splitTabs: splitTabs, frames: frames, layout: layout, spacing: spacing)
                 }
             }
@@ -687,7 +728,7 @@ struct WebViewContainer: View {
         paneCount: Int,
         layout: SplitViewLayout
     ) -> CGRect {
-        let insets = splitPaneAdornmentInsets(forPaneAt: index, paneCount: paneCount, layout: layout)
+        let insets = splitPaneInsets(forPaneAt: index, paneCount: paneCount, layout: layout)
         let frame = frames.indices.contains(index) ? frames[index] : .zero
         return CGRect(
             x: frame.minX + insets.leading,
@@ -706,8 +747,8 @@ struct WebViewContainer: View {
     ) -> CGRect {
         let maxX = frames.map(\.maxX).max() ?? 0
         let maxY = frames.map(\.maxY).max() ?? 0
-        let leading = splitPaneAdornmentInsets(forPaneAt: 0, paneCount: paneCount, layout: layout).leading
-        let trailing = splitPaneAdornmentInsets(
+        let leading = splitPaneInsets(forPaneAt: 0, paneCount: paneCount, layout: layout).leading
+        let trailing = splitPaneInsets(
             forPaneAt: max(paneCount - 1, 0),
             paneCount: paneCount,
             layout: layout

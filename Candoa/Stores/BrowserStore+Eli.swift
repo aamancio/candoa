@@ -28,13 +28,16 @@ extension BrowserStore {
         objectWillChange.send()
     }
 
-    /// Runs the memory extraction pass for the active Space over a finished
-    /// Ask conversation. Fire-and-forget: a failed or malformed extraction
-    /// leaves existing memory untouched.
-    func updateSpaceMemory(fromConversation transcript: [AIConversationTurn]) {
+    /// Runs the memory extraction pass over an Ask conversation. Fire-and-forget:
+    /// a failed or malformed extraction leaves existing memory untouched.
+    ///
+    /// `spaceID` is explicit because the conversation outlives the Space
+    /// selection: switching Spaces mid-conversation must distill what was said
+    /// before the switch into the Space it was said in, not into the new one.
+    func updateSpaceMemory(fromConversation transcript: [AIConversationTurn], in spaceID: UUID? = nil) {
         guard !isPrivate else { return }
         guard transcript.contains(where: { $0.role == .user }) else { return }
-        let spaceID = activeSpaceID
+        let spaceID = spaceID ?? activeSpaceID
         guard transcript.count > (eliMemoryLastExtractedTurnCounts[spaceID] ?? 0) else { return }
 
         let existing = persistenceService.spaceMemoryFacts(in: spaceID)
@@ -61,6 +64,34 @@ extension BrowserStore {
             }
             self?.eliMemoryExtractionTasks[spaceID] = nil
         }
+    }
+
+    /// The mid-conversation pass. Extraction costs a request, so it runs only
+    /// when a user turn the extractor has not seen yet actually reads like a
+    /// durable personal detail — the everyday "summarize this page"
+    /// conversation never triggers it.
+    ///
+    /// This is what keeps memory from depending on a clean exit: a quit takes
+    /// the app down before any extraction request could finish, so anything
+    /// that waited for teardown would simply be lost.
+    func updateSpaceMemoryIfConversationRevealedFacts(
+        _ transcript: [AIConversationTurn],
+        in spaceID: UUID? = nil
+    ) {
+        guard !isPrivate else { return }
+        let spaceID = spaceID ?? activeSpaceID
+        let alreadySeen = eliMemoryLastExtractedTurnCounts[spaceID] ?? 0
+        let fresh = transcript.dropFirst(alreadySeen).filter { $0.role == .user }
+        guard fresh.contains(where: { SpaceMemoryPolicy.suggestsDurableFact(in: $0.text) }) else { return }
+        updateSpaceMemory(fromConversation: transcript, in: spaceID)
+    }
+
+    /// Starts a fresh extraction window for a Space. The turn counts that
+    /// guard re-extraction are indexes into the transcript being sent, so a
+    /// new conversation — or a conversation that just moved to this Space —
+    /// has to reset them or its early turns look already-extracted.
+    func resetSpaceMemoryExtractionWindow(for spaceID: UUID) {
+        eliMemoryLastExtractedTurnCounts[spaceID] = 0
     }
 
     private func persistSpaceMemoryUpdate(
@@ -160,7 +191,7 @@ extension BrowserStore {
               let fixture = ProcessInfo.processInfo.environment["CANDOA_UI_TESTING_FIXTURE"],
               [
                   "ask-agent-navigation", "ask-agent-normalized-navigation", "ask-agent-selection",
-                  "ask-agent-mentioned-tab", "ask-agent-waiting"
+                  "ask-agent-mentioned-tab", "ask-agent-waiting", "ask-agent-form-fill"
               ].contains(fixture) else { return nil }
         let pageURL = URL(string: page.url)
         let path = pageURL?.fragment.map { "/\($0)" } ?? pageURL?.path
@@ -243,6 +274,35 @@ extension BrowserStore {
             )
         }
 
+        // Fills one personal field per turn, the way a real run does, then
+        // submits. The page reports which fields are already filled, so the
+        // fixture stays stateless between turns.
+        if fixture == "ask-agent-form-fill" {
+            let filled = page.text
+                .range(of: #"filled=(\d+)"#, options: .regularExpression)
+                .map { Int(page.text[$0].dropFirst("filled=".count)) ?? 0 } ?? 0
+            let personalFields = page.controls.filter { $0.kind == .field && $0.sensitive }
+            if filled < personalFields.count {
+                return fixtureActionResponse(
+                    runID: runID,
+                    page: page,
+                    control: personalFields[filled],
+                    kind: .fill,
+                    value: Self.uiTestingFormFillValues[filled]
+                )
+            }
+            if let submit = page.controls.first(where: { $0.label == "Submit Application" }),
+               !page.text.contains("submitted") {
+                return fixtureActionResponse(runID: runID, page: page, control: submit, kind: .click)
+            }
+            return .init(
+                runID: runID,
+                status: .complete,
+                message: "Your application is submitted.",
+                action: nil
+            )
+        }
+
         if fixture == "ask-agent-selection" {
             let normalizedGoal = EliPromptPolicy.normalizedText(goal)
             let control = page.controls.first(where: { $0.label == "Add to Cart" })
@@ -288,12 +348,20 @@ extension BrowserStore {
         )
     }
 
+    /// Canned values for the form-fill fixture, in the page's field order.
+    static let uiTestingFormFillValues = [
+        "Alex Fixture",
+        "alex@fixture.test",
+        "5550000000",
+    ]
+
     private func fixtureActionResponse(
         runID: UUID,
         page: BrowserAgentPage,
         control: BrowserAgentControl,
         kind: PageActionKind,
         message: String = "",
+        value: String = "",
         requiresApproval: Bool = false
     ) -> BrowserAgentRunResponse {
         BrowserAgentRunResponse(
@@ -304,7 +372,7 @@ extension BrowserStore {
                 snapshotID: page.snapshotID,
                 kind: kind,
                 target: control.ref,
-                value: "",
+                value: value,
                 label: control.label,
                 url: control.url,
                 requiresApproval: requiresApproval,

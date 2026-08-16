@@ -22,8 +22,15 @@ internal struct PaletteCommand: Identifiable {
     var searchText = ""
     var sourceLabel: String? = nil
     var style: PaletteCommandStyle = .generic
-    var shortcutHint: String?
     let action: PaletteAction
+
+    /// The person's configured key caps for this command, resolved at read
+    /// time so a rebind in Settings ▸ Shortcuts shows on the next palette
+    /// open. Empty when the action has no shortcut or it was removed.
+    var shortcutKeys: [String] {
+        guard let definition = action.shortcutDefinition else { return [] }
+        return ShortcutKeyCaps.current(for: definition)
+    }
 
     var provider: SearchProvider? {
         switch style {
@@ -73,6 +80,9 @@ internal enum PaletteAction {
     case duplicateCurrentTab
     case reloadTab
     case toggleSplitView
+    case toggleSplitPaneZoom
+    case focusSplitPane(Int)
+    case unsplitPane
     case createSpace
     case focusAddressBar
     case copyURL
@@ -82,7 +92,33 @@ internal enum PaletteAction {
     case navigate(String)
     case searchProvider(SearchProvider, String)
     case switchTab(UUID)
+    case splitWithTab(UUID)
+    case splitWithNavigate(String)
     case switchSpace(UUID)
+}
+
+internal extension PaletteAction {
+    /// The rebindable shortcut that fires the same action outside the
+    /// palette, so rows can teach it. Actions that only exist inside the
+    /// palette (tab/space switching, searches, developer mode) have none.
+    var shortcutDefinition: ShortcutDefinition? {
+        switch self {
+        case .newTab: return .newTab
+        case .closeCurrentTab: return .closeCurrentTab
+        case .reloadTab: return .reloadTab
+        case .toggleSplitView: return .toggleSplitView
+        case .toggleSplitPaneZoom: return .zoomSplitPane
+        case .focusSplitPane(let step): return step >= 0 ? .focusNextSplitPane : .focusPreviousSplitPane
+        case .unsplitPane: return .unsplitPane
+        case .focusAddressBar: return .focusAddressBar
+        case .copyURL: return .copyURL
+        case .copyURLAsMarkdown: return .copyURLAsMarkdown
+        case .togglePinTab: return .pinOrUnpinTab
+        case .duplicateCurrentTab, .createSpace, .setDeveloperMode, .navigate, .searchProvider,
+             .switchTab, .splitWithTab, .splitWithNavigate, .switchSpace:
+            return nil
+        }
+    }
 }
 
 internal struct PaletteChip: View {

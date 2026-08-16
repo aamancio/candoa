@@ -29,6 +29,8 @@ struct TabRowView: View {
 
     @State private var isHovering = false
 
+    private let closeButtonWidth: CGFloat = 14
+
     var body: some View {
         HStack(spacing: 8) {
             ZStack {
@@ -62,30 +64,23 @@ struct TabRowView: View {
                 .font(.system(size: 13, weight: isActive ? .medium : .regular))
                 .foregroundStyle(isActive ? InterfaceStyle.sidebarText : InterfaceStyle.sidebarTextSecondary)
 
-            Spacer(minLength: 8)
+            Spacer(minLength: 0)
 
             if isSplit {
                 Image(systemName: "rectangle.split.2x1")
                     .font(.caption)
                     .foregroundStyle(InterfaceStyle.sidebarIcon)
             }
-
-            Button(action: onClose) {
-                Image(systemName: "xmark")
-                    .font(.system(size: 10, weight: .semibold))
-                    .frame(width: 14, height: 14)
-                    .contentShape(Rectangle())
-            }
-            .buttonTreatment(.content)
-            .foregroundStyle(InterfaceStyle.sidebarIcon)
-            .help("Close Tab")
-            .opacity(isHovering ? 1 : 0)
-            .accessibilityHidden(!isHovering)
         }
         .padding(.horizontal, 8)
+        // The close button floats over the trailing edge instead of holding a
+        // slot in the stack, so a resting row's title is inset by the same 8pt
+        // on both sides. Only a hovered row gives up room for the button.
+        .padding(.trailing, isHovering ? closeButtonWidth + 8 : 0)
         .padding(.vertical, 6)
         // Zen's row height: Firefox's 36pt --tab-min-height, which Zen keeps.
         .frame(minHeight: 36)
+        .overlay(alignment: .trailing) { closeButton }
         .contentShape(Rectangle())
         .background(rowBackground)
         .background(TabHoverTracker(isHovering: $isHovering))
@@ -119,6 +114,21 @@ struct TabRowView: View {
         // speaker indicator eases in instead of shoving the title sideways.
         .animation(.easeOut(duration: 0.12), value: isActive)
         .animation(.easeOut(duration: 0.14), value: audioIndicatorIcon)
+    }
+
+    private var closeButton: some View {
+        Button(action: onClose) {
+            Image(systemName: "xmark")
+                .font(.system(size: 10, weight: .semibold))
+                .frame(width: closeButtonWidth, height: closeButtonWidth)
+                .contentShape(Rectangle())
+        }
+        .buttonTreatment(.content)
+        .foregroundStyle(InterfaceStyle.sidebarIcon)
+        .help("Close Tab")
+        .padding(.trailing, 8)
+        .opacity(isHovering ? 1 : 0)
+        .accessibilityHidden(!isHovering)
     }
 
     // Muted shows whenever the page holds media (so the user can find and
