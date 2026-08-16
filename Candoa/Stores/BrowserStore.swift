@@ -290,13 +290,11 @@ final class BrowserStore: ObservableObject {
     @Published var uiTestingVisibleFolderPopoverDescription = "none"
     @Published var uiTestingCommandPaletteQuery = ""
     @Published var uiTestingLastCommandDescription = "none"
-    /// Which sidebar drop delegates have seen the pointer during the current
-    /// drag, in order — drag tests need to know where a drop landed, not only
-    /// what it did.
-    @Published var uiTestingDropTrail: [String] = []
-    /// Which sidebar drop delegate last saw the pointer, for drag tests that
-    /// need to know where a drop landed rather than only what it did.
-    @Published var uiTestingLastDropDelegate = "none"
+    /// A tab drag is over the Space header. Kept by the drag *source*, from
+    /// the pointer's screen position, because the header's platform view is
+    /// unreachable to AppKit's destination search — see
+    /// TabDragSourceAnchorView.
+    @Published var isSpaceHeaderDropTargeted = false
     @Published var uiTestingWebsiteAppearanceDescription = "pending"
     @Published var uiTestingPopupDiagnostics: [String] = []
     @Published var uiTestingWebAuthEvents: [String] = []

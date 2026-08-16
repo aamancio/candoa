@@ -4,55 +4,6 @@ import UniformTypeIdentifiers
 
 // MARK: - Drag reordering
 
-internal struct SpaceLabelDropDelegate: DropDelegate {
-    @Binding var isTargeted: Bool
-    let store: BrowserStore
-
-    func validateDrop(info: DropInfo) -> Bool {
-        store.draggedTabID != nil
-    }
-
-    func dropEntered(info: DropInfo) {
-        store.uiTestingDropTrail.append("header")
-        store.uiTestingLastDropDelegate = "header"
-        updateIndicator()
-    }
-
-    func dropUpdated(info: DropInfo) -> DropProposal? {
-        updateIndicator()
-        return DropProposal(operation: .move)
-    }
-
-    func dropExited(info: DropInfo) {
-        isTargeted = false
-        store.clearSidebarDropIndicator()
-    }
-
-    func performDrop(info: DropInfo) -> Bool {
-        guard let draggedID = store.draggedTabID else { return false }
-        let sourcePlacement = store.sidebarPlacement(for: draggedID)
-        isTargeted = false
-        store.moveTabToPlacement(
-            draggedID,
-            isFavorite: false,
-            isPinned: true,
-            folderID: nil,
-            before: nil,
-            appendToEnd: true
-        )
-        store.finishTabDrop(draggedID, from: sourcePlacement, to: .pinned)
-        return true
-    }
-
-    private func updateIndicator() {
-        isTargeted = true
-        store.updateSidebarDropIndicator(
-            placement: .pinned,
-            targetTabID: nil,
-            edge: .after
-        )
-    }
-}
 internal struct TabReorderDropDelegate: DropDelegate {
     let targetTab: BrowserTab
     let tabs: [BrowserTab]
@@ -68,8 +19,6 @@ internal struct TabReorderDropDelegate: DropDelegate {
     }
 
     func dropEntered(info: DropInfo) {
-        store.uiTestingDropTrail.append("reorder:\(targetTab.title)")
-        store.uiTestingLastDropDelegate = "reorder:\(targetTab.title)"
         updateIndicator(info: info)
     }
 
@@ -143,8 +92,6 @@ internal struct FolderTabDropDelegate: DropDelegate {
     }
 
     func dropEntered(info: DropInfo) {
-        store.uiTestingDropTrail.append("folder")
-        store.uiTestingLastDropDelegate = "folder"
         updateIndicator(info: info)
     }
 
@@ -217,8 +164,6 @@ internal struct RegularTabSectionDropDelegate: DropDelegate {
     }
 
     func dropEntered(info: DropInfo) {
-        store.uiTestingDropTrail.append("regularSection")
-        store.uiTestingLastDropDelegate = "regularSection"
         updateIndicator()
     }
 
@@ -287,8 +232,6 @@ internal struct PinnedTabSectionDropDelegate: DropDelegate {
     }
 
     func dropEntered(info: DropInfo) {
-        store.uiTestingDropTrail.append("pinnedSection")
-        store.uiTestingLastDropDelegate = "pinnedSection"
         updateIndicator()
     }
 
@@ -359,8 +302,6 @@ internal struct FavoriteTabDropDelegate: DropDelegate {
     }
 
     func dropEntered(info: DropInfo) {
-        store.uiTestingDropTrail.append("favorite")
-        store.uiTestingLastDropDelegate = "favorite"
         updateIndicator(info: info)
     }
 
@@ -645,6 +586,33 @@ internal final class TabDragSourceAnchorView: NSView, NSDraggingSource {
         context == .withinApplication ? .generic : []
     }
 
+    /// The Space header is targeted from here, by geometry: AppKit's
+    /// destination search never reaches the header's view (see
+    /// SpaceHeaderDropZones), so the source watches the pointer instead.
+    nonisolated func draggingSession(_ session: NSDraggingSession, movedTo screenPoint: NSPoint) {
+        // NSDraggingSource callbacks arrive on the main thread; the session
+        // is touched here, before hopping, so it never crosses the boundary.
+        let inside = MainActor.assumeIsolated { () -> Bool? in
+            guard let store, let windowNumber = window?.windowNumber else { return nil }
+            let zone = SpaceHeaderDropZones.shared.screenFrame(forWindowNumber: windowNumber)
+            let inside = zone?.contains(screenPoint) ?? false
+            return inside != store.isSpaceHeaderDropTargeted ? inside : nil
+        }
+        guard let inside else { return }
+        // With no AppKit destination under it, a release over the header
+        // would otherwise slide the ghost home before the pin lands.
+        session.animatesToStartingPositionsOnCancelOrFail = !inside
+        MainActor.assumeIsolated {
+            guard let store else { return }
+            store.isSpaceHeaderDropTargeted = inside
+            if inside {
+                store.updateSidebarDropIndicator(placement: .pinned, targetTabID: nil, edge: .after)
+            } else {
+                store.clearSidebarDropIndicator()
+            }
+        }
+    }
+
     nonisolated func draggingSession(
         _ session: NSDraggingSession,
         endedAt screenPoint: NSPoint,
@@ -653,6 +621,23 @@ internal final class TabDragSourceAnchorView: NSView, NSDraggingSource {
         // NSDraggingSource callbacks arrive on the main thread.
         MainActor.assumeIsolated {
             guard let store, let tabID else { return }
+            if store.isSpaceHeaderDropTargeted {
+                store.isSpaceHeaderDropTargeted = false
+                store.clearSidebarDropIndicator()
+                if store.draggedTabID == tabID {
+                    let sourcePlacement = store.sidebarPlacement(for: tabID)
+                    store.moveTabToPlacement(
+                        tabID,
+                        isFavorite: false,
+                        isPinned: true,
+                        folderID: nil,
+                        before: nil,
+                        appendToEnd: true
+                    )
+                    store.finishTabDrop(tabID, from: sourcePlacement, to: .pinned)
+                    return
+                }
+            }
             // Drops land through SwiftUI drop delegates, which can finish
             // after this callback — clear truly abandoned drags only after
             // the same settle delay the polling watcher used.

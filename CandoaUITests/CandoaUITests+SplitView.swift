@@ -158,9 +158,9 @@ extension CandoaUITests {
         openFixtureTab(path: "one", in: app)
 
         // Arc's Space title is a drop target for the pinned area: the row
-        // lights up while a tab is over it and the tab lands pinned on
-        // release. The header rides its own hosting view (it slides with a
-        // Space swipe), so this covers the drop reaching it there.
+        // lights while a tab is over it and the tab lands pinned on release.
+        // The header is targeted from the drag source by pointer geometry
+        // (see SpaceHeaderDropZones), so this covers that path end to end.
         let row = element("tab-row-one", in: app)
         XCTAssertTrue(row.waitForExistence(timeout: 5), currentState(in: app))
         let header = element("sidebar-space-header", in: app)
@@ -173,10 +173,7 @@ extension CandoaUITests {
                 thenDragTo: header.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
             )
 
-        XCTAssertTrue(
-            waitForState(in: app, containing: "pinned=one"),
-            "header=\(header.frame) row=\(row.frame) window=\(app.windows.firstMatch.frame) " + currentState(in: app)
-        )
+        XCTAssertTrue(waitForState(in: app, containing: "pinned=one"), currentState(in: app))
     }
 
     func testDraggingSidebarTabOntoPageEdgeCreatesSplit() throws {

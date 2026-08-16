@@ -54,6 +54,33 @@ final class SpaceSwipeCompanionHover: ObservableObject {
     @Published var isPointerInside = false
 }
 
+/// Where the Space header sits on screen, per window, for the tab drag
+/// source to test the pointer against. AppKit's dragging-destination search
+/// consults the window's registered-destination list, and the header's
+/// companion view — a platform view inside a hosting view inside the
+/// sidebar's hosting view — never makes it into that list however it
+/// registers; a SwiftUI drop target laid over the same band is shadowed the
+/// same way. So the header is targeted by geometry from the source side.
+@MainActor
+final class SpaceHeaderDropZones {
+    static let shared = SpaceHeaderDropZones()
+
+    private var providers: [Int: () -> CGRect?] = [:]
+
+    func register(windowNumber: Int, provider: @escaping () -> CGRect?) {
+        providers[windowNumber] = provider
+    }
+
+    func unregister(windowNumber: Int) {
+        providers[windowNumber] = nil
+    }
+
+    /// The header's frame in screen coordinates for `windowNumber`, if any.
+    func screenFrame(forWindowNumber windowNumber: Int) -> CGRect? {
+        providers[windowNumber]?()
+    }
+}
+
 /// Hosts SwiftUI content that follows the swipe carousel's translation.
 /// The content is laid out like the pages — three Space-wide slots offset by
 /// one width — so it slides in lockstep with them.
@@ -101,8 +128,21 @@ struct SpaceSwipeCompanionView<Content: View>: NSViewRepresentable {
             }
         }
 
+        private var registeredWindowNumber: Int?
+
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
+            if let registeredWindowNumber {
+                SpaceHeaderDropZones.shared.unregister(windowNumber: registeredWindowNumber)
+                self.registeredWindowNumber = nil
+            }
+            if let window {
+                registeredWindowNumber = window.windowNumber
+                SpaceHeaderDropZones.shared.register(windowNumber: window.windowNumber) { [weak self] in
+                    guard let self, let window = self.window, !self.isHiddenOrHasHiddenAncestor else { return nil }
+                    return window.convertToScreen(self.convert(self.bounds, to: nil))
+                }
+            }
             if let pointerMonitor {
                 NSEvent.removeMonitor(pointerMonitor)
                 self.pointerMonitor = nil
@@ -183,11 +223,6 @@ struct SpaceSwipeTrackingView<Content: View>: NSViewRepresentable {
     let onCompletion: (Int) -> Void
     let onScrollEdgesChanged: (SpaceScrollEdges) -> Void
     let translationRelay: SpaceSwipeTranslationRelay?
-    /// Only while a tab drag is live: the header's drop target rides inside
-    /// the scroll document and needs the offset to stay under the fixed
-    /// header. Off otherwise, so scrolling never re-renders the sidebar.
-    let reportsScrollOffset: Bool
-    let onScrollOffsetChanged: (CGFloat) -> Void
     private let content: Content
 
     init(
@@ -201,8 +236,6 @@ struct SpaceSwipeTrackingView<Content: View>: NSViewRepresentable {
         onCompletion: @escaping (Int) -> Void,
         onScrollEdgesChanged: @escaping (SpaceScrollEdges) -> Void = { _ in },
         translationRelay: SpaceSwipeTranslationRelay? = nil,
-        reportsScrollOffset: Bool = false,
-        onScrollOffsetChanged: @escaping (CGFloat) -> Void = { _ in },
         @ViewBuilder content: () -> Content
     ) {
         self.isEnabled = isEnabled
@@ -215,8 +248,6 @@ struct SpaceSwipeTrackingView<Content: View>: NSViewRepresentable {
         self.onCompletion = onCompletion
         self.onScrollEdgesChanged = onScrollEdgesChanged
         self.translationRelay = translationRelay
-        self.reportsScrollOffset = reportsScrollOffset
-        self.onScrollOffsetChanged = onScrollOffsetChanged
         self.content = content()
     }
 
@@ -230,8 +261,6 @@ struct SpaceSwipeTrackingView<Content: View>: NSViewRepresentable {
         view.onCompletion = onCompletion
         view.onScrollEdgesChanged = onScrollEdgesChanged
         view.translationRelay = translationRelay
-        view.onScrollOffsetChanged = onScrollOffsetChanged
-        view.reportsScrollOffset = reportsScrollOffset
         view.updateContentID(contentID)
         view.updateSettleRequest(settleRequest)
         return view
@@ -247,8 +276,6 @@ struct SpaceSwipeTrackingView<Content: View>: NSViewRepresentable {
         nsView.onCompletion = onCompletion
         nsView.onScrollEdgesChanged = onScrollEdgesChanged
         nsView.translationRelay = translationRelay
-        nsView.onScrollOffsetChanged = onScrollOffsetChanged
-        nsView.reportsScrollOffset = reportsScrollOffset
         nsView.updateContentID(contentID)
         nsView.updateSettleRequest(settleRequest)
     }
@@ -264,15 +291,6 @@ final class SpaceSwipeScrollView<Content: View>: NSScrollView {
     var onCompletion: (Int) -> Void = { _ in }
     var onScrollEdgesChanged: (SpaceScrollEdges) -> Void = { _ in }
     var translationRelay: SpaceSwipeTranslationRelay?
-    var onScrollOffsetChanged: (CGFloat) -> Void = { _ in }
-    var reportsScrollOffset = false {
-        didSet {
-            guard reportsScrollOffset, !oldValue else { return }
-            reportedScrollOffset = nil
-            reportScrollOffsetIfChanged()
-        }
-    }
-    private var reportedScrollOffset: CGFloat?
 
     private var reportedScrollEdges = SpaceScrollEdges()
     private nonisolated(unsafe) var scrollEdgesObserver: NSObjectProtocol?
@@ -326,16 +344,7 @@ final class SpaceSwipeScrollView<Content: View>: NSScrollView {
         }
     }
 
-    private func reportScrollOffsetIfChanged() {
-        guard reportsScrollOffset else { return }
-        let offset = contentView.bounds.minY
-        guard offset != reportedScrollOffset else { return }
-        reportedScrollOffset = offset
-        onScrollOffsetChanged(offset)
-    }
-
     private func reportScrollEdgesIfChanged() {
-        reportScrollOffsetIfChanged()
         let visible = contentView.bounds
         let documentHeight = hostingView.frame.height
         let tolerance: CGFloat = 0.5

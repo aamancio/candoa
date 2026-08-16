@@ -109,29 +109,44 @@ struct WebViewContainer: View {
     private var splitDropSurfaceOverlay: some View {
         if store.draggedTabID != nil, store.activeTab != nil, !store.isSpaceSetupPresented {
             GeometryReader { proxy in
+                let laneInsets = BrowserInterfaceInsets(
+                    leading: visibleInterfaceInsets.leading,
+                    trailing: visibleInterfaceInsets.trailing + slideOverTrailingInset
+                )
+                let pageSize = CGSize(
+                    width: max(proxy.size.width - laneInsets.leading - laneInsets.trailing, 1),
+                    height: proxy.size.height
+                )
+
                 ZStack {
+                    // The drop surface covers the visible page only. It used to
+                    // span the container, lanes included, and guard the lanes
+                    // in its zone math — but AppKit hands the drag to whichever
+                    // registered view is topmost under the pointer, and this
+                    // one, created at drag start, sits above the sidebar's own
+                    // targets: a pointer over the Space header (or anything in
+                    // the lane the tab list's own view does not cover) landed
+                    // here and went nowhere. Padded out of the lanes, the
+                    // sidebar's targets see those points again, and the zone
+                    // math runs on the page-sized surface directly.
                     Color.clear
                         .contentShape(Rectangle())
                         .onDrop(
                             of: [UTType.text],
                             delegate: BrowserSurfaceSplitDropDelegate(
                                 store: store,
-                                size: proxy.size,
-                                laneInsets: BrowserInterfaceInsets(
-                                    leading: visibleInterfaceInsets.leading,
-                                    trailing: visibleInterfaceInsets.trailing + slideOverTrailingInset
-                                )
+                                size: pageSize,
+                                laneInsets: BrowserInterfaceInsets(leading: 0, trailing: 0)
                             )
                         )
+                        .padding(.leading, laneInsets.leading)
+                        .padding(.trailing, laneInsets.trailing)
 
                     if let preview = store.splitDropPreview {
                         SplitDropPreviewOverlay(
                             preview: preview,
                             cornerRadius: surfaceCornerRadius,
-                            laneInsets: BrowserInterfaceInsets(
-                                leading: visibleInterfaceInsets.leading,
-                                trailing: visibleInterfaceInsets.trailing + slideOverTrailingInset
-                            )
+                            laneInsets: laneInsets
                         )
                         .padding(containedSurfaceInsets)
                         .transition(.opacity)
