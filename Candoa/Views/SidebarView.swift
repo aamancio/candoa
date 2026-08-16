@@ -65,6 +65,7 @@ struct SidebarView: View {
     @State private var selectedSpaceTransitionID: UUID?
     @State private var selectedSpaceTransitionDirection: Int?
     @State private var favoritesSectionHeight: CGFloat = 0
+    @State private var spaceHeaderSectionHeight: CGFloat = 0
     @StateObject private var windowControlsGeometry = WindowControlsGeometry()
     @AppStorage("Candoa.FavoritesDropZoneDismissed") private var isFavoritesDropZoneDismissed = false
     @AppStorage(DeveloperModeConfiguration.storageKey) private var developerModeOverrides = ""
@@ -163,6 +164,10 @@ struct SidebarView: View {
         // and the strip stays put as persistent navigation chrome.
         // Favorites are global the same way: the shared grid is hoisted out
         // of the swiping pages so it stays put while Spaces slide beneath it.
+        // The Space name, its pinned rows, and New Tab are hoisted for a
+        // different reason: they are not the list, so they should not scroll
+        // with it. Being per-Space, they switch on commit like the address
+        // pill rather than sliding like a page.
         spaceSwipeContent
             // Arc's window controls, navigation, and address bar are fixed
             // furniture, and so is Zen's bottom bar: only the tab list moves.
@@ -180,6 +185,12 @@ struct SidebarView: View {
                         .padding(.trailing, trailingInset)
                         .padding(.top, spaceSwipeTopInset + 1)
                 }
+            }
+            .overlay(alignment: .top) {
+                hoistedSpaceHeaderSection
+                    .padding(.leading, leadingInset)
+                    .padding(.trailing, trailingInset)
+                    .padding(.top, favoritesBandBottom + 1)
             }
             .overlay(alignment: .bottom) {
                 // The banners are app-level, not per-Space: hoisted here they
@@ -257,6 +268,27 @@ struct SidebarView: View {
             } action: { height in
                 favoritesSectionHeight = height
             }
+    }
+
+    /// The Space name, its pinned tabs and folders, and New Tab: everything
+    /// above the ordinary tab list. Hoisted out of the swipe carousel for the
+    /// same reason the header and favorites are — it is the list that scrolls,
+    /// not the furniture standing over it.
+    ///
+    /// Unlike favorites this band is per-Space, so it follows the address
+    /// pill's rule rather than the grid's: a horizontal swipe slides only the
+    /// list beneath it and the band switches on commit. Its height is measured
+    /// live because pinned rows and folders come and go.
+    private var hoistedSpaceHeaderSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            spaceAndPinnedSection(for: store.activeSpaceID)
+            newTabButton
+        }
+        .onGeometryChange(for: CGFloat.self) { proxy in
+            proxy.size.height
+        } action: { height in
+            spaceHeaderSectionHeight = height
+        }
     }
 
     private var setupSidebar: some View {
@@ -371,10 +403,19 @@ struct SidebarView: View {
             (showsAddressPill ? sidebarAddressHeight + sidebarVerticalSpacing : 0)
     }
 
-    /// Per-Space page content starts below the hoisted favorites grid, whose
-    /// height is measured live (tile rows come and go with the shared set).
-    private var spaceContentTopInset: CGFloat {
+    /// Where the hoisted favorites grid ends, and so where the Space header
+    /// band begins. Zero-height when the grid is absent, which is the private
+    /// window and a workspace whose favorites and drag-here hint are both gone.
+    private var favoritesBandBottom: CGFloat {
         spaceSwipeTopInset + (favoritesSectionHeight > 0 ? favoritesSectionHeight + 10 : 0)
+    }
+
+    /// The scrolling tab list starts below both hoisted bands. Each height is
+    /// measured live: favorite tiles come and go with the shared set, and the
+    /// header band grows with the active Space's pinned rows and folders.
+    /// The trailing 4pt is New Tab's old gap to the first tab row.
+    private var spaceContentTopInset: CGFloat {
+        favoritesBandBottom + (spaceHeaderSectionHeight > 0 ? spaceHeaderSectionHeight + 4 : 0)
     }
 
     private var spaceSwipeBottomInset: CGFloat {
@@ -603,16 +644,14 @@ struct SidebarView: View {
     }
 
     private func spaceScrollContent(for spaceID: UUID) -> some View {
-        // The favorites grid is not part of this page: it is global and
-        // hoisted above the swipe carousel in browsingSidebar.
-        VStack(alignment: .leading, spacing: 10) {
-            spaceAndPinnedSection(for: spaceID)
-
-            // Zen's row rhythm: 4pt between rows (2px block margin per side).
-            VStack(alignment: .leading, spacing: 4) {
-                newTabButton
-                tabsSection(for: spaceID)
-            }
+        // Only the tab list rides this page. The favorites grid, the Space
+        // name, its pinned rows and folders, and New Tab are all hoisted above
+        // the swipe carousel in browsingSidebar, so a page is now exactly the
+        // part that is meant to move.
+        //
+        // Zen's row rhythm: 4pt between rows (2px block margin per side).
+        VStack(alignment: .leading, spacing: 4) {
+            tabsSection(for: spaceID)
         }
         .padding(.top, 1)
         .id(spaceID)
@@ -958,6 +997,26 @@ struct SidebarView: View {
         }
     }
 
+    /// Zen's rule between the pinned block and the tab list, copied from
+    /// `.pinned-tabs-container-separator` in `zen-tabs/vertical-tabs.css`.
+    ///
+    /// It is a 22pt row, not a bare hairline: the rule sits centred in it and
+    /// the row is the entire gap on both sides, which is why the caller
+    /// cancels the stack spacing above it. The rule is 1pt at a flat 10%
+    /// black or white (`light-dark(rgba(0,0,0,.1), rgba(255,255,255,.1))`),
+    /// inset 9pt at each end — Zen's 5pt macOS row padding plus the 4pt margin
+    /// on the separator itself.
+    ///
+    /// Zen collapses the whole row to zero when nothing is pinned
+    /// (`[hide-separator]`), which is what the caller's condition does here.
+    private var pinnedSeparatorRow: some View {
+        Rectangle()
+            .fill(InterfaceStyle.zenHairline)
+            .frame(height: 1)
+            .padding(.horizontal, 9)
+            .frame(height: 22)
+    }
+
     @ViewBuilder
     private func pinnedAndFoldersSection(for spaceID: UUID) -> some View {
         let splitTabIDs = spaceID == store.activeSpaceID ? store.activeSplitGroupTabIDs : []
@@ -995,10 +1054,11 @@ struct SidebarView: View {
                 }
 
                 if showsPinnedAreaDivider {
-                    Rectangle()
-                        .fill(InterfaceStyle.sidebarSeparator)
-                        .frame(height: 1)
-                        .padding(.horizontal, 8)
+                    // Zen draws this as its own row rather than as a hairline
+                    // squeezed between two gaps, so the rule owns the space
+                    // around it. See pinnedSeparatorRow.
+                    pinnedSeparatorRow
+                        .padding(.top, -pinnedSectionSpacing)
                 }
             }
             .contentShape(Rectangle())
