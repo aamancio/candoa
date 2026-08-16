@@ -330,6 +330,66 @@ extension CandoaUITests {
         XCTAssertTrue(waitForState(in: app, containing: "splitLayout=horizontal"), currentState(in: app))
     }
 
+    /// Zoom is a way of looking at a split, not a change to it: the group's
+    /// membership, order and ratios have to be exactly where they were when
+    /// the panes come back, which is the whole reason this exists instead of
+    /// unsplitting and rebuilding.
+    func testSplitPaneZoomFillsSurfaceAndRestoresSplit() throws {
+        let app = launchApp(fixture: "split-view")
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
+
+        openFixtureTab(path: "two", in: app)
+        openSplitPane(with: "one", in: app)
+        XCTAssertTrue(waitForState(in: app, containing: "splitDisplayed=true"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "splitTabs=two|one"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "splitActive=one"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "splitZoom=none"), currentState(in: app))
+
+        let splitWidth = element("split-pane-1", in: app).frame.width
+        XCTAssertGreaterThan(splitWidth, 0, currentState(in: app))
+
+        // The focused pane takes the surface, and its partner leaves the
+        // hierarchy — the pane the zoom hid must be gone, not merely narrow.
+        app.typeKey("\\", modifierFlags: [.shift, .command])
+        XCTAssertTrue(waitForState(in: app, containing: "splitZoom=one"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "splitTabs=two|one"), currentState(in: app))
+        XCTAssertFalse(element("split-pane-0", in: app).exists, currentState(in: app))
+        XCTAssertTrue(element("split-pane-1", in: app).waitForExistence(timeout: 5), currentState(in: app))
+
+        // "Zoomed" has to mean the pane actually took the surface, not just
+        // that a flag flipped: side by side it held about half the row, so
+        // the zoomed pane has to be substantially wider than that.
+        let zoomedWidth = element("split-pane-1", in: app).frame.width
+        XCTAssertGreaterThan(zoomedWidth, splitWidth * 1.5, currentState(in: app))
+
+        // While zoomed the pill stops hiding itself and drops to the one
+        // control that means anything: the way back.
+        XCTAssertTrue(element("split-pane-zoom-1", in: app).waitForExistence(timeout: 5), currentState(in: app))
+        XCTAssertFalse(element("split-pane-grip-1", in: app).exists, currentState(in: app))
+        XCTAssertFalse(element("split-pane-unsplit-1", in: app).exists, currentState(in: app))
+
+        // Same key back out, and both panes return in their original order.
+        app.typeKey("\\", modifierFlags: [.shift, .command])
+        XCTAssertTrue(waitForState(in: app, containing: "splitZoom=none"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "splitTabs=two|one"), currentState(in: app))
+        XCTAssertTrue(element("split-pane-0", in: app).waitForExistence(timeout: 5), currentState(in: app))
+        XCTAssertTrue(element("split-pane-1", in: app).waitForExistence(timeout: 5), currentState(in: app))
+        XCTAssertEqual(element("split-pane-1", in: app).frame.width, splitWidth, accuracy: 1, currentState(in: app))
+
+        // The pill's own button zooms the pane it belongs to, focus included.
+        let leadingZoom = element("split-pane-zoom-0", in: app)
+        XCTAssertTrue(leadingZoom.waitForExistence(timeout: 5), currentState(in: app))
+        leadingZoom.click()
+        XCTAssertTrue(waitForState(in: app, containing: "splitZoom=two"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "splitActive=two"), currentState(in: app))
+
+        // Closing the split takes the zoom with it: reopening one must not
+        // come back to a surface with a pane already hidden.
+        app.typeKey("\\", modifierFlags: [.command])
+        XCTAssertTrue(waitForState(in: app, containing: "split=false"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "splitZoom=none"), currentState(in: app))
+    }
+
     func testSplitPaneUnsplitButtonReturnsTabToSidebar() throws {
         let app = launchApp(fixture: "split-view")
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))

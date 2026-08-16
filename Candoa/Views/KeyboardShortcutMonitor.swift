@@ -38,6 +38,7 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
     let onPreviousSpace: () -> Void
     let onToggleSplit: () -> Void
     let onSplitLayout: (SplitViewLayout) -> Void
+    let onZoomSplitPane: () -> Void
 
     func makeCoordinator() -> Coordinator {
         let coordinator = Coordinator()
@@ -93,6 +94,7 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
         coordinator.onPreviousSpace = onPreviousSpace
         coordinator.onToggleSplit = onToggleSplit
         coordinator.onSplitLayout = onSplitLayout
+        coordinator.onZoomSplitPane = onZoomSplitPane
     }
 
     @MainActor
@@ -132,6 +134,7 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
         var onPreviousSpace: () -> Void = {}
         var onToggleSplit: () -> Void = {}
         var onSplitLayout: (SplitViewLayout) -> Void = { _ in }
+        var onZoomSplitPane: () -> Void = {}
         /// Written only from MainActor-isolated methods; `nonisolated(unsafe)`
         /// so the nonisolated deinit can tear the monitor down.
         private nonisolated(unsafe) var monitor: Any?
@@ -320,6 +323,11 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
 
             if Self.matchesConfiguredShortcut(.splitLayoutVertical, event) {
                 onSplitLayout(.vertical)
+                return nil
+            }
+
+            if Self.matchesConfiguredShortcut(.zoomSplitPane, event) {
+                onZoomSplitPane()
                 return nil
             }
 

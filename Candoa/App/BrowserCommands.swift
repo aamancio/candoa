@@ -296,6 +296,19 @@ internal struct BrowserCommands: Commands {
                     }
                     .keyboardShortcut(ShortcutDefinition.splitLayoutVertical.currentKeyboardShortcut)
                     .disabled(actions?.isSplitDisplayed != true)
+
+                    // One item for both directions, like the split toggle
+                    // above: the same key gets you in and back out, and the
+                    // title says which way it is about to go.
+                    Button(
+                        actions?.isSplitPaneZoomed == true
+                            ? BrowserCommandTitles.showAllSplitPanes
+                            : BrowserCommandTitles.zoomSplitPane
+                    ) {
+                        actions?.toggleSplitPaneZoom()
+                    }
+                    .keyboardShortcut(ShortcutDefinition.zoomSplitPane.currentKeyboardShortcut)
+                    .disabled(actions?.isSplitDisplayed != true)
                 }
 
                 // AppKit appends its Enter Full Screen item after this group;
