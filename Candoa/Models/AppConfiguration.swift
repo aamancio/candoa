@@ -115,6 +115,18 @@ enum BrowserCommandTitles {
         localized: "Show All Panes",
         comment: "Split View: brings the other panes back after zooming one."
     )
+    static let focusNextSplitPane = String(
+        localized: "Focus Next Pane",
+        comment: "Split View: moves keyboard focus to the next pane in the split."
+    )
+    static let focusPreviousSplitPane = String(
+        localized: "Focus Previous Pane",
+        comment: "Split View: moves keyboard focus to the previous pane in the split."
+    )
+    static let unsplitPane = String(
+        localized: "Unsplit Pane",
+        comment: "Split View: takes the focused pane out of the split; the tab returns to the tab list and keeps the page."
+    )
 }
 
 enum BrowserDefaults {

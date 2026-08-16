@@ -74,6 +74,8 @@ internal enum PaletteAction {
     case reloadTab
     case toggleSplitView
     case toggleSplitPaneZoom
+    case focusSplitPane(Int)
+    case unsplitPane
     case createSpace
     case focusAddressBar
     case copyURL

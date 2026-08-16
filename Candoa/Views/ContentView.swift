@@ -452,6 +452,10 @@ struct ContentView: View {
                 store.setSplitLayout(layout)
             } onZoomSplitPane: {
                 store.toggleSplitPaneZoom()
+            } onFocusSplitPane: { offset in
+                store.focusAdjacentSplitPane(offset: offset)
+            } onUnsplitPane: {
+                store.unsplitFocusedPane()
             }
         )
         // isCommandPalettePresented deliberately has no .animation(value:)
@@ -671,6 +675,8 @@ struct ContentView: View {
             isSplitDisplayed: store.isSplitViewDisplayed,
             toggleSplitPaneZoom: store.toggleSplitPaneZoom,
             isSplitPaneZoomed: store.isSplitPaneZoomed,
+            focusSplitPane: store.focusAdjacentSplitPane,
+            unsplitPane: store.unsplitFocusedPane,
             installedBrowsers: ExternalBrowserService.installedBrowsers(),
             openPageWith: { store.openActivePage(with: $0) },
             canUseDevelopTools: store.canUseDevelopTools,

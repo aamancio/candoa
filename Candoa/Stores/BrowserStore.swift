@@ -174,13 +174,13 @@ final class BrowserStore: ObservableObject {
     /// How the split group's panes are arranged (columns, rows, or a grid).
     @Published var splitLayout: SplitViewLayout = .horizontal
     @Published var isSplitViewEnabled = false
-    /// The pane filling the surface alone while the split stays intact behind
-    /// it. Deliberately not part of `BrowserWindowState`: zoom is a way of
-    /// looking at a split, not a property of it, so it never persists and
-    /// never syncs — a relaunch comes back to every pane on screen. Read
-    /// through `zoomedSplitTabID` rather than directly; the stored value can
-    /// outlive the group it names.
-    @Published var storedZoomedSplitTabID: UUID?
+    /// The focused pane fills the surface alone while the split stays intact
+    /// behind it. Deliberately not part of `BrowserWindowState`: zoom is a
+    /// way of looking at a split, not a property of it, so it never persists
+    /// and never syncs — a relaunch comes back to every pane on screen. Read
+    /// through `zoomedSplitTabID` / `isSplitPaneZoomed`, which validate it
+    /// against the displayed group.
+    @Published var isSplitPaneZoomRequested = false
     /// Domains with service-worker registrations in the active window's data
     /// store, for Develop ▸ Service Workers; refreshed as the menu bar opens.
     /// Split groups stashed per Space while another Space is frontmost, so
