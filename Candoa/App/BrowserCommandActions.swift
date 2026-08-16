@@ -70,6 +70,7 @@ struct BrowserCommandActions {
     var isSplitPaneZoomed: Bool
     var focusSplitPane: (Int) -> Void
     var unsplitPane: () -> Void
+    var splitWithTab: () -> Void
     var installedBrowsers: [ExternalBrowserService.Browser]
     var openPageWith: (ExternalBrowserService.Browser) -> Void
     var canUseDevelopTools: Bool

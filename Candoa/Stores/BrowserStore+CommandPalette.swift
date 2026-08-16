@@ -38,6 +38,40 @@ extension BrowserStore {
         addressFocusRequestID = UUID()
     }
 
+    /// Split With…: the keyboard route to what dragging a sidebar tab onto
+    /// the page does. The palette lists the Space's other tabs; picking one
+    /// adds it beside the focused pane, and a typed address opens in a new
+    /// pane instead. Nothing to split from (no active tab) means nothing to
+    /// offer, so the palette stays closed.
+    func openSplitWithCommandPalette() {
+        guard !isInitialOnboardingBlockingBrowsing, activeTabID != nil else { return }
+
+        commandPaletteInitialText = ""
+        commandPaletteResumeQuery = ""
+        commandPaletteSessionID = UUID()
+        commandPalettePrefersCurrentTabNavigation = false
+        commandPaletteWasOpenedFromSidebarAddress = false
+        commandPaletteOpensNewTab = false
+        commandPaletteSplitsWithSelection = true
+        presentCommandPalette()
+        addressFocusRequestID = UUID()
+    }
+
+    /// Splits with a typed address: a fresh pane beside the focused one,
+    /// loading the entry — the same two steps ⌘\ then typing would take.
+    func splitActivePane(navigatingTo input: String) {
+        guard let previousActiveID = activeTabID else { return }
+        openSplitView(with: nil)
+        guard
+            isSplitViewDisplayed,
+            let blankID = splitGroupTabIDs().last,
+            blankID != previousActiveID
+        else { return }
+        applySplitGroup(splitGroupTabIDs(), activeID: blankID)
+        updateNavigationState()
+        navigateActiveTab(to: input)
+    }
+
     func requestAISidebarToggle() {
         aiSidebarToggleRequestID = UUID()
     }
@@ -152,6 +186,7 @@ extension BrowserStore {
         commandPalettePrefersCurrentTabNavigation = false
         commandPaletteWasOpenedFromSidebarAddress = false
         commandPaletteOpensNewTab = false
+        commandPaletteSplitsWithSelection = false
 
         // The palette's TextField unmounts while the window's field editor is
         // still bound to it. Without an explicit hand-back the orphaned field

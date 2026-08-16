@@ -570,6 +570,7 @@ enum ShortcutDefinition: String, CaseIterable, Identifiable {
     case focusNextSplitPane
     case focusPreviousSplitPane
     case unsplitPane
+    case splitWithTab
     case findInPage
     case findNext
     case findPrevious
@@ -612,6 +613,7 @@ enum ShortcutDefinition: String, CaseIterable, Identifiable {
         case .focusNextSplitPane: return BrowserCommandTitles.focusNextSplitPane
         case .focusPreviousSplitPane: return BrowserCommandTitles.focusPreviousSplitPane
         case .unsplitPane: return BrowserCommandTitles.unsplitPane
+        case .splitWithTab: return BrowserCommandTitles.splitWithTab
         case .findInPage: return BrowserCommandTitles.findInPage
         case .findNext: return BrowserCommandTitles.findNext
         case .findPrevious: return BrowserCommandTitles.findPrevious
@@ -631,7 +633,7 @@ enum ShortcutDefinition: String, CaseIterable, Identifiable {
         case .toggleAISidebar:
             return String(localized: "AI")
         case .toggleSplitView, .splitLayoutHorizontal, .splitLayoutVertical, .zoomSplitPane,
-             .focusNextSplitPane, .focusPreviousSplitPane, .unsplitPane:
+             .focusNextSplitPane, .focusPreviousSplitPane, .unsplitPane, .splitWithTab:
             return String(localized: "Split View")
         case .goBack, .goForward, .nextRecentTab, .previousRecentTab, .nextTab, .previousTab, .nextSpace, .previousSpace:
             return String(localized: "Navigation")
@@ -678,6 +680,9 @@ enum ShortcutDefinition: String, CaseIterable, Identifiable {
         case .focusNextSplitPane: return "Control-Command-]"
         case .focusPreviousSplitPane: return "Control-Command-["
         case .unsplitPane: return "Control-Command-\\"
+        // The last free modifier on the split key: ⌘\ opens, ⇧⌘\ zooms,
+        // ⌃⌘\ unsplits, ⌥⌘\ picks what to split with.
+        case .splitWithTab: return "Option-Command-\\"
         case .findInPage: return "Command-F"
         case .findNext: return "Command-G"
         case .findPrevious: return "Shift-Command-G"
@@ -714,6 +719,7 @@ enum ShortcutDefinition: String, CaseIterable, Identifiable {
         case .focusNextSplitPane: return "rectangle.righthalf.inset.filled.arrow.right"
         case .focusPreviousSplitPane: return "rectangle.lefthalf.inset.filled.arrow.left"
         case .unsplitPane: return "rectangle.portrait.and.arrow.right"
+        case .splitWithTab: return "rectangle.split.2x1.fill"
         case .copyURL, .copyURLAsMarkdown: return "link"
         case .findInPage, .findNext, .findPrevious: return "magnifyingglass"
         case .reloadTab: return "arrow.clockwise"

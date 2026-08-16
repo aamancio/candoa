@@ -123,6 +123,10 @@ enum BrowserCommandTitles {
         localized: "Focus Previous Pane",
         comment: "Split View: moves keyboard focus to the previous pane in the split."
     )
+    static let splitWithTab = String(
+        localized: "Split With…",
+        comment: "Split View: opens the command bar to pick a tab (or type an address) to place beside the current pane."
+    )
     static let unsplitPane = String(
         localized: "Unsplit Pane",
         comment: "Split View: takes the focused pane out of the split; the tab returns to the tab list and keeps the page."

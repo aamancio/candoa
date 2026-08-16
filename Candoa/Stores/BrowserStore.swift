@@ -194,6 +194,10 @@ final class BrowserStore: ObservableObject {
     @Published var commandPalettePrefersCurrentTabNavigation = false
     @Published var commandPaletteWasOpenedFromSidebarAddress = false
     @Published var commandPaletteOpensNewTab = false
+    /// The palette is choosing what to split the current pane with: rows are
+    /// the Space's other tabs (a pick joins the split) and a typed address
+    /// opens in a fresh pane. Keyboard route to what a sidebar drag does.
+    @Published var commandPaletteSplitsWithSelection = false
     @Published var isCreateSpacePresented = false
     @Published var isDownloadsPopoverPresented = false
     @Published var isSiteInfoPopoverPresented = false
