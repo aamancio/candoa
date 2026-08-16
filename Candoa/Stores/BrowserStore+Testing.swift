@@ -142,6 +142,8 @@ extension BrowserStore {
                     case "next": self.switchToNextRecentTab(keepsPreviewOpen: true)
                     case "previous": self.switchToPreviousRecentTab(keepsPreviewOpen: true)
                     case "release": self.finishTabSwitcherInteraction()
+                    case "close": self.closeHighlightedTabInTabSwitcher()
+                    case "cancel": self.cancelTabSwitcherInteraction()
                     default: break
                     }
                 }

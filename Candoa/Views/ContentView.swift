@@ -424,6 +424,10 @@ struct ContentView: View {
                 store.switchToPreviousRecentTab(keepsPreviewOpen: true)
             } onControlReleased: {
                 store.finishTabSwitcherInteraction()
+            } onTabSwitcherDelete: {
+                store.closeHighlightedTabInTabSwitcher()
+            } onTabSwitcherEscape: {
+                store.cancelTabSwitcherInteraction()
             } onCommandDigit: { digit in
                 store.switchToTab(at: digit)
             } onControlDigit: { digit in

@@ -345,6 +345,59 @@ extension CandoaUITests {
         XCTAssertTrue(waitForState(in: app, containing: "switcher=false"), currentState(in: app))
     }
 
+    func testControlTabHoldDeleteClosesHighlightedCardAndEscapeCancels() throws {
+        let app = launchApp(fixture: "split-view")
+
+        openFixtureTab(path: "one", in: app)
+        openFixtureTab(path: "two", in: app)
+        openFixtureTab(path: "three", in: app)
+
+        // Strip order is recency: three (active), two, one. Highlight "two"
+        // and press Delete while Control is held: the card goes, the
+        // highlight moves on to "one", and the page stays on "three".
+        postTabSwitcherAction("next")
+        XCTAssertTrue(waitForState(in: app, containing: "switcher=true:two"), currentState(in: app))
+
+        postTabSwitcherAction("close")
+        XCTAssertTrue(waitForState(in: app, containing: "switcher=true:one"), currentState(in: app))
+        var openTitles = openTabTitles(in: app)
+        XCTAssertFalse(openTitles.contains("two"), currentState(in: app))
+        XCTAssertTrue(openTitles.contains("one") && openTitles.contains("three"), currentState(in: app))
+        XCTAssertTrue(currentState(in: app).contains("active=three"), currentState(in: app))
+
+        // Closing the last-in-row card steps the highlight backwards.
+        postTabSwitcherAction("close")
+        XCTAssertTrue(waitForState(in: app, containing: "switcher=true:three"), currentState(in: app))
+        openTitles = openTabTitles(in: app)
+        XCTAssertFalse(openTitles.contains("one"), currentState(in: app))
+        XCTAssertTrue(openTitles.contains("three"), currentState(in: app))
+
+        // A lone card cannot be closed from the strip; release keeps it.
+        postTabSwitcherAction("close")
+        postTabSwitcherAction("release")
+        XCTAssertTrue(waitForState(in: app, containing: "switcher=false"), currentState(in: app))
+        XCTAssertTrue(openTabTitles(in: app).contains("three"), currentState(in: app))
+        XCTAssertTrue(currentState(in: app).contains("active=three"), currentState(in: app))
+
+        // Escape mid-cycle abandons the strip without switching.
+        openFixtureTab(path: "four", in: app)
+        postTabSwitcherAction("next")
+        XCTAssertTrue(waitForState(in: app, containing: "switcher=true:three"), currentState(in: app))
+        postTabSwitcherAction("cancel")
+        XCTAssertTrue(waitForState(in: app, containing: "switcher=false"), currentState(in: app))
+        postTabSwitcherAction("release")
+        XCTAssertTrue(currentState(in: app).contains("active=four"), currentState(in: app))
+        XCTAssertTrue(openTabTitles(in: app).contains("three"), currentState(in: app))
+    }
+
+    /// The `tabs=` segment of the state string, split into titles.
+    private func openTabTitles(in app: XCUIApplication) -> [String] {
+        currentState(in: app)
+            .split(separator: ";")
+            .first { $0.hasPrefix("tabs=") }
+            .map { $0.dropFirst("tabs=".count).split(separator: "|").map(String.init) } ?? []
+    }
+
     func testControlTabWarmsUpPreviewsForTabsNeverDisplayedThisRun() throws {
         // The "Dormant" tabs were visited in a previous session but have no
         // web view this run, no wake snapshot, and (UI runs disable the disk
