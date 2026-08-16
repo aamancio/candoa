@@ -1207,6 +1207,8 @@ struct SidebarView: View {
                 store: store,
                 space: space,
                 isDropTargeted: isSpaceDropTargeted,
+                hasCollapsibleContent: !store.pinnedTabs(in: spaceID).isEmpty
+                    || !store.rootFolders(in: spaceID).isEmpty,
                 hover: spaceHeaderHover
             )
             .onDrop(
