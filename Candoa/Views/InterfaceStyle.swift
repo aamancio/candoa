@@ -52,6 +52,19 @@ enum InterfaceStyle {
     static let decorativeSymbol = Color(nsColor: .secondaryLabelColor)
     static var sidebarBorder: Color { separatorTone.opacity(increasesContrast ? 1 : 0.90) }
     static var sidebarSeparator: Color { separatorTone.opacity(increasesContrast ? 1 : 0.75) }
+    /// Zen's sidebar rule: a flat 10% black on light, 10% white on dark, not a
+    /// system separator. From `light-dark(rgba(0, 0, 0, 0.1),
+    /// rgba(255, 255, 255, 0.1))` on `.pinned-tabs-container-separator`.
+    /// Raised to full strength under Increase Contrast like its neighbours.
+    static var zenHairline: Color {
+        increasesContrast ? separatorTone : Color.primary.opacity(0.1)
+    }
+    /// Zen's scrolled-edge rule on the tab list, a shade lighter than the
+    /// pinned hairline: `--zen-scrollbar-overflow-background:
+    /// light-dark(rgba(0, 0, 0, 0.08), rgba(255, 255, 255, 0.08))`.
+    static var zenScrollEdgeRule: Color {
+        increasesContrast ? separatorTone : Color.primary.opacity(0.08)
+    }
     static var sidebarControlFill: Color { subtleTone.opacity(increasesContrast ? 1 : 0.72) }
     static var sidebarControlFillHover: Color { subtleTone.opacity(increasesContrast ? 1 : 0.96) }
     static var sidebarControlFillDropTarget: Color { tertiaryTone.opacity(increasesContrast ? 1 : 0.72) }

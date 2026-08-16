@@ -511,32 +511,40 @@ internal struct FolderSectionView: View {
 
 // MARK: - Pinned separator
 
-/// Zen's rule between the pinned area and the tab list, with its hover-only
-/// Clear: the rule yields room for the word, and the word closes every
-/// unpinned tab in the Space. Hidden when there is nothing to clear, so the
-/// affordance never appears as a no-op.
+/// Zen's `.pinned-tabs-container-separator`: a 22px row holding a hairline
+/// and the Close-all-unpinned button. Measurements from vertical-tabs.css —
+/// `padding: 0 5px` on macOS plus `margin: auto 4px` on the rule (9pt inset),
+/// `light-dark(rgba(0,0,0,.1), rgba(255,255,255,.1))` for the line, and a
+/// 10px/500 label that sits at half opacity while the sidebar is hovered
+/// (`zen-has-implicit-hover`) and full when the pointer reaches it.
 internal struct PinnedSeparatorRow: View {
     let showsClear: Bool
     let onClear: () -> Void
 
-    @State private var isHovering = false
+    @State private var isHoveringRow = false
+    @State private var isHoveringClear = false
 
-    private var revealsClear: Bool { showsClear && isHovering }
+    private var revealsClear: Bool { showsClear && isHoveringRow }
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 4) {
             Rectangle()
-                .fill(InterfaceStyle.sidebarSeparator)
+                .fill(InterfaceStyle.zenHairline)
                 .frame(height: 1)
+                .padding(.horizontal, 4)
 
             if revealsClear {
                 Button(action: onClear) {
                     Text("Clear")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(InterfaceStyle.sidebarTextSecondary)
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(InterfaceStyle.sidebarText)
+                        .padding(.horizontal, 4)
+                        .frame(height: 20)
                         .contentShape(Rectangle())
                 }
                 .buttonTreatment(.content)
+                .opacity(isHoveringClear ? 1 : 0.5)
+                .onHover { isHoveringClear = $0 }
                 .shortcutTooltip(
                     BrowserCommandTitles.clearUnpinnedTabs,
                     shortcut: .clearUnpinnedTabs
@@ -545,12 +553,11 @@ internal struct PinnedSeparatorRow: View {
                 .transition(.opacity)
             }
         }
-        .padding(.horizontal, 8)
-        // The rule owns a row of its own rather than being a hairline pinched
-        // between two gaps — the Clear needs the height to be clickable.
+        .padding(.horizontal, 5)
         .frame(height: 22)
         .contentShape(Rectangle())
-        .onHover { isHovering = $0 }
-        .animation(.easeOut(duration: 0.12), value: revealsClear)
+        .onHover { isHoveringRow = $0 }
+        .animation(.easeOut(duration: 0.15), value: revealsClear)
+        .animation(.easeOut(duration: 0.15), value: isHoveringClear)
     }
 }

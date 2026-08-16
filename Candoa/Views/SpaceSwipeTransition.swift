@@ -6,6 +6,18 @@ struct SpaceSwipeSettleRequest: Equatable, Sendable {
     let destination: Int
 }
 
+/// Where the sidebar's vertical scroll sits, for Zen's edge rules: the list
+/// draws a hairline along whichever edge content has scrolled past
+/// (`[overflowing]:not([scrolledtostart])::before` and its `::after` twin).
+struct SpaceScrollEdges: Equatable, Sendable {
+    var isOverflowing = false
+    var isScrolledToStart = true
+    var isScrolledToEnd = true
+
+    var showsTopRule: Bool { isOverflowing && !isScrolledToStart }
+    var showsBottomRule: Bool { isOverflowing && !isScrolledToEnd }
+}
+
 /// The sidebar spans the title-bar strip, where AppKit turns any click whose
 /// hit view permits window-moving into a window drag. The sidebar's own
 /// controls live in that strip, so its hosting view must claim those clicks.
@@ -23,6 +35,7 @@ struct SpaceSwipeTrackingView<Content: View>: NSViewRepresentable {
     let onSwipeProgress: (CGFloat) -> Void
     let onSettleBegan: (Int) -> Void
     let onCompletion: (Int) -> Void
+    let onScrollEdgesChanged: (SpaceScrollEdges) -> Void
     private let content: Content
 
     init(
@@ -34,6 +47,7 @@ struct SpaceSwipeTrackingView<Content: View>: NSViewRepresentable {
         onSwipeProgress: @escaping (CGFloat) -> Void = { _ in },
         onSettleBegan: @escaping (Int) -> Void = { _ in },
         onCompletion: @escaping (Int) -> Void,
+        onScrollEdgesChanged: @escaping (SpaceScrollEdges) -> Void = { _ in },
         @ViewBuilder content: () -> Content
     ) {
         self.isEnabled = isEnabled
@@ -44,6 +58,7 @@ struct SpaceSwipeTrackingView<Content: View>: NSViewRepresentable {
         self.onSwipeProgress = onSwipeProgress
         self.onSettleBegan = onSettleBegan
         self.onCompletion = onCompletion
+        self.onScrollEdgesChanged = onScrollEdgesChanged
         self.content = content()
     }
 
@@ -55,6 +70,7 @@ struct SpaceSwipeTrackingView<Content: View>: NSViewRepresentable {
         view.onSwipeProgress = onSwipeProgress
         view.onSettleBegan = onSettleBegan
         view.onCompletion = onCompletion
+        view.onScrollEdgesChanged = onScrollEdgesChanged
         view.updateContentID(contentID)
         view.updateSettleRequest(settleRequest)
         return view
@@ -68,6 +84,7 @@ struct SpaceSwipeTrackingView<Content: View>: NSViewRepresentable {
         nsView.onSwipeProgress = onSwipeProgress
         nsView.onSettleBegan = onSettleBegan
         nsView.onCompletion = onCompletion
+        nsView.onScrollEdgesChanged = onScrollEdgesChanged
         nsView.updateContentID(contentID)
         nsView.updateSettleRequest(settleRequest)
     }
@@ -81,7 +98,10 @@ final class SpaceSwipeScrollView<Content: View>: NSScrollView {
     var onSwipeProgress: (CGFloat) -> Void = { _ in }
     var onSettleBegan: (Int) -> Void = { _ in }
     var onCompletion: (Int) -> Void = { _ in }
+    var onScrollEdgesChanged: (SpaceScrollEdges) -> Void = { _ in }
 
+    private var reportedScrollEdges = SpaceScrollEdges()
+    private nonisolated(unsafe) var scrollEdgesObserver: NSObjectProtocol?
     private let hostingView: NSHostingView<Content>
     private var contentID: UUID?
     private var settleRequestID: UUID?
@@ -111,6 +131,39 @@ final class SpaceSwipeScrollView<Content: View>: NSScrollView {
         documentView = hostingView
         hostingView.wantsLayer = true
         hostingView.layer?.masksToBounds = false
+
+        // The clip view's bounds move on every scroll; the edge rules follow.
+        contentView.postsBoundsChangedNotifications = true
+        let clipView = contentView
+        scrollEdgesObserver = NotificationCenter.default.addObserver(
+            forName: NSView.boundsDidChangeNotification,
+            object: clipView,
+            queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.reportScrollEdgesIfChanged()
+            }
+        }
+    }
+
+    deinit {
+        if let scrollEdgesObserver {
+            NotificationCenter.default.removeObserver(scrollEdgesObserver)
+        }
+    }
+
+    private func reportScrollEdgesIfChanged() {
+        let visible = contentView.bounds
+        let documentHeight = hostingView.frame.height
+        let tolerance: CGFloat = 0.5
+        let edges = SpaceScrollEdges(
+            isOverflowing: documentHeight > visible.height + tolerance,
+            isScrolledToStart: visible.minY <= tolerance,
+            isScrolledToEnd: visible.maxY >= documentHeight - tolerance
+        )
+        guard edges != reportedScrollEdges else { return }
+        reportedScrollEdges = edges
+        onScrollEdgesChanged(edges)
     }
 
     @available(*, unavailable)
@@ -121,6 +174,7 @@ final class SpaceSwipeScrollView<Content: View>: NSScrollView {
     override func layout() {
         super.layout()
         layoutHostingView()
+        reportScrollEdgesIfChanged()
     }
 
     override func wantsScrollEventsForSwipeTracking(on axis: NSEvent.GestureAxis) -> Bool {

@@ -65,6 +65,7 @@ struct SidebarView: View {
     @State private var selectedSpaceTransitionID: UUID?
     @State private var selectedSpaceTransitionDirection: Int?
     @State private var favoritesSectionHeight: CGFloat = 0
+    @State private var scrollEdges = SpaceScrollEdges()
     @StateObject private var windowControlsGeometry = WindowControlsGeometry()
     @AppStorage("Candoa.FavoritesDropZoneDismissed") private var isFavoritesDropZoneDismissed = false
     @AppStorage(DeveloperModeConfiguration.storageKey) private var developerModeOverrides = ""
@@ -90,8 +91,6 @@ struct SidebarView: View {
     private let sidebarAddressHeight: CGFloat = 40
     private let spaceSwitcherHeight: CGFloat = 32
     private let updateBannerHeight: CGFloat = 38
-    private let bottomFadeHeight: CGFloat = 18
-    private let topFadeHeight: CGFloat = 18
 
     /// How long the Space slide waits after a hidden sidebar is revealed, so
     /// the two reads as open-then-slide rather than one blurred move.
@@ -165,9 +164,10 @@ struct SidebarView: View {
         // of the swiping pages so it stays put while Spaces slide beneath it.
         spaceSwipeContent
             // Arc's window controls, navigation, and address bar are fixed
-            // furniture, and so is Zen's bottom bar: only the tab list moves.
-            // Rows dissolve into both bands instead of sliding under them.
-            .mask { scrollFadeMask }
+            // furniture, and so is Zen's bottom bar: only the tab list moves,
+            // clipped at both bands with Zen's scrolled-edge rules over it.
+            .mask { scrollClipMask }
+            .overlay { scrollEdgeRules }
             .overlay(alignment: .top) {
                 topChrome
             }
@@ -201,34 +201,50 @@ struct SidebarView: View {
             }
     }
 
-    /// Clear across the fixed chrome at either end, opaque through the list
-    /// between them, with short gradients so rows fade out rather than being
-    /// cut in half as they pass behind the chrome.
-    private var scrollFadeMask: some View {
+    /// Zen's list is clipped hard at the fixed chrome on either end — no
+    /// fade — and instead draws a hairline along whichever edge content has
+    /// scrolled past (`.workspace-arrowscrollbox[overflowing]`: a 1px
+    /// `light-dark(rgba(0,0,0,.08), rgba(255,255,255,.08))` `::before` while
+    /// not `[scrolledtostart]`, an `::after` twin while not `[scrolledtoend]`,
+    /// each fading over 0.1s).
+    private var scrollClipMask: some View {
         VStack(spacing: 0) {
             Color.clear
-                .frame(height: max(spaceContentTopInset - topFadeHeight, 0))
-
-            LinearGradient(
-                colors: [Color.black.opacity(0), Color.black],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .frame(height: topFadeHeight)
+                .frame(height: spaceContentTopInset)
 
             Rectangle()
                 .fill(Color.black)
 
-            LinearGradient(
-                colors: [Color.black, Color.black.opacity(0)],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .frame(height: bottomFadeHeight)
+            Color.clear
+                .frame(height: spaceSwipeBottomInset)
+        }
+    }
+
+    private var scrollEdgeRules: some View {
+        VStack(spacing: 0) {
+            Color.clear
+                .frame(height: spaceContentTopInset)
+
+            scrollEdgeRule(isVisible: scrollEdges.showsTopRule)
+
+            Spacer(minLength: 0)
+
+            scrollEdgeRule(isVisible: scrollEdges.showsBottomRule)
 
             Color.clear
                 .frame(height: spaceSwipeBottomInset)
         }
+        .padding(.leading, leadingInset)
+        .padding(.trailing, trailingInset)
+        .allowsHitTesting(false)
+    }
+
+    private func scrollEdgeRule(isVisible: Bool) -> some View {
+        Rectangle()
+            .fill(InterfaceStyle.zenScrollEdgeRule)
+            .frame(height: 1)
+            .opacity(isVisible ? 1 : 0)
+            .animation(.easeOut(duration: 0.1), value: isVisible)
     }
 
     /// Arc's fixed top: the window controls, navigation, address pill, and the
@@ -336,7 +352,8 @@ struct SidebarView: View {
                 onGestureBegan: beginSpaceSwipeGesture,
                 onSwipeProgress: updateSpaceSwipeThemeProgress,
                 onSettleBegan: settleSpaceSwipeTheme,
-                onCompletion: completeSpaceSwipe
+                onCompletion: completeSpaceSwipe,
+                onScrollEdgesChanged: { scrollEdges = $0 }
             ) {
                 ZStack(alignment: .leading) {
                     HStack(alignment: .top, spacing: 0) {
@@ -955,6 +972,21 @@ struct SidebarView: View {
         VStack(alignment: .leading, spacing: spaceLabelToPinnedGap) {
             spaceLabel(for: spaceID)
             pinnedAndFoldersSection(for: spaceID)
+
+            // Zen's rule lives in the pinned section's markup but is gated on
+            // the *unpinned* list (`updateShouldHideSeparator`: hidden only
+            // when the Space has no regular tabs) — it draws whether or not
+            // anything is pinned, and its Clear closes what sits below it.
+            if !store.regularTabs(in: spaceID).isEmpty {
+                PinnedSeparatorRow(
+                    showsClear: spaceID == store.activeSpaceID,
+                    onClear: store.clearUnpinnedTabs
+                )
+                // Zen's row is the spacing: 22px between the last pinned row
+                // and New Tab with nothing else added, so the 10pt section
+                // gap below it collapses to a hair.
+                .padding(.bottom, -8)
+            }
         }
     }
 
@@ -965,8 +997,6 @@ struct SidebarView: View {
         let folders = store.rootFolders(in: spaceID)
 
         if !pinned.isEmpty || !folders.isEmpty || store.draggedTabID != nil {
-            let showsPinnedAreaDivider = !pinned.isEmpty || !folders.isEmpty
-
             VStack(alignment: .leading, spacing: pinnedSectionSpacing) {
                 if !pinned.isEmpty {
                     VStack(spacing: 4) {
@@ -992,17 +1022,6 @@ struct SidebarView: View {
                             )
                         }
                     }
-                }
-
-                if showsPinnedAreaDivider {
-                    PinnedSeparatorRow(
-                        showsClear: spaceID == store.activeSpaceID
-                            && !store.regularTabs(in: spaceID).isEmpty,
-                        onClear: store.clearUnpinnedTabs
-                    )
-                    // The rule now carries a row's height of its own, so it
-                    // absorbs the section's spacing above it.
-                    .padding(.top, -pinnedSectionSpacing)
                 }
             }
             .contentShape(Rectangle())
