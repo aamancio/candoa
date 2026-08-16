@@ -1,5 +1,19 @@
 import SwiftUI
 
+/// The insertion line drawn in the gap a dragged row leaves behind: the
+/// rows have already made room, and this marks the slot they made room for.
+internal struct SidebarDropSlotLine: View {
+    let tint: Color
+
+    var body: some View {
+        SidebarHorizontalDropLine(tint: tint)
+            .padding(.horizontal, 8)
+            .frame(maxHeight: .infinity, alignment: .center)
+            .transition(.opacity)
+            .allowsHitTesting(false)
+    }
+}
+
 internal struct SidebarHorizontalDropLine: View {
     let tint: Color
 
