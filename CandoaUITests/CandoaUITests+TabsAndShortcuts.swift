@@ -425,6 +425,28 @@ extension CandoaUITests {
         XCTAssertTrue(currentState(in: app).contains("active=g"), currentState(in: app))
     }
 
+    func testControlTabHoldCyclesOnlyTheVisibleCards() throws {
+        let app = launchApp(fixture: "split-view")
+        for path in ["a", "b", "c", "d", "e", "f", "g"] {
+            openFixtureTab(path: path, in: app)
+        }
+
+        // Seven tabs, six cards (g…b): stepping through the strip wraps from
+        // its last card back to its first — "a" has no card and is skipped.
+        for expected in ["f", "e", "d", "c", "b", "g", "f"] {
+            postTabSwitcherAction("next")
+            XCTAssertTrue(waitForState(in: app, containing: "switcher=true:\(expected)"), currentState(in: app))
+        }
+        for expected in ["g", "b"] {
+            postTabSwitcherAction("previous")
+            XCTAssertTrue(waitForState(in: app, containing: "switcher=true:\(expected)"), currentState(in: app))
+        }
+        XCTAssertTrue(currentState(in: app).contains("switcherCards=g|f|e|d|c|b:7"), currentState(in: app))
+
+        postTabSwitcherAction("release")
+        XCTAssertTrue(waitForState(in: app, containing: "active=b"), currentState(in: app))
+    }
+
     /// The `tabs=` segment of the state string, split into titles.
     private func openTabTitles(in app: XCUIApplication) -> [String] {
         currentState(in: app)

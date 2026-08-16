@@ -224,7 +224,10 @@ extension BrowserStore {
             tabSwitcherCandidates = recentTabsForActiveSpace()
         }
 
-        let recentTabs = tabSwitcherCandidates
+        // Cycle only what the strip shows: the highlight must never step
+        // onto a tab that has no card. The rest of the frozen list stays
+        // behind for Delete to backfill from.
+        let recentTabs = Array(tabSwitcherCandidates.prefix(TabSwitcherConfiguration.previewLimit))
         guard !recentTabs.isEmpty else { return }
         guard recentTabs.count > 1 else {
             presentTabSwitcher(
