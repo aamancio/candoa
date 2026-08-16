@@ -140,8 +140,15 @@ internal struct SplitPaneControlPill: View {
             }
             .buttonTreatment(.content)
             .foregroundStyle(isZoomed ? AnyShapeStyle(AppColor.accent) : AnyShapeStyle(.secondary))
-            .help(isZoomed ? BrowserCommandTitles.showAllSplitPanes : BrowserCommandTitles.zoomSplitPane)
-            .accessibilityLabel(isZoomed ? BrowserCommandTitles.showAllSplitPanes : BrowserCommandTitles.zoomSplitPane)
+            // The key-cap pill, not .help(): every control that has a
+            // shortcut teaches it on hover — that is how a keyboard-driven
+            // browser weans people off the pointer. The tooltip's own
+            // .mouseMoved monitor is what lets it work at all here, floating
+            // over a WKWebView where SwiftUI hover never fires.
+            .shortcutTooltip(
+                isZoomed ? BrowserCommandTitles.showAllSplitPanes : BrowserCommandTitles.zoomSplitPane,
+                shortcut: .zoomSplitPane
+            )
             .accessibilityIdentifier("split-pane-zoom-\(paneIndex)")
 
             if !isZoomed {
