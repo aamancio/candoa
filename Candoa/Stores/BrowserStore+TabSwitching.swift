@@ -142,6 +142,49 @@ extension BrowserStore {
         hideTabSwitcher()
     }
 
+    /// Delete while Control is held closes the highlighted card. The strip
+    /// reflows in place and the highlight moves to the next card (previous
+    /// when it was the last one) — Control release still commits whatever
+    /// is highlighted. The last remaining card is never closed from here:
+    /// a strip with nothing left in it has nothing to commit. ⇧⌘T is the undo.
+    /// Returns whether a tab was closed.
+    @discardableResult
+    func closeHighlightedTabInTabSwitcher() -> Bool {
+        guard
+            isTabSwitcherPresented,
+            tabSwitcherTabs.count > 1,
+            let id = tabSwitcherSelectedTabID,
+            let cardIndex = tabSwitcherTabs.firstIndex(where: { $0.id == id })
+        else { return false }
+
+        let nextIndex = cardIndex + 1 < tabSwitcherTabs.count ? cardIndex + 1 : cardIndex - 1
+        tabSwitcherSelectedTabID = tabSwitcherTabs[nextIndex].id
+        tabSwitcherTabs.remove(at: cardIndex)
+        // The frozen cycling list must forget the tab too, or the next Tab
+        // press would highlight a card that is no longer there.
+        tabSwitcherCandidates.removeAll { $0.id == id }
+        tabSwitcherSnapshots[id] = nil
+
+        // Closing the page that is on screen swaps in its usual replacement
+        // underneath the strip; the highlight (and the release commit) is
+        // independent of that.
+        closeTab(id)
+        return true
+    }
+
+    /// Escape while Control is held abandons the interaction: the strip
+    /// drops and the page stays on the tab it started from, so a wrong turn
+    /// mid-cycle does not need to be Tab-bed back around.
+    /// Returns whether a strip was open to cancel.
+    @discardableResult
+    func cancelTabSwitcherInteraction() -> Bool {
+        guard isTabSwitcherPresented || tabSwitcherShowWorkItem != nil else { return false }
+        tabSwitcherSelectedTabID = activeTabID
+        isTabSwitcherCycling = false
+        hideTabSwitcher()
+        return true
+    }
+
     func switchToNextSpace() {
         switchSpace(offset: 1)
     }

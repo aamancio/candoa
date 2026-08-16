@@ -25,6 +25,8 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
     let onControlTab: () -> Void
     let onControlShiftTab: () -> Void
     let onControlReleased: () -> Void
+    let onTabSwitcherDelete: () -> Bool
+    let onTabSwitcherEscape: () -> Bool
     let onCommandDigit: (Int) -> Void
     let onControlDigit: (Int) -> Void
     let onGoBack: () -> Void
@@ -84,6 +86,8 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
         coordinator.onControlTab = onControlTab
         coordinator.onControlShiftTab = onControlShiftTab
         coordinator.onControlReleased = onControlReleased
+        coordinator.onTabSwitcherDelete = onTabSwitcherDelete
+        coordinator.onTabSwitcherEscape = onTabSwitcherEscape
         coordinator.onCommandDigit = onCommandDigit
         coordinator.onControlDigit = onControlDigit
         coordinator.onGoBack = onGoBack
@@ -127,6 +131,8 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
         var onControlTab: () -> Void = {}
         var onControlShiftTab: () -> Void = {}
         var onControlReleased: () -> Void = {}
+        var onTabSwitcherDelete: () -> Bool = { false }
+        var onTabSwitcherEscape: () -> Bool = { false }
         var onCommandDigit: (Int) -> Void = { _ in }
         var onControlDigit: (Int) -> Void = { _ in }
         var onGoBack: () -> Void = {}
@@ -195,6 +201,18 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
             // own `onExitCommand` because the page usually holds first
             // responder, and then SwiftUI never sees the cancel command.
             if Self.isPlainEscape(event), onEscape() {
+                return nil
+            }
+
+            // While Control is held for the Ctrl-Tab strip: Delete closes
+            // the highlighted card, Escape abandons the strip. Consumed only
+            // when a strip was actually there to act on, so ⌃Delete and
+            // ⌃Escape keep their meaning for pages otherwise.
+            if Self.isControlDelete(event), onTabSwitcherDelete() {
+                return nil
+            }
+
+            if Self.isControlEscape(event), onTabSwitcherEscape() {
                 return nil
             }
 
@@ -426,6 +444,14 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
         private static func isControlShiftTab(_ event: NSEvent) -> Bool {
             let modifiers = normalizedModifiers(for: event)
             return modifiers == [.control, .shift] && event.keyCode == 48
+        }
+
+        private static func isControlDelete(_ event: NSEvent) -> Bool {
+            normalizedModifiers(for: event) == .control && (event.keyCode == 51 || event.keyCode == 117)
+        }
+
+        private static func isControlEscape(_ event: NSEvent) -> Bool {
+            normalizedModifiers(for: event) == .control && event.keyCode == 53
         }
 
         private static func isPlainEscape(_ event: NSEvent) -> Bool {
