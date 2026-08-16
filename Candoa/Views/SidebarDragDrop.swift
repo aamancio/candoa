@@ -13,6 +13,7 @@ internal struct SpaceLabelDropDelegate: DropDelegate {
     }
 
     func dropEntered(info: DropInfo) {
+        store.uiTestingLastDropDelegate = "header"
         updateIndicator()
     }
 
@@ -66,6 +67,7 @@ internal struct TabReorderDropDelegate: DropDelegate {
     }
 
     func dropEntered(info: DropInfo) {
+        store.uiTestingLastDropDelegate = "reorder:\(targetTab.title)"
         updateIndicator(info: info)
     }
 
@@ -139,6 +141,7 @@ internal struct FolderTabDropDelegate: DropDelegate {
     }
 
     func dropEntered(info: DropInfo) {
+        store.uiTestingLastDropDelegate = "folder"
         updateIndicator(info: info)
     }
 
@@ -211,6 +214,7 @@ internal struct RegularTabSectionDropDelegate: DropDelegate {
     }
 
     func dropEntered(info: DropInfo) {
+        store.uiTestingLastDropDelegate = "regularSection"
         updateIndicator()
     }
 
@@ -279,6 +283,7 @@ internal struct PinnedTabSectionDropDelegate: DropDelegate {
     }
 
     func dropEntered(info: DropInfo) {
+        store.uiTestingLastDropDelegate = "pinnedSection"
         updateIndicator()
     }
 
@@ -349,6 +354,7 @@ internal struct FavoriteTabDropDelegate: DropDelegate {
     }
 
     func dropEntered(info: DropInfo) {
+        store.uiTestingLastDropDelegate = "favorite"
         updateIndicator(info: info)
     }
 

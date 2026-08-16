@@ -290,6 +290,9 @@ final class BrowserStore: ObservableObject {
     @Published var uiTestingVisibleFolderPopoverDescription = "none"
     @Published var uiTestingCommandPaletteQuery = ""
     @Published var uiTestingLastCommandDescription = "none"
+    /// Which sidebar drop delegate last saw the pointer, for drag tests that
+    /// need to know where a drop landed rather than only what it did.
+    @Published var uiTestingLastDropDelegate = "none"
     @Published var uiTestingWebsiteAppearanceDescription = "pending"
     @Published var uiTestingPopupDiagnostics: [String] = []
     @Published var uiTestingWebAuthEvents: [String] = []
