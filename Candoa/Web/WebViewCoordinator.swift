@@ -88,7 +88,7 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
     /// tried this run so a page that fails to render is not retried on each
     /// switcher open.
     var previewWarmupQueue: [BrowserTab] = []
-    var previewWarmupJob: PreviewWarmupJob?
+    var previewWarmupJobs: [UUID: PreviewWarmupJob] = [:]
     var previewWarmupAttemptedTabIDs = Set<UUID>()
     /// A visible tab's first WebContent crash reloads silently; a repeat
     /// within this window surfaces recovery UI instead of crash-looping.
