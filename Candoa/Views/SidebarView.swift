@@ -1054,7 +1054,11 @@ struct SidebarView: View {
         let pinned = store.pinnedTabs(in: spaceID).filter { !splitTabIDs.contains($0.id) }
         let folders = store.rootFolders(in: spaceID)
 
-        if !pinned.isEmpty || !folders.isEmpty || store.draggedTabID != nil {
+        // Arc folds the pinned area away behind the Space title; the header's
+        // chevron is the only trace. A live drag still needs the drop targets.
+        let isCollapsed = store.isPinnedAreaCollapsed(in: spaceID) && store.draggedTabID == nil
+
+        if !isCollapsed, !pinned.isEmpty || !folders.isEmpty || store.draggedTabID != nil {
             VStack(alignment: .leading, spacing: pinnedSectionSpacing) {
                 if !pinned.isEmpty {
                     VStack(spacing: 4) {
@@ -1198,46 +1202,11 @@ struct SidebarView: View {
             .accessibilityIdentifier("private-browsing-label")
         } else if let space = store.spaces.first(where: { $0.id == spaceID }),
            !space.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            HStack(spacing: 8) {
-                if space.symbolName != BrowserSpace.noIconSymbolName {
-                    // The tab rows' 16pt icon column: an 18pt box here pushed
-                    // the space name 2pt right of every tab title below it.
-                    if let emoji = space.iconEmoji {
-                        // A 14pt emoji glyph is wider than the 16pt column,
-                        // and a Text squeezed under its ideal width truncates
-                        // — on a single glyph that reads as a clipped edge.
-                        // Keep the column for alignment; let the glyph sit at
-                        // its natural size, centred on it.
-                        Text(emoji)
-                            .font(.system(size: 14))
-                            .fixedSize()
-                            .frame(width: 16, height: 16)
-                    } else {
-                        Image(systemName: space.symbolName)
-                            .font(.system(size: 14, weight: .medium))
-                            .symbolRenderingMode(.hierarchical)
-                            .frame(width: 16, height: 16)
-                    }
-                }
-
-                Text(space.name)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                    .font(.system(size: 13, weight: .medium))
-
-                Spacer(minLength: 0)
-            }
-            .foregroundStyle(InterfaceStyle.sidebarTextSecondary)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 5)
-            .frame(minHeight: 36)
-            .background(
-                isSpaceDropTargeted
-                    ? InterfaceStyle.sidebarControlFillDropTarget
-                    : Color.clear
+            SpaceHeaderRow(
+                store: store,
+                space: space,
+                isDropTargeted: isSpaceDropTargeted
             )
-            .clipShape(RoundedRectangle(cornerRadius: InterfaceStyle.sidebarRowCornerRadius, style: .continuous))
-            .contentShape(Rectangle())
             .onDrop(
                 of: [UTType.text],
                 delegate: SpaceLabelDropDelegate(
@@ -1250,7 +1219,6 @@ struct SidebarView: View {
                     isSpaceDropTargeted = false
                 }
             }
-            .animation(.easeOut(duration: 0.10), value: isSpaceDropTargeted)
         }
     }
 
