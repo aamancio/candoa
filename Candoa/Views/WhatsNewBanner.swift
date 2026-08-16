@@ -22,6 +22,10 @@ internal struct WhatsNewBanner: View {
             .padding(.horizontal, 14)
             .frame(maxWidth: .infinity)
             .frame(height: 32)
+            // The tint alone is nearly transparent, so the pill floats over
+            // the tab list rather than sitting on it: the material underneath
+            // is what makes it read as a chip of its own.
+            .background(.regularMaterial, in: Capsule(style: .continuous))
             .background(
                 Capsule(style: .continuous)
                     .fill(isHovering ? InterfaceStyle.updateBannerFillHover : InterfaceStyle.updateBannerFill)
