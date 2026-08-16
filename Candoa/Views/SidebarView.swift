@@ -194,6 +194,21 @@ struct SidebarView: View {
                 hoistedSpaceLabel
                     .padding(.top, favoritesBandBottom + 1)
             }
+            .overlay(alignment: .top) {
+                // Arc lights the Space title while a tab is dragged over it
+                // and pins the tab on release. The header itself rides a
+                // nested hosting view (it slides with a swipe) that AppKit's
+                // drag routing never reaches, so the drop target sits here in
+                // the sidebar's own tree, over the band the header covers —
+                // and only while a drag is live, so it never steals the
+                // header's hover, click, or menu.
+                if store.draggedTabID != nil, spaceLabelHeight > 0 {
+                    spaceHeaderDropBand
+                        .padding(.leading, leadingInset)
+                        .padding(.trailing, trailingInset)
+                        .padding(.top, favoritesBandBottom + 1)
+                }
+            }
             .overlay(alignment: .bottom) {
                 // The banners are app-level, not per-Space: hoisted here they
                 // stay put through a swipe and stay on screen at any scroll
@@ -324,6 +339,20 @@ struct SidebarView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
+    }
+
+    private var spaceHeaderDropBand: some View {
+        Color.clear
+            .frame(height: spaceLabelHeight)
+            .contentShape(Rectangle())
+            .onDrop(
+                of: [UTType.text],
+                delegate: SpaceLabelDropDelegate(
+                    isTargeted: $isSpaceDropTargeted,
+                    store: store
+                )
+            )
+            .accessibilityHidden(true)
     }
 
     private var setupSidebar: some View {
@@ -1203,6 +1232,8 @@ struct SidebarView: View {
             .accessibilityIdentifier("private-browsing-label")
         } else if let space = store.spaces.first(where: { $0.id == spaceID }),
            !space.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            // The drop target for this row is spaceHeaderDropBand, in the
+            // sidebar's own view tree; the row only paints the targeted state.
             SpaceHeaderRow(
                 store: store,
                 space: space,
@@ -1210,13 +1241,6 @@ struct SidebarView: View {
                 hasCollapsibleContent: !store.pinnedTabs(in: spaceID).isEmpty
                     || !store.rootFolders(in: spaceID).isEmpty,
                 hover: spaceHeaderHover
-            )
-            .onDrop(
-                of: [UTType.text],
-                delegate: SpaceLabelDropDelegate(
-                    isTargeted: $isSpaceDropTargeted,
-                    store: store
-                )
             )
             .onChange(of: store.draggedTabID) { _, newValue in
                 if newValue == nil {

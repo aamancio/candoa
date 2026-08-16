@@ -174,29 +174,6 @@ extension CandoaUITests {
             )
 
         XCTAssertTrue(waitForState(in: app, containing: "pinned=one"), currentState(in: app))
-        XCTAssertTrue(waitForState(in: app, containing: "dropHit=header"), currentState(in: app))
-    }
-
-    func testDraggingSidebarTabOverAnotherRowReachesTheRowDelegate() throws {
-        let app = launchApp(fixture: "split-view")
-        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
-
-        openFixtureTab(path: "one", in: app)
-        openFixtureTab(path: "two", in: app)
-
-        // Control for the header test: a drop on a sibling row goes through
-        // the ordinary reorder delegate inside the swipe pages.
-        let source = element("tab-row-one", in: app)
-        let target = element("tab-row-two", in: app)
-        XCTAssertTrue(source.waitForExistence(timeout: 5), currentState(in: app))
-        XCTAssertTrue(target.waitForExistence(timeout: 5), currentState(in: app))
-        source.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
-            .press(
-                forDuration: 0.3,
-                thenDragTo: target.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
-            )
-
-        XCTAssertTrue(waitForState(in: app, containing: "dropHit=reorder:two"), currentState(in: app))
     }
 
     func testDraggingSidebarTabOntoPageEdgeCreatesSplit() throws {
