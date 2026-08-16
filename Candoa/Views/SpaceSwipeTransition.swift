@@ -60,21 +60,15 @@ final class SpaceSwipeCompanionHover: ObservableObject {
 struct SpaceSwipeCompanionView<Content: View>: NSViewRepresentable {
     let relay: SpaceSwipeTranslationRelay
     let hover: SpaceSwipeCompanionHover?
-    /// AppKit's drag routing skips hidden views. While a tab drag is live the
-    /// sidebar draws this band itself, where drops route, and hides the
-    /// companion so it cannot sit in the way — see SidebarView.
-    let isHidden: Bool
     private let content: Content
 
     init(
         relay: SpaceSwipeTranslationRelay,
         hover: SpaceSwipeCompanionHover? = nil,
-        isHidden: Bool = false,
         @ViewBuilder content: () -> Content
     ) {
         self.relay = relay
         self.hover = hover
-        self.isHidden = isHidden
         self.content = content()
     }
 
@@ -152,7 +146,6 @@ struct SpaceSwipeCompanionView<Content: View>: NSViewRepresentable {
     func updateNSView(_ nsView: Shell, context: Context) {
         nsView.hostingView.rootView = content
         nsView.hover = hover
-        nsView.isHidden = isHidden
         if let layer = nsView.hostingView.layer {
             relay.register(layer)
         }
@@ -190,6 +183,11 @@ struct SpaceSwipeTrackingView<Content: View>: NSViewRepresentable {
     let onCompletion: (Int) -> Void
     let onScrollEdgesChanged: (SpaceScrollEdges) -> Void
     let translationRelay: SpaceSwipeTranslationRelay?
+    /// Only while a tab drag is live: the header's drop target rides inside
+    /// the scroll document and needs the offset to stay under the fixed
+    /// header. Off otherwise, so scrolling never re-renders the sidebar.
+    let reportsScrollOffset: Bool
+    let onScrollOffsetChanged: (CGFloat) -> Void
     private let content: Content
 
     init(
@@ -203,6 +201,8 @@ struct SpaceSwipeTrackingView<Content: View>: NSViewRepresentable {
         onCompletion: @escaping (Int) -> Void,
         onScrollEdgesChanged: @escaping (SpaceScrollEdges) -> Void = { _ in },
         translationRelay: SpaceSwipeTranslationRelay? = nil,
+        reportsScrollOffset: Bool = false,
+        onScrollOffsetChanged: @escaping (CGFloat) -> Void = { _ in },
         @ViewBuilder content: () -> Content
     ) {
         self.isEnabled = isEnabled
@@ -215,6 +215,8 @@ struct SpaceSwipeTrackingView<Content: View>: NSViewRepresentable {
         self.onCompletion = onCompletion
         self.onScrollEdgesChanged = onScrollEdgesChanged
         self.translationRelay = translationRelay
+        self.reportsScrollOffset = reportsScrollOffset
+        self.onScrollOffsetChanged = onScrollOffsetChanged
         self.content = content()
     }
 
@@ -228,6 +230,8 @@ struct SpaceSwipeTrackingView<Content: View>: NSViewRepresentable {
         view.onCompletion = onCompletion
         view.onScrollEdgesChanged = onScrollEdgesChanged
         view.translationRelay = translationRelay
+        view.onScrollOffsetChanged = onScrollOffsetChanged
+        view.reportsScrollOffset = reportsScrollOffset
         view.updateContentID(contentID)
         view.updateSettleRequest(settleRequest)
         return view
@@ -243,6 +247,8 @@ struct SpaceSwipeTrackingView<Content: View>: NSViewRepresentable {
         nsView.onCompletion = onCompletion
         nsView.onScrollEdgesChanged = onScrollEdgesChanged
         nsView.translationRelay = translationRelay
+        nsView.onScrollOffsetChanged = onScrollOffsetChanged
+        nsView.reportsScrollOffset = reportsScrollOffset
         nsView.updateContentID(contentID)
         nsView.updateSettleRequest(settleRequest)
     }
@@ -258,6 +264,15 @@ final class SpaceSwipeScrollView<Content: View>: NSScrollView {
     var onCompletion: (Int) -> Void = { _ in }
     var onScrollEdgesChanged: (SpaceScrollEdges) -> Void = { _ in }
     var translationRelay: SpaceSwipeTranslationRelay?
+    var onScrollOffsetChanged: (CGFloat) -> Void = { _ in }
+    var reportsScrollOffset = false {
+        didSet {
+            guard reportsScrollOffset, !oldValue else { return }
+            reportedScrollOffset = nil
+            reportScrollOffsetIfChanged()
+        }
+    }
+    private var reportedScrollOffset: CGFloat?
 
     private var reportedScrollEdges = SpaceScrollEdges()
     private nonisolated(unsafe) var scrollEdgesObserver: NSObjectProtocol?
@@ -311,7 +326,16 @@ final class SpaceSwipeScrollView<Content: View>: NSScrollView {
         }
     }
 
+    private func reportScrollOffsetIfChanged() {
+        guard reportsScrollOffset else { return }
+        let offset = contentView.bounds.minY
+        guard offset != reportedScrollOffset else { return }
+        reportedScrollOffset = offset
+        onScrollOffsetChanged(offset)
+    }
+
     private func reportScrollEdgesIfChanged() {
+        reportScrollOffsetIfChanged()
         let visible = contentView.bounds
         let documentHeight = hostingView.frame.height
         let tolerance: CGFloat = 0.5

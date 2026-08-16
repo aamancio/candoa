@@ -69,6 +69,7 @@ struct SidebarView: View {
     @StateObject private var swipeTranslationRelay = SpaceSwipeTranslationRelay()
     @StateObject private var spaceHeaderHover = SpaceSwipeCompanionHover()
     @State private var scrollEdges = SpaceScrollEdges()
+    @State private var dragScrollOffset: CGFloat = 0
     @StateObject private var windowControlsGeometry = WindowControlsGeometry()
     @AppStorage("Candoa.FavoritesDropZoneDismissed") private var isFavoritesDropZoneDismissed = false
     @AppStorage(DeveloperModeConfiguration.storageKey) private var developerModeOverrides = ""
@@ -194,21 +195,6 @@ struct SidebarView: View {
                 hoistedSpaceLabel
                     .padding(.top, favoritesBandBottom + 1)
             }
-            .overlay(alignment: .top) {
-                // Arc lights the Space title while a tab is dragged over it
-                // and pins the tab on release. The header itself rides a
-                // nested hosting view (it slides with a swipe) that AppKit's
-                // drag routing never reaches, so the drop target sits here in
-                // the sidebar's own tree, over the band the header covers —
-                // and only while a drag is live, so it never steals the
-                // header's hover, click, or menu.
-                if store.draggedTabID != nil {
-                    spaceHeaderDropBand
-                        .padding(.leading, leadingInset)
-                        .padding(.trailing, trailingInset)
-                        .padding(.top, favoritesBandBottom + 1)
-                }
-            }
             .overlay(alignment: .bottom) {
                 // The banners are app-level, not per-Space: hoisted here they
                 // stay put through a swipe and stay on screen at any scroll
@@ -311,11 +297,7 @@ struct SidebarView: View {
         GeometryReader { proxy in
             let width = max(proxy.size.width, 1)
 
-            SpaceSwipeCompanionView(
-                relay: swipeTranslationRelay,
-                hover: spaceHeaderHover,
-                isHidden: store.draggedTabID != nil
-            ) {
+            SpaceSwipeCompanionView(relay: swipeTranslationRelay, hover: spaceHeaderHover) {
                 HStack(alignment: .top, spacing: 0) {
                     ForEach([-1, 0, 1], id: \.self) { slot in
                         Group {
@@ -343,21 +325,6 @@ struct SidebarView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
-    }
-
-    /// The header as drawn during a tab drag: the same row, in the sidebar's
-    /// own tree where drops route, standing in for the hidden companion. It
-    /// carries the drop target and paints the lit state itself.
-    private var spaceHeaderDropBand: some View {
-        spaceLabel(for: store.activeSpaceID)
-            .contentShape(Rectangle())
-            .onDrop(
-                of: [UTType.text],
-                delegate: SpaceLabelDropDelegate(
-                    isTargeted: $isSpaceDropTargeted,
-                    store: store
-                )
-            )
     }
 
     private var setupSidebar: some View {
@@ -439,7 +406,9 @@ struct SidebarView: View {
                 onSettleBegan: settleSpaceSwipeTheme,
                 onCompletion: completeSpaceSwipe,
                 onScrollEdgesChanged: { scrollEdges = $0 },
-                translationRelay: swipeTranslationRelay
+                translationRelay: swipeTranslationRelay,
+                reportsScrollOffset: store.draggedTabID != nil,
+                onScrollOffsetChanged: { dragScrollOffset = $0 }
             ) {
                 ZStack(alignment: .leading) {
                     HStack(alignment: .top, spacing: 0) {
@@ -516,22 +485,51 @@ struct SidebarView: View {
                 1
             )
 
-            Group {
-                if slot == 0 || isSpaceSwipePrepared || selectedSpaceTransitionID != nil {
-                    spaceScrollContent(for: spaceID)
-                } else {
+            ZStack(alignment: .top) {
+                Group {
+                    if slot == 0 || isSpaceSwipePrepared || selectedSpaceTransitionID != nil {
+                        spaceScrollContent(for: spaceID)
+                    } else {
+                        Color.clear
+                    }
+                }
+                .padding(.leading, leadingInset)
+                .padding(.trailing, trailingInset)
+                .frame(
+                    minHeight: contentHeight,
+                    alignment: .top
+                )
+                .padding(.top, spaceContentTopInset)
+                .padding(.bottom, spaceSwipeBottomInset)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                // Arc lights the Space title while a tab is dragged over it
+                // and pins the tab on release. Once a drag has entered this
+                // page's hosting view AppKit keeps it as the destination for
+                // as long as the pointer stays inside its frame, and that
+                // frame spans the lane — so a target in the header's own
+                // view, or in the sidebar tree above, never hears about a
+                // pointer that is over the header. The target has to be in
+                // here, under the fixed header, following the scroll offset
+                // so it stays put while the list moves. Only while a drag is
+                // live, so scrolling never re-renders the sidebar otherwise.
+                if slot == 0, store.draggedTabID != nil, spaceLabelHeight > 0 {
                     Color.clear
+                        .frame(height: spaceLabelHeight)
+                        .padding(.leading, leadingInset)
+                        .padding(.trailing, trailingInset)
+                        .padding(.top, favoritesBandBottom + 1 + dragScrollOffset)
+                        .contentShape(Rectangle())
+                        .onDrop(
+                            of: [UTType.text],
+                            delegate: SpaceLabelDropDelegate(
+                                isTargeted: $isSpaceDropTargeted,
+                                store: store
+                            )
+                        )
+                        .accessibilityHidden(true)
                 }
             }
-            .padding(.leading, leadingInset)
-            .padding(.trailing, trailingInset)
-            .frame(
-                minHeight: contentHeight,
-                alignment: .top
-            )
-            .padding(.top, spaceContentTopInset)
-            .padding(.bottom, spaceSwipeBottomInset)
-            .frame(maxWidth: .infinity, alignment: .leading)
             .allowsHitTesting(slot == 0)
             .accessibilityHidden(slot != 0)
         } else {
@@ -1237,8 +1235,8 @@ struct SidebarView: View {
             .accessibilityIdentifier("private-browsing-label")
         } else if let space = store.spaces.first(where: { $0.id == spaceID }),
            !space.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            // The drop target for this row is spaceHeaderDropBand, in the
-            // sidebar's own view tree; the row only paints the targeted state.
+            // The drop target for this row lives in the swipe page beneath it
+            // (see spaceSwipePage); the row paints the targeted state.
             SpaceHeaderRow(
                 store: store,
                 space: space,
