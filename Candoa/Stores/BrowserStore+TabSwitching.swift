@@ -143,33 +143,43 @@ extension BrowserStore {
     }
 
     /// Delete while Control is held closes the highlighted card. The strip
-    /// reflows in place and the highlight moves to the next card (previous
-    /// when it was the last one) — Control release still commits whatever
-    /// is highlighted. The last remaining card is never closed from here:
-    /// a strip with nothing left in it has nothing to commit. ⇧⌘T is the undo.
+    /// backfills from the frozen recency list — the next tab slides in at
+    /// the tail — and the highlight keeps its slot, so repeated Delete eats
+    /// through a long session from a strip that never grows. Only the last
+    /// tab in the list is refused: a strip with nothing left has nothing to
+    /// commit. ⇧⌘T is the undo.
     /// Returns whether a tab was closed.
     @discardableResult
     func closeHighlightedTabInTabSwitcher() -> Bool {
         guard
             isTabSwitcherPresented,
-            tabSwitcherTabs.count > 1,
+            tabSwitcherCandidates.count > 1,
             let id = tabSwitcherSelectedTabID,
             let cardIndex = tabSwitcherTabs.firstIndex(where: { $0.id == id })
         else { return false }
 
-        let nextIndex = cardIndex + 1 < tabSwitcherTabs.count ? cardIndex + 1 : cardIndex - 1
-        tabSwitcherSelectedTabID = tabSwitcherTabs[nextIndex].id
-        tabSwitcherTabs.remove(at: cardIndex)
-        // The frozen cycling list must forget the tab too, or the next Tab
-        // press would highlight a card that is no longer there.
+        // The frozen cycling list forgets the tab first, so the rebuilt strip
+        // and the next Tab press agree on what is there.
         tabSwitcherCandidates.removeAll { $0.id == id }
         tabSwitcherSnapshots[id] = nil
+
+        let refilled = tabSwitcherPreviewTabs(from: tabSwitcherCandidates, selectedTabID: nil)
+        tabSwitcherTabs = refilled
+        tabSwitcherSelectedTabID = refilled[min(cardIndex, refilled.count - 1)].id
+        // A backfilled card needs its thumbnail; everything else is cached.
+        prefetchTabSwitcherSnapshots(for: refilled, refreshExisting: false)
 
         // Closing the page that is on screen swaps in its usual replacement
         // underneath the strip; the highlight (and the release commit) is
         // independent of that.
         closeTab(id)
         return true
+    }
+
+    /// How many tabs the held strip is cycling through, including the ones
+    /// past the visible cards — the strip's tab-count caption.
+    var tabSwitcherTabCount: Int {
+        tabSwitcherCandidates.count
     }
 
     /// Escape while Control is held abandons the interaction: the strip
