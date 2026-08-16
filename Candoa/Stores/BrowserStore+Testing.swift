@@ -435,6 +435,7 @@ extension BrowserStore {
             "loading=\(activeTab?.isLoading == true)",
             "tabs=\(tabTitles)",
             "pinned=\(pinnedTitles)",
+            "dropTrail=\(uiTestingDropTrail.joined(separator: ">"))",
             "folders=\(folderNames)",
             "favorites=\(favoriteTitles)",
             "switcher=\(isTabSwitcherPresented):\(tabSwitcherSelectedTitle)",

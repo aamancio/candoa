@@ -173,7 +173,10 @@ extension CandoaUITests {
                 thenDragTo: header.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
             )
 
-        XCTAssertTrue(waitForState(in: app, containing: "pinned=one"), currentState(in: app))
+        XCTAssertTrue(
+            waitForState(in: app, containing: "pinned=one"),
+            "header=\(header.frame) row=\(row.frame) window=\(app.windows.firstMatch.frame) " + currentState(in: app)
+        )
     }
 
     func testDraggingSidebarTabOntoPageEdgeCreatesSplit() throws {
