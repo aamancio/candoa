@@ -8,7 +8,6 @@ struct TabSwitcherOverlay: View {
         if !store.tabSwitcherTabs.isEmpty {
             panel
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                .allowsHitTesting(false)
                 // Opacity only — a scale-in reads as motion the user has to
                 // wait out, which made Control-Tab feel slower than the
                 // instant switch underneath it.
@@ -74,6 +73,20 @@ struct TabSwitcherOverlay: View {
                 isSelected: tab.id == store.tabSwitcherSelectedTabID,
                 cardWidth: cardWidth
             )
+            // Arc-style: the pointer highlights a card, a click commits it.
+            // AppKit rather than SwiftUI gestures, because the pointer only
+            // ever gets here with Control held — a control-click is a
+            // secondary click to SwiftUI's Button/TapGesture and never fires.
+            .overlay(
+                TabSwitcherCardMouseTarget(
+                    onMove: { store.highlightTabInTabSwitcher(tab.id) },
+                    onClick: { store.commitTabInTabSwitcher(tab.id) }
+                )
+            )
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(tab.title)
+            .accessibilityAddTraits(.isButton)
+            .accessibilityIdentifier("tab-switcher-card-\(commandPaletteAccessibilitySlug(tab.title))")
             .transition(
                 .asymmetric(
                     insertion: .move(edge: .trailing).combined(with: .opacity),
@@ -249,5 +262,81 @@ private struct TabSwitcherPreviewCard: View {
                 .foregroundStyle(.secondary)
                 .frame(width: 14, height: 14)
         }
+    }
+}
+
+/// Pointer handling for one strip card. Highlights on genuine pointer
+/// movement only: the card remembers where the mouse was resting when it
+/// appeared and ignores enter/move events until the pointer has actually
+/// left that spot, so a strip that pops up under a resting mouse leaves the
+/// keyboard's highlight alone until the hand moves. Fires the click on
+/// release inside the card with any modifiers down, and swallows the press
+/// so the control-click never becomes a context menu.
+private struct TabSwitcherCardMouseTarget: NSViewRepresentable {
+    let onMove: () -> Void
+    let onClick: () -> Void
+
+    func makeNSView(context: Context) -> TabSwitcherCardMouseView {
+        let view = TabSwitcherCardMouseView(frame: .zero)
+        view.onMove = onMove
+        view.onClick = onClick
+        return view
+    }
+
+    func updateNSView(_ nsView: TabSwitcherCardMouseView, context: Context) {
+        nsView.onMove = onMove
+        nsView.onClick = onClick
+    }
+}
+
+private final class TabSwitcherCardMouseView: NSView {
+    var onMove: () -> Void = {}
+    var onClick: () -> Void = {}
+    private var trackingArea: NSTrackingArea?
+    private var restingLocation: NSPoint?
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        restingLocation = window == nil ? nil : NSEvent.mouseLocation
+    }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let trackingArea {
+            removeTrackingArea(trackingArea)
+        }
+        let area = NSTrackingArea(
+            rect: bounds,
+            options: [.mouseEnteredAndExited, .mouseMoved, .activeInKeyWindow, .inVisibleRect],
+            owner: self,
+            userInfo: nil
+        )
+        addTrackingArea(area)
+        trackingArea = area
+    }
+
+    override func mouseEntered(with event: NSEvent) { pointerDidMove() }
+    override func mouseMoved(with event: NSEvent) { pointerDidMove() }
+
+    private func pointerDidMove() {
+        if let restingLocation {
+            let location = NSEvent.mouseLocation
+            guard hypot(location.x - restingLocation.x, location.y - restingLocation.y) > 2 else { return }
+            self.restingLocation = nil
+        }
+        onMove()
+    }
+
+    override func mouseDown(with event: NSEvent) {}
+    override func rightMouseDown(with event: NSEvent) {}
+
+    override func mouseUp(with event: NSEvent) {
+        guard bounds.contains(convert(event.locationInWindow, from: nil)) else { return }
+        onClick()
+    }
+
+    override func rightMouseUp(with event: NSEvent) {
+        guard bounds.contains(convert(event.locationInWindow, from: nil)) else { return }
+        onClick()
     }
 }
