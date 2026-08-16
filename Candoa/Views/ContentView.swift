@@ -217,7 +217,13 @@ struct ContentView: View {
             }
 
             if store.isTabSwitcherPresented {
+                // Centered on the page, not the window: the sidebar and Ask
+                // lanes are inset and the title-bar safe area is ignored,
+                // matching where the web view actually is.
                 TabSwitcherOverlay(store: store)
+                    .padding(.leading, isSidebarVisible ? sidebarTotalWidth : 0)
+                    .padding(.trailing, isAISidebarReservingWebLayout ? reservedAISidebarInset : 0)
+                    .ignoresSafeArea(.container, edges: .top)
                     .zIndex(9)
             }
 
