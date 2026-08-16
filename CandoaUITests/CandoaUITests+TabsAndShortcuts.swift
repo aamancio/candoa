@@ -390,6 +390,41 @@ extension CandoaUITests {
         XCTAssertTrue(openTabTitles(in: app).contains("three"), currentState(in: app))
     }
 
+    func testControlTabHoldDeleteBackfillsTheStripFromTheRecencyList() throws {
+        let app = launchApp(fixture: "split-view")
+        for path in ["a", "b", "c", "d", "e", "f", "g"] {
+            openFixtureTab(path: path, in: app)
+        }
+
+        // Seven tabs, six cards: the strip shows the six most recent (g…b)
+        // and its caption counts all seven.
+        postTabSwitcherAction("next")
+        XCTAssertTrue(waitForState(in: app, containing: "switcher=true:f"), currentState(in: app))
+        XCTAssertTrue(currentState(in: app).contains("switcherCards=g|f|e|d|c|b:7"), currentState(in: app))
+
+        // Delete "f": "a" backfills at the tail, the highlight holds its
+        // slot (now "e"), and the count ticks down.
+        postTabSwitcherAction("close")
+        XCTAssertTrue(waitForState(in: app, containing: "switcherCards=g|e|d|c|b|a:6"), currentState(in: app))
+        XCTAssertTrue(currentState(in: app).contains("switcher=true:e"), currentState(in: app))
+
+        // Keep deleting: the strip shrinks only once the list runs dry, and
+        // the very last tab is refused.
+        for expected in ["g|d|c|b|a:5", "g|c|b|a:4", "g|b|a:3", "g|a:2"] {
+            postTabSwitcherAction("close")
+            XCTAssertTrue(waitForState(in: app, containing: "switcherCards=\(expected)"), currentState(in: app))
+        }
+        XCTAssertTrue(currentState(in: app).contains("switcher=true:a"), currentState(in: app))
+        postTabSwitcherAction("close")
+        XCTAssertTrue(waitForState(in: app, containing: "switcherCards=g:1"), currentState(in: app))
+        postTabSwitcherAction("close")
+        XCTAssertTrue(currentState(in: app).contains("switcherCards=g:1"), currentState(in: app))
+
+        postTabSwitcherAction("release")
+        XCTAssertTrue(waitForState(in: app, containing: "switcher=false"), currentState(in: app))
+        XCTAssertTrue(currentState(in: app).contains("active=g"), currentState(in: app))
+    }
+
     /// The `tabs=` segment of the state string, split into titles.
     private func openTabTitles(in app: XCUIApplication) -> [String] {
         currentState(in: app)

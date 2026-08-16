@@ -173,7 +173,10 @@ enum WebInspectorConfiguration {
 }
 
 enum TabSwitcherConfiguration {
-    static let previewLimit = 10
+    /// One row, no wrap — six recent tabs is a glance, not a grid (Arc shows
+    /// five, Firefox six). Delete backfills from the recency list, so a
+    /// long session is pruned from a strip that never grows.
+    static let previewLimit = 6
 
     /// Arc-style hold-to-reveal: a quick Control-Tab switches silently; the
     /// preview overlay only appears if Control is still held after this delay.

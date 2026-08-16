@@ -21,18 +21,38 @@ struct TabSwitcherOverlay: View {
             let layout = gridLayout(for: proxy.size.width)
 
             ZStack {
-                Group {
-                    if store.tabSwitcherTabs.count <= layout.columns.count {
-                        HStack(spacing: TabSwitcherMetrics.columnSpacing) {
-                            previewCards(for: store.tabSwitcherTabs, cardWidth: layout.cardWidth)
-                        }
-                    } else {
-                        LazyVGrid(columns: layout.columns, alignment: .leading, spacing: TabSwitcherMetrics.rowSpacing) {
-                            previewCards(for: store.tabSwitcherTabs, cardWidth: layout.cardWidth)
+                VStack(alignment: .trailing, spacing: 8) {
+                    Group {
+                        if store.tabSwitcherTabs.count <= layout.columns.count {
+                            HStack(spacing: TabSwitcherMetrics.columnSpacing) {
+                                previewCards(for: store.tabSwitcherTabs, cardWidth: layout.cardWidth)
+                            }
+                        } else {
+                            LazyVGrid(columns: layout.columns, alignment: .leading, spacing: TabSwitcherMetrics.rowSpacing) {
+                                previewCards(for: store.tabSwitcherTabs, cardWidth: layout.cardWidth)
+                            }
                         }
                     }
+                    .frame(width: layout.contentWidth, alignment: .leading)
+                    // Delete: the closed card shrinks away in place, its
+                    // neighbors slide over, and the backfilled tab arrives
+                    // from the tail — so the queue visibly moves up rather
+                    // than a card being swapped.
+                    .animation(.easeOut(duration: 0.15), value: store.tabSwitcherTabs.map(\.id))
+
+                    if store.tabSwitcherTabCount > store.tabSwitcherTabs.count {
+                        // Once the strip backfills, its length can no longer
+                        // show that Delete really closed something; the count
+                        // ticking down does.
+                        Text("\(store.tabSwitcherTabCount) tabs")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                            .contentTransition(.numericText(countsDown: true))
+                            .animation(.easeOut(duration: 0.15), value: store.tabSwitcherTabCount)
+                            .accessibilityIdentifier("tab-switcher-count")
+                    }
                 }
-                .frame(width: layout.contentWidth, alignment: .leading)
                 .padding(TabSwitcherMetrics.panelPadding)
                 .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
                 .overlay {
@@ -53,6 +73,12 @@ struct TabSwitcherOverlay: View {
                 snapshot: store.tabSwitcherSnapshots[tab.id],
                 isSelected: tab.id == store.tabSwitcherSelectedTabID,
                 cardWidth: cardWidth
+            )
+            .transition(
+                .asymmetric(
+                    insertion: .move(edge: .trailing).combined(with: .opacity),
+                    removal: .scale(scale: 0.8).combined(with: .opacity)
+                )
             )
         }
     }
@@ -104,11 +130,12 @@ private struct TabSwitcherGridLayout {
 
 private enum TabSwitcherMetrics {
     // A four-tab switcher is the common case. Give it enough visual weight to
-    // read as a window switcher rather than a compact menu, while the grid
-    // still moves to two rows before ten previews become cramped.
+    // read as a window switcher rather than a compact menu. Six cards fit one
+    // row down to ~870pt of window; narrower than that the grid folds to two
+    // rows of three rather than five-plus-one.
     static let minimumCardWidth: CGFloat = 124
     static let maximumCardWidth: CGFloat = 200
-    static let compactColumnLimit = 5
+    static let compactColumnLimit = 3
     static let columnSpacing: CGFloat = 10
     static let rowSpacing: CGFloat = 12
     static let panelPadding: CGFloat = 16
