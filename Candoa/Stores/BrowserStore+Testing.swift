@@ -400,6 +400,7 @@ extension BrowserStore {
         let activeTitle = activeTab?.title ?? "none"
         let activeURL = activeTab?.url?.absoluteString ?? "none"
         let tabTitles = visibleTabsForActiveSpace.map(\.title).joined(separator: "|")
+        let pinnedTitles = pinnedTabs(in: activeSpaceID).map(\.title).joined(separator: "|")
         let folderNames = folders
             .filter { $0.spaceID == activeSpaceID }
             .map(\.name)
@@ -433,6 +434,7 @@ extension BrowserStore {
             "url=\(activeURL)",
             "loading=\(activeTab?.isLoading == true)",
             "tabs=\(tabTitles)",
+            "pinned=\(pinnedTitles)",
             "folders=\(folderNames)",
             "favorites=\(favoriteTitles)",
             "switcher=\(isTabSwitcherPresented):\(tabSwitcherSelectedTitle)",

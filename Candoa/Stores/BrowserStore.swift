@@ -290,6 +290,11 @@ final class BrowserStore: ObservableObject {
     @Published var uiTestingVisibleFolderPopoverDescription = "none"
     @Published var uiTestingCommandPaletteQuery = ""
     @Published var uiTestingLastCommandDescription = "none"
+    /// A tab drag is over the Space header. Kept by the drag *source*, from
+    /// the pointer's screen position, because the header's platform view is
+    /// unreachable to AppKit's destination search — see
+    /// TabDragSourceAnchorView.
+    @Published var isSpaceHeaderDropTargeted = false
     @Published var uiTestingWebsiteAppearanceDescription = "pending"
     @Published var uiTestingPopupDiagnostics: [String] = []
     @Published var uiTestingWebAuthEvents: [String] = []

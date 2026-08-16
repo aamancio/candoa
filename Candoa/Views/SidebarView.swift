@@ -57,7 +57,6 @@ struct SidebarView: View {
     @State private var isHoveringNewTab = false
     @State private var isHoveringAddressPill = false
     @State private var addressPillSharePicker = SharePickerCoordinator()
-    @State private var isSpaceDropTargeted = false
     @State private var isSpaceSwipePrepared = false
     @State private var isSettlingSpaceSwipe = false
     @State private var spaceSwipeSourceID: UUID?
@@ -1203,26 +1202,16 @@ struct SidebarView: View {
             .accessibilityIdentifier("private-browsing-label")
         } else if let space = store.spaces.first(where: { $0.id == spaceID }),
            !space.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            // Drops on the header are targeted from the drag source by
+            // geometry (SpaceHeaderDropZones); the row paints that state.
             SpaceHeaderRow(
                 store: store,
                 space: space,
-                isDropTargeted: isSpaceDropTargeted,
+                isDropTargeted: store.isSpaceHeaderDropTargeted,
                 hasCollapsibleContent: !store.pinnedTabs(in: spaceID).isEmpty
                     || !store.rootFolders(in: spaceID).isEmpty,
                 hover: spaceHeaderHover
             )
-            .onDrop(
-                of: [UTType.text],
-                delegate: SpaceLabelDropDelegate(
-                    isTargeted: $isSpaceDropTargeted,
-                    store: store
-                )
-            )
-            .onChange(of: store.draggedTabID) { _, newValue in
-                if newValue == nil {
-                    isSpaceDropTargeted = false
-                }
-            }
         }
     }
 

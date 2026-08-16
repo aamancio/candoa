@@ -54,6 +54,33 @@ final class SpaceSwipeCompanionHover: ObservableObject {
     @Published var isPointerInside = false
 }
 
+/// Where the Space header sits on screen, per window, for the tab drag
+/// source to test the pointer against. AppKit's dragging-destination search
+/// consults the window's registered-destination list, and the header's
+/// companion view — a platform view inside a hosting view inside the
+/// sidebar's hosting view — never makes it into that list however it
+/// registers; a SwiftUI drop target laid over the same band is shadowed the
+/// same way. So the header is targeted by geometry from the source side.
+@MainActor
+final class SpaceHeaderDropZones {
+    static let shared = SpaceHeaderDropZones()
+
+    private var providers: [Int: () -> CGRect?] = [:]
+
+    func register(windowNumber: Int, provider: @escaping () -> CGRect?) {
+        providers[windowNumber] = provider
+    }
+
+    func unregister(windowNumber: Int) {
+        providers[windowNumber] = nil
+    }
+
+    /// The header's frame in screen coordinates for `windowNumber`, if any.
+    func screenFrame(forWindowNumber windowNumber: Int) -> CGRect? {
+        providers[windowNumber]?()
+    }
+}
+
 /// Hosts SwiftUI content that follows the swipe carousel's translation.
 /// The content is laid out like the pages — three Space-wide slots offset by
 /// one width — so it slides in lockstep with them.
@@ -101,8 +128,21 @@ struct SpaceSwipeCompanionView<Content: View>: NSViewRepresentable {
             }
         }
 
+        private var registeredWindowNumber: Int?
+
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
+            if let registeredWindowNumber {
+                SpaceHeaderDropZones.shared.unregister(windowNumber: registeredWindowNumber)
+                self.registeredWindowNumber = nil
+            }
+            if let window {
+                registeredWindowNumber = window.windowNumber
+                SpaceHeaderDropZones.shared.register(windowNumber: window.windowNumber) { [weak self] in
+                    guard let self, let window = self.window, !self.isHiddenOrHasHiddenAncestor else { return nil }
+                    return window.convertToScreen(self.convert(self.bounds, to: nil))
+                }
+            }
             if let pointerMonitor {
                 NSEvent.removeMonitor(pointerMonitor)
                 self.pointerMonitor = nil
