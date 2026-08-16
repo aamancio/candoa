@@ -671,15 +671,16 @@ enum ShortcutDefinition: String, CaseIterable, Identifiable {
         case .toggleSplitView: return "Command-\\"
         case .splitLayoutHorizontal: return "Control-Command-H"
         case .splitLayoutVertical: return "Control-Command-V"
-        // Deliberately the shifted form of the split toggle: the two commands
-        // are the same idea at different scales, so the keys stay siblings.
-        case .zoomSplitPane: return "Shift-Command-\\"
+        // Alex's call: Shift on the split key takes the pane OUT (unsplit),
+        // Control zooms — the shifted form pairs with the toggle as its
+        // undo, and zoom sits with the other Control-Command pane keys.
+        case .zoomSplitPane: return "Control-Command-\\"
         // Brackets step through things elsewhere on the Mac (tabs in
         // Terminal, panes in Xcode), and Control-Command is the split
         // view's own modifier pair (H/V above).
         case .focusNextSplitPane: return "Control-Command-]"
         case .focusPreviousSplitPane: return "Control-Command-["
-        case .unsplitPane: return "Control-Command-\\"
+        case .unsplitPane: return "Shift-Command-\\"
         // The last free modifier on the split key: ⌘\ opens, ⇧⌘\ zooms,
         // ⌃⌘\ unsplits, ⌥⌘\ picks what to split with.
         case .splitWithTab: return "Option-Command-\\"

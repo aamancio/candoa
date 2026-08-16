@@ -350,7 +350,7 @@ extension CandoaUITests {
 
         // The focused pane takes the surface, and its partner leaves the
         // hierarchy — the pane the zoom hid must be gone, not merely narrow.
-        app.typeKey("\\", modifierFlags: [.shift, .command])
+        app.typeKey("\\", modifierFlags: [.control, .command])
         XCTAssertTrue(waitForState(in: app, containing: "splitZoom=one"), currentState(in: app))
         XCTAssertTrue(waitForState(in: app, containing: "splitTabs=two|one"), currentState(in: app))
         XCTAssertFalse(element("split-pane-0", in: app).exists, currentState(in: app))
@@ -369,7 +369,7 @@ extension CandoaUITests {
         XCTAssertFalse(element("split-pane-unsplit-1", in: app).exists, currentState(in: app))
 
         // Same key back out, and both panes return in their original order.
-        app.typeKey("\\", modifierFlags: [.shift, .command])
+        app.typeKey("\\", modifierFlags: [.control, .command])
         XCTAssertTrue(waitForState(in: app, containing: "splitZoom=none"), currentState(in: app))
         XCTAssertTrue(waitForState(in: app, containing: "splitTabs=two|one"), currentState(in: app))
         XCTAssertTrue(element("split-pane-0", in: app).waitForExistence(timeout: 5), currentState(in: app))
@@ -412,7 +412,7 @@ extension CandoaUITests {
 
         // Zoomed: stepping focus moves the zoom with it, so the visible pane
         // is always the focused one and no pane can be focused while hidden.
-        app.typeKey("\\", modifierFlags: [.shift, .command])
+        app.typeKey("\\", modifierFlags: [.control, .command])
         XCTAssertTrue(waitForState(in: app, containing: "splitZoom=one"), currentState(in: app))
         app.typeKey("]", modifierFlags: [.control, .command])
         XCTAssertTrue(waitForState(in: app, containing: "splitActive=two"), currentState(in: app))
@@ -427,11 +427,11 @@ extension CandoaUITests {
         XCTAssertTrue(waitForState(in: app, containing: "splitZoom=one"), currentState(in: app))
         XCTAssertTrue(element("split-pane-1", in: app).waitForExistence(timeout: 5), currentState(in: app))
 
-        app.typeKey("\\", modifierFlags: [.shift, .command])
+        app.typeKey("\\", modifierFlags: [.control, .command])
         XCTAssertTrue(waitForState(in: app, containing: "splitZoom=none"), currentState(in: app))
 
         // Unsplit by key acts on the focused pane, same as its pill button.
-        app.typeKey("\\", modifierFlags: [.control, .command])
+        app.typeKey("\\", modifierFlags: [.shift, .command])
         XCTAssertTrue(waitForState(in: app, containing: "split=false"), currentState(in: app))
         XCTAssertTrue(waitForState(in: app, containing: "active=one"), currentState(in: app))
         XCTAssertTrue(element("tab-row-one", in: app).waitForExistence(timeout: 5), currentState(in: app))
