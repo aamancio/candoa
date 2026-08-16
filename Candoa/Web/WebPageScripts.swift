@@ -744,13 +744,17 @@ enum WebPageScripts {
     })();
     """
 
-    /// YouTube parks a playing video in its own corner miniplayer when a
-    /// history navigation leaves the watch page, and restores that miniplayer
-    /// on later visits from its own session state. Candoa's floating player
-    /// owns background playback, so the site's copy only ever shows up as a
-    /// stray after pressing Back — auto-close it. Deliberate summons (the
-    /// `i` shortcut or the player's miniplayer button) also ride a history
-    /// navigation, so they mark themselves exempt just before it fires.
+    /// YouTube parks a playing video in its own corner miniplayer when any
+    /// in-site navigation leaves the watch page — Back, the logo, Home, a
+    /// sidebar link — and restores that miniplayer on later visits from its
+    /// own session state. Candoa's floating player owns background playback
+    /// (it appears only on tab switch), so the site's copy only ever shows up
+    /// as a stray — auto-close it. Deliberate summons (the `i` shortcut or
+    /// the player's miniplayer button) also ride a navigation, so they mark
+    /// themselves exempt just before it fires. Forward SPA navigations are
+    /// caught via `yt-navigate-start`, which YouTube dispatches before it
+    /// moves the video into the miniplayer host (`history.pushState` is not
+    /// observable — the site captures it before injected scripts run).
     static let youtubeMiniplayerGuardScript = """
     (() => {
       if (window.__candoaYouTubeMiniplayerGuarded) { return; }
@@ -817,12 +821,14 @@ enum WebPageScripts {
         }, 100);
       };
 
-      window.addEventListener("popstate", () => {
+      const onNavigation = () => {
         // A miniplayer already floating predates this navigation — the user
         // opened it on purpose; only activations the navigation causes close.
         if (activeMiniplayer()) { return; }
         sweep(2500);
-      }, true);
+      };
+      window.addEventListener("popstate", onNavigation, true);
+      document.addEventListener("yt-navigate-start", onNavigation, true);
 
       // Session-restored ghost: a miniplayer active shortly after load was
       // carried over from a previous visit, never something the user just
