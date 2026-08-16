@@ -438,6 +438,33 @@ extension CandoaUITests {
         XCTAssertTrue(element("tab-row-two", in: app).waitForExistence(timeout: 5), currentState(in: app))
     }
 
+    /// The keyboard route to what a sidebar drag does: Split With… lists the
+    /// Space's other tabs; picking one puts it beside the focused pane, and
+    /// a typed address opens in a fresh pane instead.
+    func testSplitWithPaletteAddsTabOrAddressToSplit() throws {
+        let app = launchApp(fixture: "split-view")
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
+
+        openFixtureTab(path: "one", in: app)
+        openFixtureTab(path: "two", in: app)
+        XCTAssertTrue(waitForState(in: app, containing: "split=false"), currentState(in: app))
+
+        // Pick an existing tab: it joins beside the current one, no blank
+        // pane in between.
+        app.typeKey("\\", modifierFlags: [.option, .command])
+        XCTAssertTrue(waitForState(in: app, containing: "palette=true"), currentState(in: app))
+        submitCommandPaletteText("one", in: app)
+        XCTAssertTrue(waitForState(in: app, containing: "splitDisplayed=true"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "splitTabs=two|one"), currentState(in: app))
+
+        // A typed address that matches no tab opens in a new pane instead.
+        app.typeKey("\\", modifierFlags: [.option, .command])
+        XCTAssertTrue(waitForState(in: app, containing: "palette=true"), currentState(in: app))
+        submitCommandPaletteText("https://fixture.candoa.test/three", in: app)
+        XCTAssertTrue(waitForState(in: app, containing: "splitTabs=two|one|three", timeout: 10), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "url=https://fixture.candoa.test/three", timeout: 10), currentState(in: app))
+    }
+
     func testSplitPaneUnsplitButtonReturnsTabToSidebar() throws {
         let app = launchApp(fixture: "split-view")
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))

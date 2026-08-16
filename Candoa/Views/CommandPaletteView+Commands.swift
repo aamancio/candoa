@@ -104,6 +104,10 @@ extension CommandPaletteView {
     }
 
     internal func commandCandidates(for trimmedQuery: String, isResumingSearchURL: Bool = false) -> [PaletteCommand] {
+        if store.commandPaletteSplitsWithSelection {
+            return splitWithCandidates(for: trimmedQuery)
+        }
+
         // Open tabs rank above history matches (Arc's ordering), which also
         // lets the dedupe keep the tab row when a page exists as both.
         let commands = tabCommands + historyCommands(for: trimmedQuery) + spaceCommands + baseCommands
@@ -167,6 +171,44 @@ extension CommandPaletteView {
         }
 
         return [navigateCommand] + commands
+    }
+
+    /// Split With… mode: the Space's other tabs, most recent first, minus
+    /// the panes already on screen; a typed entry offers to open in a new
+    /// pane. No history, providers or commands — the question is only
+    /// "which tab beside this one", and everything else is noise.
+    internal func splitWithCandidates(for trimmedQuery: String) -> [PaletteCommand] {
+        let excludedIDs = store.activeSplitGroupTabIDs.union([store.activeTabID].compactMap { $0 })
+        let tabRows = store.tabs
+            .filter { $0.spaceID == store.activeSpaceID && !excludedIDs.contains($0.id) }
+            .sorted {
+                if $0.lastAccessedAt == $1.lastAccessedAt {
+                    return $0.sortOrder < $1.sortOrder
+                }
+                return $0.lastAccessedAt > $1.lastAccessedAt
+            }
+            .map { tab in
+                PaletteCommand(
+                    title: tab.title,
+                    detail: hostDisplayText(for: tab.url),
+                    symbolName: tab.faviconSymbol,
+                    faviconData: tab.faviconData,
+                    searchText: "\(tab.title) \(tab.url?.absoluteString ?? "")",
+                    sourceLabel: "Tab",
+                    style: .tab,
+                    action: .splitWithTab(tab.id)
+                )
+            }
+
+        guard !trimmedQuery.isEmpty else { return tabRows }
+        let navigateCommand = PaletteCommand(
+            title: String(localized: "Search or Go to \"\(trimmedQuery)\""),
+            detail: String(localized: "Open in new pane", comment: "Command bar row detail in Split With… mode."),
+            symbolName: "rectangle.split.2x1",
+            searchText: trimmedQuery,
+            action: .splitWithNavigate(trimmedQuery)
+        )
+        return tabRows + [navigateCommand]
     }
 
     internal var defaultSuggestions: [PaletteCommand] {
@@ -553,6 +595,10 @@ extension CommandPaletteView {
             }
         case .switchTab(let id):
             store.switchTab(to: id)
+        case .splitWithTab(let id):
+            store.openSplitView(with: id)
+        case .splitWithNavigate(let input):
+            store.splitActivePane(navigatingTo: input)
         case .switchSpace(let id):
             store.switchSpace(to: id)
         }

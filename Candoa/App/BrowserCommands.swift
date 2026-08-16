@@ -282,6 +282,13 @@ internal struct BrowserCommands: Commands {
                     .keyboardShortcut(ShortcutDefinition.toggleSplitView.currentKeyboardShortcut)
                     .disabled(actions == nil)
 
+                    // Works from a single tab too: it starts the split.
+                    Button(BrowserCommandTitles.splitWithTab) {
+                        actions?.splitWithTab()
+                    }
+                    .keyboardShortcut(ShortcutDefinition.splitWithTab.currentKeyboardShortcut)
+                    .disabled(actions == nil)
+
                     // Rearranging only means something while a split is on
                     // screen, so these grey out instead of silently doing
                     // nothing.

@@ -85,6 +85,8 @@ internal enum PaletteAction {
     case navigate(String)
     case searchProvider(SearchProvider, String)
     case switchTab(UUID)
+    case splitWithTab(UUID)
+    case splitWithNavigate(String)
     case switchSpace(UUID)
 }
 
