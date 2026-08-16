@@ -508,3 +508,49 @@ internal struct FolderSectionView: View {
         store.renameFolder(folder.id, to: draftName)
     }
 }
+
+// MARK: - Pinned separator
+
+/// Zen's rule between the pinned area and the tab list, with its hover-only
+/// Clear: the rule yields room for the word, and the word closes every
+/// unpinned tab in the Space. Hidden when there is nothing to clear, so the
+/// affordance never appears as a no-op.
+internal struct PinnedSeparatorRow: View {
+    let showsClear: Bool
+    let onClear: () -> Void
+
+    @State private var isHovering = false
+
+    private var revealsClear: Bool { showsClear && isHovering }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Rectangle()
+                .fill(InterfaceStyle.sidebarSeparator)
+                .frame(height: 1)
+
+            if revealsClear {
+                Button(action: onClear) {
+                    Text("Clear")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(InterfaceStyle.sidebarTextSecondary)
+                        .contentShape(Rectangle())
+                }
+                .buttonTreatment(.content)
+                .shortcutTooltip(
+                    BrowserCommandTitles.clearUnpinnedTabs,
+                    shortcut: .clearUnpinnedTabs
+                )
+                .accessibilityIdentifier("sidebar-clear-unpinned-button")
+                .transition(.opacity)
+            }
+        }
+        .padding(.horizontal, 8)
+        // The rule owns a row of its own rather than being a hairline pinched
+        // between two gaps — the Clear needs the height to be clickable.
+        .frame(height: 22)
+        .contentShape(Rectangle())
+        .onHover { isHovering = $0 }
+        .animation(.easeOut(duration: 0.12), value: revealsClear)
+    }
+}

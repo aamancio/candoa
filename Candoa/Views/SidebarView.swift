@@ -995,10 +995,14 @@ struct SidebarView: View {
                 }
 
                 if showsPinnedAreaDivider {
-                    Rectangle()
-                        .fill(InterfaceStyle.sidebarSeparator)
-                        .frame(height: 1)
-                        .padding(.horizontal, 8)
+                    PinnedSeparatorRow(
+                        showsClear: spaceID == store.activeSpaceID
+                            && !store.regularTabs(in: spaceID).isEmpty,
+                        onClear: store.clearUnpinnedTabs
+                    )
+                    // The rule now carries a row's height of its own, so it
+                    // absorbs the section's spacing above it.
+                    .padding(.top, -pinnedSectionSpacing)
                 }
             }
             .contentShape(Rectangle())
