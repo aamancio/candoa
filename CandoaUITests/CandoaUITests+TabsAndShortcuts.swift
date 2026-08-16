@@ -447,6 +447,37 @@ extension CandoaUITests {
         XCTAssertTrue(waitForState(in: app, containing: "active=b"), currentState(in: app))
     }
 
+    func testControlTabHoldPointerHighlightsAndClickCommitsCards() throws {
+        let app = launchApp(fixture: "split-view")
+
+        openFixtureTab(path: "one", in: app)
+        openFixtureTab(path: "two", in: app)
+        openFixtureTab(path: "three", in: app)
+
+        postTabSwitcherAction("next")
+        XCTAssertTrue(waitForState(in: app, containing: "switcher=true:two"), currentState(in: app))
+
+        // Arc-style: moving the pointer over a card highlights it without
+        // switching; the page stays on "three" until something commits.
+        let oneCard = element("tab-switcher-card-one", in: app)
+        XCTAssertTrue(oneCard.waitForExistence(timeout: 5), currentState(in: app))
+        element("tab-switcher-card-three", in: app).hover()
+        oneCard.hover()
+        XCTAssertTrue(waitForState(in: app, containing: "switcher=true:one"), currentState(in: app))
+        XCTAssertTrue(currentState(in: app).contains("active=three"), currentState(in: app))
+
+        // Clicking a card commits it right away — no need to lift Control.
+        element("tab-switcher-card-two", in: app).hover()
+        XCTAssertTrue(waitForState(in: app, containing: "switcher=true:two"), currentState(in: app))
+        element("tab-switcher-card-two", in: app).click()
+        XCTAssertTrue(waitForState(in: app, containing: "switcher=false"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "active=two"), currentState(in: app))
+
+        // The eventual Control release finds nothing left to do.
+        postTabSwitcherAction("release")
+        XCTAssertTrue(currentState(in: app).contains("active=two"), currentState(in: app))
+    }
+
     /// The `tabs=` segment of the state string, split into titles.
     private func openTabTitles(in app: XCUIApplication) -> [String] {
         currentState(in: app)

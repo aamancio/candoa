@@ -176,6 +176,21 @@ extension BrowserStore {
         return true
     }
 
+    /// Arc-style pointer selection: moving the mouse over a card highlights
+    /// it exactly as Tab would — release (or a click) commits it.
+    func highlightTabInTabSwitcher(_ id: UUID) {
+        guard isTabSwitcherPresented, tabSwitcherTabs.contains(where: { $0.id == id }) else { return }
+        tabSwitcherSelectedTabID = id
+    }
+
+    /// Clicking a card commits it now instead of waiting for Control to
+    /// lift; the eventual release then finds nothing left to do.
+    func commitTabInTabSwitcher(_ id: UUID) {
+        guard isTabSwitcherPresented else { return }
+        highlightTabInTabSwitcher(id)
+        finishTabSwitcherInteraction()
+    }
+
     /// How many tabs the held strip is cycling through, including the ones
     /// past the visible cards — the strip's tab-count caption.
     var tabSwitcherTabCount: Int {
