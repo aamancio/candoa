@@ -1145,8 +1145,14 @@ struct SidebarView: View {
                     // The tab rows' 16pt icon column: an 18pt box here pushed
                     // the space name 2pt right of every tab title below it.
                     if let emoji = space.iconEmoji {
+                        // A 14pt emoji glyph is wider than the 16pt column,
+                        // and a Text squeezed under its ideal width truncates
+                        // — on a single glyph that reads as a clipped edge.
+                        // Keep the column for alignment; let the glyph sit at
+                        // its natural size, centred on it.
                         Text(emoji)
                             .font(.system(size: 14))
+                            .fixedSize()
                             .frame(width: 16, height: 16)
                     } else {
                         Image(systemName: space.symbolName)
