@@ -573,13 +573,15 @@ internal struct SpaceHeaderRow: View {
     @ObservedObject var store: BrowserStore
     let space: BrowserSpace
     let isDropTargeted: Bool
+    /// Pointer presence over the header band, kept by the band's own event
+    /// monitor — see SpaceSwipeCompanionHover for why onHover is not enough.
+    @ObservedObject var hover: SpaceSwipeCompanionHover
 
-    @State private var isHovering = false
     @State private var isHoveringMore = false
     @State private var deletingSpace: BrowserSpace?
 
     private var isCollapsed: Bool { store.isPinnedAreaCollapsed(in: space.id) }
-    private var showsHoverChrome: Bool { isHovering && store.draggedTabID == nil }
+    private var showsHoverChrome: Bool { hover.isPointerInside && store.draggedTabID == nil }
 
     var body: some View {
         HStack(spacing: 8) {
@@ -623,7 +625,10 @@ internal struct SpaceHeaderRow: View {
                         )
                         .contentShape(Circle())
                 }
-                .menuStyle(.borderlessButton)
+                // .button + .plain: the borderless menu style tints its label
+                // with the accent, and Arc's ⋯ is the row's own grey.
+                .menuStyle(.button)
+                .buttonStyle(.plain)
                 .menuIndicator(.hidden)
                 .fixedSize()
                 .onHover { isHoveringMore = $0 }
@@ -644,7 +649,6 @@ internal struct SpaceHeaderRow: View {
                 : (showsHoverChrome ? InterfaceStyle.sidebarControlFillHover : Color.clear)
         )
         .clipShape(RoundedRectangle(cornerRadius: InterfaceStyle.sidebarRowCornerRadius, style: .continuous))
-        .onHover { isHovering = $0 }
         .onTapGesture {
             store.togglePinnedAreaCollapsed(in: space.id)
         }

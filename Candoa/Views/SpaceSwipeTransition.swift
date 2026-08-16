@@ -42,15 +42,33 @@ final class SpaceSwipeTranslationRelay: ObservableObject {
     }
 }
 
+/// Whether the pointer is over a companion band. Kept by the band's own
+/// event monitor rather than SwiftUI's onHover: inside a hosting view that
+/// is translated by CoreAnimation and covered by popups (the ⋯ menu, a
+/// context menu), the exit half of onHover is routinely dropped and the
+/// hover chrome sticks. The monitor recomputes from the live pointer on
+/// every move, click release, and scroll, so it can only ever be as stale
+/// as the last event.
+@MainActor
+final class SpaceSwipeCompanionHover: ObservableObject {
+    @Published var isPointerInside = false
+}
+
 /// Hosts SwiftUI content that follows the swipe carousel's translation.
 /// The content is laid out like the pages — three Space-wide slots offset by
 /// one width — so it slides in lockstep with them.
 struct SpaceSwipeCompanionView<Content: View>: NSViewRepresentable {
     let relay: SpaceSwipeTranslationRelay
+    let hover: SpaceSwipeCompanionHover?
     private let content: Content
 
-    init(relay: SpaceSwipeTranslationRelay, @ViewBuilder content: () -> Content) {
+    init(
+        relay: SpaceSwipeTranslationRelay,
+        hover: SpaceSwipeCompanionHover? = nil,
+        @ViewBuilder content: () -> Content
+    ) {
         self.relay = relay
+        self.hover = hover
         self.content = content()
     }
 
@@ -59,6 +77,8 @@ struct SpaceSwipeCompanionView<Content: View>: NSViewRepresentable {
     /// edge or the neighbouring Space's label shows beside the sidebar.
     final class Shell: NSView {
         let hostingView: NSHostingView<Content>
+        var hover: SpaceSwipeCompanionHover?
+        private nonisolated(unsafe) var pointerMonitor: Any?
 
         init(rootView: Content) {
             hostingView = SidebarSwipeHostingView(rootView: rootView)
@@ -74,10 +94,49 @@ struct SpaceSwipeCompanionView<Content: View>: NSViewRepresentable {
 
         @available(*, unavailable)
         required init?(coder: NSCoder) { nil }
+
+        deinit {
+            if let pointerMonitor {
+                NSEvent.removeMonitor(pointerMonitor)
+            }
+        }
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            if let pointerMonitor {
+                NSEvent.removeMonitor(pointerMonitor)
+                self.pointerMonitor = nil
+            }
+            guard window != nil else {
+                hover?.isPointerInside = false
+                return
+            }
+            pointerMonitor = NSEvent.addLocalMonitorForEvents(
+                matching: [.mouseMoved, .leftMouseUp, .rightMouseUp, .scrollWheel, .mouseExited]
+            ) { [weak self] event in
+                MainActor.assumeIsolated {
+                    self?.refreshPointerInside()
+                }
+                return event
+            }
+        }
+
+        private func refreshPointerInside() {
+            guard let hover, let window else { return }
+            // The pointer, not the event: a popup's mouseUp arrives with the
+            // popup's coordinates, but where the pointer actually is decides.
+            let windowPoint = window.mouseLocationOutsideOfEventStream
+            let localPoint = convert(windowPoint, from: nil)
+            let inside = window.isMainWindow && bounds.contains(localPoint)
+            if hover.isPointerInside != inside {
+                hover.isPointerInside = inside
+            }
+        }
     }
 
     func makeNSView(context: Context) -> Shell {
         let shell = Shell(rootView: content)
+        shell.hover = hover
         if let layer = shell.hostingView.layer {
             relay.register(layer)
         }
@@ -86,6 +145,7 @@ struct SpaceSwipeCompanionView<Content: View>: NSViewRepresentable {
 
     func updateNSView(_ nsView: Shell, context: Context) {
         nsView.hostingView.rootView = content
+        nsView.hover = hover
         if let layer = nsView.hostingView.layer {
             relay.register(layer)
         }
