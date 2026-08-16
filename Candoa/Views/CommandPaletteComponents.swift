@@ -135,6 +135,8 @@ internal struct PaletteCommandRow: View {
     let selectedTint: Color
     @State internal var isHovering = false
 
+    private var shortcutKeys: [String] { command.shortcutKeys }
+
     // Arc keeps the selection highlight one constant accent everywhere;
     // provider brand colors belong on the chip, never on the selected row.
     private var backgroundColor: Color {
@@ -179,14 +181,23 @@ internal struct PaletteCommandRow: View {
                 Text("Switch to Tab")
                     .foregroundStyle(isSelected ? Color.white.opacity(0.92) : Color.secondary)
                     .lineLimit(1)
-            } else if let shortcutHint = command.shortcutHint {
-                Text(shortcutHint)
-                    .font(.system(size: 12.5, weight: .bold))
-                    .foregroundStyle(isSelected ? backgroundColor : Color.secondary)
-                    .padding(.horizontal, 8)
-                    .frame(height: 24)
-                    .background(isSelected ? Color.white.opacity(0.94) : Color.primary.opacity(0.08))
-                    .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+            } else if !shortcutKeys.isEmpty {
+                // Same one-cap-per-key treatment as the hover tooltip pill,
+                // so the palette teaches shortcuts the way the chrome does.
+                HStack(spacing: 3) {
+                    ForEach(Array(shortcutKeys.enumerated()), id: \.offset) { _, key in
+                        Text(key)
+                            .font(.system(size: 11.5, weight: .semibold))
+                            .foregroundStyle(isSelected ? Color.white.opacity(0.92) : Color.secondary)
+                            .frame(minWidth: 20)
+                            .frame(height: 20)
+                            .padding(.horizontal, key.count > 1 ? 4 : 0)
+                            .background(
+                                isSelected ? Color.white.opacity(0.18) : Color.primary.opacity(0.08),
+                                in: RoundedRectangle(cornerRadius: 4.5, style: .continuous)
+                            )
+                    }
+                }
             }
         }
         .font(.system(size: 13.5, weight: .semibold))
