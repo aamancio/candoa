@@ -90,6 +90,7 @@ struct SidebarView: View {
     private let sidebarAddressHeight: CGFloat = 40
     private let spaceSwitcherHeight: CGFloat = 32
     private let updateBannerHeight: CGFloat = 38
+    private let bottomFadeHeight: CGFloat = 18
 
     /// How long the Space slide waits after a hidden sidebar is revealed, so
     /// the two reads as open-then-slide rather than one blurred move.
@@ -162,6 +163,10 @@ struct SidebarView: View {
         // Favorites are global the same way: the shared grid is hoisted out
         // of the swiping pages so it stays put while Spaces slide beneath it.
         spaceSwipeContent
+            // Zen's tab list ends above the bottom bar rather than sliding
+            // under it: rows dissolve into the strip's band instead of
+            // showing through the workspace icons.
+            .mask(alignment: .bottom) { bottomFadeMask }
             .overlay(alignment: .top) {
                 // Private tabs never join the workspace, so the shared
                 // favorites grid (and its drag-here hint) has no place here.
@@ -173,16 +178,42 @@ struct SidebarView: View {
                 }
             }
             .overlay(alignment: .bottom) {
-                if showsSpaceSwitcher {
-                    HoistedSpaceSwitcherStrip(
-                        store: store,
-                        onSelectSpace: animateSpaceSelection
-                    )
-                    .padding(.leading, leadingInset)
-                    .padding(.trailing, trailingInset)
-                    .padding(.bottom, sidebarBottomPadding)
+                // The banners are app-level, not per-Space: hoisted here they
+                // stay put through a swipe and stay on screen at any scroll
+                // position, the way the strip below them does.
+                VStack(spacing: sidebarVerticalSpacing) {
+                    updateBanner
+
+                    if showsSpaceSwitcher {
+                        HoistedSpaceSwitcherStrip(
+                            store: store,
+                            onSelectSpace: animateSpaceSelection
+                        )
+                    }
                 }
+                .padding(.leading, leadingInset)
+                .padding(.trailing, trailingInset)
+                .padding(.bottom, sidebarBottomPadding)
             }
+    }
+
+    /// Opaque above, clear across the pinned bottom cluster, with a short
+    /// gradient between so rows fade out rather than being cut in half.
+    private var bottomFadeMask: some View {
+        VStack(spacing: 0) {
+            Rectangle()
+                .fill(Color.black)
+
+            LinearGradient(
+                colors: [Color.black, Color.black.opacity(0)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .frame(height: bottomFadeHeight)
+
+            Color.clear
+                .frame(height: spaceSwipeBottomInset)
+        }
     }
 
     private var hoistedFavoritesSection: some View {
@@ -266,26 +297,15 @@ struct SidebarView: View {
                 addressPill(for: spaceID)
             }
 
+            // The banners this row used to carry are hoisted alongside the
+            // switcher now; only the header and the address pill page with
+            // the Space.
             Spacer(minLength: 0)
-
-            updateBanner
         }
         .padding(.leading, leadingInset)
         .padding(.trailing, trailingInset)
         .padding(.top, sidebarTopPadding)
-        .padding(.bottom, swipeChromeBottomPadding)
-    }
-
-    /// The hoisted switcher still occupies the bottom strip, so the per-page
-    /// chrome must end above it — the banner keeps its resting position.
-    private var swipeChromeBottomPadding: CGFloat {
-        var padding = sidebarBottomPadding
-
-        if showsSpaceSwitcher {
-            padding += spaceSwitcherHeight + sidebarVerticalSpacing
-        }
-
-        return padding
+        .padding(.bottom, sidebarBottomPadding)
     }
 
     private var canSwipeSpaces: Bool {

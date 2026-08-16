@@ -29,6 +29,9 @@ internal struct AppUpdateBanner: View {
             .padding(.horizontal, 14)
             .frame(maxWidth: .infinity)
             .frame(height: 32)
+            // Same as the What's New pill: the tint is nearly transparent, so
+            // the material underneath is what lifts it off the tab list.
+            .background(.regularMaterial, in: Capsule(style: .continuous))
             .background(
                 Capsule(style: .continuous)
                     .fill(isHovering && !isInstalling ? InterfaceStyle.updateBannerFillHover : InterfaceStyle.updateBannerFill)
