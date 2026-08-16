@@ -573,6 +573,11 @@ internal struct SpaceHeaderRow: View {
     @ObservedObject var store: BrowserStore
     let space: BrowserSpace
     let isDropTargeted: Bool
+    /// Whether the Space has pinned tabs or folders under the title. Arc's
+    /// header only turns into a disclosure when there is something to fold:
+    /// with nothing pinned, hover shows just the ⋯ — no fill, no chevron, and
+    /// a click does nothing.
+    let hasCollapsibleContent: Bool
     /// Pointer presence over the header band, kept by the band's own event
     /// monitor — see SpaceSwipeCompanionHover for why onHover is not enough.
     @ObservedObject var hover: SpaceSwipeCompanionHover
@@ -581,14 +586,16 @@ internal struct SpaceHeaderRow: View {
     @State private var deletingSpace: BrowserSpace?
 
     private var isCollapsed: Bool { store.isPinnedAreaCollapsed(in: space.id) }
-    private var showsHoverChrome: Bool { hover.isPointerInside && store.draggedTabID == nil }
+    private var isHoveringRow: Bool { hover.isPointerInside && store.draggedTabID == nil }
+    /// The disclosure treatment — fill and chevron — needs something to fold.
+    private var showsDisclosureChrome: Bool { isHoveringRow && hasCollapsibleContent }
 
     var body: some View {
         HStack(spacing: 8) {
             // The tab rows' 16pt icon column: an 18pt box here pushed the
             // Space name 2pt right of every tab title below it.
             ZStack {
-                if showsHoverChrome {
+                if showsDisclosureChrome {
                     SidebarDisclosureChevron(
                         isExpanded: !isCollapsed,
                         isVisible: true,
@@ -608,7 +615,7 @@ internal struct SpaceHeaderRow: View {
 
             Spacer(minLength: 0)
 
-            if showsHoverChrome {
+            if isHoveringRow {
                 Menu {
                     spaceMenuItems
                 } label: {
@@ -646,10 +653,11 @@ internal struct SpaceHeaderRow: View {
         .background(
             isDropTargeted
                 ? InterfaceStyle.sidebarControlFillDropTarget
-                : (showsHoverChrome ? InterfaceStyle.sidebarControlFillHover : Color.clear)
+                : (showsDisclosureChrome ? InterfaceStyle.sidebarControlFillHover : Color.clear)
         )
         .clipShape(RoundedRectangle(cornerRadius: InterfaceStyle.sidebarRowCornerRadius, style: .continuous))
         .onTapGesture {
+            guard hasCollapsibleContent else { return }
             store.togglePinnedAreaCollapsed(in: space.id)
         }
         .contextMenu { spaceMenuItems }
@@ -667,9 +675,10 @@ internal struct SpaceHeaderRow: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel(space.name)
-        .accessibilityValue(isCollapsed ? "Collapsed" : "Expanded")
+        .accessibilityValue(hasCollapsibleContent ? (isCollapsed ? "Collapsed" : "Expanded") : "")
         .accessibilityIdentifier("sidebar-space-header")
-        .animation(.easeOut(duration: 0.10), value: showsHoverChrome)
+        .animation(.easeOut(duration: 0.10), value: isHoveringRow)
+        .animation(.easeOut(duration: 0.10), value: showsDisclosureChrome)
         .animation(.easeOut(duration: 0.10), value: isDropTargeted)
     }
 
