@@ -309,6 +309,26 @@ internal struct BrowserCommands: Commands {
                     }
                     .keyboardShortcut(ShortcutDefinition.zoomSplitPane.currentKeyboardShortcut)
                     .disabled(actions?.isSplitDisplayed != true)
+
+                    Divider()
+
+                    Button(BrowserCommandTitles.focusNextSplitPane) {
+                        actions?.focusSplitPane(1)
+                    }
+                    .keyboardShortcut(ShortcutDefinition.focusNextSplitPane.currentKeyboardShortcut)
+                    .disabled(actions?.isSplitDisplayed != true)
+
+                    Button(BrowserCommandTitles.focusPreviousSplitPane) {
+                        actions?.focusSplitPane(-1)
+                    }
+                    .keyboardShortcut(ShortcutDefinition.focusPreviousSplitPane.currentKeyboardShortcut)
+                    .disabled(actions?.isSplitDisplayed != true)
+
+                    Button(BrowserCommandTitles.unsplitPane) {
+                        actions?.unsplitPane()
+                    }
+                    .keyboardShortcut(ShortcutDefinition.unsplitPane.currentKeyboardShortcut)
+                    .disabled(actions?.isSplitDisplayed != true)
                 }
 
                 // AppKit appends its Enter Full Screen item after this group;

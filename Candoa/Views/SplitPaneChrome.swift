@@ -164,8 +164,7 @@ internal struct SplitPaneControlPill: View {
                 }
                 .buttonTreatment(.content)
                 .foregroundStyle(.secondary)
-                .help("Unsplit — Move Back to Tab List")
-                .accessibilityLabel("Unsplit")
+                .shortcutTooltip(BrowserCommandTitles.unsplitPane, shortcut: .unsplitPane)
                 .accessibilityIdentifier("split-pane-unsplit-\(paneIndex)")
             }
         }

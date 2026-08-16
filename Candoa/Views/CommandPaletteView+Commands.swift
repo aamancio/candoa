@@ -318,6 +318,27 @@ extension CommandPaletteView {
                     action: .toggleSplitPaneZoom
                 )
             )
+            commands.append(
+                PaletteCommand(
+                    title: BrowserCommandTitles.focusNextSplitPane,
+                    symbolName: "rectangle.righthalf.inset.filled.arrow.right",
+                    action: .focusSplitPane(1)
+                )
+            )
+            commands.append(
+                PaletteCommand(
+                    title: BrowserCommandTitles.focusPreviousSplitPane,
+                    symbolName: "rectangle.lefthalf.inset.filled.arrow.left",
+                    action: .focusSplitPane(-1)
+                )
+            )
+            commands.append(
+                PaletteCommand(
+                    title: BrowserCommandTitles.unsplitPane,
+                    symbolName: "rectangle.portrait.and.arrow.right",
+                    action: .unsplitPane
+                )
+            )
         }
 
         if store.isPrivate {
@@ -500,6 +521,10 @@ extension CommandPaletteView {
             store.toggleSplitView()
         case .toggleSplitPaneZoom:
             store.toggleSplitPaneZoom()
+        case .focusSplitPane(let offset):
+            store.focusAdjacentSplitPane(offset: offset)
+        case .unsplitPane:
+            store.unsplitFocusedPane()
         case .createSpace:
             store.beginSpaceCreation()
         case .focusAddressBar:

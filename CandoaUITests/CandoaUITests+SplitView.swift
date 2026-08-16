@@ -390,6 +390,54 @@ extension CandoaUITests {
         XCTAssertTrue(waitForState(in: app, containing: "splitZoom=none"), currentState(in: app))
     }
 
+    /// The keyboard has to be able to do everything the pane pill can: step
+    /// focus between panes without touring every other tab in the Space,
+    /// keep stepping while zoomed (the zoom follows focus, so a chip click or
+    /// Control-Tab can never land on a hidden pane), and unsplit the focused
+    /// pane.
+    func testSplitPaneFocusAndUnsplitShortcuts() throws {
+        let app = launchApp(fixture: "split-view")
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
+
+        openFixtureTab(path: "two", in: app)
+        openSplitPane(with: "one", in: app)
+        XCTAssertTrue(waitForState(in: app, containing: "splitTabs=two|one"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "splitActive=one"), currentState(in: app))
+
+        // Next wraps from the last pane back to the first; previous undoes it.
+        app.typeKey("]", modifierFlags: [.control, .command])
+        XCTAssertTrue(waitForState(in: app, containing: "splitActive=two"), currentState(in: app))
+        app.typeKey("[", modifierFlags: [.control, .command])
+        XCTAssertTrue(waitForState(in: app, containing: "splitActive=one"), currentState(in: app))
+
+        // Zoomed: stepping focus moves the zoom with it, so the visible pane
+        // is always the focused one and no pane can be focused while hidden.
+        app.typeKey("\\", modifierFlags: [.shift, .command])
+        XCTAssertTrue(waitForState(in: app, containing: "splitZoom=one"), currentState(in: app))
+        app.typeKey("]", modifierFlags: [.control, .command])
+        XCTAssertTrue(waitForState(in: app, containing: "splitActive=two"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "splitZoom=two"), currentState(in: app))
+        XCTAssertTrue(element("split-pane-0", in: app).waitForExistence(timeout: 5), currentState(in: app))
+        XCTAssertFalse(element("split-pane-1", in: app).exists, currentState(in: app))
+
+        // A sidebar chip for the hidden pane brings that pane forward too.
+        let chipOne = element("split-chip-one", in: app)
+        XCTAssertTrue(chipOne.waitForExistence(timeout: 5), currentState(in: app))
+        chipOne.click()
+        XCTAssertTrue(waitForState(in: app, containing: "splitZoom=one"), currentState(in: app))
+        XCTAssertTrue(element("split-pane-1", in: app).waitForExistence(timeout: 5), currentState(in: app))
+
+        app.typeKey("\\", modifierFlags: [.shift, .command])
+        XCTAssertTrue(waitForState(in: app, containing: "splitZoom=none"), currentState(in: app))
+
+        // Unsplit by key acts on the focused pane, same as its pill button.
+        app.typeKey("\\", modifierFlags: [.control, .command])
+        XCTAssertTrue(waitForState(in: app, containing: "split=false"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "active=one"), currentState(in: app))
+        XCTAssertTrue(element("tab-row-one", in: app).waitForExistence(timeout: 5), currentState(in: app))
+        XCTAssertTrue(element("tab-row-two", in: app).waitForExistence(timeout: 5), currentState(in: app))
+    }
+
     func testSplitPaneUnsplitButtonReturnsTabToSidebar() throws {
         let app = launchApp(fixture: "split-view")
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
