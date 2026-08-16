@@ -66,6 +66,7 @@ struct SidebarView: View {
     @State private var selectedSpaceTransitionDirection: Int?
     @State private var favoritesSectionHeight: CGFloat = 0
     @State private var spaceLabelHeight: CGFloat = 0
+    @StateObject private var swipeTranslationRelay = SpaceSwipeTranslationRelay()
     @State private var scrollEdges = SpaceScrollEdges()
     @StateObject private var windowControlsGeometry = WindowControlsGeometry()
     @AppStorage("Candoa.FavoritesDropZoneDismissed") private var isFavoritesDropZoneDismissed = false
@@ -190,8 +191,6 @@ struct SidebarView: View {
                 // draws directly under it. Per-Space, so it switches on
                 // commit like the address pill rather than sliding.
                 hoistedSpaceLabel
-                    .padding(.leading, leadingInset)
-                    .padding(.trailing, trailingInset)
                     .padding(.top, favoritesBandBottom + 1)
             }
             .overlay(alignment: .bottom) {
@@ -288,13 +287,42 @@ struct SidebarView: View {
             }
     }
 
+    /// Pinned vertically, but not to one Space: the label rides the swipe
+    /// carousel's translation through the relay, laid out as the same three
+    /// Space-wide slots the pages use, so it slides in lockstep with the list
+    /// under it instead of cutting to the destination on commit.
     private var hoistedSpaceLabel: some View {
-        spaceLabel(for: store.activeSpaceID)
+        GeometryReader { proxy in
+            let width = max(proxy.size.width, 1)
+
+            SpaceSwipeCompanionView(relay: swipeTranslationRelay) {
+                HStack(alignment: .top, spacing: 0) {
+                    ForEach([-1, 0, 1], id: \.self) { slot in
+                        Group {
+                            if let spaceID = spaceID(forSwipeSlot: slot) {
+                                spaceLabel(for: spaceID)
+                            } else {
+                                Color.clear.frame(height: 0)
+                            }
+                        }
+                        .padding(.leading, leadingInset)
+                        .padding(.trailing, trailingInset)
+                        .frame(width: width, alignment: .topLeading)
+                        .allowsHitTesting(slot == 0)
+                        .accessibilityHidden(slot != 0)
+                    }
+                }
+                .offset(x: -width)
+                .frame(width: width, alignment: .topLeading)
+                .fixedSize(horizontal: false, vertical: true)
+            }
             .onGeometryChange(for: CGFloat.self) { proxy in
                 proxy.size.height
             } action: { height in
                 spaceLabelHeight = height
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        }
     }
 
     private var setupSidebar: some View {
@@ -375,7 +403,8 @@ struct SidebarView: View {
                 onSwipeProgress: updateSpaceSwipeThemeProgress,
                 onSettleBegan: settleSpaceSwipeTheme,
                 onCompletion: completeSpaceSwipe,
-                onScrollEdgesChanged: { scrollEdges = $0 }
+                onScrollEdgesChanged: { scrollEdges = $0 },
+                translationRelay: swipeTranslationRelay
             ) {
                 ZStack(alignment: .leading) {
                     HStack(alignment: .top, spacing: 0) {
