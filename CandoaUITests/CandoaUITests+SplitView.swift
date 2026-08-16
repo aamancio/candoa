@@ -151,6 +151,31 @@ extension CandoaUITests {
         XCTAssertTrue(waitForState(in: app, containing: "splitTabs=two|one"), currentState(in: app))
     }
 
+    func testDraggingSidebarTabOntoSpaceHeaderPinsIt() throws {
+        let app = launchApp(fixture: "split-view")
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
+
+        openFixtureTab(path: "one", in: app)
+
+        // Arc's Space title is a drop target for the pinned area: the row
+        // lights up while a tab is over it and the tab lands pinned on
+        // release. The header rides its own hosting view (it slides with a
+        // Space swipe), so this covers the drop reaching it there.
+        let row = element("tab-row-one", in: app)
+        XCTAssertTrue(row.waitForExistence(timeout: 5), currentState(in: app))
+        let header = element("sidebar-space-header", in: app)
+        XCTAssertTrue(header.waitForExistence(timeout: 5), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "pinned=;"), currentState(in: app))
+
+        row.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            .press(
+                forDuration: 0.3,
+                thenDragTo: header.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            )
+
+        XCTAssertTrue(waitForState(in: app, containing: "pinned=one"), currentState(in: app))
+    }
+
     func testDraggingSidebarTabOntoPageEdgeCreatesSplit() throws {
         let app = launchApp(fixture: "split-view")
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
