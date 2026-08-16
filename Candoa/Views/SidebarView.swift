@@ -202,7 +202,7 @@ struct SidebarView: View {
                 // the sidebar's own tree, over the band the header covers —
                 // and only while a drag is live, so it never steals the
                 // header's hover, click, or menu.
-                if store.draggedTabID != nil, spaceLabelHeight > 0 {
+                if store.draggedTabID != nil {
                     spaceHeaderDropBand
                         .padding(.leading, leadingInset)
                         .padding(.trailing, trailingInset)
@@ -311,7 +311,11 @@ struct SidebarView: View {
         GeometryReader { proxy in
             let width = max(proxy.size.width, 1)
 
-            SpaceSwipeCompanionView(relay: swipeTranslationRelay, hover: spaceHeaderHover) {
+            SpaceSwipeCompanionView(
+                relay: swipeTranslationRelay,
+                hover: spaceHeaderHover,
+                isHidden: store.draggedTabID != nil
+            ) {
                 HStack(alignment: .top, spacing: 0) {
                     ForEach([-1, 0, 1], id: \.self) { slot in
                         Group {
@@ -341,9 +345,11 @@ struct SidebarView: View {
         }
     }
 
+    /// The header as drawn during a tab drag: the same row, in the sidebar's
+    /// own tree where drops route, standing in for the hidden companion. It
+    /// carries the drop target and paints the lit state itself.
     private var spaceHeaderDropBand: some View {
-        Color.clear
-            .frame(height: spaceLabelHeight)
+        spaceLabel(for: store.activeSpaceID)
             .contentShape(Rectangle())
             .onDrop(
                 of: [UTType.text],
@@ -352,7 +358,6 @@ struct SidebarView: View {
                     store: store
                 )
             )
-            .accessibilityHidden(true)
     }
 
     private var setupSidebar: some View {

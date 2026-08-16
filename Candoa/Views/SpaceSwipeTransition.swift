@@ -60,15 +60,21 @@ final class SpaceSwipeCompanionHover: ObservableObject {
 struct SpaceSwipeCompanionView<Content: View>: NSViewRepresentable {
     let relay: SpaceSwipeTranslationRelay
     let hover: SpaceSwipeCompanionHover?
+    /// AppKit's drag routing skips hidden views. While a tab drag is live the
+    /// sidebar draws this band itself, where drops route, and hides the
+    /// companion so it cannot sit in the way — see SidebarView.
+    let isHidden: Bool
     private let content: Content
 
     init(
         relay: SpaceSwipeTranslationRelay,
         hover: SpaceSwipeCompanionHover? = nil,
+        isHidden: Bool = false,
         @ViewBuilder content: () -> Content
     ) {
         self.relay = relay
         self.hover = hover
+        self.isHidden = isHidden
         self.content = content()
     }
 
@@ -146,6 +152,7 @@ struct SpaceSwipeCompanionView<Content: View>: NSViewRepresentable {
     func updateNSView(_ nsView: Shell, context: Context) {
         nsView.hostingView.rootView = content
         nsView.hover = hover
+        nsView.isHidden = isHidden
         if let layer = nsView.hostingView.layer {
             relay.register(layer)
         }
