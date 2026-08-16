@@ -209,6 +209,13 @@ final class BrowserStore: ObservableObject {
     @Published var readerActiveTabIDs: Set<UUID> = []
     @Published var editingSpaceID: UUID?
     @Published var editingFolderID: UUID?
+    /// Spaces whose pinned area is folded away behind the Space header, the
+    /// way Arc collapses a Space's pinned tabs when its title is clicked.
+    /// A view preference, not workspace state: kept in UserDefaults, never
+    /// synced.
+    @Published var collapsedPinnedSpaceIDs: Set<UUID> = BrowserStore.loadCollapsedPinnedSpaceIDs() {
+        didSet { BrowserStore.saveCollapsedPinnedSpaceIDs(collapsedPinnedSpaceIDs) }
+    }
     @Published var initialOnboardingStep: InitialOnboardingStep?
     @Published var initialTourTip: InitialTourTip?
     @Published var preparingInitialTourTip: InitialTourTip?

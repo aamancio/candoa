@@ -336,5 +336,29 @@ extension BrowserStore {
         guard spaces.contains(where: { $0.id == id }), id != activeSpaceID else { return }
         spaceSelectionRequest = SpaceSelectionRequest(spaceID: id)
     }
-}
 
+    // MARK: - Pinned area collapse
+
+    private static let collapsedPinnedSpacesKey = "Candoa.CollapsedPinnedSpaces"
+
+    static func loadCollapsedPinnedSpaceIDs() -> Set<UUID> {
+        let raw = UserDefaults.standard.stringArray(forKey: collapsedPinnedSpacesKey) ?? []
+        return Set(raw.compactMap(UUID.init(uuidString:)))
+    }
+
+    static func saveCollapsedPinnedSpaceIDs(_ ids: Set<UUID>) {
+        UserDefaults.standard.set(ids.map(\.uuidString).sorted(), forKey: collapsedPinnedSpacesKey)
+    }
+
+    func isPinnedAreaCollapsed(in spaceID: UUID) -> Bool {
+        collapsedPinnedSpaceIDs.contains(spaceID)
+    }
+
+    func togglePinnedAreaCollapsed(in spaceID: UUID) {
+        if collapsedPinnedSpaceIDs.contains(spaceID) {
+            collapsedPinnedSpaceIDs.remove(spaceID)
+        } else {
+            collapsedPinnedSpaceIDs.insert(spaceID)
+        }
+    }
+}

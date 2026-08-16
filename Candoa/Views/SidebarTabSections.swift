@@ -561,3 +561,164 @@ internal struct PinnedSeparatorRow: View {
         .animation(.easeOut(duration: 0.15), value: isHoveringClear)
     }
 }
+
+// MARK: - Space header
+
+/// Arc's Space title row. At rest it is the icon and the name; on hover the
+/// row fills, a chevron takes the icon's place, and a ⋯ button appears at
+/// the trailing edge. Clicking the row folds the pinned area away (the
+/// chevron turns to point at what's hidden); the ⋯ button and a right-click
+/// open the same Space menu.
+internal struct SpaceHeaderRow: View {
+    @ObservedObject var store: BrowserStore
+    let space: BrowserSpace
+    let isDropTargeted: Bool
+
+    @State private var isHovering = false
+    @State private var isHoveringMore = false
+    @State private var deletingSpace: BrowserSpace?
+
+    private var isCollapsed: Bool { store.isPinnedAreaCollapsed(in: space.id) }
+    private var showsHoverChrome: Bool { isHovering && store.draggedTabID == nil }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            // The tab rows' 16pt icon column: an 18pt box here pushed the
+            // Space name 2pt right of every tab title below it.
+            ZStack {
+                if showsHoverChrome {
+                    SidebarDisclosureChevron(
+                        isExpanded: !isCollapsed,
+                        isVisible: true,
+                        opacity: 0.82
+                    )
+                    .foregroundStyle(InterfaceStyle.sidebarIcon)
+                } else {
+                    spaceIcon
+                }
+            }
+            .frame(width: 16, height: 16)
+
+            Text(space.name)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .font(.system(size: 13, weight: .medium))
+
+            Spacer(minLength: 0)
+
+            if showsHoverChrome {
+                Menu {
+                    spaceMenuItems
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(InterfaceStyle.sidebarIcon)
+                        .frame(width: 22, height: 22)
+                        .background(
+                            Circle().fill(
+                                isHoveringMore
+                                    ? InterfaceStyle.sidebarControlFillHover
+                                    : Color.clear
+                            )
+                        )
+                        .contentShape(Circle())
+                }
+                .menuStyle(.borderlessButton)
+                .menuIndicator(.hidden)
+                .fixedSize()
+                .onHover { isHoveringMore = $0 }
+                .help("Space Options")
+                .accessibilityLabel("Space Options")
+                .accessibilityIdentifier("sidebar-space-options-button")
+                .transition(.opacity)
+            }
+        }
+        .foregroundStyle(InterfaceStyle.sidebarTextSecondary)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
+        .frame(minHeight: 36)
+        .contentShape(Rectangle())
+        .background(
+            isDropTargeted
+                ? InterfaceStyle.sidebarControlFillDropTarget
+                : (showsHoverChrome ? InterfaceStyle.sidebarControlFillHover : Color.clear)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: InterfaceStyle.sidebarRowCornerRadius, style: .continuous))
+        .onHover { isHovering = $0 }
+        .onTapGesture {
+            store.togglePinnedAreaCollapsed(in: space.id)
+        }
+        .contextMenu { spaceMenuItems }
+        .alert("Delete Space", isPresented: isDeleteAlertPresented, presenting: deletingSpace) { space in
+            Button("Delete", role: .destructive) {
+                store.deleteSpace(space.id)
+                deletingSpace = nil
+            }
+
+            Button("Cancel", role: .cancel) {
+                deletingSpace = nil
+            }
+        } message: { space in
+            Text("Delete \"\(space.name)\" and close its tabs?")
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(space.name)
+        .accessibilityValue(isCollapsed ? "Collapsed" : "Expanded")
+        .accessibilityIdentifier("sidebar-space-header")
+        .animation(.easeOut(duration: 0.10), value: showsHoverChrome)
+        .animation(.easeOut(duration: 0.10), value: isDropTargeted)
+    }
+
+    @ViewBuilder
+    private var spaceIcon: some View {
+        if space.symbolName != BrowserSpace.noIconSymbolName {
+            if let emoji = space.iconEmoji {
+                // A 14pt emoji glyph is wider than the 16pt column, and a
+                // Text squeezed under its ideal width truncates — on a single
+                // glyph that reads as a clipped edge. fixedSize keeps it whole,
+                // centred on the column.
+                Text(emoji)
+                    .font(.system(size: 14))
+                    .fixedSize()
+            } else {
+                Image(systemName: space.symbolName)
+                    .font(.system(size: 14, weight: .medium))
+                    .symbolRenderingMode(.hierarchical)
+            }
+        }
+    }
+
+    /// Arc's Space menu, trimmed to what Candoa has: icon, name and theme
+    /// live in one editor here, so all three rows open it; profiles, live
+    /// folders, sharing and export have no counterpart yet.
+    @ViewBuilder
+    private var spaceMenuItems: some View {
+        Button("Change Space Icon…") { store.beginSpaceEditing(space.id) }
+        Button("Rename Space…") { store.beginSpaceEditing(space.id) }
+        Button("Edit Theme Color…") { store.beginSpaceEditing(space.id) }
+
+        Divider()
+
+        Button("New Folder") {
+            store.switchSpace(to: space.id)
+            let folder = store.createFolder()
+            store.editingFolderID = folder.id
+        }
+
+        Divider()
+
+        Button("New Space") { store.beginSpaceCreation() }
+
+        Divider()
+
+        Button("Delete Space", role: .destructive) { deletingSpace = space }
+            .disabled(store.spaces.count <= 1)
+    }
+
+    private var isDeleteAlertPresented: Binding<Bool> {
+        Binding(
+            get: { deletingSpace != nil },
+            set: { if !$0 { deletingSpace = nil } }
+        )
+    }
+}
