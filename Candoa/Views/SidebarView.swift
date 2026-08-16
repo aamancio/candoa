@@ -364,7 +364,14 @@ struct SidebarView: View {
             inset += spaceSwitcherHeight + sidebarVerticalSpacing
         }
 
+        // Both banners ride the same slot above the switcher and can stack, so
+        // each reserves its own gap. Miss one and the tab list keeps scrolling
+        // under it — the last rows read as struck through by the pill.
         if availableUpdate != nil {
+            inset += updateBannerHeight + sidebarVerticalSpacing
+        }
+
+        if isWhatsNewVisible {
             inset += updateBannerHeight + sidebarVerticalSpacing
         }
 
