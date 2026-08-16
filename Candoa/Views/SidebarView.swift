@@ -67,6 +67,7 @@ struct SidebarView: View {
     @State private var favoritesSectionHeight: CGFloat = 0
     @State private var spaceLabelHeight: CGFloat = 0
     @StateObject private var swipeTranslationRelay = SpaceSwipeTranslationRelay()
+    @StateObject private var spaceHeaderHover = SpaceSwipeCompanionHover()
     @State private var scrollEdges = SpaceScrollEdges()
     @StateObject private var windowControlsGeometry = WindowControlsGeometry()
     @AppStorage("Candoa.FavoritesDropZoneDismissed") private var isFavoritesDropZoneDismissed = false
@@ -295,7 +296,7 @@ struct SidebarView: View {
         GeometryReader { proxy in
             let width = max(proxy.size.width, 1)
 
-            SpaceSwipeCompanionView(relay: swipeTranslationRelay) {
+            SpaceSwipeCompanionView(relay: swipeTranslationRelay, hover: spaceHeaderHover) {
                 HStack(alignment: .top, spacing: 0) {
                     ForEach([-1, 0, 1], id: \.self) { slot in
                         Group {
@@ -1205,7 +1206,8 @@ struct SidebarView: View {
             SpaceHeaderRow(
                 store: store,
                 space: space,
-                isDropTargeted: isSpaceDropTargeted
+                isDropTargeted: isSpaceDropTargeted,
+                hover: spaceHeaderHover
             )
             .onDrop(
                 of: [UTType.text],
