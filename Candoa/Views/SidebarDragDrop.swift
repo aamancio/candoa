@@ -27,13 +27,52 @@ internal struct TabReorderDropDelegate: DropDelegate {
         return DropProposal(operation: .move)
     }
 
-    func dropExited(info: DropInfo) {
-        store.clearSidebarDropIndicator()
-    }
+    // Deliberately not clearing the indicator: with live reordering the
+    // rows move as the gap moves, so the pointer keeps entering and exiting
+    // rows that slid under it. Clearing here made the gap flicker between
+    // its new home and the source — the jumpiness this replaces. The gap
+    // survives until another row claims it, the section delegate reports the
+    // pointer leaving the list, or the drag ends.
+    func dropExited(info: DropInfo) {}
 
     func performDrop(info: DropInfo) -> Bool {
         guard let draggedID = store.draggedTabID else { return false }
         let sourcePlacement = store.sidebarPlacement(for: draggedID)
+
+        // Live reordering parks the dragged row under the pointer, so a
+        // release usually lands on the row's own delegate. Commit the gap it
+        // is sitting in — an insertion relative to itself is a no-op, which
+        // is what made a dropped tab spring back to where it started.
+        if targetTab.id == draggedID {
+            guard
+                let indicator = store.activeSidebarDropIndicator,
+                indicator.placement == placement,
+                indicator.edge != .split
+            else {
+                store.clearSidebarDropIndicator()
+                return false
+            }
+
+            let beforeID = indicator.targetTabID.flatMap { targetID in
+                insertionBeforeID(
+                    targetTabID: targetID,
+                    edge: indicator.edge,
+                    tabs: tabs,
+                    draggedID: draggedID
+                )
+            }
+            store.moveTabToPlacement(
+                draggedID,
+                isFavorite: isFavorite,
+                isPinned: pinned,
+                folderID: folderID,
+                before: beforeID,
+                appendToEnd: beforeID == nil && indicator.edge == .after
+            )
+            store.finishTabDrop(draggedID, from: sourcePlacement, to: placement)
+            return true
+        }
+
         let edge = store.activeSidebarDropIndicator?.targetTabID == targetTab.id
             ? store.activeSidebarDropIndicator?.edge ?? dropEdge(for: info, axis: dropAxis)
             : dropEdge(for: info, axis: dropAxis)
@@ -517,6 +556,12 @@ internal final class TabDragSessionController {
 internal final class TabDragSourceAnchorView: NSView, NSDraggingSource {
     weak var store: BrowserStore?
     var tabID: UUID?
+    /// The window the session started in. Live reordering can take this row
+    /// out of the list mid-drag (the pointer moved to another section), and
+    /// the view leaves the window with it — but AppKit keeps calling the
+    /// source, so the header zone is looked up by the remembered number
+    /// rather than the current window.
+    private var dragWindowNumber: Int?
 
     // Click-through: the row's own controls keep every click; the anchor
     // only marks the draggable region for the shared session controller.
@@ -540,7 +585,10 @@ internal final class TabDragSourceAnchorView: NSView, NSDraggingSource {
             let tab = store.tabs.first(where: { $0.id == tabID })
         else { return }
 
-        let ghostImage = TabDragGhostImage.make(for: tab)
+        // Arc lifts the row itself: the drag image is the row, drawn at the
+        // row's own size, and it starts exactly where the row is so the grab
+        // point stays under the pointer — a lift, not a swap for a card.
+        let ghostImage = TabDragRowImage.make(for: tab, size: bounds.size)
 
         _ = store.beginTabDrag(tabID)
         // beginTabDrag starts the mouse-button polling watcher that exists
@@ -556,20 +604,9 @@ internal final class TabDragSourceAnchorView: NSView, NSDraggingSource {
         let pasteboardItem = NSPasteboardItem()
         pasteboardItem.setString(tabID.uuidString, forType: .string)
         let draggingItem = NSDraggingItem(pasteboardWriter: pasteboardItem)
-        let location = convert(mouseDownEvent.locationInWindow, from: nil)
-        // Unflipped view coordinates: the ghost's top edge sits 14pt below
-        // the cursor, so the frame's origin (its bottom-left) is one ghost
-        // height further down.
-        draggingItem.setDraggingFrame(
-            CGRect(
-                x: location.x - ghostImage.size.width / 2,
-                y: location.y - 14 - ghostImage.size.height,
-                width: ghostImage.size.width,
-                height: ghostImage.size.height
-            ),
-            contents: ghostImage
-        )
+        draggingItem.setDraggingFrame(bounds, contents: ghostImage)
 
+        dragWindowNumber = window?.windowNumber
         let session = beginDraggingSession(
             with: [draggingItem],
             event: mouseDownEvent,
@@ -593,7 +630,7 @@ internal final class TabDragSourceAnchorView: NSView, NSDraggingSource {
         // NSDraggingSource callbacks arrive on the main thread; the session
         // is touched here, before hopping, so it never crosses the boundary.
         let inside = MainActor.assumeIsolated { () -> Bool? in
-            guard let store, let windowNumber = window?.windowNumber else { return nil }
+            guard let store, let windowNumber = dragWindowNumber ?? window?.windowNumber else { return nil }
             let zone = SpaceHeaderDropZones.shared.screenFrame(forWindowNumber: windowNumber)
             let inside = zone?.contains(screenPoint) ?? false
             return inside != store.isSpaceHeaderDropTargeted ? inside : nil
@@ -620,6 +657,7 @@ internal final class TabDragSourceAnchorView: NSView, NSDraggingSource {
     ) {
         // NSDraggingSource callbacks arrive on the main thread.
         MainActor.assumeIsolated {
+            dragWindowNumber = nil
             guard let store, let tabID else { return }
             if store.isSpaceHeaderDropTargeted {
                 store.isSpaceHeaderDropTargeted = false
@@ -665,6 +703,69 @@ internal struct TabDragSourceBackground: NSViewRepresentable {
     func updateNSView(_ view: TabDragSourceAnchorView, context: Context) {
         view.store = store
         view.tabID = tabID
+    }
+}
+
+/// The sidebar row as a drag image, Arc-style: the row's rounded shape at
+/// the row's own size with its hover fill, favicon and title, so the drag
+/// reads as the row lifting off the list. Drawn with AppKit primitives for
+/// the same reason as the ghost card below.
+internal enum TabDragRowImage {
+    @MainActor
+    static func make(for tab: BrowserTab, size: NSSize) -> NSImage {
+        let title = tab.title.isEmpty ? (tab.url?.host() ?? "New Tab") : tab.title
+        let faviconData = tab.faviconData
+        let faviconSymbol = tab.faviconSymbol
+        let isDark = NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+
+        return NSImage(size: size, flipped: true) { rect in
+            let row = NSBezierPath(
+                roundedRect: rect,
+                xRadius: InterfaceStyle.sidebarRowCornerRadius,
+                yRadius: InterfaceStyle.sidebarRowCornerRadius
+            )
+            // Zen's selected-row fill, the same one the row wears when it is
+            // active — opaque enough to read over whatever it crosses.
+            (isDark
+                ? NSColor.white.withAlphaComponent(0.22)
+                : NSColor.white.withAlphaComponent(0.92)).setFill()
+            row.fill()
+            NSColor.separatorColor.withAlphaComponent(0.6).setStroke()
+            row.lineWidth = 1
+            row.stroke()
+
+            let iconRect = NSRect(x: 8, y: (rect.height - 16) / 2, width: 16, height: 16)
+            if let faviconData, let favicon = NSImage(data: faviconData) {
+                favicon.draw(in: iconRect)
+            } else if let symbol = NSImage(
+                systemSymbolName: faviconSymbol,
+                accessibilityDescription: nil
+            ) {
+                let configured = symbol.withSymbolConfiguration(
+                    NSImage.SymbolConfiguration(paletteColors: [.secondaryLabelColor])
+                ) ?? symbol
+                configured.draw(in: iconRect)
+            }
+
+            let font = NSFont.systemFont(ofSize: 13, weight: .medium)
+            let textHeight = font.ascender - font.descender
+            let paragraph = NSMutableParagraphStyle()
+            paragraph.lineBreakMode = .byTruncatingTail
+            (title as NSString).draw(
+                in: NSRect(
+                    x: 32,
+                    y: (rect.height - textHeight) / 2,
+                    width: rect.width - 32 - 10,
+                    height: textHeight
+                ),
+                withAttributes: [
+                    .font: font,
+                    .foregroundColor: NSColor.labelColor,
+                    .paragraphStyle: paragraph
+                ]
+            )
+            return true
+        }
     }
 }
 

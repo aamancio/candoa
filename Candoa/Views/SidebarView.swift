@@ -1060,9 +1060,10 @@ struct SidebarView: View {
 
         if !isCollapsed, !pinned.isEmpty || !folders.isEmpty || store.draggedTabID != nil {
             VStack(alignment: .leading, spacing: pinnedSectionSpacing) {
-                if !pinned.isEmpty {
+                let livePinned = liveOrder(pinned, placement: .pinned)
+                if !livePinned.isEmpty {
                     VStack(spacing: 4) {
-                        ForEach(pinned) { tab in
+                        ForEach(livePinned) { tab in
                             pinnedTabRow(for: tab, pinned: pinned, spaceID: spaceID)
                         }
                     }
@@ -1093,7 +1094,10 @@ struct SidebarView: View {
             )
             // Pin, folder, and close settle the section instead of popping; the
             // per-space identity keeps space switches an instant context cut.
-            .animation(.easeOut(duration: 0.18), value: pinned.map(\.id) + folders.map(\.id))
+            .animation(
+                .spring(response: 0.32, dampingFraction: 0.82),
+                value: liveOrder(pinned, placement: .pinned).map(\.id) + folders.map(\.id)
+            )
             .id(spaceID)
         }
     }
@@ -1144,21 +1148,13 @@ struct SidebarView: View {
         // source row leaves a gap that doubles as the insertion indicator.
         .opacity(store.shouldHideSidebarTab(tab.id, placement: .pinned) ? 0 : 1)
         .sidebarRowDropIndicator(
-            showsTop: store.activeSidebarDropIndicator == SidebarTabDropIndicator(
-                placement: .pinned,
-                targetTabID: tab.id,
-                edge: .before
-            ),
+            showsTop: false,
             showsSplit: store.activeSidebarDropIndicator == SidebarTabDropIndicator(
                 placement: .pinned,
                 targetTabID: tab.id,
                 edge: .split
             ),
-            showsBottom: store.activeSidebarDropIndicator == SidebarTabDropIndicator(
-                placement: .pinned,
-                targetTabID: tab.id,
-                edge: .after
-            ),
+            showsBottom: false,
             tint: AppColor.accent
         )
         .background(TabDragSourceBackground(store: store, tabID: tab.id))
@@ -1251,7 +1247,7 @@ struct SidebarView: View {
                         )
                     }
 
-                    ForEach(tabs) { tab in
+                    ForEach(liveOrder(tabs, placement: .regular)) { tab in
                         TabRowView(
                             tab: tab,
                             isActive: tab.id == displayedActiveTabID(for: spaceID) && !store.isNewTabPaletteActive,
@@ -1270,22 +1266,17 @@ struct SidebarView: View {
                         // the cursor ghost isn't doubled by the in-list row; the
                         // gap it leaves is the insertion indicator.
                         .opacity(store.shouldHideSidebarTab(tab.id, placement: .regular) ? 0 : 1)
+                        // No before/after lines: the list reorders live, so
+                        // the gap that travels with the pointer is the
+                        // indicator. Split keeps its ring.
                         .sidebarRowDropIndicator(
-                            showsTop: store.activeSidebarDropIndicator == SidebarTabDropIndicator(
-                                placement: .regular,
-                                targetTabID: tab.id,
-                                edge: .before
-                            ),
+                            showsTop: false,
                             showsSplit: store.activeSidebarDropIndicator == SidebarTabDropIndicator(
                                 placement: .regular,
                                 targetTabID: tab.id,
                                 edge: .split
                             ),
-                            showsBottom: store.activeSidebarDropIndicator == SidebarTabDropIndicator(
-                                placement: .regular,
-                                targetTabID: tab.id,
-                                edge: .after
-                            ),
+                            showsBottom: false,
                             tint: AppColor.accent
                         )
                         .background(TabDragSourceBackground(store: store, tabID: tab.id))
@@ -1312,10 +1303,14 @@ struct SidebarView: View {
                             .padding(.vertical, 2)
                     }
                 }
-                // Closing, opening, and reordering settle the list the way
-                // Safari's sidebar does instead of rows popping in place; the
-                // per-space identity keeps space switches an instant cut.
-                .animation(.easeOut(duration: 0.18), value: tabs.map(\.id))
+                // Rows settle rather than pop — closing, opening, reordering,
+                // and the live gap that travels with a drag; the spring is
+                // Arc's make-room feel. The per-space identity keeps space
+                // switches an instant cut.
+                .animation(
+                    .spring(response: 0.32, dampingFraction: 0.82),
+                    value: liveOrder(tabs, placement: .regular).map(\.id)
+                )
                 .id(spaceID)
             }
         }
@@ -1324,6 +1319,36 @@ struct SidebarView: View {
             of: [UTType.text],
             delegate: RegularTabSectionDropDelegate(store: store)
         )
+    }
+
+    /// Arc reorders live: while a tab is dragged, the rows around it move
+    /// out of the way and the gap travels with the pointer, so what you see
+    /// mid-drag is exactly what you get on release. This is the order a
+    /// vertical list draws in during a drag — the dragged tab pulled out of
+    /// wherever it lives and reinserted at the current indicator, or gone
+    /// from this list entirely while the pointer is over another one. The
+    /// model does not change until the drop, so an abandoned drag springs
+    /// back to the original order.
+    private func liveOrder(_ tabs: [BrowserTab], placement: SidebarTabDropPlacement) -> [BrowserTab] {
+        guard let draggedID = store.draggedTabID,
+              let indicator = store.activeSidebarDropIndicator,
+              indicator.edge != .split
+        else { return tabs }
+
+        var others = tabs.filter { $0.id != draggedID }
+        guard indicator.placement == placement,
+              let dragged = store.tabs.first(where: { $0.id == draggedID })
+        else { return others }
+
+        if let targetID = indicator.targetTabID,
+           let targetIndex = others.firstIndex(where: { $0.id == targetID }) {
+            others.insert(dragged, at: indicator.edge == .before ? targetIndex : targetIndex + 1)
+        } else if indicator.edge == .after {
+            others.append(dragged)
+        } else {
+            others.insert(dragged, at: 0)
+        }
+        return others
     }
 
     private func displayedActiveTabID(for spaceID: UUID) -> UUID? {
