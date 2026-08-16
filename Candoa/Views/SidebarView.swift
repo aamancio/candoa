@@ -1153,6 +1153,11 @@ struct SidebarView: View {
         // The system drag image is the only visible copy while dragging; the
         // source row leaves a gap that doubles as the insertion indicator.
         .opacity(store.shouldHideSidebarTab(tab.id, placement: .pinned) ? 0 : 1)
+        .overlay {
+            if store.shouldHideSidebarTab(tab.id, placement: .pinned) {
+                SidebarDropSlotLine(tint: AppColor.accent)
+            }
+        }
         .sidebarRowDropIndicator(
             showsTop: false,
             showsSplit: store.activeSidebarDropIndicator == SidebarTabDropIndicator(
@@ -1272,9 +1277,15 @@ struct SidebarView: View {
                         // the cursor ghost isn't doubled by the in-list row; the
                         // gap it leaves is the insertion indicator.
                         .opacity(store.shouldHideSidebarTab(tab.id, placement: .regular) ? 0 : 1)
-                        // No before/after lines: the list reorders live, so
-                        // the gap that travels with the pointer is the
-                        // indicator. Split keeps its ring.
+                        .overlay {
+                            if store.shouldHideSidebarTab(tab.id, placement: .regular) {
+                                SidebarDropSlotLine(tint: AppColor.accent)
+                            }
+                        }
+                        // No before/after lines on the neighbours: the list
+                        // reorders live, so the insertion line is drawn in
+                        // the gap itself (SidebarDropSlotLine above). Split
+                        // keeps its ring.
                         .sidebarRowDropIndicator(
                             showsTop: false,
                             showsSplit: store.activeSidebarDropIndicator == SidebarTabDropIndicator(
