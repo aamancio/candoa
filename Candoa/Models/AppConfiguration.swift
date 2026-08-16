@@ -185,9 +185,11 @@ enum TabSwitcherConfiguration {
 
     /// Off-screen preview warm-up: a tab with no thumbnail from any source
     /// is loaded once in a throwaway, unhosted web view of this size, then
-    /// captured. Loads run one at a time, spaced out, and give up after the
-    /// timeout so a hung page cannot stall the queue.
+    /// captured. A few loads run side by side (each is its own WebContent
+    /// process, so this bounds memory), and each gives up after the timeout
+    /// so a hung page cannot stall the queue.
     static let warmupViewportSize = CGSize(width: 1024, height: 640)
+    static let warmupConcurrency = 3
     static let warmupLoadTimeout: TimeInterval = 15
     /// didFinish precedes first paint of late-arriving content; a short
     /// settle keeps thumbnails from capturing a half-rendered page.
@@ -199,10 +201,12 @@ enum TabSwitcherConfiguration {
     /// The wait is capped so a page that never stops polling still gets a card.
     static let warmupQuietPeriod: TimeInterval = 0.5
     static let warmupQuietWaitCap: TimeInterval = 4
-    static let warmupSpacing: TimeInterval = 0.5
+    /// A breath between one slot's teardown and its next load, so the
+    /// WebContent processes do not all spin up in the same instant.
+    static let warmupSpacing: TimeInterval = 0.15
     /// The launch pass waits for session restore and first paint to settle
     /// before spending network and CPU on tabs nobody has looked at yet.
-    static let warmupLaunchDelay: TimeInterval = 5
+    static let warmupLaunchDelay: TimeInterval = 2
 }
 
 /// Per-site Developer Mode mirrors Arc's behavior: local servers opt in by

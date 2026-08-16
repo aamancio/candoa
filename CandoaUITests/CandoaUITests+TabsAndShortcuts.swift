@@ -346,10 +346,11 @@ extension CandoaUITests {
     }
 
     func testControlTabWarmsUpPreviewsForTabsNeverDisplayedThisRun() throws {
-        // "Dormant" was visited in a previous session but has no web view
-        // this run, no wake snapshot, and (UI runs disable the disk cache)
-        // no persisted thumbnail — the favicon-placeholder card of #340.
-        // The off-screen warm-up loads it once and its card gets a real image.
+        // The "Dormant" tabs were visited in a previous session but have no
+        // web view this run, no wake snapshot, and (UI runs disable the disk
+        // cache) no persisted thumbnail — the favicon-placeholder card of
+        // #340. The off-screen warm-up loads each once, a few at a time, and
+        // every card gets a real image.
         let app = launchApp(
             fixture: "tab-switcher-previews",
             extraLaunchEnvironment: ["CANDOA_UI_TESTING_PREVIEW_WARMUP": "1"]
@@ -364,13 +365,17 @@ extension CandoaUITests {
 
         postTabSwitcherAction("next")
         XCTAssertTrue(
-            waitForState(in: app, containing: "switcher=true:Dormant"),
+            waitForState(in: app, containing: "switcher=true:Dormant 1"),
             currentState(in: app)
         )
-        // The active tab's card is a live capture; the dormant one arrives
-        // once its throwaway load finishes and settles.
+        // The active tab's card is a live capture; the dormant ones arrive
+        // as their throwaway loads finish and settle.
         XCTAssertTrue(
-            waitForState(in: app, containing: "switcherPreviews=current|Dormant", timeout: 15),
+            waitForState(
+                in: app,
+                containing: "switcherPreviews=current|Dormant 1|Dormant 2|Dormant 3|Dormant 4",
+                timeout: 20
+            ),
             currentState(in: app)
         )
         postTabSwitcherAction("release")

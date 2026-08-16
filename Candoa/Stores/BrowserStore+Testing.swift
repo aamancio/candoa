@@ -955,14 +955,17 @@ extension BrowserStore {
                 lastAccessedAt: fixtureDate,
                 hasBeenActivated: true
             ),
+        ] + (1...4).map { index in
+            // Four dormant tabs — more than the warm-up runs at once — so the
+            // switcher test covers slot refill, not just a single load.
             BrowserTab(
-                title: "Dormant",
-                url: URL(string: "https://fixture.candoa.test/dormant")!,
+                title: "Dormant \(index)",
+                url: URL(string: "https://fixture.candoa.test/dormant-\(index)")!,
                 spaceID: spaceID,
-                lastAccessedAt: fixtureDate.addingTimeInterval(-60),
+                lastAccessedAt: fixtureDate.addingTimeInterval(-60 * Double(index)),
                 hasBeenActivated: true
             )
-        ]
+        }
 
         return BrowserWindowState(
             spaces: [space],

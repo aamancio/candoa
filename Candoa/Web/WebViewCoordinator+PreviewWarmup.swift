@@ -23,8 +23,9 @@ import WebKit
 /// navigation-history side effects, no extension controller (extensions must
 /// not see a phantom tab), no message handlers, and is torn down as soon as
 /// the capture lands — so a 40-tab session never fans out 40 WebContent
-/// processes. Loads run one at a time and are skipped entirely in private
-/// windows, under Low Power Mode, and in UI-test runs.
+/// processes. At most `warmupConcurrency` loads run at once, and warm-up is
+/// skipped entirely in private windows, under Low Power Mode, and in UI-test
+/// runs.
 extension WebViewCoordinator {
     func warmUpPreview(for tab: BrowserTab) {
         guard
@@ -36,12 +37,12 @@ extension WebViewCoordinator {
             !tab.isWelcomePage,
             webViews[tab.id] == nil,
             !previewWarmupAttemptedTabIDs.contains(tab.id),
-            previewWarmupJob?.tabID != tab.id,
+            previewWarmupJobs[tab.id] == nil,
             !previewWarmupQueue.contains(where: { $0.id == tab.id })
         else { return }
 
         previewWarmupQueue.append(tab)
-        startNextPreviewWarmupIfIdle()
+        fillPreviewWarmupSlots()
     }
 
     /// UI-test runs keep warm-up off by default (no stray network, no timing
@@ -61,41 +62,41 @@ extension WebViewCoordinator {
 
     func cancelPreviewWarmup(for tabID: UUID) {
         previewWarmupQueue.removeAll { $0.id == tabID }
-        if previewWarmupJob?.tabID == tabID {
-            previewWarmupJob?.cancel()
-        }
+        previewWarmupJobs[tabID]?.cancel()
     }
 
-    private func startNextPreviewWarmupIfIdle() {
-        guard previewWarmupJob == nil, !previewWarmupQueue.isEmpty else { return }
-        let tab = previewWarmupQueue.removeFirst()
-        // The tab may have gone live or been closed while it waited.
-        guard
-            webViews[tab.id] == nil,
-            store?.tabs.contains(where: { $0.id == tab.id }) == true,
-            let url = tab.url
-        else {
-            startNextPreviewWarmupIfIdle()
-            return
-        }
+    /// Starts queued loads until every warm-up slot is busy. Serial loading
+    /// made a five-tab switcher fill in one card at a time over ~30s; a few
+    /// in flight together get the whole row in one page-load's worth of time.
+    private func fillPreviewWarmupSlots() {
+        while previewWarmupJobs.count < TabSwitcherConfiguration.warmupConcurrency,
+              !previewWarmupQueue.isEmpty {
+            let tab = previewWarmupQueue.removeFirst()
+            // The tab may have gone live or been closed while it waited.
+            guard
+                webViews[tab.id] == nil,
+                store?.tabs.contains(where: { $0.id == tab.id }) == true,
+                let url = tab.url
+            else { continue }
 
-        previewWarmupAttemptedTabIDs.insert(tab.id)
-        let job = PreviewWarmupJob(
-            tabID: tab.id,
-            url: url,
-            webView: makePreviewWarmupWebView(for: tab)
-        ) { [weak self] image in
-            guard let self else { return }
-            self.previewWarmupJob = nil
-            if let image, self.webViews[tab.id] == nil {
-                self.store?.didCaptureTabSnapshot(image, for: tab.id)
+            previewWarmupAttemptedTabIDs.insert(tab.id)
+            let job = PreviewWarmupJob(
+                tabID: tab.id,
+                url: url,
+                webView: makePreviewWarmupWebView(for: tab)
+            ) { [weak self] image in
+                guard let self else { return }
+                self.previewWarmupJobs[tab.id] = nil
+                if let image, self.webViews[tab.id] == nil {
+                    self.store?.didCaptureTabSnapshot(image, for: tab.id)
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + TabSwitcherConfiguration.warmupSpacing) { [weak self] in
+                    self?.fillPreviewWarmupSlots()
+                }
             }
-            DispatchQueue.main.asyncAfter(deadline: .now() + TabSwitcherConfiguration.warmupSpacing) { [weak self] in
-                self?.startNextPreviewWarmupIfIdle()
-            }
+            previewWarmupJobs[tab.id] = job
+            job.start()
         }
-        previewWarmupJob = job
-        job.start()
     }
 
     /// A minimal sibling of `makeWebView(for:)`: same data store (so signed-in
