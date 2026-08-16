@@ -65,6 +65,7 @@ struct SidebarView: View {
     @State private var selectedSpaceTransitionID: UUID?
     @State private var selectedSpaceTransitionDirection: Int?
     @State private var favoritesSectionHeight: CGFloat = 0
+    @State private var spaceLabelHeight: CGFloat = 0
     @State private var scrollEdges = SpaceScrollEdges()
     @StateObject private var windowControlsGeometry = WindowControlsGeometry()
     @AppStorage("Candoa.FavoritesDropZoneDismissed") private var isFavoritesDropZoneDismissed = false
@@ -181,6 +182,18 @@ struct SidebarView: View {
                         .padding(.top, spaceSwipeTopInset + 1)
                 }
             }
+            .overlay(alignment: .top) {
+                // Arc and Zen keep the Space's name in view however far the
+                // list scrolls: the label is a fixed header for the scrolling
+                // list beneath it (Zen's `.zen-current-workspace-indicator`
+                // sits outside the arrowscrollbox), and the scrolled-edge rule
+                // draws directly under it. Per-Space, so it switches on
+                // commit like the address pill rather than sliding.
+                hoistedSpaceLabel
+                    .padding(.leading, leadingInset)
+                    .padding(.trailing, trailingInset)
+                    .padding(.top, favoritesBandBottom + 1)
+            }
             .overlay(alignment: .bottom) {
                 // The banners are app-level, not per-Space: hoisted here they
                 // stay put through a swipe and stay on screen at any scroll
@@ -272,6 +285,15 @@ struct SidebarView: View {
                 proxy.size.height
             } action: { height in
                 favoritesSectionHeight = height
+            }
+    }
+
+    private var hoistedSpaceLabel: some View {
+        spaceLabel(for: store.activeSpaceID)
+            .onGeometryChange(for: CGFloat.self) { proxy in
+                proxy.size.height
+            } action: { height in
+                spaceLabelHeight = height
             }
     }
 
@@ -388,10 +410,17 @@ struct SidebarView: View {
             (showsAddressPill ? sidebarAddressHeight + sidebarVerticalSpacing : 0)
     }
 
-    /// Per-Space page content starts below the hoisted favorites grid, whose
-    /// height is measured live (tile rows come and go with the shared set).
-    private var spaceContentTopInset: CGFloat {
+    /// Where the hoisted favorites grid ends and the Space label begins; the
+    /// grid's height is measured live (tile rows come and go with the set).
+    private var favoritesBandBottom: CGFloat {
         spaceSwipeTopInset + (favoritesSectionHeight > 0 ? favoritesSectionHeight + 10 : 0)
+    }
+
+    /// The scrolling list starts below the fixed Space label. The label's
+    /// height is measured too: it collapses to nothing for an unnamed Space
+    /// and grows with the Private Browsing row.
+    private var spaceContentTopInset: CGFloat {
+        favoritesBandBottom + (spaceLabelHeight > 0 ? spaceLabelHeight + spaceLabelToPinnedGap : 0)
     }
 
     private var spaceSwipeBottomInset: CGFloat {
@@ -631,7 +660,6 @@ struct SidebarView: View {
                 tabsSection(for: spaceID)
             }
         }
-        .padding(.top, 1)
         .id(spaceID)
     }
 
@@ -969,8 +997,9 @@ struct SidebarView: View {
     // MARK: - Pinned Items
 
     private func spaceAndPinnedSection(for spaceID: UUID) -> some View {
+        // The Space label is not part of this page: it is hoisted above the
+        // swipe carousel as a fixed header, the way the favorites grid is.
         VStack(alignment: .leading, spacing: spaceLabelToPinnedGap) {
-            spaceLabel(for: spaceID)
             pinnedAndFoldersSection(for: spaceID)
 
             // Zen's rule lives in the pinned section's markup but is gated on
