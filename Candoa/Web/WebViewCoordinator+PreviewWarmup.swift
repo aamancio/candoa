@@ -8,8 +8,16 @@ import WebKit
 /// opened in the background, synced in — has no live web view, no wake
 /// snapshot, and (until this run persists one) nothing on disk, so its
 /// switcher card falls back to favicon + title. Loading such a tab once in a
-/// throwaway, unhosted web view produces a real thumbnail: WebKit renders an
-/// off-window `WKWebView` for `takeSnapshot` as long as it has a frame.
+/// throwaway web view produces a real thumbnail.
+///
+/// The throwaway view is hosted in an invisible window (see
+/// `PreviewWarmupJob.makeHostWindow`) rather than left unhosted: WebKit
+/// renders an off-window `WKWebView` for `takeSnapshot`, but reports the page
+/// as *hidden* (`document.visibilityState`), and single-page apps such as
+/// YouTube gate their whole shell on visibility — the snapshot would show
+/// only their loading skeleton, however long the load is left to settle. A
+/// transparent, click-through window ordered below the desktop keeps the page
+/// visible as far as WebKit is concerned without ever being seen.
 ///
 /// The throwaway view deliberately is *not* the tab's web view: it carries no
 /// navigation-history side effects, no extension controller (extensions must
@@ -118,15 +126,20 @@ extension WebViewCoordinator {
 }
 
 /// One throwaway load: navigate, wait for the main frame to finish, let it
-/// settle, capture at switcher width, hand back the image (or nil), release
-/// the web view. Owns its web view for the job's lifetime only.
+/// settle and go network-quiet, capture at switcher width, hand back the
+/// image (or nil), release the web view. Owns its web view and its invisible
+/// host window for the job's lifetime only.
 @MainActor
 final class PreviewWarmupJob: NSObject, WKNavigationDelegate {
     let tabID: UUID
     private let url: URL
     private var webView: WKWebView?
+    private var hostWindow: NSWindow?
     private var completion: ((NSImage?) -> Void)?
     private var timeoutWorkItem: DispatchWorkItem?
+    private var settleScheduled = false
+    private var quietWaitStartedAt: Date?
+    private var lastResourceCount: Int?
 
     init(tabID: UUID, url: URL, webView: WKWebView, completion: @escaping (NSImage?) -> Void) {
         self.tabID = tabID
@@ -139,6 +152,7 @@ final class PreviewWarmupJob: NSObject, WKNavigationDelegate {
     func start() {
         guard let webView else { return }
         webView.navigationDelegate = self
+        hostWindow = Self.makeHostWindow(hosting: webView)
 
         let timeout = DispatchWorkItem { [weak self] in
             self?.finish(with: nil)
@@ -166,8 +180,64 @@ final class PreviewWarmupJob: NSObject, WKNavigationDelegate {
         timeoutWorkItem = nil
         webView?.navigationDelegate = nil
         webView?.stopLoading()
+        webView?.removeFromSuperview()
         webView = nil
+        hostWindow?.orderOut(nil)
+        hostWindow = nil
         completion(image)
+    }
+
+    /// A window WebKit counts as visible and nobody can perceive: fully
+    /// transparent, click-through, below the desktop picture, absent from the
+    /// Window menu, Mission Control and ⌘-cycling. Verified by spike
+    /// (2026-08-15): an unhosted view or one in an off-screen window yields
+    /// `document.hidden == true`; this host yields `visible`, and pages that
+    /// were stuck on their skeleton render fully.
+    private static func makeHostWindow(hosting webView: WKWebView) -> NSWindow {
+        let window = NSWindow(
+            contentRect: CGRect(origin: .zero, size: webView.bounds.size),
+            styleMask: .borderless,
+            backing: .buffered,
+            defer: false
+        )
+        window.isReleasedWhenClosed = false
+        window.alphaValue = 0
+        window.isOpaque = false
+        window.backgroundColor = .clear
+        window.hasShadow = false
+        window.ignoresMouseEvents = true
+        window.isExcludedFromWindowsMenu = true
+        window.animationBehavior = .none
+        window.collectionBehavior = [.transient, .ignoresCycle, .stationary, .canJoinAllSpaces]
+        window.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.desktopWindow)) - 1)
+        window.contentView = webView
+        window.orderFrontRegardless()
+        return window
+    }
+
+    /// Poll the page's resource count until it holds still for one quiet
+    /// period (or the cap runs out), then capture. Runs in page JS, so a
+    /// page that refuses evaluation simply captures now.
+    private func waitForNetworkQuietThenCapture() {
+        guard let webView, completion != nil else { return }
+        let startedAt = quietWaitStartedAt ?? Date()
+        quietWaitStartedAt = startedAt
+        if Date().timeIntervalSince(startedAt) >= TabSwitcherConfiguration.warmupQuietWaitCap {
+            capture()
+            return
+        }
+        webView.evaluateJavaScript("performance.getEntriesByType('resource').length") { [weak self] result, _ in
+            guard let self, self.completion != nil else { return }
+            let count = (result as? NSNumber)?.intValue
+            defer { lastResourceCount = count }
+            guard let count, count != lastResourceCount else {
+                capture()
+                return
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + TabSwitcherConfiguration.warmupQuietPeriod) { [weak self] in
+                self?.waitForNetworkQuietThenCapture()
+            }
+        }
     }
 
     private func capture() {
@@ -183,8 +253,12 @@ final class PreviewWarmupJob: NSObject, WKNavigationDelegate {
     // MARK: WKNavigationDelegate
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        // A page can finish more than once (client redirects, iframes'
+        // main-frame reloads); the first finish owns the settle-and-capture.
+        guard !settleScheduled else { return }
+        settleScheduled = true
         DispatchQueue.main.asyncAfter(deadline: .now() + TabSwitcherConfiguration.warmupSettleDelay) { [weak self] in
-            self?.capture()
+            self?.waitForNetworkQuietThenCapture()
         }
     }
 

@@ -192,6 +192,13 @@ enum TabSwitcherConfiguration {
     /// didFinish precedes first paint of late-arriving content; a short
     /// settle keeps thumbnails from capturing a half-rendered page.
     static let warmupSettleDelay: TimeInterval = 0.6
+    /// After the settle, capture waits for the page to go network-quiet:
+    /// its resource count must hold still for one quiet period. Single-page
+    /// apps (YouTube, mail clients) draw their shell from fetches that start
+    /// after didFinish, so a fixed delay alone snapshots their skeleton.
+    /// The wait is capped so a page that never stops polling still gets a card.
+    static let warmupQuietPeriod: TimeInterval = 0.5
+    static let warmupQuietWaitCap: TimeInterval = 4
     static let warmupSpacing: TimeInterval = 0.5
     /// The launch pass waits for session restore and first paint to settle
     /// before spending network and CPU on tabs nobody has looked at yet.
