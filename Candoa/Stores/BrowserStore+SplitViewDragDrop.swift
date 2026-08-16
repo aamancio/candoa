@@ -431,8 +431,6 @@ extension BrowserStore {
     func beginTabDrag(_ tabID: UUID) -> NSItemProvider {
         dropSourceClearTask?.cancel()
         dropSourceClearTask = nil
-        settlingDroppedTabID = nil
-        settlingDroppedTabSource = nil
         draggedTabID = tabID
         clearSidebarDropIndicator()
         clearSplitDropPreview()
@@ -448,10 +446,13 @@ extension BrowserStore {
         return .regular
     }
 
+    /// Only the row currently in flight hides — its gap is the drop
+    /// indicator. A dropped row used to stay hidden for the settle delay
+    /// while the old page-card ghost animated, which read as the tab
+    /// vanishing for half a second and popping back; the list now reorders
+    /// live, so the row is already where it belongs when the drop lands.
     func shouldHideSidebarTab(_ tabID: UUID, placement: SidebarTabDropPlacement) -> Bool {
-        if draggedTabID == tabID { return true }
-        if settlingDroppedTabID == tabID { return true }
-        return settlingDroppedTabSource == SidebarDroppedTabSource(tabID: tabID, placement: placement)
+        draggedTabID == tabID
     }
 
     func updateSidebarDropIndicator(
@@ -517,8 +518,6 @@ extension BrowserStore {
         tabDragSessionWatcher = nil
         dropSourceClearTask?.cancel()
         dropSourceClearTask = nil
-        settlingDroppedTabID = nil
-        settlingDroppedTabSource = nil
     }
 
     func finishTabDrop(
@@ -534,27 +533,6 @@ extension BrowserStore {
 
         dropSourceClearTask?.cancel()
         dropSourceClearTask = nil
-
-        let settledTabID = tabID
-        let source = sourcePlacement == destinationPlacement
-            ? nil
-            : sourcePlacement.map { SidebarDroppedTabSource(tabID: tabID, placement: $0) }
-        settlingDroppedTabID = settledTabID
-        settlingDroppedTabSource = source
-        dropSourceClearTask = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: Self.sidebarDropSettleDelayNanoseconds)
-            guard !Task.isCancelled else { return }
-            await MainActor.run {
-                guard
-                    let self,
-                    self.settlingDroppedTabID == settledTabID,
-                    self.settlingDroppedTabSource == source
-                else { return }
-                self.settlingDroppedTabID = nil
-                self.settlingDroppedTabSource = nil
-                self.dropSourceClearTask = nil
-            }
-        }
     }
 
     // SwiftUI's onDrag exposes no end-of-session signal, and a drag released

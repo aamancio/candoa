@@ -604,7 +604,10 @@ internal final class TabDragSourceAnchorView: NSView, NSDraggingSource {
         let pasteboardItem = NSPasteboardItem()
         pasteboardItem.setString(tabID.uuidString, forType: .string)
         let draggingItem = NSDraggingItem(pasteboardWriter: pasteboardItem)
-        draggingItem.setDraggingFrame(bounds, contents: ghostImage)
+        draggingItem.setDraggingFrame(
+            bounds.insetBy(dx: -TabDragRowImage.shadowPadding, dy: -TabDragRowImage.shadowPadding),
+            contents: ghostImage
+        )
 
         dragWindowNumber = window?.windowNumber
         let session = beginDraggingSession(
@@ -711,30 +714,61 @@ internal struct TabDragSourceBackground: NSViewRepresentable {
 /// reads as the row lifting off the list. Drawn with AppKit primitives for
 /// the same reason as the ghost card below.
 internal enum TabDragRowImage {
+    /// Room around the row for its shadow. The dragging frame grows by the
+    /// same amount so the row itself still lines up with the row it left.
+    static let shadowPadding: CGFloat = 12
+
     @MainActor
     static func make(for tab: BrowserTab, size: NSSize) -> NSImage {
         let title = tab.title.isEmpty ? (tab.url?.host() ?? "New Tab") : tab.title
         let faviconData = tab.faviconData
         let faviconSymbol = tab.faviconSymbol
         let isDark = NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+        let padding = shadowPadding
+        let canvas = NSSize(
+            width: size.width + padding * 2,
+            height: size.height + padding * 2
+        )
 
-        return NSImage(size: size, flipped: true) { rect in
-            let row = NSBezierPath(
-                roundedRect: rect,
+        return NSImage(size: canvas, flipped: true) { _ in
+            let card = NSRect(x: padding, y: padding, width: size.width, height: size.height)
+            // The hairline sits inside the card, not straddling its edge:
+            // half a pixel of stroke used to fall outside the image and the
+            // corners came back squared off.
+            let shape = NSBezierPath(
+                roundedRect: card.insetBy(dx: 0.5, dy: 0.5),
                 xRadius: InterfaceStyle.sidebarRowCornerRadius,
                 yRadius: InterfaceStyle.sidebarRowCornerRadius
             )
-            // Zen's selected-row fill, the same one the row wears when it is
-            // active — opaque enough to read over whatever it crosses.
-            (isDark
-                ? NSColor.white.withAlphaComponent(0.22)
-                : NSColor.white.withAlphaComponent(0.92)).setFill()
-            row.fill()
-            NSColor.separatorColor.withAlphaComponent(0.6).setStroke()
-            row.lineWidth = 1
-            row.stroke()
 
-            let iconRect = NSRect(x: 8, y: (rect.height - 16) / 2, width: 16, height: 16)
+            NSGraphicsContext.current?.saveGraphicsState()
+            let shadow = NSShadow()
+            shadow.shadowColor = NSColor.black.withAlphaComponent(isDark ? 0.5 : 0.2)
+            shadow.shadowBlurRadius = 9
+            shadow.shadowOffset = .zero
+            shadow.set()
+            // Opaque, so the row reads the same over the list, the page, or
+            // another app — a translucent card picked up whatever it crossed.
+            NSColor.windowBackgroundColor.setFill()
+            shape.fill()
+            NSGraphicsContext.current?.restoreGraphicsState()
+
+            // Zen's selected-row tint over that base, the fill the row wears
+            // when it is the active tab.
+            (isDark
+                ? NSColor.white.withAlphaComponent(0.20)
+                : NSColor.white.withAlphaComponent(0.85)).setFill()
+            shape.fill()
+            NSColor.separatorColor.setStroke()
+            shape.lineWidth = 1
+            shape.stroke()
+
+            let iconRect = NSRect(
+                x: card.minX + 8,
+                y: card.minY + (card.height - 16) / 2,
+                width: 16,
+                height: 16
+            )
             if let faviconData, let favicon = NSImage(data: faviconData) {
                 favicon.draw(in: iconRect)
             } else if let symbol = NSImage(
@@ -753,9 +787,9 @@ internal enum TabDragRowImage {
             paragraph.lineBreakMode = .byTruncatingTail
             (title as NSString).draw(
                 in: NSRect(
-                    x: 32,
-                    y: (rect.height - textHeight) / 2,
-                    width: rect.width - 32 - 10,
+                    x: card.minX + 32,
+                    y: card.minY + (card.height - textHeight) / 2,
+                    width: card.width - 32 - 10,
                     height: textHeight
                 ),
                 withAttributes: [

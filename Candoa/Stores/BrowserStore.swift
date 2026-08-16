@@ -83,11 +83,6 @@ struct SidebarTabDropIndicator: Equatable {
     var edge: SidebarTabDropEdge
 }
 
-struct SidebarDroppedTabSource: Equatable {
-    var tabID: UUID
-    var placement: SidebarTabDropPlacement
-}
-
 enum InitialOnboardingStep: String, CaseIterable {
     case welcome
     case account
@@ -136,7 +131,6 @@ final class BrowserStore: ObservableObject {
 
     static let spaceNameCharacterLimit = 24
     static let splitViewMaxTabs = 4
-    static let sidebarDropSettleDelayNanoseconds: UInt64 = 480_000_000
     static let onboardingStepKey = "Candoa.InitialOnboarding.Step"
     static let hasCompletedOnboardingKey = "Candoa.InitialOnboarding.Completed"
     static let hasCompletedTourKey = "Candoa.InitialOnboarding.TourCompleted"
@@ -253,8 +247,6 @@ final class BrowserStore: ObservableObject {
     @Published var draggedTabID: UUID?
     @Published var sidebarDropIndicator: SidebarTabDropIndicator?
     @Published var splitDropPreview: SplitTabDropPreview?
-    @Published var settlingDroppedTabID: UUID?
-    @Published var settlingDroppedTabSource: SidebarDroppedTabSource?
     var tabDragSessionWatcher: Timer?
     var dropSourceClearTask: Task<Void, Never>?
     @Published var isFindBarPresented = false
