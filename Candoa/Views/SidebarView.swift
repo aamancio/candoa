@@ -399,6 +399,12 @@ struct SidebarView: View {
     private var spaceSwipeContent: some View {
         GeometryReader { proxy in
             let width = max(proxy.size.width, 1)
+            // The list scrolls behind the fixed chrome at both ends; edge
+            // auto-scrolling during a drag needs to know where it really ends.
+            let _ = SidebarDragAutoScroll.shared.updateChromeInsets(
+                top: spaceContentTopInset,
+                bottom: spaceSwipeBottomInset
+            )
 
             SpaceSwipeTrackingView(
                 isEnabled: canSwipeSpaces,

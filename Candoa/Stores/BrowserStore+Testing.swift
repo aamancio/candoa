@@ -804,6 +804,10 @@ extension BrowserStore {
             return inactiveFavoritesFixtureState()
         }
 
+        if fixture == "long-tab-list" {
+            return longTabListFixtureState()
+        }
+
         if fixture == "tab-switcher-previews" {
             return tabSwitcherPreviewsFixtureState()
         }
@@ -934,6 +938,49 @@ extension BrowserStore {
             folders: [],
             tabs: tabs,
             activeSpaceID: firstSpaceID,
+            activeTabID: firstTabID
+        )
+    }
+
+    /// More tabs than the sidebar can show at once: drag behaviour that only
+    /// appears in an overflowing list — edge auto-scrolling, a drop far from
+    /// where the drag began — has something to happen in.
+    static func longTabListFixtureState() -> BrowserWindowState {
+        let spaceID = UUID(uuidString: "5A5A5A5A-5A5A-5A5A-5A5A-5A5A5A5A5A5A")!
+        let firstTabID = UUID(uuidString: "6A6A6A6A-6A6A-6A6A-6A6A-6A6A6A6A6A6A")!
+        let fixtureDate = Date(timeIntervalSince1970: 1_800_000_000)
+        let space = BrowserSpace(
+            id: spaceID,
+            name: "TestingBot",
+            symbolName: "sparkles",
+            themeAppearance: BrowserSpace.defaultThemeAppearance
+        )
+        let tabs = [
+            BrowserTab(
+                id: firstTabID,
+                title: "Row 01",
+                url: URL(string: "https://fixture.candoa.test/row-01")!,
+                spaceID: spaceID,
+                sortOrder: 0,
+                lastAccessedAt: fixtureDate,
+                hasBeenActivated: true
+            )
+        ] + (2...30).map { (index: Int) -> BrowserTab in
+            BrowserTab(
+                title: String(format: "Row %02d", index),
+                url: URL(string: "https://fixture.candoa.test/row-\(index)")!,
+                spaceID: spaceID,
+                sortOrder: Double(index - 1),
+                lastAccessedAt: fixtureDate.addingTimeInterval(-60 * Double(index)),
+                hasBeenActivated: true
+            )
+        }
+
+        return BrowserWindowState(
+            spaces: [space],
+            folders: [],
+            tabs: tabs,
+            activeSpaceID: spaceID,
             activeTabID: firstTabID
         )
     }

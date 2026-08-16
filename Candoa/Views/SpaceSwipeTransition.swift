@@ -81,6 +81,137 @@ final class SpaceHeaderDropZones {
     }
 }
 
+/// Edge auto-scrolling for tab drags, Arc-style: hold a dragged tab near the
+/// top or bottom of the list and it scrolls, faster the closer to the edge,
+/// so a tab can be moved past the visible window without letting go. Driven
+/// from the drag source's pointer callbacks — AppKit's destination search
+/// never reaches the list's scroll view (see SpaceHeaderDropZones).
+@MainActor
+final class SidebarDragAutoScroll {
+    static let shared = SidebarDragAutoScroll()
+
+    /// How deep the edge zone runs, and how fast the list travels through
+    /// it: a crawl at the near edge, about a row every tenth of a second at
+    /// the far one — fast enough to cross a long list, slow enough to stop
+    /// where you meant to. Points per *second*, because a drag's run loop
+    /// delivers ticks unevenly.
+    private let zoneDepth: CGFloat = 56
+    private let minimumPointsPerSecond: CGFloat = 90
+    private let maximumPointsPerSecond: CGFloat = 900
+
+    private weak var scrollView: NSScrollView?
+    private var timer: Timer?
+    private var pointsPerSecond: CGFloat = 0
+    private var lastStep: CFTimeInterval = 0
+    /// The bands the fixed chrome covers at either end of the lane. The
+    /// scroll view runs the full height behind them, so without these the
+    /// edge zone would sit under the Space switcher and a drag would have to
+    /// reach the strip itself before the list moved.
+    private var chromeInsets: (top: CGFloat, bottom: CGFloat) = (0, 0)
+
+    func updateChromeInsets(top: CGFloat, bottom: CGFloat) {
+        chromeInsets = (top, bottom)
+    }
+
+    func register(_ scrollView: NSScrollView) {
+        self.scrollView = scrollView
+    }
+
+    func unregister(_ scrollView: NSScrollView) {
+        guard self.scrollView === scrollView else { return }
+        stop()
+        self.scrollView = nil
+    }
+
+    /// Screen point of the pointer during a drag session.
+    func pointerMoved(to screenPoint: NSPoint) {
+        guard
+            let scrollView,
+            let window = scrollView.window,
+            scrollView.documentView != nil
+        else {
+            stop()
+            return
+        }
+
+        let viewPoint = scrollView.convert(
+            window.convertPoint(fromScreen: screenPoint),
+            from: nil
+        )
+        let visible = scrollView.bounds
+        guard visible.insetBy(dx: -zoneDepth, dy: -zoneDepth).contains(viewPoint) else {
+            stop()
+            return
+        }
+
+        // An NSScrollView is unflipped even when its SwiftUI document view is
+        // flipped, so which end of its bounds is "the top" depends on it.
+        let fromTop = (scrollView.isFlipped
+            ? viewPoint.y - visible.minY
+            : visible.maxY - viewPoint.y) - chromeInsets.top
+        let fromBottom = (scrollView.isFlipped
+            ? visible.maxY - viewPoint.y
+            : viewPoint.y - visible.minY) - chromeInsets.bottom
+        if fromTop < zoneDepth {
+            start(pointsPerSecond: -speed(forDepth: fromTop))
+        } else if fromBottom < zoneDepth {
+            start(pointsPerSecond: speed(forDepth: fromBottom))
+        } else {
+            stop()
+        }
+    }
+
+    func stop() {
+        timer?.invalidate()
+        timer = nil
+        pointsPerSecond = 0
+    }
+
+    private func speed(forDepth depth: CGFloat) -> CGFloat {
+        let closeness = 1 - max(0, min(1, depth / zoneDepth))
+        return minimumPointsPerSecond
+            + (maximumPointsPerSecond - minimumPointsPerSecond) * closeness * closeness
+    }
+
+    private func start(pointsPerSecond: CGFloat) {
+        self.pointsPerSecond = pointsPerSecond
+        guard timer == nil else { return }
+        lastStep = CACurrentMediaTime()
+        // .common, not the default mode: a native drag session runs the loop
+        // in event-tracking mode, where a scheduledTimer never fires — the
+        // list stayed put no matter how long a drag hovered the edge.
+        let scroller = Timer(timeInterval: 1.0 / 60, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.step() }
+        }
+        RunLoop.main.add(scroller, forMode: .common)
+        timer = scroller
+    }
+
+    private func step() {
+        guard
+            let scrollView,
+            let documentView = scrollView.documentView,
+            pointsPerSecond != 0
+        else {
+            stop()
+            return
+        }
+
+        // Ticks arrive unevenly while a drag holds the run loop, so the
+        // distance comes from the clock rather than the tick count.
+        let now = CACurrentMediaTime()
+        let elapsed = min(0.05, max(0, now - lastStep))
+        lastStep = now
+
+        let visible = scrollView.contentView.bounds
+        let maximumY = max(0, documentView.frame.height - visible.height)
+        let targetY = min(max(0, visible.minY + pointsPerSecond * elapsed), maximumY)
+        guard targetY != visible.minY else { return }
+        scrollView.contentView.scroll(to: CGPoint(x: visible.minX, y: targetY))
+        scrollView.reflectScrolledClipView(scrollView.contentView)
+    }
+}
+
 /// Hosts SwiftUI content that follows the swipe carousel's translation.
 /// The content is laid out like the pages — three Space-wide slots offset by
 /// one width — so it slides in lockstep with them.
@@ -367,6 +498,15 @@ final class SpaceSwipeScrollView<Content: View>: NSScrollView {
         super.layout()
         layoutHostingView()
         reportScrollEdgesIfChanged()
+    }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        if window == nil {
+            SidebarDragAutoScroll.shared.unregister(self)
+        } else {
+            SidebarDragAutoScroll.shared.register(self)
+        }
     }
 
     override func wantsScrollEventsForSwipeTracking(on axis: NSEvent.GestureAxis) -> Bool {

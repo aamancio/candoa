@@ -410,8 +410,12 @@ internal enum SidebarDropAxis {
 internal func dropEdge(for info: DropInfo, axis: SidebarDropAxis = .vertical) -> SidebarTabDropEdge {
     switch axis {
     case .vertical:
-        if info.location.y < 9 { return .before }
-        if info.location.y > 23 { return .after }
+        // Arc reserves splitting for a deliberate hover over the middle of a
+        // row; reordering owns the rest. The band used to be 14 of the row's
+        // 36 points, so an ordinary reorder drag kept flashing the split
+        // ring on its way past.
+        if info.location.y < 14 { return .before }
+        if info.location.y > 22 { return .after }
         return .split
     case .horizontal:
         return info.location.x < 44 ? .before : .after
@@ -615,7 +619,14 @@ internal final class TabDragSourceAnchorView: NSView, NSDraggingSource {
             event: mouseDownEvent,
             source: self
         )
-        session.animatesToStartingPositionsOnCancelOrFail = true
+        // The image never slides home. SwiftUI's drop delegates finish the
+        // drop without reporting an operation back to this session, so AppKit
+        // treated every release as a failure and animated the row-pill back
+        // to where the drag started — half a second of a tab apparently
+        // returning to its old slot while the real row already sat in its new
+        // one. Releasing outside any target is handled the same way: the list
+        // simply springs back.
+        session.animatesToStartingPositionsOnCancelOrFail = false
     }
 
     nonisolated func draggingSession(
@@ -630,6 +641,8 @@ internal final class TabDragSourceAnchorView: NSView, NSDraggingSource {
     /// destination search never reaches the header's view (see
     /// SpaceHeaderDropZones), so the source watches the pointer instead.
     nonisolated func draggingSession(_ session: NSDraggingSession, movedTo screenPoint: NSPoint) {
+        MainActor.assumeIsolated { SidebarDragAutoScroll.shared.pointerMoved(to: screenPoint) }
+
         // NSDraggingSource callbacks arrive on the main thread; the session
         // is touched here, before hopping, so it never crosses the boundary.
         let inside = MainActor.assumeIsolated { () -> Bool? in
@@ -639,9 +652,6 @@ internal final class TabDragSourceAnchorView: NSView, NSDraggingSource {
             return inside != store.isSpaceHeaderDropTargeted ? inside : nil
         }
         guard let inside else { return }
-        // With no AppKit destination under it, a release over the header
-        // would otherwise slide the ghost home before the pin lands.
-        session.animatesToStartingPositionsOnCancelOrFail = !inside
         MainActor.assumeIsolated {
             guard let store else { return }
             store.isSpaceHeaderDropTargeted = inside
@@ -660,6 +670,7 @@ internal final class TabDragSourceAnchorView: NSView, NSDraggingSource {
     ) {
         // NSDraggingSource callbacks arrive on the main thread.
         MainActor.assumeIsolated {
+            SidebarDragAutoScroll.shared.stop()
             dragWindowNumber = nil
             guard let store, let tabID else { return }
             if store.isSpaceHeaderDropTargeted {
