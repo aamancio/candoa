@@ -18,6 +18,92 @@ struct SpaceScrollEdges: Equatable, Sendable {
     var showsBottomRule: Bool { isOverflowing && !isScrolledToEnd }
 }
 
+/// Lets fixed chrome outside the swipe carousel ride the same horizontal
+/// translation as the pages — the Space label is pinned vertically but must
+/// slide with its Space. The scroll view is the single source of the
+/// translation (tracked amount, spring settle, reset), and every companion
+/// layer receives exactly what the page layer does, animation included, so
+/// the two can never drift.
+@MainActor
+final class SpaceSwipeTranslationRelay: ObservableObject {
+    private struct WeakLayerBox {
+        weak var layer: CALayer?
+    }
+
+    private var companions: [WeakLayerBox] = []
+
+    func register(_ layer: CALayer) {
+        companions.removeAll { $0.layer == nil || $0.layer === layer }
+        companions.append(WeakLayerBox(layer: layer))
+    }
+
+    var layers: [CALayer] {
+        companions.compactMap(\.layer)
+    }
+}
+
+/// Hosts SwiftUI content that follows the swipe carousel's translation.
+/// The content is laid out like the pages — three Space-wide slots offset by
+/// one width — so it slides in lockstep with them.
+struct SpaceSwipeCompanionView<Content: View>: NSViewRepresentable {
+    let relay: SpaceSwipeTranslationRelay
+    private let content: Content
+
+    init(relay: SpaceSwipeTranslationRelay, @ViewBuilder content: () -> Content) {
+        self.relay = relay
+        self.content = content()
+    }
+
+    /// The translated hosting view inside a clipping shell: the pages are
+    /// clipped by the scroll view's bounds, and the companion needs the same
+    /// edge or the neighbouring Space's label shows beside the sidebar.
+    final class Shell: NSView {
+        let hostingView: NSHostingView<Content>
+
+        init(rootView: Content) {
+            hostingView = SidebarSwipeHostingView(rootView: rootView)
+            super.init(frame: .zero)
+            wantsLayer = true
+            layer?.masksToBounds = true
+            hostingView.wantsLayer = true
+            hostingView.layer?.masksToBounds = false
+            hostingView.autoresizingMask = [.width, .height]
+            hostingView.frame = bounds
+            addSubview(hostingView)
+        }
+
+        @available(*, unavailable)
+        required init?(coder: NSCoder) { nil }
+    }
+
+    func makeNSView(context: Context) -> Shell {
+        let shell = Shell(rootView: content)
+        if let layer = shell.hostingView.layer {
+            relay.register(layer)
+        }
+        return shell
+    }
+
+    func updateNSView(_ nsView: Shell, context: Context) {
+        nsView.hostingView.rootView = content
+        if let layer = nsView.hostingView.layer {
+            relay.register(layer)
+        }
+    }
+
+    /// Full proposed width, own content height: the companion is a band, not
+    /// a fill, so nothing beneath it in the overlay loses hit-testing.
+    func sizeThatFits(
+        _ proposal: ProposedViewSize,
+        nsView: Shell,
+        context: Context
+    ) -> CGSize? {
+        let width = proposal.width ?? nsView.hostingView.fittingSize.width
+        nsView.hostingView.frame.size.width = width
+        return CGSize(width: width, height: nsView.hostingView.fittingSize.height)
+    }
+}
+
 /// The sidebar spans the title-bar strip, where AppKit turns any click whose
 /// hit view permits window-moving into a window drag. The sidebar's own
 /// controls live in that strip, so its hosting view must claim those clicks.
@@ -36,6 +122,7 @@ struct SpaceSwipeTrackingView<Content: View>: NSViewRepresentable {
     let onSettleBegan: (Int) -> Void
     let onCompletion: (Int) -> Void
     let onScrollEdgesChanged: (SpaceScrollEdges) -> Void
+    let translationRelay: SpaceSwipeTranslationRelay?
     private let content: Content
 
     init(
@@ -48,6 +135,7 @@ struct SpaceSwipeTrackingView<Content: View>: NSViewRepresentable {
         onSettleBegan: @escaping (Int) -> Void = { _ in },
         onCompletion: @escaping (Int) -> Void,
         onScrollEdgesChanged: @escaping (SpaceScrollEdges) -> Void = { _ in },
+        translationRelay: SpaceSwipeTranslationRelay? = nil,
         @ViewBuilder content: () -> Content
     ) {
         self.isEnabled = isEnabled
@@ -59,6 +147,7 @@ struct SpaceSwipeTrackingView<Content: View>: NSViewRepresentable {
         self.onSettleBegan = onSettleBegan
         self.onCompletion = onCompletion
         self.onScrollEdgesChanged = onScrollEdgesChanged
+        self.translationRelay = translationRelay
         self.content = content()
     }
 
@@ -71,6 +160,7 @@ struct SpaceSwipeTrackingView<Content: View>: NSViewRepresentable {
         view.onSettleBegan = onSettleBegan
         view.onCompletion = onCompletion
         view.onScrollEdgesChanged = onScrollEdgesChanged
+        view.translationRelay = translationRelay
         view.updateContentID(contentID)
         view.updateSettleRequest(settleRequest)
         return view
@@ -85,6 +175,7 @@ struct SpaceSwipeTrackingView<Content: View>: NSViewRepresentable {
         nsView.onSettleBegan = onSettleBegan
         nsView.onCompletion = onCompletion
         nsView.onScrollEdgesChanged = onScrollEdgesChanged
+        nsView.translationRelay = translationRelay
         nsView.updateContentID(contentID)
         nsView.updateSettleRequest(settleRequest)
     }
@@ -99,6 +190,7 @@ final class SpaceSwipeScrollView<Content: View>: NSScrollView {
     var onSettleBegan: (Int) -> Void = { _ in }
     var onCompletion: (Int) -> Void = { _ in }
     var onScrollEdgesChanged: (SpaceScrollEdges) -> Void = { _ in }
+    var translationRelay: SpaceSwipeTranslationRelay?
 
     private var reportedScrollEdges = SpaceScrollEdges()
     private nonisolated(unsafe) var scrollEdgesObserver: NSObjectProtocol?
@@ -191,7 +283,9 @@ final class SpaceSwipeScrollView<Content: View>: NSScrollView {
         guard contentID != newContentID else { return }
         contentID = newContentID
         animationToken = UUID()
-        hostingView.layer?.removeAnimation(forKey: translationAnimationKey)
+        for layer in translatedLayers {
+            layer.removeAnimation(forKey: translationAnimationKey)
+        }
         applySwipeAmount(0)
         isTrackingSwipe = false
         isSettlingSwipe = false
@@ -342,13 +436,19 @@ final class SpaceSwipeScrollView<Content: View>: NSScrollView {
         onCompletion(destination)
     }
 
+    /// The page layer plus every companion the relay knows about.
+    private var translatedLayers: [CALayer] {
+        [hostingView.layer].compactMap { $0 } + (translationRelay?.layers ?? [])
+    }
+
     private func applySwipeAmount(_ amount: CGFloat) {
-        guard let layer = hostingView.layer else { return }
         let translationX = amount * max(contentSize.width, 1)
 
         CATransaction.begin()
         CATransaction.setDisableActions(true)
-        layer.setAffineTransform(CGAffineTransform(translationX: translationX, y: 0))
+        for layer in translatedLayers {
+            layer.setAffineTransform(CGAffineTransform(translationX: translationX, y: 0))
+        }
         CATransaction.commit()
     }
 
@@ -381,7 +481,9 @@ final class SpaceSwipeScrollView<Content: View>: NSScrollView {
 
         CATransaction.begin()
         CATransaction.setDisableActions(true)
-        layer.setAffineTransform(CGAffineTransform(translationX: targetX, y: 0))
+        for translated in translatedLayers {
+            translated.setAffineTransform(CGAffineTransform(translationX: targetX, y: 0))
+        }
         CATransaction.commit()
 
         let animation = CASpringAnimation(keyPath: "transform.translation.x")
@@ -399,7 +501,9 @@ final class SpaceSwipeScrollView<Content: View>: NSScrollView {
                 self?.finishSettlement(to: destination, token: token)
             }
         }
-        layer.add(animation, forKey: translationAnimationKey)
+        for translated in translatedLayers {
+            translated.add(animation, forKey: translationAnimationKey)
+        }
         CATransaction.commit()
     }
 
