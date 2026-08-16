@@ -91,6 +91,7 @@ struct SidebarView: View {
     private let spaceSwitcherHeight: CGFloat = 32
     private let updateBannerHeight: CGFloat = 38
     private let bottomFadeHeight: CGFloat = 18
+    private let topFadeHeight: CGFloat = 18
 
     /// How long the Space slide waits after a hidden sidebar is revealed, so
     /// the two reads as open-then-slide rather than one blurred move.
@@ -163,10 +164,13 @@ struct SidebarView: View {
         // Favorites are global the same way: the shared grid is hoisted out
         // of the swiping pages so it stays put while Spaces slide beneath it.
         spaceSwipeContent
-            // Zen's tab list ends above the bottom bar rather than sliding
-            // under it: rows dissolve into the strip's band instead of
-            // showing through the workspace icons.
-            .mask(alignment: .bottom) { bottomFadeMask }
+            // Arc's window controls, navigation, and address bar are fixed
+            // furniture, and so is Zen's bottom bar: only the tab list moves.
+            // Rows dissolve into both bands instead of sliding under them.
+            .mask { scrollFadeMask }
+            .overlay(alignment: .top) {
+                topChrome
+            }
             .overlay(alignment: .top) {
                 // Private tabs never join the workspace, so the shared
                 // favorites grid (and its drag-here hint) has no place here.
@@ -197,10 +201,21 @@ struct SidebarView: View {
             }
     }
 
-    /// Opaque above, clear across the pinned bottom cluster, with a short
-    /// gradient between so rows fade out rather than being cut in half.
-    private var bottomFadeMask: some View {
+    /// Clear across the fixed chrome at either end, opaque through the list
+    /// between them, with short gradients so rows fade out rather than being
+    /// cut in half as they pass behind the chrome.
+    private var scrollFadeMask: some View {
         VStack(spacing: 0) {
+            Color.clear
+                .frame(height: max(spaceContentTopInset - topFadeHeight, 0))
+
+            LinearGradient(
+                colors: [Color.black.opacity(0), Color.black],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .frame(height: topFadeHeight)
+
             Rectangle()
                 .fill(Color.black)
 
@@ -214,6 +229,23 @@ struct SidebarView: View {
             Color.clear
                 .frame(height: spaceSwipeBottomInset)
         }
+    }
+
+    /// Arc's fixed top: the window controls, navigation, address pill, and the
+    /// favorites grid below them stay put while the tab list scrolls under.
+    /// The pill shows the active Space — a swipe slides only the list, so it
+    /// switches on commit rather than sliding with the page.
+    private var topChrome: some View {
+        VStack(alignment: .leading, spacing: sidebarVerticalSpacing) {
+            sidebarHeader(showsWindowControls: true)
+
+            if showsAddressPill {
+                addressPill(for: store.activeSpaceID)
+            }
+        }
+        .padding(.leading, leadingInset)
+        .padding(.trailing, trailingInset)
+        .padding(.top, sidebarTopPadding)
     }
 
     private var hoistedFavoritesSection: some View {
@@ -283,31 +315,6 @@ struct SidebarView: View {
         )
     }
 
-    private func sidebarChrome(
-        for spaceID: UUID,
-        showsWindowControls: Bool,
-        isSwipingSpaces: Bool
-    ) -> some View {
-        VStack(alignment: .leading, spacing: sidebarVerticalSpacing) {
-            sidebarHeader(
-                showsWindowControls: showsWindowControls,
-                isSwipingSpaces: isSwipingSpaces
-            )
-            if showsAddressPill {
-                addressPill(for: spaceID)
-            }
-
-            // The banners this row used to carry are hoisted alongside the
-            // switcher now; only the header and the address pill page with
-            // the Space.
-            Spacer(minLength: 0)
-        }
-        .padding(.leading, leadingInset)
-        .padding(.trailing, trailingInset)
-        .padding(.top, sidebarTopPadding)
-        .padding(.bottom, sidebarBottomPadding)
-    }
-
     private var canSwipeSpaces: Bool {
         store.spaces.count > 1 &&
             !store.isInitialAccountSetupPresented &&
@@ -321,7 +328,6 @@ struct SidebarView: View {
         GeometryReader { proxy in
             let width = max(proxy.size.width, 1)
 
-            let _ = updateSpaceSwipePageWidth(width)
             SpaceSwipeTrackingView(
                 isEnabled: canSwipeSpaces,
                 contentID: store.activeSpaceID,
@@ -350,12 +356,6 @@ struct SidebarView: View {
         .frame(maxHeight: .infinity)
         .clipped()
         .accessibilityIdentifier("sidebar-space-swipe-area")
-    }
-
-    private func updateSpaceSwipePageWidth(_ width: CGFloat) {
-        if spaceSwipePageWidth != width {
-            DispatchQueue.main.async { spaceSwipePageWidth = width }
-        }
     }
 
     /// The pill moves to a strip above the page under the "Top" placement;
@@ -398,10 +398,6 @@ struct SidebarView: View {
         return inset
     }
 
-    /// The carousel page width this pass is laying out; spaceSwipePage's
-    /// chrome pin needs it outside the GeometryReader closure.
-    @State private var spaceSwipePageWidth: CGFloat = InterfaceStyle.sidebarWidth
-
     @ViewBuilder
     private func spaceSwipePage(slot: Int, minimumHeight: CGFloat) -> some View {
         if let spaceID = spaceID(forSwipeSlot: slot) {
@@ -410,40 +406,22 @@ struct SidebarView: View {
                 1
             )
 
-            ZStack {
-                Group {
-                    if slot == 0 || isSpaceSwipePrepared || selectedSpaceTransitionID != nil {
-                        spaceScrollContent(for: spaceID)
-                    } else {
-                        Color.clear
-                    }
-                }
-                .padding(.leading, leadingInset)
-                .padding(.trailing, trailingInset)
-                .frame(
-                    minHeight: contentHeight,
-                    alignment: .top
-                )
-                .padding(.top, spaceContentTopInset)
-                .padding(.bottom, spaceSwipeBottomInset)
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-                if slot == 0 || isSpaceSwipePrepared {
-                    sidebarChrome(
-                        for: spaceID,
-                        showsWindowControls: slot == 0,
-                        isSwipingSpaces: isSpaceSwipePrepared
-                    )
-                    // Pinned to the page's width: the chrome shares this
-                    // ZStack with the space content, and a chrome row that
-                    // cannot compress (the header once the extensions button
-                    // joins it) would otherwise inflate the ZStack past the
-                    // fixed page frame — SwiftUI centers the overflow, and
-                    // every row in the Space shifts half the excess off the
-                    // window edge and paints over the Zen insets.
-                    .frame(width: spaceSwipePageWidth)
+            Group {
+                if slot == 0 || isSpaceSwipePrepared || selectedSpaceTransitionID != nil {
+                    spaceScrollContent(for: spaceID)
+                } else {
+                    Color.clear
                 }
             }
+            .padding(.leading, leadingInset)
+            .padding(.trailing, trailingInset)
+            .frame(
+                minHeight: contentHeight,
+                alignment: .top
+            )
+            .padding(.top, spaceContentTopInset)
+            .padding(.bottom, spaceSwipeBottomInset)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .allowsHitTesting(slot == 0)
             .accessibilityHidden(slot != 0)
         } else {
@@ -642,10 +620,10 @@ struct SidebarView: View {
 
     // MARK: - Header
 
-    private func sidebarHeader(
-        showsWindowControls: Bool,
-        isSwipingSpaces: Bool = false
-    ) -> some View {
+    // The header no longer rides the swipe carousel, so the faux traffic
+    // lights a sliding page needed are gone with it: the real controls stay
+    // where AppKit put them through a Space switch.
+    private func sidebarHeader(showsWindowControls: Bool) -> some View {
         // Every width here is part of a budget: with the extensions button
         // loaded this row carries five 24pt buttons beside the 70pt window
         // controls, and its fixed members must never exceed the 218pt the
@@ -655,7 +633,7 @@ struct SidebarView: View {
             Group {
                 if showsWindowControls {
                     WindowControlsView(
-                        isSuppressed: isSwipingSpaces,
+                        isSuppressed: false,
                         geometry: windowControlsGeometry
                     )
                 } else {
@@ -663,11 +641,6 @@ struct SidebarView: View {
                 }
             }
             .frame(width: windowControlsWidth, height: 24)
-            .overlay(alignment: .topLeading) {
-                if isSwipingSpaces {
-                    FauxWindowControlsView(geometry: windowControlsGeometry)
-                }
-            }
 
             // The badge overlays the flexible gap instead of joining the
             // HStack: this row's fixed members already nearly fill the
