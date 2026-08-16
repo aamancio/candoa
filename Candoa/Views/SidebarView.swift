@@ -94,6 +94,12 @@ struct SidebarView: View {
     private let spaceSwitcherHeight: CGFloat = 32
     private let updateBannerHeight: CGFloat = 38
 
+    /// Rows making room during a drag use the system's own snappy spring —
+    /// quick, a hair of overshoot, settled — rather than a hand-rolled one.
+    /// Shorter than `.snappy`'s half-second default: a row slides one row's
+    /// height, so the move should be over before the pointer has moved on.
+    private static let rowReorder: Animation = .snappy(duration: 0.24)
+
     /// How long the Space slide waits after a hidden sidebar is revealed, so
     /// the two reads as open-then-slide rather than one blurred move.
     private static let revealBeforeSlideDelay: TimeInterval = 0.2
@@ -1095,7 +1101,7 @@ struct SidebarView: View {
             // Pin, folder, and close settle the section instead of popping; the
             // per-space identity keeps space switches an instant context cut.
             .animation(
-                .spring(response: 0.32, dampingFraction: 0.82),
+                Self.rowReorder,
                 value: liveOrder(pinned, placement: .pinned).map(\.id) + folders.map(\.id)
             )
             .id(spaceID)
@@ -1308,7 +1314,7 @@ struct SidebarView: View {
                 // Arc's make-room feel. The per-space identity keeps space
                 // switches an instant cut.
                 .animation(
-                    .spring(response: 0.32, dampingFraction: 0.82),
+                    Self.rowReorder,
                     value: liveOrder(tabs, placement: .regular).map(\.id)
                 )
                 .id(spaceID)
