@@ -692,3 +692,53 @@ final class NavigationSchemeTests: XCTestCase {
         )
     }
 }
+
+/// The command palette teaches shortcuts by mapping each row's action back to
+/// its rebindable `ShortcutDefinition` (issue #370). Pure logic: no palette
+/// UI or persistence involved.
+final class PaletteShortcutTests: XCTestCase {
+    func testBaseActionsMapToTheirShortcutDefinitions() {
+        XCTAssertEqual(PaletteAction.newTab.shortcutDefinition, .newTab)
+        XCTAssertEqual(PaletteAction.closeCurrentTab.shortcutDefinition, .closeCurrentTab)
+        XCTAssertEqual(PaletteAction.reloadTab.shortcutDefinition, .reloadTab)
+        XCTAssertEqual(PaletteAction.focusAddressBar.shortcutDefinition, .focusAddressBar)
+        XCTAssertEqual(PaletteAction.toggleSplitView.shortcutDefinition, .toggleSplitView)
+        XCTAssertEqual(PaletteAction.toggleSplitPaneZoom.shortcutDefinition, .zoomSplitPane)
+        XCTAssertEqual(PaletteAction.focusSplitPane(1).shortcutDefinition, .focusNextSplitPane)
+        XCTAssertEqual(PaletteAction.focusSplitPane(-1).shortcutDefinition, .focusPreviousSplitPane)
+        XCTAssertEqual(PaletteAction.unsplitPane.shortcutDefinition, .unsplitPane)
+        XCTAssertEqual(PaletteAction.togglePinTab.shortcutDefinition, .pinOrUnpinTab)
+    }
+
+    func testPaletteOnlyActionsHaveNoShortcut() {
+        XCTAssertNil(PaletteAction.duplicateCurrentTab.shortcutDefinition)
+        XCTAssertNil(PaletteAction.createSpace.shortcutDefinition)
+        XCTAssertNil(PaletteAction.setDeveloperMode(true).shortcutDefinition)
+        XCTAssertNil(PaletteAction.navigate("https://example.com").shortcutDefinition)
+        XCTAssertNil(PaletteAction.switchTab(UUID()).shortcutDefinition)
+        XCTAssertNil(PaletteAction.switchSpace(UUID()).shortcutDefinition)
+    }
+
+    func testCommandKeysFollowTheStoredRebind() {
+        let key = ShortcutDefinition.reloadTab.storageKey
+        let previous = UserDefaults.standard.string(forKey: key)
+        defer {
+            if let previous {
+                UserDefaults.standard.set(previous, forKey: key)
+            } else {
+                UserDefaults.standard.removeObject(forKey: key)
+            }
+        }
+
+        let command = PaletteCommand(title: "Reload", symbolName: "arrow.clockwise", action: .reloadTab)
+
+        UserDefaults.standard.removeObject(forKey: key)
+        XCTAssertEqual(command.shortcutKeys, ["⌘", "R"])
+
+        UserDefaults.standard.set("Shift-Command-R", forKey: key)
+        XCTAssertEqual(command.shortcutKeys, ["⇧", "⌘", "R"])
+
+        UserDefaults.standard.set(ShortcutDefinition.removedValue, forKey: key)
+        XCTAssertEqual(command.shortcutKeys, [])
+    }
+}
