@@ -54,6 +54,13 @@ private struct SidebarSplitPreview: ViewModifier {
                             : 0
                     )
                 }
+                // Applied after the offset, so it is not carried along with
+                // the content: the pane stays put while the tab slides into
+                // it. Without this the keeper half is only visible on a row
+                // that happens to be hovered or active — on any other row
+                // the preview was one block floating beside a title, with no
+                // second pane and no divide to read.
+                .background { keeperPane(ghostLeads: ghostLeads) }
                 .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                 .overlay {
                     ghostPane(ghostLeads: ghostLeads)
@@ -77,6 +84,23 @@ private struct SidebarSplitPreview: ViewModifier {
     /// under the ghost stopped answering drag updates and the drop routing
     /// flickered between this row and the section behind it. Paint hides the
     /// title just as well and the row stays whole to the pointer.
+    /// The pane the row keeps, painted so both halves read the same whatever
+    /// state the row itself is in.
+    private func keeperPane(ghostLeads: Bool) -> some View {
+        GeometryReader { proxy in
+            let pane = paneWidth(in: proxy.size.width)
+            HStack(spacing: 0) {
+                if ghostLeads {
+                    Color.clear.frame(width: pane + SidebarDropMetrics.splitPreviewGap)
+                }
+                Rectangle()
+                    .fill(InterfaceStyle.sidebarControlFillDropTarget)
+                    .frame(width: pane)
+                if !ghostLeads { Color.clear }
+            }
+        }
+    }
+
     private func ghostPane(ghostLeads: Bool) -> some View {
         GeometryReader { proxy in
             let pane = paneWidth(in: proxy.size.width)
@@ -88,20 +112,13 @@ private struct SidebarSplitPreview: ViewModifier {
                     Rectangle()
                         .fill(InterfaceStyle.sidebarBackground)
 
-                    // Rounded on the outside, square at the divide, full row
-                    // height — the mirror of the pane the row keeps, whose
-                    // shape comes from the row's own clip. Inset and rounded
-                    // on all four corners, the ghost read as a pill parked
-                    // beside a clipped slab instead of half of one row.
-                    UnevenRoundedRectangle(
-                        topLeadingRadius: ghostLeads ? 8 : 0,
-                        bottomLeadingRadius: ghostLeads ? 8 : 0,
-                        bottomTrailingRadius: ghostLeads ? 0 : 8,
-                        topTrailingRadius: ghostLeads ? 0 : 8,
-                        style: .continuous
-                    )
-                    .fill(InterfaceStyle.sidebarControlFillDropTarget)
-                    .frame(width: pane)
+                    // A plain rectangle: the outer corners come from the
+                    // row's own clip below, so the pane is square where the
+                    // two meet and rounded only where the row is. Rounding it
+                    // itself made a pill parked beside a clipped slab.
+                    Rectangle()
+                        .fill(InterfaceStyle.sidebarControlFillDropTarget)
+                        .frame(width: pane)
                     .frame(
                         maxWidth: .infinity,
                         alignment: ghostLeads ? .leading : .trailing
