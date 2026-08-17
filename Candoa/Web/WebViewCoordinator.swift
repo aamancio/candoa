@@ -73,6 +73,14 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
     /// download again on every SwiftUI pass. Cleared when a real page
     /// commits in the tab.
     var downloadConvertedTabIDs: Set<UUID> = []
+    /// Per-tab destination whose provisional navigation failed. A provisional
+    /// failure never commits, so the web view keeps its previous URL and the
+    /// mismatch ensureLoaded tests against stays true forever: re-requesting
+    /// the destination republishes the failure, which drives the next SwiftUI
+    /// pass, which re-requests it again — an unbounded navigate/render loop
+    /// (a mistyped host spun at ~20 loads a second). Cleared when a page
+    /// commits in the tab and by any explicit load, so retry still works.
+    var failedProvisionalURLs: [UUID: URL] = [:]
     var hostedActiveTabID: UUID?
     /// Last docked-inspector placement published to the UI-testing state, so
     /// WebKit's own re-splits (which no store change accompanies) refresh it
@@ -390,6 +398,10 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         // its URL here would restart the download on every SwiftUI pass.
         guard !downloadConvertedTabIDs.contains(tab.id) else { return }
 
+        // A destination that failed before committing is left to the recovery
+        // card's retry; re-requesting it here would loop.
+        guard failedProvisionalURLs[tab.id]?.absoluteString != expectedURL.absoluteString else { return }
+
         if webView.url?.absoluteString != expectedURL.absoluteString {
             load(expectedURL, in: tab.id)
         }
@@ -397,6 +409,11 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
 
     func load(_ url: URL, in tabID: UUID) {
         guard url != BrowserInternalPage.welcomeURL else { return }
+        // Every explicit request — address bar, retry button, link, restore —
+        // ends the quarantine: this navigation gets its own chance to fail.
+        // ensureLoaded returns before reaching here while a tab is quarantined,
+        // so clearing it cannot re-open the loop.
+        failedProvisionalURLs[tabID] = nil
         let url = store?.navigationService.preferredLocaleURL(for: url) ?? url
         let webView = webViews[tabID]
         let targetWebView: WKWebView
@@ -519,6 +536,7 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         hibernatedInteractionStates.removeAll()
         wakeSnapshots.removeAll()
         restoringTabIDs.removeAll()
+        failedProvisionalURLs.removeAll()
     }
 
     func hasLoadedWebView(for tabID: UUID) -> Bool {
@@ -532,6 +550,7 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
             wakeSnapshots[tabID] = nil
         }
         restoringTabIDs.remove(tabID)
+        failedProvisionalURLs[tabID] = nil
         removeRestoreOverlay(for: tabID)
 
         guard let webView = webViews.removeValue(forKey: tabID) else { return }
