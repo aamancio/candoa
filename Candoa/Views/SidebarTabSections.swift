@@ -108,7 +108,6 @@ internal struct SidebarSplitGroupView: View {
                     onToggleFavorite: { store.toggleFavorite(tab.id) },
                     onTogglePin: { store.togglePin(tab.id) }
                 )
-                .opacity(store.shouldHideSidebarTab(tab.id, placement: .regular) ? 0 : 1)
                 .background(TabDragSourceBackground(store: store, tabID: tab.id))
             }
         }
@@ -356,7 +355,6 @@ internal struct FolderSectionView: View {
                         onToggleMute: { store.toggleMediaMute(tabID: tab.id) }
                     )
                     .padding(.leading, CGFloat(nestingLevel + 1) * 12)
-                    .opacity(store.shouldHideSidebarTab(tab.id, placement: .folder(folder.id)) ? 0 : 1)
                     .sidebarRowDropIndicator(
                         showsTop: store.activeSidebarDropIndicator == SidebarTabDropIndicator(
                             placement: .folder(folder.id),
