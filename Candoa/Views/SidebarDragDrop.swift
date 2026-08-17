@@ -409,21 +409,27 @@ internal enum SidebarDropAxis {
 
 internal enum SidebarDropMetrics {
     /// A sidebar row's laid-out height, and how much of it at either end
-    /// reorders rather than splits. A third each way: enough to aim at
-    /// without the split band swallowing the row.
+    /// belongs to the boundary rather than to the row.
+    ///
+    /// Reordering is a boundary gesture: the narrow band at each end, plus
+    /// the 4pt gap the next row's band continues on the other side, makes
+    /// one ~16pt zone around each line. Everything else — most of the row —
+    /// drops into the row and splits. A third each way put the line's two
+    /// positions inside the row, so crossing the middle showed it in two
+    /// different places instead of a single target there.
     static let rowHeight: CGFloat = 36
-    static let splitBandInset: CGFloat = 12
+    static let boundaryDepth: CGFloat = 6
 }
 
 internal func dropEdge(for info: DropInfo, axis: SidebarDropAxis = .vertical) -> SidebarTabDropEdge {
     switch axis {
     case .vertical:
-        // Two things a row can accept, and the pointer says which: its edges
-        // reorder — the line lands in the gap on that side — and its middle
-        // third splits. Neighbouring rows resolve their shared boundary to
-        // the same gap centre, so a boundary still shows exactly one line.
-        if info.location.y < SidebarDropMetrics.splitBandInset { return .before }
-        if info.location.y > SidebarDropMetrics.rowHeight - SidebarDropMetrics.splitBandInset {
+        // Two things a row can accept, and the pointer says which: a narrow
+        // band at either end belongs to the boundary and reorders, with the
+        // line in the gap there; the body of the row drops into it and
+        // splits. One target in the middle, one line per boundary.
+        if info.location.y < SidebarDropMetrics.boundaryDepth { return .before }
+        if info.location.y > SidebarDropMetrics.rowHeight - SidebarDropMetrics.boundaryDepth {
             return .after
         }
         return .split
