@@ -908,4 +908,43 @@ final class PaletteShortcutTests: XCTestCase {
             list[2].id
         )
     }
+
+    // MARK: - A split pair moves as a block
+
+    /// Moving one member used to leave the other behind, and the pair's row
+    /// redrew at the member that had not moved — so the drag ran correctly
+    /// and the list looked unchanged.
+    func testMovingAMemberBringsItsPartner() {
+        let ids = (0..<6).map { _ in UUID() }
+        let group: Set<UUID> = [ids[0], ids[1]]
+        // The pair started at the front; the dragged member landed at index 4.
+        let dropped = [ids[1], ids[2], ids[3], ids[4], ids[0], ids[5]]
+        XCTAssertEqual(
+            BrowserStore.keepingSplitPartnersAdjacent(to: ids[0], in: dropped, splitGroup: group),
+            [ids[2], ids[3], ids[4], ids[0], ids[1], ids[5]]
+        )
+    }
+
+    func testMovingANonMemberChangesNothing() {
+        let ids = (0..<4).map { _ in UUID() }
+        let order = [ids[0], ids[1], ids[2], ids[3]]
+        XCTAssertEqual(
+            BrowserStore.keepingSplitPartnersAdjacent(
+                to: ids[2],
+                in: order,
+                splitGroup: [ids[0], ids[1]]
+            ),
+            order
+        )
+    }
+
+    func testPartnersKeepTheirRelativeOrder() {
+        let ids = (0..<5).map { _ in UUID() }
+        let group: Set<UUID> = [ids[0], ids[1], ids[2]]
+        let dropped = [ids[1], ids[2], ids[3], ids[0], ids[4]]
+        XCTAssertEqual(
+            BrowserStore.keepingSplitPartnersAdjacent(to: ids[0], in: dropped, splitGroup: group),
+            [ids[3], ids[0], ids[1], ids[2], ids[4]]
+        )
+    }
 }
