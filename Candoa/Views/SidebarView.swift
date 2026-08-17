@@ -1224,14 +1224,16 @@ struct SidebarView: View {
 
     @ViewBuilder
     private func tabsSection(for spaceID: UUID) -> some View {
-        let splitTabs = spaceID == store.activeSpaceID ? store.activeSplitGroupTabs : []
-        let splitTabIDs = Set(splitTabs.map(\.id))
-        let tabs = store.regularTabs(in: spaceID).filter { !splitTabIDs.contains($0.id) }
+        // Split members stay where they are in the list. Hoisting them into
+        // a pill at the top meant splitting two tabs reordered them out from
+        // under the pointer, and it forced every drag of a member to detach
+        // it. Membership shows as the glyph on the row instead.
+        let tabs = store.regularTabs(in: spaceID)
 
         VStack(alignment: .leading, spacing: 0) {
             // Private windows open empty by design; announcing "No tabs"
             // under the New Tab row is just noise there.
-            if tabs.isEmpty && splitTabs.isEmpty && !store.isPrivate {
+            if tabs.isEmpty && !store.isPrivate {
                 Text("No tabs")
                     .font(.system(size: 11))
                     .foregroundStyle(.tertiary)
@@ -1250,14 +1252,6 @@ struct SidebarView: View {
                 }
             } else {
                 VStack(spacing: 4) {
-                    if splitTabs.count >= 2 {
-                        SidebarSplitGroupView(
-                            store: store,
-                            tabs: splitTabs,
-                            accentColor: AppColor.accent
-                        )
-                    }
-
                     ForEach(tabs) { tab in
                         TabRowView(
                             tab: tab,
@@ -1269,6 +1263,7 @@ struct SidebarView: View {
                             onClose: { store.closeTab(tab.id) },
                             onDuplicate: { store.duplicateTab(tab.id) },
                             onOpenInSplit: { store.openSplitView(with: tab.id) },
+                            onRemoveFromSplit: { store.removeTabFromSplit(tab.id) },
                             onToggleFavorite: { store.toggleFavorite(tab.id) },
                             onTogglePin: { store.togglePin(tab.id) },
                             onToggleMute: { store.toggleMediaMute(tabID: tab.id) },

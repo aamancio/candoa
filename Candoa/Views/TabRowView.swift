@@ -23,6 +23,7 @@ struct TabRowView: View {
     let onClose: () -> Void
     let onDuplicate: () -> Void
     let onOpenInSplit: () -> Void
+    var onRemoveFromSplit: () -> Void = {}
     let onToggleFavorite: () -> Void
     let onTogglePin: () -> Void
     let onToggleMute: () -> Void
@@ -105,7 +106,13 @@ struct TabRowView: View {
             Button(tab.isFavorite ? "Remove from Favorites" : "Add to Favorites", action: onToggleFavorite)
             Button(tab.isPinned ? "Unpin Tab" : "Pin Tab", action: onTogglePin)
             Button(BrowserCommandTitles.duplicateTab, action: onDuplicate)
-            Button("Open in Split View", action: onOpenInSplit)
+            if isSplit {
+                // Was on the group pill's chips; the pill is gone, and a
+                // member still needs a way out of the split from the sidebar.
+                Button("Remove from Split View", action: onRemoveFromSplit)
+            } else {
+                Button("Open in Split View", action: onOpenInSplit)
+            }
             Button("Close Tab", action: onClose)
         }
         // Hover is the fill alone — a stroke around it as well made a passing
