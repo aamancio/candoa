@@ -436,14 +436,21 @@ internal enum SidebarDropMetrics {
     static let rowHeight: CGFloat = 36
     static let rowSpacing: CGFloat = 4
 
-    /// How far from either row edge a pointer has to be before holding still
-    /// can turn the drop into a split — the middle 12pt of the row.
+    /// Zen's `zen.splitView.drag-over-split-threshold`: the outer quarter of
+    /// the row at each end is too close to a gap for a hold to mean anything
+    /// but "put it here", leaving the middle half to offer a split. 9pt and
+    /// 18pt on a 36pt row.
     ///
-    /// This no longer divides the row between two live targets. A moving
-    /// pointer always reorders, wherever it is, so the boundary is the whole
-    /// pitch and there is nothing to aim for; this inset only says where a
-    /// *hold* means something other than "put it here".
-    static let boundaryDepth: CGFloat = 12
+    /// Proportional rather than a literal 9 because that is how Zen states
+    /// it, and because a taller row should give the split more of itself,
+    /// not the same sliver.
+    static let splitDwellEdgeFraction: CGFloat = 0.25
+
+    /// How far from either row edge a pointer has to be before a hold can
+    /// turn the drop into a split. This does not divide the row between two
+    /// live targets: a moving pointer always reorders, wherever it is, so the
+    /// boundary is the whole pitch with nothing to aim for.
+    static let splitDwellEdgeInset = rowHeight * splitDwellEdgeFraction
 
     /// The insertion line's own height. Lives here rather than on the view so
     /// the offset below it can be computed off the main actor.
@@ -476,8 +483,8 @@ internal func dropEdge(for info: DropInfo, axis: SidebarDropAxis = .vertical) ->
 /// split. Near either edge it is on its way to a gap, and no amount of
 /// holding should turn that into a split.
 internal func isWithinSplitDwellRegion(_ info: DropInfo) -> Bool {
-    info.location.y >= SidebarDropMetrics.boundaryDepth
-        && info.location.y <= SidebarDropMetrics.rowHeight - SidebarDropMetrics.boundaryDepth
+    info.location.y >= SidebarDropMetrics.splitDwellEdgeInset
+        && info.location.y <= SidebarDropMetrics.rowHeight - SidebarDropMetrics.splitDwellEdgeInset
 }
 
 /// The edge a row should be showing: the nearest boundary while the pointer
