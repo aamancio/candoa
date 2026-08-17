@@ -46,8 +46,7 @@ internal struct TabReorderDropDelegate: DropDelegate {
         if targetTab.id == draggedID {
             guard
                 let indicator = store.activeSidebarDropIndicator,
-                indicator.placement == placement,
-                indicator.edge != .split
+                indicator.placement == placement
             else {
                 store.clearSidebarDropIndicator()
                 return false
@@ -76,11 +75,6 @@ internal struct TabReorderDropDelegate: DropDelegate {
         let edge = store.activeSidebarDropIndicator?.targetTabID == targetTab.id
             ? store.activeSidebarDropIndicator?.edge ?? dropEdge(for: info, axis: dropAxis)
             : dropEdge(for: info, axis: dropAxis)
-        if edge == .split {
-            store.splitTab(draggedID, onto: targetTab.id, side: splitDropSide(for: info, axis: dropAxis))
-            store.finishTabDrop(draggedID, from: sourcePlacement, to: sourcePlacement ?? placement)
-            return true
-        }
 
         let beforeID = insertionBeforeID(
             targetTabID: targetTab.id,
@@ -151,11 +145,6 @@ internal struct FolderTabDropDelegate: DropDelegate {
             let edge = store.activeSidebarDropIndicator?.targetTabID == targetTab.id
                 ? store.activeSidebarDropIndicator?.edge ?? dropEdge(for: info)
                 : dropEdge(for: info)
-            if edge == .split {
-                store.splitTab(draggedID, onto: targetTab.id, side: splitDropSide(for: info))
-                store.finishTabDrop(draggedID, from: sourcePlacement, to: sourcePlacement ?? .folder(folder.id))
-                return true
-            }
             beforeID = insertionBeforeID(
                 targetTabID: targetTab.id,
                 edge: edge,
@@ -225,11 +214,6 @@ internal struct RegularTabSectionDropDelegate: DropDelegate {
             let targetID = indicator?.targetTabID,
             let targetTab = store.regularTabsForActiveSpace.first(where: { $0.id == targetID }) {
             let edge = indicator?.edge ?? .after
-            if edge == .split {
-                store.splitTab(draggedID, onto: targetTab.id, side: splitDropSide(for: info))
-                store.finishTabDrop(draggedID, from: sourcePlacement, to: sourcePlacement ?? .regular)
-                return true
-            }
             beforeID = insertionBeforeID(
                 targetTabID: targetTab.id,
                 edge: edge,
@@ -293,11 +277,6 @@ internal struct PinnedTabSectionDropDelegate: DropDelegate {
             let targetID = indicator?.targetTabID,
             let targetTab = store.pinnedTabsForActiveSpace.first(where: { $0.id == targetID }) {
             let edge = indicator?.edge ?? .after
-            if edge == .split {
-                store.splitTab(draggedID, onto: targetTab.id, side: splitDropSide(for: info))
-                store.finishTabDrop(draggedID, from: sourcePlacement, to: sourcePlacement ?? .pinned)
-                return true
-            }
             beforeID = insertionBeforeID(
                 targetTabID: targetTab.id,
                 edge: edge,
@@ -408,37 +387,24 @@ internal enum SidebarDropAxis {
 }
 
 internal enum SidebarDropMetrics {
-    /// A sidebar row's laid-out height, and how much of it at the top
-    /// belongs to the gap above it. That band plus the 4pt row spacing is
-    /// the whole target for that boundary — no other row can claim it.
+    /// A sidebar row's laid-out height. The midpoint is the only division:
+    /// the whole row is a reorder target.
     static let rowHeight: CGFloat = 36
-    static let boundaryDepth: CGFloat = 10
 }
 
 internal func dropEdge(for info: DropInfo, axis: SidebarDropAxis = .vertical) -> SidebarTabDropEdge {
     switch axis {
     case .vertical:
-        // A gap belongs to the row *below* it, and only to that row: a band
-        // at the row's top reorders, and the rest of the row splits. Giving
-        // the row a bottom band too made every gap reachable from two rows —
-        // one boundary, two zones, which is the line appearing to have two
-        // places. Dropping after the last row is the empty space below the
-        // list, which the section delegate already appends from.
-        return info.location.y < SidebarDropMetrics.boundaryDepth ? .before : .split
+        // The plain list rule, which is what Arc and Zen use: the nearest
+        // boundary wins. Every point in the row resolves to an insertion, so
+        // there is nothing to aim for — the worst case is half a row from the
+        // gap you wanted, with the line already showing which one you'll get.
+        // The two rows either side of a gap name it differently (.after the
+        // one above, .before the one below) but draw the line on the same
+        // pixel, so crossing the 4pt spacing never moves it.
+        return info.location.y < SidebarDropMetrics.rowHeight / 2 ? .before : .after
     case .horizontal:
         return info.location.x < 44 ? .before : .after
-    }
-}
-
-internal func splitDropSide(for info: DropInfo, axis: SidebarDropAxis = .vertical) -> SplitTabDropSide {
-    switch axis {
-    case .vertical:
-        // The lane's leading inset only; docked rows run to the lane edge and
-        // lean on the gutter before the page surface for their trailing margin.
-        let rowWidth = max(1, InterfaceStyle.sidebarWidth - 8)
-        return info.location.x < rowWidth / 2 ? .leading : .trailing
-    case .horizontal:
-        return info.location.x < 44 ? .leading : .trailing
     }
 }
 
@@ -448,7 +414,6 @@ internal func insertionBeforeID(
     tabs: [BrowserTab],
     draggedID: UUID
 ) -> UUID? {
-    guard edge != .split else { return nil }
     guard edge == .after else {
         return targetTabID
     }

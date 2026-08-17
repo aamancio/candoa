@@ -39,9 +39,12 @@ internal struct SidebarVerticalDropLine: View {
 }
 
 internal extension View {
+    /// A row shows the insertion line on whichever edge the pointer is
+    /// nearest. There is no third, whole-row state: the sidebar reorders and
+    /// only reorders, so nothing competes with the boundary for the row's
+    /// middle. Split drops are marked on the page surface instead.
     func sidebarRowDropIndicator(
         showsTop: Bool,
-        showsSplit: Bool = false,
         showsBottom: Bool,
         tint: Color
     ) -> some View {
@@ -50,17 +53,6 @@ internal extension View {
                 SidebarHorizontalDropLine(tint: tint)
                     .padding(.horizontal, 8)
                     .offset(y: -2)
-            }
-        }
-        .overlay {
-            if showsSplit {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(InterfaceStyle.sidebarControlFillDropTarget)
-                    .allowsHitTesting(false)
-
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .stroke(tint.opacity(0.62), lineWidth: 1)
-                    .allowsHitTesting(false)
             }
         }
         .overlay(alignment: .bottom) {
