@@ -11,7 +11,7 @@ internal struct SidebarHorizontalDropLine: View {
                     Circle()
                         .fill(InterfaceStyle.sidebarBackground)
                 )
-                .frame(width: 7, height: 7)
+                .frame(width: SidebarDropMetrics.dropLineHeight, height: SidebarDropMetrics.dropLineHeight)
 
             Capsule(style: .continuous)
                 .fill(tint)
@@ -19,7 +19,7 @@ internal struct SidebarHorizontalDropLine: View {
                 .frame(height: 2)
                 .offset(x: -1)
         }
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, minHeight: SidebarDropMetrics.dropLineHeight)
         // No tinted glow: it spread the indicator's colour into the rows
         // either side, which is what made a muted line still read as blue.
         .allowsHitTesting(false)
@@ -39,12 +39,18 @@ internal struct SidebarVerticalDropLine: View {
 }
 
 internal extension View {
-    /// A row shows the insertion line on whichever edge the pointer is
-    /// nearest. There is no third, whole-row state: the sidebar reorders and
-    /// only reorders, so nothing competes with the boundary for the row's
-    /// middle. Split drops are marked on the page surface instead.
+    /// Both of a row's boundaries can be marked, and each is shared with the
+    /// neighbouring row, which can mark the same gap from its own side. The
+    /// two must therefore land on the same pixel — the centre of the 4pt
+    /// spacing — or one boundary looks like two places a tab could go, which
+    /// is what a single-sided band used to avoid by simply not existing.
+    ///
+    /// Aligning to the row edge is not enough: the line has height and its
+    /// overlay anchors the near edge, not its centre, so the two sides would
+    /// sit a full line height apart — see `SidebarDropMetrics.dropLineOffset`.
     func sidebarRowDropIndicator(
         showsTop: Bool,
+        showsSplit: Bool = false,
         showsBottom: Bool,
         tint: Color
     ) -> some View {
@@ -52,14 +58,25 @@ internal extension View {
             if showsTop {
                 SidebarHorizontalDropLine(tint: tint)
                     .padding(.horizontal, 8)
-                    .offset(y: -2)
+                    .offset(y: -SidebarDropMetrics.dropLineOffset)
+            }
+        }
+        .overlay {
+            if showsSplit {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(InterfaceStyle.sidebarControlFillDropTarget)
+                    .allowsHitTesting(false)
+
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .stroke(tint.opacity(0.62), lineWidth: 1)
+                    .allowsHitTesting(false)
             }
         }
         .overlay(alignment: .bottom) {
             if showsBottom {
                 SidebarHorizontalDropLine(tint: tint)
                     .padding(.horizontal, 8)
-                    .offset(y: 2)
+                    .offset(y: SidebarDropMetrics.dropLineOffset)
             }
         }
     }

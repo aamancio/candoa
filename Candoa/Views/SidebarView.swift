@@ -1160,6 +1160,11 @@ struct SidebarView: View {
                 targetTabID: tab.id,
                 edge: .before
             ),
+            showsSplit: store.activeSidebarDropIndicator == SidebarTabDropIndicator(
+                placement: .pinned,
+                targetTabID: tab.id,
+                edge: .split
+            ),
             showsBottom: store.activeSidebarDropIndicator == SidebarTabDropIndicator(
                 placement: .pinned,
                 targetTabID: tab.id,
@@ -1274,13 +1279,19 @@ struct SidebarView: View {
                             suppressesHover: store.draggedTabID != nil
                         )
                         // Rows hold still through a drag — Arc moves nothing
-                        // until the drop — so the line on the target row's
-                        // edge is what says where the tab lands.
+                        // until the drop — so the line in the gap is what
+                        // says where the tab lands. Split keeps its ring, and
+                        // the two never show together.
                         .sidebarRowDropIndicator(
                             showsTop: store.activeSidebarDropIndicator == SidebarTabDropIndicator(
                                 placement: .regular,
                                 targetTabID: tab.id,
                                 edge: .before
+                            ),
+                            showsSplit: store.activeSidebarDropIndicator == SidebarTabDropIndicator(
+                                placement: .regular,
+                                targetTabID: tab.id,
+                                edge: .split
                             ),
                             showsBottom: store.activeSidebarDropIndicator == SidebarTabDropIndicator(
                                 placement: .regular,
