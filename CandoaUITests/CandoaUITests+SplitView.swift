@@ -37,14 +37,12 @@ extension CandoaUITests {
         XCTAssertTrue(waitForState(in: app, containing: "splitActive=one"), currentState(in: app))
     }
 
-    /// Two real bugs shipped past the whole suite because chrome existed in
-    /// the view hierarchy but composited *behind* the AppKit-hosted
-    /// WKWebViews (the pane-reorder ghost and target ring, PR #84): XCUITest
-    /// asserts state and AX presence, not what's on screen. This samples the
-    /// window's real pixels over a solid-green fixture page: the split focus
-    /// ring must visibly appear on the focused pane's edge and vanish when
-    /// focus moves to the other pane.
-    func testSplitFocusRingCompositesAboveWebContent() throws {
+    /// The focused pane wears no accent ring — the panes carry the standard
+    /// surface border and nothing else, so focus reads from the sidebar's
+    /// active row. XCUITest asserts state and AX presence, never what's on
+    /// screen, so this samples the window's real pixels over a solid-green
+    /// fixture page: the pane's edge must look the same focused and not.
+    func testSplitPaneEdgeCarriesNoFocusRing() throws {
         let app = launchApp(fixture: "split-view-pixels")
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
 
@@ -56,24 +54,24 @@ extension CandoaUITests {
 
         let leadingPane = element("split-pane-0", in: app)
         XCTAssertTrue(leadingPane.waitForExistence(timeout: 5), currentState(in: app))
-        // Opening a split hands focus to the new pane, so the pane this test
-        // samples has to be lit on purpose before the "focused" capture.
+        // Opening a split hands focus to the new pane, so focus this one on
+        // purpose before the "focused" capture.
         leadingPane.click()
         XCTAssertTrue(waitForState(in: app, containing: "splitActive=two"), currentState(in: app))
         let paneFrame = leadingPane.frame
 
-        // The ring is a 1pt strokeBorder on the visible card's edge; a short
-        // horizontal run across the trailing edge at mid-height (clear of the
-        // rounded corners and of the hover-revealed pill) hedges sub-point
-        // frame alignment. The pane center must show the fixture page's
-        // solid green — proving the web content rendered and the capture
-        // isn't blank, so an "unchanged edge" can only mean a layering bug.
+        // The ring used to be a 1pt strokeBorder on the visible card's edge;
+        // a short horizontal run across the trailing edge at mid-height
+        // (clear of the rounded corners and of the hover-revealed pill)
+        // hedges sub-point frame alignment. The pane center must show the
+        // fixture page's solid green — proving the web content rendered and
+        // the capture isn't blank, so an "unchanged edge" is a real result.
         let edgePoints = (0..<4).map { offset in
             CGPoint(x: paneFrame.maxX - 0.5 - CGFloat(offset), y: paneFrame.midY)
         }
         let centerPoint = CGPoint(x: paneFrame.midX, y: paneFrame.midY)
 
-        // Let the ring's fade-in and the freshly split layout settle.
+        // Let the freshly split layout settle.
         Thread.sleep(forTimeInterval: 0.4)
         let focusedColors = try windowPixelColors(at: edgePoints + [centerPoint], in: app)
         XCTAssertTrue(
@@ -98,10 +96,10 @@ extension CandoaUITests {
             .prefix(edgePoints.count)
             .map { zip($0, $1).map { abs($0 - $1) }.max() ?? 0 }
             .max() ?? 0
-        XCTAssertGreaterThan(
+        XCTAssertLessThanOrEqual(
             edgeDelta,
-            24,
-            "Focus ring never composited over the pane edge: "
+            8,
+            "Pane edge changed with focus, so something still rings the focused pane: "
                 + "focused=\(focusedColors) unfocused=\(unfocusedColors)"
         )
     }
