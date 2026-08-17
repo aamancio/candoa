@@ -432,6 +432,11 @@ extension BrowserStore {
     /// modifier is also polled straight from the hardware state.
     func startTabSwitcherControlWatchdog() {
         guard tabSwitcherControlWatchdog == nil else { return }
+        // Only for a cycle that really started under a held Control. The
+        // UI-testing seam drives the strip with no modifier down at all —
+        // polling the hardware there would end every interaction on its
+        // first tick.
+        guard NSEvent.modifierFlags.contains(.control) else { return }
         // .common, or the timer would be as blind as the monitor: menu
         // tracking runs the loop in event-tracking mode.
         let watchdog = Timer(timeInterval: 0.1, repeats: true) { [weak self] _ in
