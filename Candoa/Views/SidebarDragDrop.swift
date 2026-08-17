@@ -37,6 +37,7 @@ internal struct TabReorderDropDelegate: DropDelegate {
 
     func performDrop(info: DropInfo) -> Bool {
         guard let draggedID = store.draggedTabID else { return false }
+        SidebarSplitDwell.shared.cancel()
         let sourcePlacement = store.sidebarPlacement(for: draggedID)
 
         // Live reordering parks the dragged row under the pointer, so a
@@ -105,7 +106,13 @@ internal struct TabReorderDropDelegate: DropDelegate {
         store.updateSidebarDropIndicator(
             placement: placement,
             targetTabID: targetTab.id,
-            edge: dropEdge(for: info, axis: dropAxis)
+            edge: dwellAwareEdge(
+                for: info,
+                axis: dropAxis,
+                targetTabID: targetTab.id,
+                placement: placement,
+                store: store
+            )
         )
     }
 
@@ -140,11 +147,13 @@ internal struct FolderTabDropDelegate: DropDelegate {
     }
 
     func dropExited(info: DropInfo) {
+        SidebarSplitDwell.shared.cancel()
         store.clearSidebarDropIndicator()
     }
 
     func performDrop(info: DropInfo) -> Bool {
         guard let draggedID = store.draggedTabID else { return false }
+        SidebarSplitDwell.shared.cancel()
         let sourcePlacement = store.sidebarPlacement(for: draggedID)
         let beforeID: UUID?
         if let targetTab {
@@ -183,7 +192,12 @@ internal struct FolderTabDropDelegate: DropDelegate {
             store.updateSidebarDropIndicator(
                 placement: .folder(folder.id),
                 targetTabID: targetTab.id,
-                edge: dropEdge(for: info)
+                edge: dwellAwareEdge(
+                    for: info,
+                    targetTabID: targetTab.id,
+                    placement: .folder(folder.id),
+                    store: store
+                )
             )
         } else {
             store.updateSidebarDropIndicator(
@@ -212,11 +226,13 @@ internal struct RegularTabSectionDropDelegate: DropDelegate {
     }
 
     func dropExited(info: DropInfo) {
+        SidebarSplitDwell.shared.cancel()
         store.clearSidebarDropIndicator()
     }
 
     func performDrop(info: DropInfo) -> Bool {
         guard let draggedID = store.draggedTabID else { return false }
+        SidebarSplitDwell.shared.cancel()
         let sourcePlacement = store.sidebarPlacement(for: draggedID)
         let indicator = store.activeSidebarDropIndicator
         let beforeID: UUID?
@@ -280,11 +296,13 @@ internal struct PinnedTabSectionDropDelegate: DropDelegate {
     }
 
     func dropExited(info: DropInfo) {
+        SidebarSplitDwell.shared.cancel()
         store.clearSidebarDropIndicator()
     }
 
     func performDrop(info: DropInfo) -> Bool {
         guard let draggedID = store.draggedTabID else { return false }
+        SidebarSplitDwell.shared.cancel()
         let sourcePlacement = store.sidebarPlacement(for: draggedID)
         let indicator = store.activeSidebarDropIndicator
         let beforeID: UUID?
@@ -350,11 +368,13 @@ internal struct FavoriteTabDropDelegate: DropDelegate {
     }
 
     func dropExited(info: DropInfo) {
+        SidebarSplitDwell.shared.cancel()
         store.clearSidebarDropIndicator()
     }
 
     func performDrop(info: DropInfo) -> Bool {
         guard let draggedID = store.draggedTabID else { return false }
+        SidebarSplitDwell.shared.cancel()
         let sourcePlacement = store.sidebarPlacement(for: draggedID)
         let beforeID: UUID?
         if let targetTab {
@@ -412,17 +432,17 @@ internal enum SidebarDropAxis {
 }
 
 internal enum SidebarDropMetrics {
-    /// A sidebar row's laid-out height, the 4pt list spacing below it, and
-    /// how deep into the row each of its two boundary bands reaches.
-    ///
-    /// A boundary is therefore `boundaryDepth * 2 + rowSpacing` wide — 28pt
-    /// of the 40pt pitch — and is reachable from the row above it *and* the
-    /// row below it. A single band on one edge was 14pt you had to come at
-    /// from one side, which is what made dropping between two tabs harder
-    /// than splitting with one. The row keeps the 12pt in its middle, which
-    /// is enough for a gesture that was never the hard one to land.
+    /// A sidebar row's laid-out height and the 4pt list spacing below it.
     static let rowHeight: CGFloat = 36
     static let rowSpacing: CGFloat = 4
+
+    /// How far from either row edge a pointer has to be before holding still
+    /// can turn the drop into a split — the middle 12pt of the row.
+    ///
+    /// This no longer divides the row between two live targets. A moving
+    /// pointer always reorders, wherever it is, so the boundary is the whole
+    /// pitch and there is nothing to aim for; this inset only says where a
+    /// *hold* means something other than "put it here".
     static let boundaryDepth: CGFloat = 12
 
     /// The insertion line's own height. Lives here rather than on the view so
@@ -436,22 +456,136 @@ internal enum SidebarDropMetrics {
     static let dropLineOffset = dropLineHeight / 2 + rowSpacing / 2
 }
 
+/// Where a *moving* pointer says the tab goes: the nearer of the row's two
+/// boundaries. Both gaps belong to the row, and the gap below it is also the
+/// gap above the next row, so two rows can claim one boundary — that is the
+/// point, and it is only safe because both draw the line on the gap's centre
+/// rather than on their own edge. See `sidebarRowDropIndicator`: anchoring
+/// each line to the row it came from is what once made one boundary look like
+/// two places a tab could go.
 internal func dropEdge(for info: DropInfo, axis: SidebarDropAxis = .vertical) -> SidebarTabDropEdge {
     switch axis {
     case .vertical:
-        // Both gaps belong to this row. The gap below it is also the gap
-        // above the next row, so two rows can claim the same boundary — that
-        // is the point, and it is only safe because both draw the line on
-        // the gap's centre rather than on their own edge. See
-        // `sidebarRowDropIndicator`: anchoring each line to the row it came
-        // from is what once made one boundary look like two.
-        if info.location.y < SidebarDropMetrics.boundaryDepth { return .before }
-        if info.location.y > SidebarDropMetrics.rowHeight - SidebarDropMetrics.boundaryDepth {
-            return .after
-        }
-        return .split
+        return info.location.y < SidebarDropMetrics.rowHeight / 2 ? .before : .after
     case .horizontal:
         return info.location.x < 44 ? .before : .after
+    }
+}
+
+/// Whether the pointer is deep enough inside a row for a hold to offer a
+/// split. Near either edge it is on its way to a gap, and no amount of
+/// holding should turn that into a split.
+internal func isWithinSplitDwellRegion(_ info: DropInfo) -> Bool {
+    info.location.y >= SidebarDropMetrics.boundaryDepth
+        && info.location.y <= SidebarDropMetrics.rowHeight - SidebarDropMetrics.boundaryDepth
+}
+
+/// The edge a row should be showing: the nearest boundary while the pointer
+/// is moving, and `.split` only once it has held still over the row's middle.
+/// Every caller that marks or commits a vertical drop goes through here, so
+/// no path can split a tab that never showed the ring.
+@MainActor
+internal func dwellAwareEdge(
+    for info: DropInfo,
+    axis: SidebarDropAxis = .vertical,
+    targetTabID: UUID,
+    placement: SidebarTabDropPlacement,
+    store: BrowserStore
+) -> SidebarTabDropEdge {
+    let boundary = dropEdge(for: info, axis: axis)
+    guard axis == .vertical, isWithinSplitDwellRegion(info) else {
+        SidebarSplitDwell.shared.cancel()
+        return boundary
+    }
+
+    let armed = SidebarSplitDwell.shared.update(tabID: targetTabID, point: info.location) {
+        // The pointer stopped and the clock ran out. Nothing else will call
+        // back, so arm the ring from here — and only if the drag is still up.
+        guard store.draggedTabID != nil else { return }
+        withAnimation(.easeOut(duration: 0.12)) {
+            store.updateSidebarDropIndicator(
+                placement: placement,
+                targetTabID: targetTabID,
+                edge: .split
+            )
+        }
+    }
+    return armed ? .split : boundary
+}
+
+/// Turns "the pointer is over a row's middle" into "the pointer has *stopped*
+/// over a row's middle", which is the only thing that offers a split.
+///
+/// Arming on position alone meant every row crossed on the way to a gap lit
+/// up and went dark again, so a drag down the list was a strobe of rings the
+/// person never asked for and the list read as unstable — the reason Arc's
+/// sidebar feels steadier is that nothing in it arms on hover. A hold is a
+/// decision; passing through is not.
+@MainActor
+internal final class SidebarSplitDwell {
+    static let shared = SidebarSplitDwell()
+
+    /// Long enough that crossing a row never trips it, short enough that
+    /// deciding to split does not feel like waiting out a timeout.
+    static let delay: TimeInterval = 0.32
+
+    /// What still counts as holding still. A hand on a drag is never exactly
+    /// motionless, and restarting on every pixel would mean never arming.
+    static let stillness: CGFloat = 3
+
+    private var timer: Timer?
+    private var anchorTabID: UUID?
+    private var anchorPoint: CGPoint = .zero
+    private var armedTabID: UUID?
+    /// Held here rather than captured by the timer's block: the block is
+    /// `@Sendable` and this closure, which touches the store, is not.
+    private var pendingArm: (() -> Void)?
+
+    /// Reports whether the split is armed for this row *right now*. Call on
+    /// every drop update over a row's middle; it restarts the clock whenever
+    /// the pointer has moved, and runs `arm` once the pointer holds still —
+    /// the pointer being still means no further drop updates arrive, so the
+    /// timer, not the caller, is what finally offers the split.
+    func update(tabID: UUID, point: CGPoint, arm: @escaping () -> Void) -> Bool {
+        if tabID == anchorTabID, hypot(point.x - anchorPoint.x, point.y - anchorPoint.y) <= Self.stillness {
+            return armedTabID == tabID
+        }
+
+        anchorTabID = tabID
+        anchorPoint = point
+        armedTabID = nil
+        pendingArm = arm
+        timer?.invalidate()
+
+        let timer = Timer(timeInterval: Self.delay, repeats: false) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.fire(for: tabID)
+            }
+        }
+        self.timer = timer
+        // .common or it never fires: a drag puts the runloop in event
+        // tracking mode, where default-mode timers stall.
+        RunLoop.main.add(timer, forMode: .common)
+        return false
+    }
+
+    private func fire(for tabID: UUID) {
+        guard anchorTabID == tabID, let arm = pendingArm else { return }
+        armedTabID = tabID
+        pendingArm = nil
+        arm()
+    }
+
+    func cancel() {
+        timer?.invalidate()
+        timer = nil
+        anchorTabID = nil
+        armedTabID = nil
+        pendingArm = nil
+    }
+
+    func isArmed(for tabID: UUID) -> Bool {
+        armedTabID == tabID
     }
 }
 
