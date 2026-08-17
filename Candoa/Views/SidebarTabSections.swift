@@ -766,6 +766,8 @@ internal struct SidebarSplitGroupChip: View {
         .onHover { isHoveringCloseButton = $0 }
     }
 
+    /// Both chips are pills; the focused one is only brighter. An unfilled
+    /// chip left the group looking like one tab nested inside another.
     private var chipBackground: Color {
         if isHovering {
             return InterfaceStyle.sidebarControlFillHover
@@ -773,7 +775,7 @@ internal struct SidebarSplitGroupChip: View {
         if isActive {
             return InterfaceStyle.sidebarControlFillActive
         }
-        return Color.clear
+        return InterfaceStyle.sidebarSplitChipFill
     }
 
     @ViewBuilder

@@ -87,6 +87,18 @@ enum InterfaceStyle {
                 : NSColor.white.withAlphaComponent(0.85)
         })
     }
+    /// A split pane's chip when it is not the focused one. The same pill as
+    /// `sidebarControlFillActive`, just quieter: leaving it clear made the
+    /// focused chip look like a tab sitting *inside* the other one rather
+    /// than the two halves of one row.
+    static var sidebarSplitChipFill: Color {
+        Color(nsColor: NSColor(name: nil) { appearance in
+            appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+                ? NSColor.white.withAlphaComponent(0.09)
+                : NSColor.white.withAlphaComponent(0.55)
+        })
+    }
+
     /// Zen's row shape on macOS: `--border-radius-medium: 12px`.
     static let sidebarRowCornerRadius: CGFloat = 12
     static var sidebarControlStroke: Color { separatorTone.opacity(increasesContrast ? 1 : 0.80) }
