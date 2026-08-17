@@ -607,7 +607,15 @@ struct ContentView: View {
                let tab = store.tabs.first(where: { $0.id == ghost.tabID }) {
                 TabDragGhostView(tab: tab, size: ghost.size)
                     .offset(
-                        x: ghost.windowPoint.x - ghost.grabOffset.width,
+                        // Never far enough left to cover the drop line's dot
+                        // and the start of its stem: the ghost used to sit
+                        // right on the line, and a line crossing a
+                        // translucent pill reads as two short lines either
+                        // side of the label.
+                        x: max(
+                            SidebarTabDragGhost.minimumLeadingInset,
+                            ghost.windowPoint.x - ghost.grabOffset.width
+                        ),
                         y: ghost.windowPoint.y - ghost.grabOffset.height
                     )
                     .ignoresSafeArea()
