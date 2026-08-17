@@ -966,7 +966,11 @@ final class PaletteShortcutTests: XCTestCase {
     @MainActor
     func testPageAreaInsetsAreTheReservedLanesWithoutAnInspector() {
         let host = makePaneHost(laneLeading: 280, laneTrailing: 60)
-        host.inspectorLane.layout()
+
+        // WebKit reads the stand-in's frame to decide whether it can dock at
+        // all, so laying the host out has to size it there and then — waiting
+        // for AppKit's next layout pass leaves docking refused.
+        XCTAssertEqual(host.inspectorLane.pageArea.frame, host.inspectorLane.bounds)
 
         let insets = host.pageAreaInsets
         XCTAssertEqual(insets.left, 280, accuracy: 0.5)
@@ -996,8 +1000,6 @@ final class PaletteShortcutTests: XCTestCase {
     @MainActor
     func testTheInspectorLanePassesClicksThroughWhileEmpty() {
         let host = makePaneHost(laneLeading: 280, laneTrailing: 0)
-        host.inspectorLane.layout()
-
         let insideTheCard = NSPoint(x: 600, y: 400)
         XCTAssertNil(host.inspectorLane.hitTest(insideTheCard))
         XCTAssertNil(host.inspectorLane.pageArea.hitTest(insideTheCard))

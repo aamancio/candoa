@@ -44,11 +44,13 @@ class WebPaneHostView: NSView {
             subview.frame = bounds
         }
 
-        inspectorLane.frame = NSRect(
-            x: laneInsets.leading,
-            y: 0,
-            width: max(bounds.width - laneInsets.leading - laneInsets.trailing, 0),
-            height: bounds.height
+        inspectorLane.resizeCard(
+            to: NSRect(
+                x: laneInsets.leading,
+                y: 0,
+                width: max(bounds.width - laneInsets.leading - laneInsets.trailing, 0),
+                height: bounds.height
+            )
         )
     }
 
@@ -132,11 +134,23 @@ final class InspectorLaneHost: NSView {
         subviews.contains { $0 !== pageArea }
     }
 
+    /// Takes the card's frame and hands the whole of it to the stand-in —
+    /// unless the inspector is attached, in which case WebKit owns the split:
+    /// autoresizing carries both panes through the resize and its own
+    /// frame-change handler corrects them straight after.
+    ///
+    /// The stand-in is resized here rather than in `layout()` because WebKit
+    /// reads its frame to decide whether docking is even possible (it wants at
+    /// least 500pt of width), and that question can be asked long before
+    /// AppKit gets around to laying this view out.
+    func resizeCard(to frame: NSRect) {
+        self.frame = frame
+        guard !isInspectorAttached else { return }
+        pageArea.frame = bounds
+    }
+
     override func layout() {
         super.layout()
-        // While the inspector is attached WebKit owns the split: autoresizing
-        // carries both panes through the resize, and its frame-change handler
-        // corrects them straight after.
         guard !isInspectorAttached else { return }
         pageArea.frame = bounds
     }
