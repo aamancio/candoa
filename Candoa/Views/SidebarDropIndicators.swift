@@ -88,14 +88,24 @@ private struct SidebarSplitPreview: ViewModifier {
                     Rectangle()
                         .fill(InterfaceStyle.sidebarBackground)
 
-                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .fill(InterfaceStyle.sidebarControlFillDropTarget)
-                        .frame(width: pane)
-                        .padding(.vertical, 3)
-                        .frame(
-                            maxWidth: .infinity,
-                            alignment: ghostLeads ? .leading : .trailing
-                        )
+                    // Rounded on the outside, square at the divide, full row
+                    // height — the mirror of the pane the row keeps, whose
+                    // shape comes from the row's own clip. Inset and rounded
+                    // on all four corners, the ghost read as a pill parked
+                    // beside a clipped slab instead of half of one row.
+                    UnevenRoundedRectangle(
+                        topLeadingRadius: ghostLeads ? 8 : 0,
+                        bottomLeadingRadius: ghostLeads ? 8 : 0,
+                        bottomTrailingRadius: ghostLeads ? 0 : 8,
+                        topTrailingRadius: ghostLeads ? 0 : 8,
+                        style: .continuous
+                    )
+                    .fill(InterfaceStyle.sidebarControlFillDropTarget)
+                    .frame(width: pane)
+                    .frame(
+                        maxWidth: .infinity,
+                        alignment: ghostLeads ? .leading : .trailing
+                    )
                 }
                 .frame(width: pane + SidebarDropMetrics.splitPreviewGap)
 
