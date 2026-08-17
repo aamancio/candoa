@@ -1160,7 +1160,8 @@ struct SidebarView: View {
         // source row leaves a gap that doubles as the insertion indicator.
         .opacity(store.shouldHideSidebarTab(tab.id, placement: .pinned) ? 0 : 1)
         .overlay {
-            if store.shouldHideSidebarTab(tab.id, placement: .pinned) {
+            if showsDropSlotLine,
+               store.shouldHideSidebarTab(tab.id, placement: .pinned) {
                 SidebarDropSlotLine(tint: AppColor.accent)
             }
         }
@@ -1284,7 +1285,8 @@ struct SidebarView: View {
                         // gap it leaves is the insertion indicator.
                         .opacity(store.shouldHideSidebarTab(tab.id, placement: .regular) ? 0 : 1)
                         .overlay {
-                            if store.shouldHideSidebarTab(tab.id, placement: .regular) {
+                            if showsDropSlotLine,
+                               store.shouldHideSidebarTab(tab.id, placement: .regular) {
                                 SidebarDropSlotLine(tint: AppColor.accent)
                             }
                         }
@@ -1352,6 +1354,15 @@ struct SidebarView: View {
     /// from this list entirely while the pointer is over another one. The
     /// model does not change until the drop, so an abandoned drag springs
     /// back to the original order.
+    /// The gap only carries the insertion line while the drop would land
+    /// *between* rows. Hovering a row's middle offers a split instead, and
+    /// that row wears the ring — a line still sitting in the gap at the same
+    /// time reads as two different drops being offered at once.
+    private var showsDropSlotLine: Bool {
+        guard let indicator = store.activeSidebarDropIndicator else { return false }
+        return indicator.edge != .split
+    }
+
     private func liveOrder(_ tabs: [BrowserTab], placement: SidebarTabDropPlacement) -> [BrowserTab] {
         guard let draggedID = store.draggedTabID,
               let indicator = store.activeSidebarDropIndicator,
