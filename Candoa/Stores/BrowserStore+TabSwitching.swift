@@ -303,6 +303,10 @@ extension BrowserStore {
         // free time to have every thumbnail ready before the overlay shows.
         prefetchTabSwitcherSnapshots(for: previewTabs, refreshExisting: refreshesSnapshots)
 
+        if isTabSwitcherCycling {
+            startTabSwitcherControlWatchdog()
+        }
+
         if isTabSwitcherPresented || autoHide {
             tabSwitcherShowWorkItem?.cancel()
             tabSwitcherShowWorkItem = nil
@@ -419,7 +423,31 @@ extension BrowserStore {
         }
     }
 
+    /// The strip commits when Control lifts, which the window's key monitor
+    /// normally reports. It cannot report it while something else is running
+    /// the event loop — a context menu, most of all: Control-clicking a
+    /// sidebar row opens one (macOS reads ⌃-click as a right-click), the menu
+    /// swallows the flags-changed event, and the strip was left on screen
+    /// with Control long since released. So while the cycle is live, the
+    /// modifier is also polled straight from the hardware state.
+    func startTabSwitcherControlWatchdog() {
+        guard tabSwitcherControlWatchdog == nil else { return }
+        // .common, or the timer would be as blind as the monitor: menu
+        // tracking runs the loop in event-tracking mode.
+        let watchdog = Timer(timeInterval: 0.1, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self, self.isTabSwitcherCycling else { return }
+                guard !NSEvent.modifierFlags.contains(.control) else { return }
+                self.finishTabSwitcherInteraction()
+            }
+        }
+        RunLoop.main.add(watchdog, forMode: .common)
+        tabSwitcherControlWatchdog = watchdog
+    }
+
     func hideTabSwitcher() {
+        tabSwitcherControlWatchdog?.invalidate()
+        tabSwitcherControlWatchdog = nil
         tabSwitcherHideWorkItem?.cancel()
         tabSwitcherHideWorkItem = nil
         tabSwitcherShowWorkItem?.cancel()
