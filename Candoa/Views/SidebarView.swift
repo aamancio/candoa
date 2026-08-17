@@ -1140,7 +1140,6 @@ struct SidebarView: View {
         TabRowView(
             tab: tab,
             isActive: tab.id == displayedActiveTabID(for: spaceID) && !store.isNewTabPaletteActive,
-            isSplit: spaceID == store.activeSpaceID && store.activeSplitGroupTabIDs.contains(tab.id),
             accentColor: AppColor.accent,
             mediaState: store.mediaStates[tab.id],
             onSelect: { store.switchTab(to: tab.id) },
@@ -1222,13 +1221,47 @@ struct SidebarView: View {
         }
     }
 
+    /// A row of the regular list: a tab, or the two tabs of a split sharing
+    /// one row side by side.
+    ///
+    /// The pair sits at the position of whichever member comes first, so a
+    /// split changes nothing about where the tabs are in the list — the pill
+    /// used to be hoisted to the very top, which read as the tabs being
+    /// re-sorted the moment you split them.
+    private enum SidebarTabListItem: Identifiable {
+        case tab(BrowserTab)
+        case split([BrowserTab])
+
+        var id: UUID {
+            switch self {
+            case let .tab(tab): return tab.id
+            case let .split(tabs): return tabs.first?.id ?? UUID()
+            }
+        }
+    }
+
+    private func tabListItems(for spaceID: UUID, tabs: [BrowserTab]) -> [SidebarTabListItem] {
+        let members = spaceID == store.activeSpaceID ? store.activeSplitGroupTabs : []
+        guard members.count >= 2 else { return tabs.map(SidebarTabListItem.tab) }
+
+        let memberIDs = Set(members.map(\.id))
+        var items: [SidebarTabListItem] = []
+        var placedPair = false
+        for tab in tabs where !memberIDs.contains(tab.id) || !placedPair {
+            if memberIDs.contains(tab.id) {
+                items.append(.split(members))
+                placedPair = true
+            } else {
+                items.append(.tab(tab))
+            }
+        }
+        return items
+    }
+
     @ViewBuilder
     private func tabsSection(for spaceID: UUID) -> some View {
-        // Split members stay where they are in the list. Hoisting them into
-        // a pill at the top meant splitting two tabs reordered them out from
-        // under the pointer, and it forced every drag of a member to detach
-        // it. Membership shows as the glyph on the row instead.
         let tabs = store.regularTabs(in: spaceID)
+        let items = tabListItems(for: spaceID, tabs: tabs)
 
         VStack(alignment: .leading, spacing: 0) {
             // Private windows open empty by design; announcing "No tabs"
@@ -1252,11 +1285,18 @@ struct SidebarView: View {
                 }
             } else {
                 VStack(spacing: 4) {
-                    ForEach(tabs) { tab in
+                    ForEach(items) { item in
+                        switch item {
+                        case let .split(members):
+                            SidebarSplitGroupView(
+                                store: store,
+                                tabs: members,
+                                accentColor: AppColor.accent
+                            )
+                        case let .tab(tab):
                         TabRowView(
                             tab: tab,
                             isActive: tab.id == displayedActiveTabID(for: spaceID) && !store.isNewTabPaletteActive,
-                            isSplit: spaceID == store.activeSpaceID && store.activeSplitGroupTabIDs.contains(tab.id),
                             accentColor: AppColor.accent,
                             mediaState: store.mediaStates[tab.id],
                             onSelect: { store.switchTab(to: tab.id) },
@@ -1299,6 +1339,7 @@ struct SidebarView: View {
                                 store: store
                             )
                         )
+                        }
                     }
 
                     if store.activeSidebarDropIndicator == SidebarTabDropIndicator(
