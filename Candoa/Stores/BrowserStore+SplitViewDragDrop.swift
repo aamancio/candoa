@@ -503,6 +503,7 @@ extension BrowserStore {
 
     func finishTabDrag() {
         draggedTabID = nil
+        tabDragGhost = nil
         clearSidebarDropIndicator()
         clearSplitDropPreview()
         tabDragSessionWatcher?.invalidate()
@@ -517,6 +518,7 @@ extension BrowserStore {
         to destinationPlacement: SidebarTabDropPlacement
     ) {
         draggedTabID = nil
+        tabDragGhost = nil
         clearSidebarDropIndicator()
         clearSplitDropPreview()
         tabDragSessionWatcher?.invalidate()

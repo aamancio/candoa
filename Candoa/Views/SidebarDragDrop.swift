@@ -589,10 +589,14 @@ internal final class TabDragSourceAnchorView: NSView, NSDraggingSource {
             let tab = store.tabs.first(where: { $0.id == tabID })
         else { return }
 
-        // Arc lifts the row itself: the drag image is the row, drawn at the
-        // row's own size, and it starts exactly where the row is so the grab
-        // point stays under the pointer — a lift, not a swap for a card.
-        let ghostImage = TabDragRowImage.make(for: tab, size: bounds.size)
+        // AppKit carries no image: it dissolves whatever it is given over a
+        // few frames after the drop, and with the source row staying put
+        // that dissolve reads as a duplicate. The ghost is drawn by the app
+        // (BrowserStore.tabDragGhost) and ends with the mouse.
+        // Transparent, at the row's own size: AppKit still needs a real
+        // dragging frame to start a session — a zero-sized one never begins
+        // the drag at all — it just must not draw anything.
+        let ghostImage = NSImage(size: bounds.size)
 
         _ = store.beginTabDrag(tabID)
         // beginTabDrag starts the mouse-button polling watcher that exists
@@ -608,9 +612,18 @@ internal final class TabDragSourceAnchorView: NSView, NSDraggingSource {
         let pasteboardItem = NSPasteboardItem()
         pasteboardItem.setString(tabID.uuidString, forType: .string)
         let draggingItem = NSDraggingItem(pasteboardWriter: pasteboardItem)
-        draggingItem.setDraggingFrame(
-            bounds.insetBy(dx: -TabDragRowImage.shadowPadding, dy: -TabDragRowImage.shadowPadding),
-            contents: ghostImage
+        draggingItem.setDraggingFrame(bounds, contents: ghostImage)
+
+        let grabPoint = convert(mouseDownEvent.locationInWindow, from: nil)
+        store.tabDragGhost = SidebarTabDragGhost(
+            tabID: tabID,
+            windowPoint: windowPoint(fromScreen: NSEvent.mouseLocation) ?? .zero,
+            grabOffset: CGSize(
+                width: grabPoint.x - bounds.minX,
+                // Flipped: the row's own top edge, however the view is drawn.
+                height: isFlipped ? grabPoint.y - bounds.minY : bounds.maxY - grabPoint.y
+            ),
+            size: bounds.size
         )
 
         dragWindowNumber = window?.windowNumber
@@ -640,8 +653,22 @@ internal final class TabDragSourceAnchorView: NSView, NSDraggingSource {
     /// The Space header is targeted from here, by geometry: AppKit's
     /// destination search never reaches the header's view (see
     /// SpaceHeaderDropZones), so the source watches the pointer instead.
+    /// Screen point (Cocoa, bottom-left) to the window's top-left space,
+    /// which is what SwiftUI positions in.
+    @MainActor
+    private func windowPoint(fromScreen screenPoint: NSPoint) -> CGPoint? {
+        guard let window, let contentView = window.contentView else { return nil }
+        let inWindow = window.convertPoint(fromScreen: screenPoint)
+        return CGPoint(x: inWindow.x, y: contentView.bounds.height - inWindow.y)
+    }
+
     nonisolated func draggingSession(_ session: NSDraggingSession, movedTo screenPoint: NSPoint) {
-        MainActor.assumeIsolated { SidebarDragAutoScroll.shared.pointerMoved(to: screenPoint) }
+        MainActor.assumeIsolated {
+            SidebarDragAutoScroll.shared.pointerMoved(to: screenPoint)
+            if let point = self.windowPoint(fromScreen: screenPoint) {
+                self.store?.tabDragGhost?.windowPoint = point
+            }
+        }
 
         // NSDraggingSource callbacks arrive on the main thread; the session
         // is touched here, before hopping, so it never crosses the boundary.
@@ -668,9 +695,24 @@ internal final class TabDragSourceAnchorView: NSView, NSDraggingSource {
         endedAt screenPoint: NSPoint,
         operation: NSDragOperation
     ) {
+        // The row is already where it belongs by now, and the source row
+        // never left the list, so a ghost still fading over it reads as the
+        // tab being there twice. Emptying the item's image components ends
+        // the image with the session instead of dissolving it.
+        session.enumerateDraggingItems(
+            options: [],
+            for: nil,
+            classes: [NSPasteboardItem.self],
+            searchOptions: [:]
+        ) { item, _, _ in
+            // An empty component list, not nil: nil restores the default
+            // image drawn from the pasteboard writer.
+            item.imageComponentsProvider = { [] }
+        }
         // NSDraggingSource callbacks arrive on the main thread.
         MainActor.assumeIsolated {
             SidebarDragAutoScroll.shared.stop()
+            store?.tabDragGhost = nil
             dragWindowNumber = nil
             guard let store, let tabID else { return }
             if store.isSpaceHeaderDropTargeted {
@@ -717,100 +759,6 @@ internal struct TabDragSourceBackground: NSViewRepresentable {
     func updateNSView(_ view: TabDragSourceAnchorView, context: Context) {
         view.store = store
         view.tabID = tabID
-    }
-}
-
-/// The sidebar row as a drag image, Arc-style: the row's rounded shape at
-/// the row's own size with its hover fill, favicon and title, so the drag
-/// reads as the row lifting off the list. Drawn with AppKit primitives for
-/// the same reason as the ghost card below.
-internal enum TabDragRowImage {
-    /// Room around the row for its shadow. The dragging frame grows by the
-    /// same amount so the row itself still lines up with the row it left.
-    static let shadowPadding: CGFloat = 12
-
-    @MainActor
-    static func make(for tab: BrowserTab, size: NSSize) -> NSImage {
-        let title = tab.title.isEmpty ? (tab.url?.host() ?? "New Tab") : tab.title
-        let faviconData = tab.faviconData
-        let faviconSymbol = tab.faviconSymbol
-        let isDark = NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-        let padding = shadowPadding
-        let canvas = NSSize(
-            width: size.width + padding * 2,
-            height: size.height + padding * 2
-        )
-
-        return NSImage(size: canvas, flipped: true) { _ in
-            let card = NSRect(x: padding, y: padding, width: size.width, height: size.height)
-            // The hairline sits inside the card, not straddling its edge:
-            // half a pixel of stroke used to fall outside the image and the
-            // corners came back squared off.
-            let shape = NSBezierPath(
-                roundedRect: card.insetBy(dx: 0.5, dy: 0.5),
-                xRadius: InterfaceStyle.sidebarRowCornerRadius,
-                yRadius: InterfaceStyle.sidebarRowCornerRadius
-            )
-
-            NSGraphicsContext.current?.saveGraphicsState()
-            let shadow = NSShadow()
-            shadow.shadowColor = NSColor.black.withAlphaComponent(isDark ? 0.5 : 0.2)
-            shadow.shadowBlurRadius = 9
-            shadow.shadowOffset = .zero
-            shadow.set()
-            // Opaque, so the row reads the same over the list, the page, or
-            // another app — a translucent card picked up whatever it crossed.
-            NSColor.windowBackgroundColor.setFill()
-            shape.fill()
-            NSGraphicsContext.current?.restoreGraphicsState()
-
-            // Zen's selected-row tint over that base, the fill the row wears
-            // when it is the active tab.
-            (isDark
-                ? NSColor.white.withAlphaComponent(0.20)
-                : NSColor.white.withAlphaComponent(0.85)).setFill()
-            shape.fill()
-            NSColor.separatorColor.setStroke()
-            shape.lineWidth = 1
-            shape.stroke()
-
-            let iconRect = NSRect(
-                x: card.minX + 8,
-                y: card.minY + (card.height - 16) / 2,
-                width: 16,
-                height: 16
-            )
-            if let faviconData, let favicon = NSImage(data: faviconData) {
-                favicon.draw(in: iconRect)
-            } else if let symbol = NSImage(
-                systemSymbolName: faviconSymbol,
-                accessibilityDescription: nil
-            ) {
-                let configured = symbol.withSymbolConfiguration(
-                    NSImage.SymbolConfiguration(paletteColors: [.secondaryLabelColor])
-                ) ?? symbol
-                configured.draw(in: iconRect)
-            }
-
-            let font = NSFont.systemFont(ofSize: 13, weight: .medium)
-            let textHeight = font.ascender - font.descender
-            let paragraph = NSMutableParagraphStyle()
-            paragraph.lineBreakMode = .byTruncatingTail
-            (title as NSString).draw(
-                in: NSRect(
-                    x: card.minX + 32,
-                    y: card.minY + (card.height - textHeight) / 2,
-                    width: card.width - 32 - 10,
-                    height: textHeight
-                ),
-                withAttributes: [
-                    .font: font,
-                    .foregroundColor: NSColor.labelColor,
-                    .paragraphStyle: paragraph
-                ]
-            )
-            return true
-        }
     }
 }
 

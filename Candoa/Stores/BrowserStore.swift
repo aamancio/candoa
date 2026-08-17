@@ -77,6 +77,20 @@ struct SpaceSelectionRequest: Equatable {
     let spaceID: UUID
 }
 
+/// The see-through copy of a dragged row, following the pointer. AppKit's
+/// own drag image dissolves at the drop point over a few frames, which read
+/// as the tab being in the list twice now that the source row stays put; an
+/// app-drawn ghost ends the moment the mouse comes up.
+struct SidebarTabDragGhost: Equatable {
+    let tabID: UUID
+    /// Top-left window coordinates, so SwiftUI can position it directly.
+    var windowPoint: CGPoint
+    /// Where inside the row the drag started, so the grab point stays under
+    /// the pointer.
+    let grabOffset: CGSize
+    let size: CGSize
+}
+
 struct SidebarTabDropIndicator: Equatable {
     var placement: SidebarTabDropPlacement
     var targetTabID: UUID?
@@ -245,6 +259,9 @@ final class BrowserStore: ObservableObject {
     @Published var canReturnToSearchResults = false
     @Published var canGoForward = false
     @Published var draggedTabID: UUID?
+    /// The dragged row's ghost, drawn by the app rather than handed to
+    /// AppKit as a drag image — see TabDragGhost.
+    @Published var tabDragGhost: SidebarTabDragGhost?
     @Published var sidebarDropIndicator: SidebarTabDropIndicator?
     @Published var splitDropPreview: SplitTabDropPreview?
     var tabDragSessionWatcher: Timer?

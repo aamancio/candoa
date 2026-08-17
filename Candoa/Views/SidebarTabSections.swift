@@ -733,3 +733,56 @@ internal struct SpaceHeaderRow: View {
         )
     }
 }
+
+// MARK: - Drag ghost
+
+/// The see-through copy of a dragged row, following the pointer. Drawn here
+/// rather than handed to AppKit as a drag image so it ends the instant the
+/// mouse comes up — AppKit dissolves its own image over the drop point, and
+/// with the source row staying put that read as the tab being listed twice.
+internal struct TabDragGhostView: View {
+    let tab: BrowserTab
+    let size: CGSize
+
+    var body: some View {
+        HStack(spacing: 8) {
+            favicon
+                .frame(width: 16, height: 16)
+
+            Text(tab.title)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(InterfaceStyle.sidebarText)
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 8)
+        .frame(width: size.width, height: size.height, alignment: .leading)
+        .background(.regularMaterial, in: RoundedRectangle(
+            cornerRadius: InterfaceStyle.sidebarRowCornerRadius,
+            style: .continuous
+        ))
+        .overlay {
+            RoundedRectangle(cornerRadius: InterfaceStyle.sidebarRowCornerRadius, style: .continuous)
+                .fill(InterfaceStyle.sidebarControlFillActive.opacity(0.5))
+        }
+        .compositingGroup()
+        .opacity(0.9)
+        .shadow(color: .black.opacity(0.28), radius: 9, y: 2)
+        .allowsHitTesting(false)
+    }
+
+    @ViewBuilder
+    private var favicon: some View {
+        if let data = tab.faviconData, let image = NSImage(data: data) {
+            Image(nsImage: image)
+                .resizable()
+                .scaledToFit()
+        } else {
+            Image(systemName: tab.faviconSymbol)
+                .font(.system(size: 14.5, weight: .medium))
+                .foregroundStyle(InterfaceStyle.sidebarIcon)
+        }
+    }
+}
