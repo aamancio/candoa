@@ -290,11 +290,6 @@ final class BrowserStore: ObservableObject {
     /// developer bar's Chat button. Sidebar visibility itself lives in the
     /// view that owns the layout.
     @Published var aiSidebarToggleRequestID = UUID()
-    /// A passage sent to Eli from the page, waiting to be attached to the
-    /// composer. The layout view opens the sidebar when this is set; the
-    /// sidebar itself takes the quote and clears it, either on the spot or
-    /// when it mounts, since it does not exist while Eli is closed.
-    @Published var pendingEliSelection: AISidebarSelectionContext?
     /// Position of the current match among all of them, or nil when there is
     /// nothing to count yet — an empty query, or a page the in-page find
     /// engine could not tally.

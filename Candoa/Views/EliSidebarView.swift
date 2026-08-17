@@ -203,17 +203,7 @@ struct EliSidebarView: View {
             )
         }
 
-        return currentChips + mentionedContext.compactMap { chip(for: $0) }
-    }
-
-    /// Quoted passages, in the order they were attached. They are kept out of
-    /// `contextChips` on purpose: the chips are things Eli was handed, and a
-    /// selection is a pointer into one of them.
-    private var quotedSelections: [AISidebarSelectionContext] {
-        mentionedContext.compactMap { mention in
-            guard case .selection(let selectionContext) = mention else { return nil }
-            return selectionContext
-        }
+        return currentChips + mentionedContext.map { chip(for: $0) }
     }
 
     private static let paneChipIDPrefix = "split-pane-"
@@ -294,7 +284,6 @@ struct EliSidebarView: View {
             uiTestingState = uiTestingAgentState
             removeSubscriptionGateIfActive()
             resumePendingSubscriptionSubmissionIfNeeded()
-            attachPendingSelectionIfNeeded()
             if memoryWindow.spaceID == nil {
                 memoryWindow.spaceID = store.activeSpaceID
             }
@@ -321,12 +310,6 @@ struct EliSidebarView: View {
         }
         .onChange(of: store.activeSpaceID) { previousSpaceID, spaceID in
             moveMemoryWindow(from: previousSpaceID, to: spaceID)
-        }
-        // Asking about a selection while Eli is closed opens it, and this
-        // view is built only then — so the quote is claimed on appear as
-        // well as here, which covers the sidebar already being open.
-        .onChange(of: store.pendingEliSelection) { _, _ in
-            attachPendingSelectionIfNeeded()
         }
         .onChange(of: messages) { _, updated in
             // Mid-stream the last message is a partial reply; the pass runs
@@ -532,19 +515,10 @@ struct EliSidebarView: View {
     }
 
     private var inputSurface: some View {
-        let quotes = quotedSelections
-        let hasContext = !contextChips.isEmpty || !quotes.isEmpty
+        let hasContext = !contextChips.isEmpty
 
         return VStack(alignment: .leading, spacing: hasContext ? 12 : 0) {
-            // The quote leads: it is what the question is about, and the row
-            // of chips under it is what Eli is reading it in.
-            ForEach(quotes, id: \.id) { selection in
-                AISidebarQuotedSelectionView(selection: selection) {
-                    removeQuotedSelection(selection.id)
-                }
-            }
-
-            if !contextChips.isEmpty {
+            if hasContext {
                 contextTagRow
             }
 
@@ -778,9 +752,6 @@ struct EliSidebarView: View {
         let composerChipText = contextChips
             .map { "\($0.title)|\($0.subtitle)" }
             .joined(separator: ",")
-        let composerQuoteText = quotedSelections
-            .map { "\($0.quotePreview)|\($0.sourceLabel)" }
-            .joined(separator: ",")
         let lastUserText = messages.last { $0.role == .user }?.text ?? ""
         let lastAssistantText = messages.last { $0.role == .assistant }?.text ?? ""
         let messageText = messages.enumerated()
@@ -798,7 +769,7 @@ struct EliSidebarView: View {
             }
             .joined(separator: "||")
 
-        return "composerChips=[\(composerChipText)];composerQuotes=[\(composerQuoteText)];lastUser=[\(lastUserText)];lastAssistant=[\(lastAssistantText)];messages=[\(messageText)]"
+        return "composerChips=[\(composerChipText)];lastUser=[\(lastUserText)];lastAssistant=[\(lastAssistantText)];messages=[\(messageText)]"
     }
 
     private func submitPrompt(_ promptOverride: String? = nil) {
@@ -834,7 +805,6 @@ struct EliSidebarView: View {
                     isRemovable: false
                 )
             },
-            quotedSelections: quotedSelections,
             contextMentions: mentionedContext,
             recentTurns: recentTurns(),
             currentPageTabIDs: currentPageTabs.map(\.id),
@@ -860,8 +830,7 @@ struct EliSidebarView: View {
                 role: .user,
                 text: submission.prompt,
                 isStreaming: false,
-                contextChips: submission.contextChips,
-                quotedSelections: submission.quotedSelections
+                contextChips: submission.contextChips
             ))
         }
 
@@ -937,8 +906,7 @@ struct EliSidebarView: View {
                 role: .user,
                 text: submission.prompt,
                 isStreaming: false,
-                contextChips: submission.contextChips,
-                quotedSelections: submission.quotedSelections
+                contextChips: submission.contextChips
             ))
             messages.append(AISidebarMessage(
                 role: .assistant,
@@ -1507,11 +1475,6 @@ struct EliSidebarView: View {
         let currentContext = currentContexts.first ?? AIPageContext(title: nil, url: nil, text: nil)
         var sections: [String] = []
         var agentSections: [String] = []
-        // Quoted selections are held apart so they can lead the combined
-        // text. Past the compactor's threshold only the leading and trailing
-        // windows of that text survive, and the passage the question is
-        // literally about is the one thing that must not be dropped.
-        var selectionSections: [String] = []
 
         // A lone unlabelled page stays unlabelled; a split view (or a mention
         // beside it) needs each page named so the model can tell them apart.
@@ -1544,24 +1507,10 @@ struct EliSidebarView: View {
                 let section = "Uploaded file: \(fileContext.name)\n\(fileContext.text)"
                 sections.append(section)
                 agentSections.append(section)
-            case .selection(let selectionContext):
-                // Named as the passage the question is about, so a bare
-                // "what does this mean?" has an unambiguous referent even
-                // with the whole page attached underneath it.
-                var section = "Selected passage the question is about"
-                if let pageTitle = selectionContext.pageTitle {
-                    section += "\nFrom: \(pageTitle)"
-                }
-                if let pageURL = selectionContext.pageURL {
-                    section += "\nURL: \(pageURL.absoluteString)"
-                }
-                section += "\n\"\"\"\n\(selectionContext.text)\n\"\"\""
-                selectionSections.append(section)
-                agentSections.append(section)
             }
         }
 
-        let combinedText = (selectionSections + sections)
+        let combinedText = sections
             .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
             .joined(separator: "\n\n")
 
@@ -1670,24 +1619,6 @@ struct EliSidebarView: View {
         isPromptFocused = true
     }
 
-    /// Takes the quote the page sent over and clears it, so reopening Eli
-    /// later does not re-attach a passage from a page the person has moved
-    /// on from. The composer takes focus with it: the selection is only half
-    /// the ask, and the question still has to be typed.
-    private func attachPendingSelectionIfNeeded() {
-        // Claiming runs a beat late for the same reason the focus below does:
-        // this is reached from onAppear, and clearing the store's published
-        // value inside the update that mounted the view publishes into it.
-        // Claim and clear stay together in the one block, so an onAppear and
-        // an onChange arriving together still attach the quote once.
-        DispatchQueue.main.async {
-            guard let selection = store.pendingEliSelection else { return }
-            store.pendingEliSelection = nil
-            mentionedContext.append(.selection(selection))
-            isPromptFocused = true
-        }
-    }
-
     private func addMention(_ mention: AISidebarContextMention) {
         guard !mentionedContext.contains(mention) else {
             clearMentionToken()
@@ -1720,27 +1651,20 @@ struct EliSidebarView: View {
         }
 
         let removedFileIDs = mentionedContext.compactMap { mention -> UUID? in
-            guard chip(for: mention)?.id == chipID, case .file(let fileContext) = mention else {
+            guard chip(for: mention).id == chipID, case .file(let fileContext) = mention else {
                 return nil
             }
             return fileContext.id
         }
-        mentionedContext.removeAll { chip(for: $0)?.id == chipID }
+        mentionedContext.removeAll { chip(for: $0).id == chipID }
         for fileID in removedFileIDs {
             attachmentPreviewData[fileID] = nil
         }
     }
 
-    private func removeQuotedSelection(_ selectionID: UUID) {
-        mentionedContext.removeAll { mention in
-            guard case .selection(let selectionContext) = mention else { return false }
-            return selectionContext.id == selectionID
-        }
-    }
-
     private func presentImagePreview(for chip: AISidebarContextChip) {
         guard
-            case .file(let fileContext) = mentionedContext.first(where: { self.chip(for: $0)?.id == chip.id }),
+            case .file(let fileContext) = mentionedContext.first(where: { self.chip(for: $0).id == chip.id }),
             let imageData = attachmentPreviewData[fileContext.id] ?? fileContext.previewImageData
         else {
             return
@@ -1752,9 +1676,7 @@ struct EliSidebarView: View {
         )
     }
 
-    /// nil for a quoted selection, which the composer draws as a quote block
-    /// above the chips rather than as one of them.
-    private func chip(for mention: AISidebarContextMention) -> AISidebarContextChip? {
+    private func chip(for mention: AISidebarContextMention) -> AISidebarContextChip {
         switch mention {
         case .tab(let id):
             let tab = store.tabs.first { $0.id == id }
@@ -1788,8 +1710,6 @@ struct EliSidebarView: View {
                 previewImageData: fileContext.previewImageData,
                 isRemovable: true
             )
-        case .selection:
-            return nil
         }
     }
 

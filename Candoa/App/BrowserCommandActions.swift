@@ -8,7 +8,6 @@ struct BrowserCommandActions {
     var isSidebarVisible: Bool
     var toggleAISidebar: () -> Void
     var isAISidebarVisible: Bool
-    var askEliAboutSelection: () -> Void
     var showHistory: () -> Void
     var isHistoryVisible: Bool
     var clearBrowsingData: () -> Void

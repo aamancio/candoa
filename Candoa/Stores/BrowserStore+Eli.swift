@@ -113,31 +113,6 @@ extension BrowserStore {
         )
         objectWillChange.send()
     }
-
-    // MARK: - Ask about a selection
-
-    /// Routes a passage selected on a page to Eli, quoting the page it came
-    /// from. Both entry points — the web context menu and the keyboard
-    /// shortcut — land here, so the quote is assembled one way.
-    func askEli(aboutSelection rawText: String, pageTitle: String?, pageURL: URL?) {
-        guard let selection = AISidebarSelectionContext(
-            rawText: rawText,
-            pageTitle: pageTitle,
-            pageURL: pageURL
-        ) else { return }
-        pendingEliSelection = selection
-    }
-
-    /// The keyboard path. The selection lives in the web content and nowhere
-    /// AppKit can see, so the active tab's page is asked for it directly; a
-    /// press with nothing selected is a no-op rather than an empty quote.
-    func askEliAboutActiveSelection() async {
-        guard let tabID = activeTabID,
-              let selection = await webCoordinator.selectionText(for: tabID) else { return }
-        let tab = tabs.first { $0.id == tabID }
-        askEli(aboutSelection: selection, pageTitle: tab?.title, pageURL: tab?.url)
-    }
-
     func browserAgentPage(for tabID: UUID?) async -> BrowserAgentPage? {
         guard let tabID else { return nil }
         var resolvedTab = tabs.first(where: { $0.id == tabID && $0.url != nil })
