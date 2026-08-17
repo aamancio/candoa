@@ -408,20 +408,25 @@ internal enum SidebarDropAxis {
 }
 
 internal enum SidebarDropMetrics {
-    /// A sidebar row's laid-out height; the drop edge is decided against its
-    /// midpoint.
+    /// A sidebar row's laid-out height, and how much of it at either end
+    /// reorders rather than splits. A third each way: enough to aim at
+    /// without the split band swallowing the row.
     static let rowHeight: CGFloat = 36
+    static let splitBandInset: CGFloat = 12
 }
 
 internal func dropEdge(for info: DropInfo, axis: SidebarDropAxis = .vertical) -> SidebarTabDropEdge {
     switch axis {
     case .vertical:
-        // One boundary, one line: the pointer is either in the top half of a
-        // row or the bottom half, and the line sits in the gap on that side.
-        // A middle band gave a row three states — line above, ring, line
-        // below — which read as the drop line appearing in three places.
-        // Splitting from the sidebar is the page-edge drop, as in Arc.
-        return info.location.y < SidebarDropMetrics.rowHeight / 2 ? .before : .after
+        // Two things a row can accept, and the pointer says which: its edges
+        // reorder — the line lands in the gap on that side — and its middle
+        // third splits. Neighbouring rows resolve their shared boundary to
+        // the same gap centre, so a boundary still shows exactly one line.
+        if info.location.y < SidebarDropMetrics.splitBandInset { return .before }
+        if info.location.y > SidebarDropMetrics.rowHeight - SidebarDropMetrics.splitBandInset {
+            return .after
+        }
+        return .split
     case .horizontal:
         return info.location.x < 44 ? .before : .after
     }

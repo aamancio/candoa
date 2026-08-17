@@ -1149,7 +1149,8 @@ struct SidebarView: View {
             onOpenInSplit: { store.openSplitView(with: tab.id) },
             onToggleFavorite: { store.toggleFavorite(tab.id) },
             onTogglePin: { store.togglePin(tab.id) },
-            onToggleMute: { store.toggleMediaMute(tabID: tab.id) }
+            onToggleMute: { store.toggleMediaMute(tabID: tab.id) },
+                            suppressesHover: store.draggedTabID != nil
         )
         // The system drag image is the only visible copy while dragging; the
         // source row leaves a gap that doubles as the insertion indicator.
@@ -1274,7 +1275,8 @@ struct SidebarView: View {
                             onOpenInSplit: { store.openSplitView(with: tab.id) },
                             onToggleFavorite: { store.toggleFavorite(tab.id) },
                             onTogglePin: { store.togglePin(tab.id) },
-                            onToggleMute: { store.toggleMediaMute(tabID: tab.id) }
+                            onToggleMute: { store.toggleMediaMute(tabID: tab.id) },
+                            suppressesHover: store.draggedTabID != nil
                         )
                         // Rows hold still through a drag — Arc moves nothing
                         // until the drop — so the line on the target row's
