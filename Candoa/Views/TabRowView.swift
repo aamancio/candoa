@@ -16,7 +16,6 @@ private func candoaAccessibilitySlug(_ value: String) -> String {
 struct TabRowView: View {
     let tab: BrowserTab
     let isActive: Bool
-    let isSplit: Bool
     let accentColor: Color
     let mediaState: TabMediaState?
     let onSelect: () -> Void
@@ -24,6 +23,7 @@ struct TabRowView: View {
     let onDuplicate: () -> Void
     let onOpenInSplit: () -> Void
     var onRemoveFromSplit: () -> Void = {}
+    var isSplitMember = false
     let onToggleFavorite: () -> Void
     let onTogglePin: () -> Void
     let onToggleMute: () -> Void
@@ -73,11 +73,6 @@ struct TabRowView: View {
 
             Spacer(minLength: 0)
 
-            if isSplit {
-                Image(systemName: "rectangle.split.2x1")
-                    .font(.caption)
-                    .foregroundStyle(InterfaceStyle.sidebarIcon)
-            }
         }
         .padding(.horizontal, 8)
         // The close button floats over the trailing edge instead of holding a
@@ -106,7 +101,7 @@ struct TabRowView: View {
             Button(tab.isFavorite ? "Remove from Favorites" : "Add to Favorites", action: onToggleFavorite)
             Button(tab.isPinned ? "Unpin Tab" : "Pin Tab", action: onTogglePin)
             Button(BrowserCommandTitles.duplicateTab, action: onDuplicate)
-            if isSplit {
+            if isSplitMember {
                 // Was on the group pill's chips; the pill is gone, and a
                 // member still needs a way out of the split from the sidebar.
                 Button("Remove from Split View", action: onRemoveFromSplit)
