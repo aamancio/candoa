@@ -73,9 +73,9 @@ enum InterfaceStyle {
                 ? .white
                 : .black
             // Zen mixes half and half, but its primary is already a muted
-            // theme colour; the macOS accent needs pulling further to read
-            // as chrome rather than as a blue mark.
-            return accent.blended(withFraction: 0.72, of: toward) ?? accent
+            // theme colour; the macOS accent needs pulling most of the way to
+            // read as chrome — a hint of the palette, not a blue mark.
+            return accent.blended(withFraction: 0.86, of: toward) ?? accent
         })
     }
 
