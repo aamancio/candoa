@@ -82,17 +82,15 @@ struct SpaceSelectionRequest: Equatable {
 /// as the tab being in the list twice now that the source row stays put; an
 /// app-drawn ghost ends the moment the mouse comes up.
 struct SidebarTabDragGhost: Equatable {
-    /// How far into the window the ghost's leading edge may come. The drop
-    /// line starts at the row's inset with a dot; the ghost stays clear of
-    /// both so the line always reads as one line.
-    static let minimumLeadingInset: CGFloat = 46
+    /// Where the ghost hangs relative to the pointer. Below it, far enough
+    /// that a boundary line — which is never more than the reorder band plus
+    /// the row gap away — cannot end up underneath the pill: a line crossing
+    /// a translucent pill is broken by the label and reads as two marks.
+    static let pointerOffset = CGSize(width: 14, height: 20)
 
     let tabID: UUID
     /// Top-left window coordinates, so SwiftUI can position it directly.
     var windowPoint: CGPoint
-    /// Where inside the row the drag started, so the grab point stays under
-    /// the pointer.
-    let grabOffset: CGSize
     let size: CGSize
 }
 

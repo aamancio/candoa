@@ -606,17 +606,13 @@ struct ContentView: View {
             if let ghost = store.tabDragGhost,
                let tab = store.tabs.first(where: { $0.id == ghost.tabID }) {
                 TabDragGhostView(tab: tab, size: ghost.size)
+                    // Hanging off the pointer, not centred on it: centred, the
+                    // pill sat exactly on the drop line, and a line showing
+                    // through a translucent pill is broken by the label —
+                    // which reads as two drop marks instead of one.
                     .offset(
-                        // Never far enough left to cover the drop line's dot
-                        // and the start of its stem: the ghost used to sit
-                        // right on the line, and a line crossing a
-                        // translucent pill reads as two short lines either
-                        // side of the label.
-                        x: max(
-                            SidebarTabDragGhost.minimumLeadingInset,
-                            ghost.windowPoint.x - ghost.grabOffset.width
-                        ),
-                        y: ghost.windowPoint.y - ghost.grabOffset.height
+                        x: ghost.windowPoint.x + SidebarTabDragGhost.pointerOffset.width,
+                        y: ghost.windowPoint.y + SidebarTabDragGhost.pointerOffset.height
                     )
                     .ignoresSafeArea()
             }
