@@ -508,24 +508,9 @@ struct WebViewContainer: View {
                     browserSurface {
                         webPane(for: splitTab, at: paneIndex, laneInsets: paneInsets)
                     }
-                    .overlay {
-                        // The focused pane carries a restrained accent ring on
-                        // top of the standard surface border, mirroring the
-                        // active treatment of sidebar rows and chips. Only the
-                        // ring's opacity animates — never the pane layout, so
-                        // focus changes cannot animate live WKWebView frames.
-                        let isFocused = splitTab.id == store.activeTabID
-                        RoundedRectangle(cornerRadius: surfaceCornerRadius, style: .continuous)
-                            // strokeBorder, not stroke: a centered stroke
-                            // straddles the visible card's edge, and the
-                            // interface mask clips the half that falls on the
-                            // lane side — the leading edge vanished entirely.
-                            .strokeBorder(AppColor.accent.opacity(isFocused ? 0.55 : 0), lineWidth: 1)
-                            .padding(.leading, paneInsets.leading)
-                            .padding(.trailing, paneInsets.trailing)
-                            .allowsHitTesting(false)
-                            .animation(.easeOut(duration: 0.12), value: isFocused)
-                    }
+                    // No accent ring on the focused pane: the panes wear the
+                    // standard surface border only, and focus is read from the
+                    // sidebar's active row. Don't reintroduce it.
                     .overlay(alignment: .top) {
                         SplitPaneControlPill(
                             isPaneHovered: hoveredSplitPaneIndex == paneIndex,
