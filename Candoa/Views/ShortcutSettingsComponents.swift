@@ -554,6 +554,7 @@ enum ShortcutDefinition: String, CaseIterable, Identifiable {
     case pinOrUnpinTab
     case toggleSidebar
     case toggleAISidebar
+    case askEliAboutSelection
     case clearUnpinnedTabs
     case goBack
     case goForward
@@ -597,6 +598,7 @@ enum ShortcutDefinition: String, CaseIterable, Identifiable {
         case .pinOrUnpinTab: return BrowserCommandTitles.pinOrUnpinTab
         case .toggleSidebar: return BrowserCommandTitles.toggleSidebar
         case .toggleAISidebar: return BrowserCommandTitles.toggleAISidebar
+        case .askEliAboutSelection: return BrowserCommandTitles.askEliAboutSelection
         case .clearUnpinnedTabs: return BrowserCommandTitles.clearUnpinnedTabs
         case .goBack: return BrowserCommandTitles.back
         case .goForward: return BrowserCommandTitles.forward
@@ -630,7 +632,7 @@ enum ShortcutDefinition: String, CaseIterable, Identifiable {
         switch self {
         case .captureFullPage:
             return String(localized: "Capture")
-        case .toggleAISidebar:
+        case .toggleAISidebar, .askEliAboutSelection:
             return String(localized: "AI")
         case .toggleSplitView, .splitLayoutHorizontal, .splitLayoutVertical, .zoomSplitPane,
              .focusNextSplitPane, .focusPreviousSplitPane, .unsplitPane, .splitWithTab:
@@ -659,6 +661,9 @@ enum ShortcutDefinition: String, CaseIterable, Identifiable {
         case .pinOrUnpinTab: return "Command-D"
         case .toggleSidebar: return "Command-S"
         case .toggleAISidebar: return "Command-E"
+        // Shifted form of the key that opens Eli: ⌘E asks about the page,
+        // ⇧⌘E asks about what you picked out of it.
+        case .askEliAboutSelection: return "Shift-Command-E"
         case .clearUnpinnedTabs: return "Shift-Command-K"
         case .goBack: return "Command-Left"
         case .goForward: return "Command-Right"
@@ -729,6 +734,7 @@ enum ShortcutDefinition: String, CaseIterable, Identifiable {
         case .pinOrUnpinTab: return "pin"
         case .toggleSidebar: return "sidebar.left"
         case .toggleAISidebar: return "sidebar.right"
+        case .askEliAboutSelection: return "text.quote"
         case .focusAddressBar: return "text.cursor"
         case .commandBar: return "command"
         case .newTab: return "plus"
@@ -771,6 +777,21 @@ extension ShortcutDefinition {
             return currentKeyboardShortcut
         }
         return Self.keyboardShortcut(from: alternate)
+    }
+
+    /// The same binding in AppKit's terms, for menus SwiftUI never sees —
+    /// WebKit builds the web content context menu itself, so items added
+    /// there have to be given their key equivalent by hand.
+    var currentMenuItemKeyEquivalent: (key: String, modifiers: NSEvent.ModifierFlags)? {
+        guard let shortcut = currentKeyboardShortcut else { return nil }
+
+        var modifiers: NSEvent.ModifierFlags = []
+        if shortcut.modifiers.contains(.control) { modifiers.insert(.control) }
+        if shortcut.modifiers.contains(.option) { modifiers.insert(.option) }
+        if shortcut.modifiers.contains(.shift) { modifiers.insert(.shift) }
+        if shortcut.modifiers.contains(.command) { modifiers.insert(.command) }
+
+        return (String(shortcut.key.character), modifiers)
     }
 
     static func keyboardShortcut(from shortcut: String) -> KeyboardShortcut? {

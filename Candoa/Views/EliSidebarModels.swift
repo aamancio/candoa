@@ -35,6 +35,51 @@ enum AISidebarContextMention: Equatable {
     case tab(UUID)
     case history(AISidebarHistoryContext)
     case file(AISidebarFileContext)
+    case selection(AISidebarSelectionContext)
+}
+
+/// A passage the person selected on a page and sent to Eli. It carries its
+/// own copy of the text rather than a range into the page: the selection is
+/// gone the moment they click anywhere else, and the quote has to survive
+/// until the turn is submitted.
+struct AISidebarSelectionContext: Equatable {
+    /// Long enough for a passage worth quoting, short enough that a
+    /// select-all can't crowd the page context out of the request.
+    static let characterLimit = 8_000
+    /// Roughly one line of chip at the sidebar's default width.
+    static let chipTitleLimit = 42
+
+    var id = UUID()
+    let text: String
+    let pageTitle: String?
+    let pageURL: URL?
+
+    /// Trims and caps the raw selection; nil when nothing but whitespace was
+    /// selected, which is what a stray click-drag produces.
+    init?(rawText: String, pageTitle: String?, pageURL: URL?) {
+        let trimmed = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+
+        if trimmed.count > Self.characterLimit {
+            text = String(trimmed.prefix(Self.characterLimit)) + "…"
+        } else {
+            text = trimmed
+        }
+
+        let trimmedTitle = pageTitle?.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.pageTitle = trimmedTitle?.isEmpty == false ? trimmedTitle : nil
+        self.pageURL = pageURL
+    }
+
+    /// The quote on one line for the composer chip. Newlines and runs of
+    /// space collapse first, so a selection spanning paragraphs still reads
+    /// as a sentence rather than blowing the chip open.
+    var chipTitle: String {
+        let collapsed = text.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        guard collapsed.count > Self.chipTitleLimit else { return collapsed }
+        let head = collapsed.prefix(Self.chipTitleLimit - 1)
+        return head.trimmingCharacters(in: .whitespaces) + "…"
+    }
 }
 
 struct AISidebarHistoryContext: Equatable {

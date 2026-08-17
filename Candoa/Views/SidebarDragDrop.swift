@@ -651,7 +651,6 @@ internal final class SidebarSplitDwell {
     }
 }
 
-
 /// The side to actually split on: whichever the row previewed, so the result
 /// cannot differ from what was on screen when the button came up. The
 /// position is only a fallback for a drop that somehow never showed a ghost.

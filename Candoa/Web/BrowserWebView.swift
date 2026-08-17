@@ -32,10 +32,14 @@ final class BrowserWebView: WKWebView {
         }
 
         // A plain Copy item is WebKit's tell for a text selection (images and
-        // links get Copy Image / Copy Link instead), which is the only context
-        // where Safari offers its Notes shortcut.
-        guard menu.items.contains(where: { $0.identifier == Self.copyIdentifier }),
-              NotesSharingService.isAvailable else { return }
+        // links get Copy Image / Copy Link instead), which is what both of the
+        // items below act on.
+        guard menu.items.contains(where: { $0.identifier == Self.copyIdentifier }) else { return }
+
+        insertAskEliItem(into: menu)
+
+        // Safari offers its Notes shortcut in this same context.
+        guard NotesSharingService.isAvailable else { return }
 
         let addNote = NSMenuItem(
             title: String(localized: "Add to Notes", comment: "Web context menu: send the selected text to the Notes app."),
@@ -50,6 +54,47 @@ final class BrowserWebView: WKWebView {
             menu.insertItem(addNote, at: shareIndex)
         } else {
             menu.addItem(addNote)
+        }
+    }
+
+    /// Candoa's own selection action leads the group WebKit puts Search in.
+    /// There is no Safari item to inherit placement from, and the question a
+    /// person asks about a passage is the same shape as searching for it —
+    /// so it sits with Search rather than opening a group of its own.
+    private func insertAskEliItem(into menu: NSMenu) {
+        let askEli = NSMenuItem(
+            title: String(
+                localized: "Ask Eli About This",
+                comment: "Web context menu: ask the built-in assistant about the selected text."
+            ),
+            action: #selector(askEliAboutSelection(_:)),
+            keyEquivalent: ""
+        )
+        askEli.target = self
+
+        // WebKit builds this menu itself, out of SwiftUI's reach, so the
+        // person's binding is applied here by hand — the item teaches the
+        // shortcut the same way a menu-bar item would.
+        if let equivalent = ShortcutDefinition.askEliAboutSelection.currentMenuItemKeyEquivalent {
+            askEli.keyEquivalent = equivalent.key
+            askEli.keyEquivalentModifierMask = equivalent.modifiers
+        }
+
+        if let searchIndex = menu.items.firstIndex(where: { $0.identifier == Self.searchWebIdentifier }) {
+            menu.insertItem(askEli, at: searchIndex)
+        } else {
+            menu.insertItem(askEli, at: 0)
+        }
+    }
+
+    @objc private func askEliAboutSelection(_ sender: NSMenuItem) {
+        evaluateJavaScript("window.getSelection().toString()") { [weak self] result, _ in
+            guard let self, let selection = result as? String else { return }
+            self.coordinator?.askEliAboutSelection(
+                selection,
+                pageTitle: self.trimmedPageTitle,
+                pageURL: self.url
+            )
         }
     }
 
@@ -75,7 +120,7 @@ final class BrowserWebView: WKWebView {
             var noteText = selection
             if let url = self.url {
                 noteText += "\n\n"
-                if let pageTitle = self.pageTitleForNote { noteText += "\(pageTitle)\n" }
+                if let pageTitle = self.trimmedPageTitle { noteText += "\(pageTitle)\n" }
                 noteText += url.absoluteString
             }
             NotesSharingService.share(items: [noteText])
@@ -84,7 +129,7 @@ final class BrowserWebView: WKWebView {
 
     /// The page title, when it says something the address does not. Untitled
     /// pages fall back to the address alone rather than an empty heading line.
-    private var pageTitleForNote: String? {
+    private var trimmedPageTitle: String? {
         guard let pageTitle = title?.trimmingCharacters(in: .whitespacesAndNewlines),
               !pageTitle.isEmpty
         else { return nil }

@@ -2,6 +2,64 @@ import AppKit
 import XCTest
 
 extension CandoaUITests {
+    /// Selecting a passage and pressing the shortcut opens Eli with the quote
+    /// already attached, so the question can be typed straight away. Covers
+    /// the whole path the context-menu item also takes: the page's live
+    /// selection, the store hop, and the chip the composer draws.
+    func testAskingAboutASelectionOpensEliWithTheQuoteAttached() throws {
+        let app = launchApp(fixture: "ask-selection")
+        openFixtureTab(path: "ask-selection", in: app)
+
+        let webView = app.webViews.firstMatch
+        XCTAssertTrue(webView.waitForExistence(timeout: 10), currentState(in: app))
+
+        // Eli is closed: the shortcut has to open it, not just fill it.
+        XCTAssertFalse(element("agent-sidebar", in: app).exists, currentState(in: app))
+
+        webView.click()
+        app.typeKey("a", modifierFlags: .command)
+        app.typeKey("e", modifierFlags: [.command, .shift])
+
+        XCTAssertTrue(element("agent-sidebar", in: app).waitForExistence(timeout: 5), currentState(in: app))
+        XCTAssertTrue(
+            waitForAskState(in: app, containing: "Material weakness in revenue controls|fixture.candoa.test"),
+            askState(in: app)
+        )
+    }
+
+    /// The context-menu entry point. WebKit builds this menu itself, so the
+    /// item's presence and placement is only provable against a real one.
+    func testTheWebContextMenuAsksEliAboutTheSelection() throws {
+        let app = launchApp(fixture: "ask-selection")
+        openFixtureTab(path: "ask-selection", in: app)
+
+        let webView = app.webViews.firstMatch
+        XCTAssertTrue(webView.waitForExistence(timeout: 10), currentState(in: app))
+
+        webView.click()
+        app.typeKey("a", modifierFlags: .command)
+        webView.rightClick()
+
+        let askItem = app.menuItems["Ask Eli About This"].firstMatch
+        XCTAssertTrue(askItem.waitForExistence(timeout: 5), app.menus.debugDescription)
+
+        // It leads the group WebKit puts its own Search item in.
+        let searchItem = app.menuItems.matching(
+            NSPredicate(format: "title BEGINSWITH 'Search with '")
+        ).firstMatch
+        if searchItem.exists {
+            XCTAssertLessThan(askItem.frame.minY, searchItem.frame.minY, app.menus.debugDescription)
+        }
+
+        askItem.click()
+
+        XCTAssertTrue(element("agent-sidebar", in: app).waitForExistence(timeout: 5), currentState(in: app))
+        XCTAssertTrue(
+            waitForAskState(in: app, containing: "Material weakness in revenue controls|fixture.candoa.test"),
+            askState(in: app)
+        )
+    }
+
     func testEliSettingsEditTheFormFillProfile() throws {
         let app = launchApp(fixture: "ask")
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))

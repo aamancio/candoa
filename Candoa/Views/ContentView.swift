@@ -393,6 +393,8 @@ struct ContentView: View {
                 toggleSidebar()
             } onToggleAISidebar: {
                 toggleAISidebar()
+            } onAskEliAboutSelection: {
+                Task { await store.askEliAboutActiveSelection() }
             } onFindInPage: {
                 showFind()
             } onFindNext: {
@@ -552,6 +554,13 @@ struct ContentView: View {
         .onChange(of: store.aiSidebarToggleRequestID) { _, _ in
             toggleAISidebar()
         }
+        // A quote sent from the page only opens Eli — never closes it, so
+        // asking twice in a row does not toggle the answer away. The sidebar
+        // view claims the selection itself once it exists.
+        .onChange(of: store.pendingEliSelection) { _, selection in
+            guard selection != nil else { return }
+            openAISidebar()
+        }
         .onChange(of: store.activeSpaceID) { _, _ in
             // A Space is its tabs, and they live in the sidebar. Switching
             // from the menu or the keyboard with the sidebar hidden would
@@ -647,6 +656,7 @@ struct ContentView: View {
             isSidebarVisible: isSidebarVisible,
             toggleAISidebar: toggleAISidebar,
             isAISidebarVisible: isAISidebarVisible,
+            askEliAboutSelection: { Task { await store.askEliAboutActiveSelection() } },
             showHistory: showHistory,
             isHistoryVisible: isHistoryPresented,
             clearBrowsingData: presentClearBrowsingData,
