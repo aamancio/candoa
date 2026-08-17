@@ -452,6 +452,7 @@ extension BrowserStore {
             "downloadsShown=\(isDownloadsPopoverPresented)",
             "siteInfoShown=\(isSiteInfoPopoverPresented)",
             "privacyReportShown=\(isPrivacyReportPresented)",
+            "inspector=\(uiTestingInspectorDescription)",
             "reader=\(uiTestingReaderDescription)",
             "nav=\(uiTestingNavigationDescription)",
             "popover=\(uiTestingVisibleFolderPopoverDescription)",
@@ -467,6 +468,11 @@ extension BrowserStore {
         guard let activeTabID else { return "none" }
         let state = webCoordinator.navigationState(for: activeTabID)
         return "\(state.canGoBack ? "back" : "noback"):\(state.canGoForward ? "fwd" : "nofwd")"
+    }
+
+    private var uiTestingInspectorDescription: String {
+        guard let activeTabID else { return "none" }
+        return webCoordinator.uiTestingAttachedInspectorDescription(for: activeTabID)
     }
 
     private var uiTestingReaderDescription: String {

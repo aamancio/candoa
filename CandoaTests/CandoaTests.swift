@@ -1,10 +1,12 @@
+import AppKit
 import XCTest
 @testable import Candoa
 
 /// Unit coverage for Ask's pure request-shaping logic (issue #48): context
 /// budgeting, reasoning clamping, catalog validation and hosted-metadata
 /// merging, and origin-key normalization. Everything here is side-effect
-/// free — persistence and streaming stay covered by the UI test suite.
+/// free — persistence and streaming stay covered by the UI test suite —
+/// alongside the web pane's own geometry, which is plain view math.
 final class CandoaTests: XCTestCase {
     // MARK: - Context budgeting
 
@@ -945,6 +947,78 @@ final class PaletteShortcutTests: XCTestCase {
         XCTAssertEqual(
             BrowserStore.keepingSplitPartnersAdjacent(to: ids[0], in: dropped, splitGroup: group),
             [ids[3], ids[0], ids[1], ids[2], ids[4]]
+        )
+    }
+
+    // MARK: - Web pane geometry
+
+    /// The page card an attached inspector is laid out in, and the insets the
+    /// page is left with, both come out of the pane host's own geometry.
+    @MainActor
+    private func makePaneHost(laneLeading: CGFloat, laneTrailing: CGFloat) -> WebPaneHostView {
+        let host = WebPaneHostView(frame: NSRect(x: 0, y: 0, width: 1200, height: 800))
+        host.layoutHostedSubviews(
+            laneInsets: BrowserInterfaceInsets(leading: laneLeading, trailing: laneTrailing)
+        )
+        return host
+    }
+
+    @MainActor
+    func testPageAreaInsetsAreTheReservedLanesWithoutAnInspector() {
+        let host = makePaneHost(laneLeading: 280, laneTrailing: 60)
+
+        // WebKit reads the stand-in's frame to decide whether it can dock at
+        // all, so laying the host out has to size it there and then — waiting
+        // for AppKit's next layout pass leaves docking refused.
+        XCTAssertEqual(host.inspectorLane.pageArea.frame, host.inspectorLane.bounds)
+
+        let insets = host.pageAreaInsets
+        XCTAssertEqual(insets.left, 280, accuracy: 0.5)
+        XCTAssertEqual(insets.right, 60, accuracy: 0.5)
+        XCTAssertEqual(insets.top, 0, accuracy: 0.5)
+        XCTAssertEqual(insets.bottom, 0, accuracy: 0.5)
+    }
+
+    /// WebKit shrinks the stand-in to whatever the docked inspector leaves —
+    /// that rectangle is what the page's obscured insets have to describe.
+    @MainActor
+    func testPageAreaInsetsFollowADockedInspector() {
+        let host = makePaneHost(laneLeading: 280, laneTrailing: 0)
+        let inspectorHeight: CGFloat = 300
+        host.inspectorLane.addSubview(NSView(frame: NSRect(x: 0, y: 0, width: 920, height: inspectorHeight)))
+        host.inspectorLane.pageArea.frame = NSRect(x: 0, y: inspectorHeight, width: 920, height: 500)
+
+        let insets = host.pageAreaInsets
+        XCTAssertEqual(insets.left, 280, accuracy: 0.5)
+        XCTAssertEqual(insets.bottom, inspectorHeight, accuracy: 0.5)
+        XCTAssertEqual(insets.right, 0, accuracy: 0.5)
+        XCTAssertEqual(insets.top, 0, accuracy: 0.5)
+    }
+
+    /// The lane sits over the page, so it has to be invisible to the pointer
+    /// everywhere the inspector is not.
+    @MainActor
+    func testTheInspectorLanePassesClicksThroughWhileEmpty() {
+        let host = makePaneHost(laneLeading: 280, laneTrailing: 0)
+        let insideTheCard = NSPoint(x: 600, y: 400)
+        XCTAssertNil(host.inspectorLane.hitTest(insideTheCard))
+        XCTAssertNil(host.inspectorLane.pageArea.hitTest(insideTheCard))
+    }
+
+    /// A hosted web view spans the whole host, lanes included, and stays under
+    /// the lane so a docked inspector paints over the page.
+    @MainActor
+    func testHostedWebViewsSpanTheHostBeneathTheInspectorLane() {
+        let host = makePaneHost(laneLeading: 280, laneTrailing: 60)
+        let page = NSView(frame: .zero)
+        host.hostSubview(page)
+        host.layoutHostedSubviews(laneInsets: BrowserInterfaceInsets(leading: 280, trailing: 60))
+
+        XCTAssertEqual(page.frame, host.bounds)
+        XCTAssertEqual(host.inspectorLane.frame, NSRect(x: 280, y: 0, width: 860, height: 800))
+        XCTAssertLessThan(
+            host.subviews.firstIndex(of: page) ?? -1,
+            host.subviews.firstIndex(of: host.inspectorLane) ?? -1
         )
     }
 }

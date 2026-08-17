@@ -34,6 +34,53 @@ extension WebViewCoordinator {
         performInspectorCommand("show", for: tabID)
     }
 
+    /// Docks the inspector into the page's own window. WebKit remembers the
+    /// choice, so people reach this through the inspector's own dock buttons;
+    /// the app calls it only to put a UI test in the docked state.
+    func attachWebInspector(for tabID: UUID) {
+        performInspectorCommand("attach", for: tabID)
+    }
+
+    /// Where a docked inspector ended up, for UI tests: its frame and the
+    /// visible page card it has to stay inside, both in the pane host's
+    /// coordinates. An undocked inspector reports the same card, plus enough
+    /// state to tell a refused dock from a missing one.
+    func uiTestingAttachedInspectorDescription(for tabID: UUID) -> String {
+        guard let webView = webViews[tabID] else { return "none" }
+        guard let host = webView.superview as? WebPaneHostView else { return "unhosted" }
+
+        let card = describe(host.inspectorLane.frame)
+        guard
+            let inspectorView = host.inspectorLane.subviews.first(where: {
+                $0 !== host.inspectorLane.pageArea
+            })
+        else {
+            let state = isWebInspectorVisible(for: tabID) ? "undocked" : "closed"
+            let standIn = inspectorAttachmentView(of: webView) === host.inspectorLane.pageArea
+            return "\(state):card:\(card):standIn:\(standIn)"
+        }
+
+        let frame = host.inspectorLane.convert(inspectorView.frame, to: host)
+        return "attached:\(describe(frame)):card:\(card)"
+    }
+
+    /// The state string only refreshes on a store publish, and WebKit
+    /// re-splits the pane on its own schedule — attach, detach, and every
+    /// inspector resize drag — with no store change to ride along with.
+    func reportInspectorPlacementForUITesting(for tabID: UUID) {
+        guard BrowserStore.isUITesting else { return }
+        let placement = uiTestingAttachedInspectorDescription(for: tabID)
+        guard placement != lastReportedInspectorPlacement else { return }
+        lastReportedInspectorPlacement = placement
+        store?.objectWillChange.send()
+    }
+
+    private func describe(_ rect: CGRect) -> String {
+        [rect.minX, rect.minY, rect.width, rect.height]
+            .map { String(Int($0.rounded())) }
+            .joined(separator: ",")
+    }
+
     /// Safari's Connect Web Inspector: attach the inspector backend without
     /// forcing the window forward. Older SDKs lack `connect`, in which case
     /// showing is the closest behavior rather than a silent no-op.
