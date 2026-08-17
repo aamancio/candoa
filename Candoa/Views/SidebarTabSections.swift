@@ -769,7 +769,9 @@ internal struct TabDragGhostView: View {
                 .fill(InterfaceStyle.sidebarControlFillActive.opacity(0.5))
         }
         .compositingGroup()
-        .opacity(0.9)
+        // See-through enough to read as a copy, solid enough that the drop
+        // line does not show through the pill and break in two.
+        .opacity(0.96)
         .shadow(color: .black.opacity(0.28), radius: 9, y: 2)
         .allowsHitTesting(false)
     }

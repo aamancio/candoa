@@ -82,6 +82,11 @@ struct SpaceSelectionRequest: Equatable {
 /// as the tab being in the list twice now that the source row stays put; an
 /// app-drawn ghost ends the moment the mouse comes up.
 struct SidebarTabDragGhost: Equatable {
+    /// How far into the window the ghost's leading edge may come. The drop
+    /// line starts at the row's inset with a dot; the ghost stays clear of
+    /// both so the line always reads as one line.
+    static let minimumLeadingInset: CGFloat = 46
+
     let tabID: UUID
     /// Top-left window coordinates, so SwiftUI can position it directly.
     var windowPoint: CGPoint
