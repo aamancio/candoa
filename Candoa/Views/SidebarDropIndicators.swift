@@ -46,6 +46,8 @@ private struct SidebarSplitPreview: ViewModifier {
                 // The existing tab moves into the pane it keeps. Cropping it
                 // in place instead would eat the favicon and start the title
                 // mid-word, which reads as a glitch rather than a preview.
+                // `visualEffect` is a paint-time offset, so the row's drop
+                // target does not move out from under the pointer.
                 .visualEffect { view, proxy in
                     view.offset(
                         x: ghostLeads
@@ -53,12 +55,8 @@ private struct SidebarSplitPreview: ViewModifier {
                             : 0
                     )
                 }
-                .mask { keeperPane(ghostLeads: ghostLeads) }
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                 .overlay {
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(InterfaceStyle.sidebarControlFillDropTarget)
-                        .allowsHitTesting(false)
-
                     ghostPane(ghostLeads: ghostLeads)
                 }
         } else {
@@ -66,47 +64,46 @@ private struct SidebarSplitPreview: ViewModifier {
         }
     }
 
-    /// The half the row keeps, with its trailing edge feathered: a title too
-    /// long for one pane dissolves into the divide instead of being chopped.
-    private func keeperPane(ghostLeads: Bool) -> some View {
-        GeometryReader { proxy in
-            let pane = paneWidth(in: proxy.size.width)
-            HStack(spacing: 0) {
-                if ghostLeads {
-                    Color.clear.frame(width: pane + SidebarDropMetrics.splitPreviewGap)
-                }
-                LinearGradient(
-                    stops: [
-                        .init(color: .black, location: 0.8),
-                        .init(color: .clear, location: 1),
-                    ],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
-                .frame(width: pane)
-                if !ghostLeads { Color.clear }
-            }
-        }
-    }
-
+    /// The empty half, painted opaque so it hides the shifted-out end of the
+    /// row's own title.
+    ///
+    /// Masking the row to its keeper pane was the obvious way to do that and
+    /// the wrong one: a SwiftUI mask takes hit testing with it, so the half
+    /// under the ghost stopped answering drag updates and the drop routing
+    /// flickered between this row and the section behind it. Paint hides the
+    /// title just as well and the row stays whole to the pointer.
     private func ghostPane(ghostLeads: Bool) -> some View {
         GeometryReader { proxy in
             let pane = paneWidth(in: proxy.size.width)
             HStack(spacing: 0) {
                 if !ghostLeads {
-                    Color.clear.frame(width: pane + SidebarDropMetrics.splitPreviewGap)
+                    Color.clear.frame(width: pane)
                 }
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill(tint.opacity(0.22))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 6, style: .continuous)
-                            .strokeBorder(tint.opacity(0.65), lineWidth: 1)
-                    }
-                    .frame(width: pane)
-                    .padding(.vertical, 3)
-                if ghostLeads { Color.clear }
+                ZStack {
+                    Rectangle()
+                        .fill(InterfaceStyle.sidebarBackground)
+
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .fill(tint.opacity(0.22))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                .strokeBorder(tint.opacity(0.65), lineWidth: 1)
+                        }
+                        .frame(width: pane)
+                        .padding(.vertical, 3)
+                        .frame(
+                            maxWidth: .infinity,
+                            alignment: ghostLeads ? .leading : .trailing
+                        )
+                }
+                .frame(width: pane + SidebarDropMetrics.splitPreviewGap)
+
+                if ghostLeads {
+                    Color.clear.frame(width: pane)
+                }
             }
         }
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         .overlay {
             // The outer edge of the pair, so the two panes read as one row
             // being divided rather than a card dropped on top of it.
