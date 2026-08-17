@@ -100,8 +100,7 @@ private struct SidebarSplitPreview: ViewModifier {
                 if ghostLeads {
                     Color.clear.frame(width: pane + SidebarDropMetrics.splitPreviewGap)
                 }
-                Rectangle()
-                    .fill(InterfaceStyle.sidebarControlFillDropTarget)
+                paneShape()
                     .frame(width: pane)
                 if !ghostLeads { Color.clear }
             }
@@ -129,8 +128,7 @@ private struct SidebarSplitPreview: ViewModifier {
                         if !ghostLeads {
                             Color.clear.frame(width: SidebarDropMetrics.splitPreviewGap)
                         }
-                        Rectangle()
-                            .fill(InterfaceStyle.sidebarControlFillDropTarget)
+                        paneShape()
                             .frame(width: pane)
                         if ghostLeads {
                             Color.clear.frame(width: SidebarDropMetrics.splitPreviewGap)
@@ -145,6 +143,17 @@ private struct SidebarSplitPreview: ViewModifier {
         }
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         .allowsHitTesting(false)
+    }
+
+    /// One pane. Rounded on every corner and inset all round, which is what
+    /// `zen-split-fake-tab` is — `border-radius` plus a margin, not a shape
+    /// squared off where the two meet. Both panes are drawn from this, so
+    /// they match; giving only the ghost a radius while the keeper stayed a
+    /// full-height slab is what made them look like different objects.
+    private func paneShape() -> some View {
+        RoundedRectangle(cornerRadius: 6, style: .continuous)
+            .fill(InterfaceStyle.sidebarControlFillDropTarget)
+            .padding(.vertical, SidebarDropMetrics.splitPreviewInset)
     }
 
     private func paneWidth(in rowWidth: CGFloat) -> CGFloat {
