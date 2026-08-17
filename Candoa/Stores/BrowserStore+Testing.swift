@@ -1219,7 +1219,9 @@ extension BrowserStore {
 
         let parts = spec.split(separator: ":").map(String.init)
         let index = parts.first.flatMap(Int.init) ?? 0
-        let side: SplitTabDropSide = parts.count > 1 && parts[1] == "leading" ? .leading : .trailing
+        let what = parts.count > 1 ? parts[1] : "trailing"
+        let side: SplitTabDropSide = what == "leading" ? .leading : .trailing
+        let edge: SidebarTabDropEdge = ["before": .before, "after": .after][what] ?? .split
 
         let rows = regularTabsForActiveSpace
         guard rows.indices.contains(index) else { return }
@@ -1231,8 +1233,8 @@ extension BrowserStore {
         sidebarDropIndicator = SidebarTabDropIndicator(
             placement: .regular,
             targetTabID: rows[index].id,
-            edge: .split,
-            splitSide: side
+            edge: edge,
+            splitSide: edge == .split ? side : nil
         )
 #endif
     }
