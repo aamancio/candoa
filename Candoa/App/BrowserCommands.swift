@@ -180,16 +180,6 @@ internal struct BrowserCommands: Commands {
             .keyboardShortcut(ShortcutDefinition.toggleAISidebar.currentKeyboardShortcut)
             .disabled(actions == nil)
 
-            // Sits with the sidebar it opens. The item stays enabled with
-            // nothing selected — the menu bar cannot see into the page, and a
-            // command that greys itself out on a guess is worse than one that
-            // quietly does nothing.
-            Button(BrowserCommandTitles.askEliAboutSelection) {
-                actions?.askEliAboutSelection()
-            }
-            .keyboardShortcut(ShortcutDefinition.askEliAboutSelection.currentKeyboardShortcut)
-            .disabled(actions == nil)
-
             Divider()
 
             Group {

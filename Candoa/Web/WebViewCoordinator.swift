@@ -252,22 +252,6 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         store.navigateNewTab(to: url)
     }
 
-    func askEliAboutSelection(_ selection: String, pageTitle: String?, pageURL: URL?) {
-        store?.askEli(aboutSelection: selection, pageTitle: pageTitle, pageURL: pageURL)
-    }
-
-    /// Reads the live selection out of a tab's page for the keyboard path.
-    /// The context menu asks its own web view directly — it already has one
-    /// in hand — but a shortcut only knows the tab.
-    func selectionText(for tabID: UUID) async -> String? {
-        guard let webView = webViews[tabID] else { return nil }
-        let evaluated = (try? await webView.evaluateJavaScript(
-            "window.getSelection().toString()"
-        )) as? String
-        guard let trimmed = evaluated?.trimmingCharacters(in: .whitespacesAndNewlines) else { return nil }
-        return trimmed.isEmpty ? nil : trimmed
-    }
-
     func register(_ webView: WKWebView, for tabID: UUID) {
         webView.navigationDelegate = self
         webView.uiDelegate = self

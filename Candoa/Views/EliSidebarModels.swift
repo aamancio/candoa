@@ -35,60 +35,6 @@ enum AISidebarContextMention: Equatable {
     case tab(UUID)
     case history(AISidebarHistoryContext)
     case file(AISidebarFileContext)
-    case selection(AISidebarSelectionContext)
-}
-
-/// A passage the person selected on a page and sent to Eli. It carries its
-/// own copy of the text rather than a range into the page: the selection is
-/// gone the moment they click anywhere else, and the quote has to survive
-/// until the turn is submitted.
-struct AISidebarSelectionContext: Equatable {
-    /// Long enough for a passage worth quoting, short enough that a
-    /// select-all can't crowd the page context out of the request.
-    static let characterLimit = 8_000
-    /// Comfortably more than the three lines the quote block shows, so the
-    /// cut lands in the layout rather than mid-sentence in the string.
-    static let quotePreviewLimit = 320
-
-    var id = UUID()
-    let text: String
-    let pageTitle: String?
-    let pageURL: URL?
-
-    /// Trims and caps the raw selection; nil when nothing but whitespace was
-    /// selected, which is what a stray click-drag produces.
-    init?(rawText: String, pageTitle: String?, pageURL: URL?) {
-        let trimmed = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return nil }
-
-        if trimmed.count > Self.characterLimit {
-            text = String(trimmed.prefix(Self.characterLimit)) + "…"
-        } else {
-            text = trimmed
-        }
-
-        let trimmedTitle = pageTitle?.trimmingCharacters(in: .whitespacesAndNewlines)
-        self.pageTitle = trimmedTitle?.isEmpty == false ? trimmedTitle : nil
-        self.pageURL = pageURL
-    }
-
-    /// The quote as the composer block reads it. Newlines and runs of space
-    /// collapse first, so a passage spanning paragraphs reads as prose in a
-    /// three-line block instead of as a column of fragments.
-    var quotePreview: String {
-        let collapsed = text.split(whereSeparator: \.isWhitespace).joined(separator: " ")
-        guard collapsed.count > Self.quotePreviewLimit else { return collapsed }
-        let head = collapsed.prefix(Self.quotePreviewLimit - 1)
-        return head.trimmingCharacters(in: .whitespaces) + "…"
-    }
-
-    /// Where the passage came from, under the quote. The page's own title
-    /// says it best; the host stands in when a page has none.
-    var sourceLabel: String {
-        pageTitle
-            ?? pageURL?.host(percentEncoded: false)
-            ?? String(localized: "Selected text")
-    }
 }
 
 struct AISidebarHistoryContext: Equatable {
@@ -115,10 +61,6 @@ struct EliMentionedTab: Equatable {
 struct EliSubmission {
     let prompt: String
     let contextChips: [AISidebarContextChip]
-    /// Passages quoted above the composer. Held apart from the chips: a chip
-    /// says a document was attached, a quote says which part of one already
-    /// attached the question is about.
-    let quotedSelections: [AISidebarSelectionContext]
     let contextMentions: [AISidebarContextMention]
     let recentTurns: [AIConversationTurn]
     /// Every page on screen at submission, focused pane first — a split view
@@ -145,7 +87,6 @@ struct AISidebarMessage: Identifiable, Equatable {
     var isStreaming: Bool
     var transientStatus: String? = nil
     var contextChips: [AISidebarContextChip] = []
-    var quotedSelections: [AISidebarSelectionContext] = []
     var action: AISidebarMessageAction? = nil
     var feedback: AISidebarResponseFeedback? = nil
     var responseImageData: Data? = nil

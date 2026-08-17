@@ -117,18 +117,6 @@ final class CandoaUITests: XCTestCase {
            download="candoa-e2e-download.bin"
            style="position:fixed;inset:0;font-size:40px">Download</a>
         """,
-        // One short paragraph and nothing else, so Select All produces a
-        // quote the composer block can hold whole.
-        "ask-selection": """
-        <!doctype html>
-        <html>
-          <head>
-            <meta charset="utf-8">
-            <script>document.title = location.pathname.slice(1)</script>
-          </head>
-          <body><p>Material weakness in revenue controls</p></body>
-        </html>
-        """,
         "popup-open": """
         <!doctype html>
         <html>
