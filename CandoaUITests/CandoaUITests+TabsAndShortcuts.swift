@@ -396,16 +396,16 @@ extension CandoaUITests {
             openFixtureTab(path: path, in: app)
         }
 
-        // Seven tabs, six cards: the strip shows the six most recent (g…b)
+        // Seven tabs, five cards: the strip shows the five most recent (g…c)
         // and its caption counts all seven.
         postTabSwitcherAction("next")
         XCTAssertTrue(waitForState(in: app, containing: "switcher=true:f"), currentState(in: app))
-        XCTAssertTrue(currentState(in: app).contains("switcherCards=g|f|e|d|c|b:7"), currentState(in: app))
+        XCTAssertTrue(currentState(in: app).contains("switcherCards=g|f|e|d|c:7"), currentState(in: app))
 
-        // Delete "f": "a" backfills at the tail, the highlight holds its
+        // Delete "f": "b" backfills at the tail, the highlight holds its
         // slot (now "e"), and the count ticks down.
         postTabSwitcherAction("close")
-        XCTAssertTrue(waitForState(in: app, containing: "switcherCards=g|e|d|c|b|a:6"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "switcherCards=g|e|d|c|b:6"), currentState(in: app))
         XCTAssertTrue(currentState(in: app).contains("switcher=true:e"), currentState(in: app))
 
         // Keep deleting: the strip shrinks only once the list runs dry, and
@@ -431,20 +431,21 @@ extension CandoaUITests {
             openFixtureTab(path: path, in: app)
         }
 
-        // Seven tabs, six cards (g…b): stepping through the strip wraps from
-        // its last card back to its first — "a" has no card and is skipped.
-        for expected in ["f", "e", "d", "c", "b", "g", "f"] {
+        // Seven tabs, five cards (g…c): stepping through the strip wraps from
+        // its last card back to its first — "a" and "b" have no card and are
+        // skipped.
+        for expected in ["f", "e", "d", "c", "g", "f"] {
             postTabSwitcherAction("next")
             XCTAssertTrue(waitForState(in: app, containing: "switcher=true:\(expected)"), currentState(in: app))
         }
-        for expected in ["g", "b"] {
+        for expected in ["g", "c"] {
             postTabSwitcherAction("previous")
             XCTAssertTrue(waitForState(in: app, containing: "switcher=true:\(expected)"), currentState(in: app))
         }
-        XCTAssertTrue(currentState(in: app).contains("switcherCards=g|f|e|d|c|b:7"), currentState(in: app))
+        XCTAssertTrue(currentState(in: app).contains("switcherCards=g|f|e|d|c:7"), currentState(in: app))
 
         postTabSwitcherAction("release")
-        XCTAssertTrue(waitForState(in: app, containing: "active=b"), currentState(in: app))
+        XCTAssertTrue(waitForState(in: app, containing: "active=c"), currentState(in: app))
     }
 
     func testControlTabHoldPointerHighlightsAndClickCommitsCards() throws {

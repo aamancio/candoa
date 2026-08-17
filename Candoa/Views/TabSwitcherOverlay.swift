@@ -143,9 +143,9 @@ private struct TabSwitcherGridLayout {
 
 private enum TabSwitcherMetrics {
     // A four-tab switcher is the common case. Give it enough visual weight to
-    // read as a window switcher rather than a compact menu. Six cards fit one
-    // row down to ~870pt of window; narrower than that the grid folds to two
-    // rows of three rather than five-plus-one.
+    // read as a window switcher rather than a compact menu. Five cards fit one
+    // row down to ~730pt of window; narrower than that the grid folds to two
+    // rows of three rather than four-plus-one.
     static let minimumCardWidth: CGFloat = 124
     static let maximumCardWidth: CGFloat = 200
     static let compactColumnLimit = 3
