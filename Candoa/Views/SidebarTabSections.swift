@@ -352,7 +352,8 @@ internal struct FolderSectionView: View {
                         onOpenInSplit: { store.openSplitView(with: tab.id) },
                         onToggleFavorite: { store.toggleFavorite(tab.id) },
                         onTogglePin: { store.togglePin(tab.id) },
-                        onToggleMute: { store.toggleMediaMute(tabID: tab.id) }
+                        onToggleMute: { store.toggleMediaMute(tabID: tab.id) },
+                            suppressesHover: store.draggedTabID != nil
                     )
                     .padding(.leading, CGFloat(nestingLevel + 1) * 12)
                     .sidebarRowDropIndicator(

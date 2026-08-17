@@ -26,8 +26,14 @@ struct TabRowView: View {
     let onToggleFavorite: () -> Void
     let onTogglePin: () -> Void
     let onToggleMute: () -> Void
+    /// A tab drag is in flight. The row under the pointer keeps its resting
+    /// look while one is: a hover fill and close button there read as a
+    /// third drop mark next to the line and the split ring.
+    var suppressesHover: Bool = false
 
-    @State private var isHovering = false
+    @State private var isPointerInside = false
+
+    private var isHovering: Bool { isPointerInside && !suppressesHover }
 
     private let closeButtonWidth: CGFloat = 14
 
@@ -83,7 +89,7 @@ struct TabRowView: View {
         .overlay(alignment: .trailing) { closeButton }
         .contentShape(Rectangle())
         .background(rowBackground)
-        .background(TabHoverTracker(isHovering: $isHovering))
+        .background(TabHoverTracker(isHovering: $isPointerInside))
         .clipShape(RoundedRectangle(cornerRadius: InterfaceStyle.sidebarRowCornerRadius, style: .continuous))
         .onTapGesture {
             onSelect()
