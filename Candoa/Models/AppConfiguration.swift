@@ -21,6 +21,7 @@ enum BrowserCommandTitles {
     static let commandBar = String(localized: "Command Bar")
     static let toggleSidebar = String(localized: "Toggle Sidebar")
     static let toggleAISidebar = String(localized: "Toggle Eli Sidebar")
+    static let askEliAboutSelection = String(localized: "Ask Eli About Selection")
     static let reloadTab = String(localized: "Reload Page")
     static let reloadTabFromOrigin = String(localized: "Reload Page From Origin")
     static let stopLoading = String(localized: "Stop")

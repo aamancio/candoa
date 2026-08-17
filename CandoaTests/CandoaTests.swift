@@ -1021,4 +1021,62 @@ final class PaletteShortcutTests: XCTestCase {
             host.subviews.firstIndex(of: host.inspectorLane) ?? -1
         )
     }
+
+}
+
+/// The shaping a passage gets on its way from a page selection to the Eli
+/// composer: what survives trimming, what is rejected outright, and how the
+/// quote is cut down for the chip.
+final class PageSelectionTests: XCTestCase {
+    private func makeSelection(_ rawText: String) -> AISidebarSelectionContext? {
+        AISidebarSelectionContext(
+            rawText: rawText,
+            pageTitle: "  Filing  ",
+            pageURL: URL(string: "https://example.com/filing")
+        )
+    }
+
+    func testASelectionTrimsItsTextAndPageTitle() throws {
+        let selection = try XCTUnwrap(makeSelection("\n  material weakness  \n"))
+        XCTAssertEqual(selection.text, "material weakness")
+        XCTAssertEqual(selection.pageTitle, "Filing")
+    }
+
+    /// A stray click-drag selects whitespace and nothing else; that must not
+    /// reach the composer as an empty quote.
+    func testAWhitespaceOnlySelectionIsRejected() {
+        XCTAssertNil(makeSelection("   \n\t  "))
+    }
+
+    /// An untitled page contributes no heading rather than an empty one.
+    func testAnUntitledPageLeavesTheSelectionWithoutATitle() {
+        let selection = AISidebarSelectionContext(
+            rawText: "quoted",
+            pageTitle: "   ",
+            pageURL: nil
+        )
+        XCTAssertNil(selection?.pageTitle)
+    }
+
+    /// Select-all on a long page still has to leave room for the page context
+    /// itself in the request.
+    func testALongSelectionIsCappedWithAnEllipsis() throws {
+        let raw = String(repeating: "a", count: AISidebarSelectionContext.characterLimit + 500)
+        let selection = try XCTUnwrap(makeSelection(raw))
+        XCTAssertEqual(selection.text.count, AISidebarSelectionContext.characterLimit + 1)
+        XCTAssertTrue(selection.text.hasSuffix("…"))
+    }
+
+    func testAShortSelectionIsItsOwnChipTitle() throws {
+        let selection = try XCTUnwrap(makeSelection("material weakness"))
+        XCTAssertEqual(selection.chipTitle, "material weakness")
+    }
+
+    /// A quote spanning paragraphs has to read as one line in the chip.
+    func testAChipTitleCollapsesWhitespaceAndTruncates() throws {
+        let selection = try XCTUnwrap(makeSelection("management\n\nidentified   a\tmaterial weakness in controls"))
+        XCTAssertEqual(selection.chipTitle, "management identified a material weakness…")
+        XCTAssertEqual(selection.chipTitle.count, AISidebarSelectionContext.chipTitleLimit)
+        XCTAssertFalse(selection.chipTitle.contains("\n"))
+    }
 }

@@ -284,6 +284,7 @@ struct EliSidebarView: View {
             uiTestingState = uiTestingAgentState
             removeSubscriptionGateIfActive()
             resumePendingSubscriptionSubmissionIfNeeded()
+            attachPendingSelectionIfNeeded()
             if memoryWindow.spaceID == nil {
                 memoryWindow.spaceID = store.activeSpaceID
             }
@@ -310,6 +311,12 @@ struct EliSidebarView: View {
         }
         .onChange(of: store.activeSpaceID) { previousSpaceID, spaceID in
             moveMemoryWindow(from: previousSpaceID, to: spaceID)
+        }
+        // Asking about a selection while Eli is closed opens it, and this
+        // view is built only then — so the quote is claimed on appear as
+        // well as here, which covers the sidebar already being open.
+        .onChange(of: store.pendingEliSelection) { _, _ in
+            attachPendingSelectionIfNeeded()
         }
         .onChange(of: messages) { _, updated in
             // Mid-stream the last message is a partial reply; the pass runs
@@ -1475,6 +1482,11 @@ struct EliSidebarView: View {
         let currentContext = currentContexts.first ?? AIPageContext(title: nil, url: nil, text: nil)
         var sections: [String] = []
         var agentSections: [String] = []
+        // Quoted selections are held apart so they can lead the combined
+        // text. Past the compactor's threshold only the leading and trailing
+        // windows of that text survive, and the passage the question is
+        // literally about is the one thing that must not be dropped.
+        var selectionSections: [String] = []
 
         // A lone unlabelled page stays unlabelled; a split view (or a mention
         // beside it) needs each page named so the model can tell them apart.
@@ -1507,10 +1519,24 @@ struct EliSidebarView: View {
                 let section = "Uploaded file: \(fileContext.name)\n\(fileContext.text)"
                 sections.append(section)
                 agentSections.append(section)
+            case .selection(let selectionContext):
+                // Named as the passage the question is about, so a bare
+                // "what does this mean?" has an unambiguous referent even
+                // with the whole page attached underneath it.
+                var section = "Selected passage the question is about"
+                if let pageTitle = selectionContext.pageTitle {
+                    section += "\nFrom: \(pageTitle)"
+                }
+                if let pageURL = selectionContext.pageURL {
+                    section += "\nURL: \(pageURL.absoluteString)"
+                }
+                section += "\n\"\"\"\n\(selectionContext.text)\n\"\"\""
+                selectionSections.append(section)
+                agentSections.append(section)
             }
         }
 
-        let combinedText = sections
+        let combinedText = (selectionSections + sections)
             .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
             .joined(separator: "\n\n")
 
@@ -1619,6 +1645,24 @@ struct EliSidebarView: View {
         isPromptFocused = true
     }
 
+    /// Takes the quote the page sent over and clears it, so reopening Eli
+    /// later does not re-attach a passage from a page the person has moved
+    /// on from. The composer takes focus with it: the selection is only half
+    /// the ask, and the question still has to be typed.
+    private func attachPendingSelectionIfNeeded() {
+        // Claiming runs a beat late for the same reason the focus below does:
+        // this is reached from onAppear, and clearing the store's published
+        // value inside the update that mounted the view publishes into it.
+        // Claim and clear stay together in the one block, so an onAppear and
+        // an onChange arriving together still attach the quote once.
+        DispatchQueue.main.async {
+            guard let selection = store.pendingEliSelection else { return }
+            store.pendingEliSelection = nil
+            mentionedContext.append(.selection(selection))
+            isPromptFocused = true
+        }
+    }
+
     private func addMention(_ mention: AISidebarContextMention) {
         guard !mentionedContext.contains(mention) else {
             clearMentionToken()
@@ -1708,6 +1752,19 @@ struct EliSidebarView: View {
                 symbolName: fileContext.previewImageData == nil ? "doc.text" : "photo",
                 faviconData: nil,
                 previewImageData: fileContext.previewImageData,
+                isRemovable: true
+            )
+        case .selection(let selectionContext):
+            return AISidebarContextChip(
+                id: "selection-\(selectionContext.id.uuidString)",
+                title: selectionContext.chipTitle,
+                // The page is what tells two quotes apart when several are
+                // attached, so it takes the subtitle over a static label.
+                subtitle: selectionContext.pageURL?.host(percentEncoded: false)
+                    ?? String(localized: "Selected text"),
+                symbolName: "text.quote",
+                faviconData: nil,
+                previewImageData: nil,
                 isRemovable: true
             )
         }
