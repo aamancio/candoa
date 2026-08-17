@@ -599,6 +599,20 @@ struct ContentView: View {
             }
         }
         .quickNoteActivity(for: store)
+        // The dragged row's ghost, in the window's own top-left space —
+        // which is what the drag source publishes — so the grab point stays
+        // under the pointer exactly as it was when the row was picked up.
+        .overlay(alignment: .topLeading) {
+            if let ghost = store.tabDragGhost,
+               let tab = store.tabs.first(where: { $0.id == ghost.tabID }) {
+                TabDragGhostView(tab: tab, size: ghost.size)
+                    .offset(
+                        x: ghost.windowPoint.x - ghost.grabOffset.width,
+                        y: ghost.windowPoint.y - ghost.grabOffset.height
+                    )
+                    .ignoresSafeArea()
+            }
+        }
     }
 
     private func applyWebsiteAppearance() {
