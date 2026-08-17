@@ -362,11 +362,6 @@ internal struct FolderSectionView: View {
                             targetTabID: tab.id,
                             edge: .before
                         ),
-                        showsSplit: store.activeSidebarDropIndicator == SidebarTabDropIndicator(
-                            placement: .folder(folder.id),
-                            targetTabID: tab.id,
-                            edge: .split
-                        ),
                         showsBottom: store.activeSidebarDropIndicator == SidebarTabDropIndicator(
                             placement: .folder(folder.id),
                             targetTabID: tab.id,

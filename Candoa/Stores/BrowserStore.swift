@@ -41,9 +41,14 @@ enum SidebarTabDropPlacement: Equatable {
     case folder(UUID)
 }
 
+/// Which side of the target row a dropped tab lands on. There is no third
+/// case: a sidebar row is a reorder target and nothing else. Splitting is
+/// the page surface's job — see `BrowserSurfaceSplitDropDelegate` — because a
+/// row that claims its own middle leaves the boundary between two rows a
+/// band you have to aim for, which is the whole reason dropping between tabs
+/// felt hard. Arc and Zen both keep the sidebar reorder-only for this reason.
 enum SidebarTabDropEdge: Equatable {
     case before
-    case split
     case after
 }
 
@@ -83,10 +88,11 @@ struct SpaceSelectionRequest: Equatable {
 /// app-drawn ghost ends the moment the mouse comes up.
 struct SidebarTabDragGhost: Equatable {
     /// Where the ghost hangs relative to the pointer. Below it, far enough
-    /// that a boundary line — which is never more than the reorder band plus
-    /// the row gap away — cannot end up underneath the pill: a line crossing
-    /// a translucent pill is broken by the label and reads as two marks.
-    static let pointerOffset = CGSize(width: 14, height: 20)
+    /// that a boundary line cannot end up underneath the pill: a line
+    /// crossing a translucent pill is broken by the label and reads as two
+    /// marks. Nearest-boundary targeting puts the line as much as half a row
+    /// plus its 2pt offset below the pointer, so the clearance is that.
+    static let pointerOffset = CGSize(width: 14, height: 28)
 
     let tabID: UUID
     /// Top-left window coordinates, so SwiftUI can position it directly.
