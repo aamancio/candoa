@@ -630,15 +630,9 @@ internal final class TabDragSourceAnchorView: NSView, NSDraggingSource {
         let draggingItem = NSDraggingItem(pasteboardWriter: pasteboardItem)
         draggingItem.setDraggingFrame(bounds, contents: ghostImage)
 
-        let grabPoint = convert(mouseDownEvent.locationInWindow, from: nil)
         store.tabDragGhost = SidebarTabDragGhost(
             tabID: tabID,
             windowPoint: windowPoint(fromScreen: NSEvent.mouseLocation) ?? .zero,
-            grabOffset: CGSize(
-                width: grabPoint.x - bounds.minX,
-                // Flipped: the row's own top edge, however the view is drawn.
-                height: isFlipped ? grabPoint.y - bounds.minY : bounds.maxY - grabPoint.y
-            ),
             size: bounds.size
         )
 
