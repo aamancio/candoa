@@ -498,9 +498,13 @@ internal func dwellAwareEdge(
         return boundary
     }
 
-    let armed = SidebarSplitDwell.shared.update(tabID: targetTabID, point: info.location) {
-        // The pointer stopped and the clock ran out. Nothing else will call
-        // back, so arm the ring from here — and only if the drag is still up.
+    // Keyed on the side as well as the row: crossing the row's midline is a
+    // different split, so it starts its own clock, as it does in Zen.
+    let side = splitDropSide(for: info, axis: axis)
+    let armed = SidebarSplitDwell.shared.update(tabID: targetTabID, side: side) {
+        // The row held the pointer for the whole delay. If it went still the
+        // caller is not coming back, so arm the ring from here — and only if
+        // the drag is still up.
         guard store.draggedTabID != nil else { return }
         withAnimation(.easeOut(duration: 0.12)) {
             store.updateSidebarDropIndicator(
@@ -525,41 +529,46 @@ internal func dwellAwareEdge(
 internal final class SidebarSplitDwell {
     static let shared = SidebarSplitDwell()
 
-    /// Long enough that crossing a row never trips it, short enough that
-    /// deciding to split does not feel like waiting out a timeout.
-    static let delay: TimeInterval = 0.32
-
-    /// What still counts as holding still. A hand on a drag is never exactly
-    /// motionless, and restarting on every pixel would mean never arming.
-    static let stillness: CGFloat = 3
+    /// Zen's `zen.splitView.drag-over-split-delayMC`. Long enough that a row
+    /// crossed on the way somewhere else never trips it, short enough that
+    /// deciding to split is not waiting out a timeout.
+    static let delay: TimeInterval = 0.3
 
     private var timer: Timer?
     private var anchorTabID: UUID?
-    private var anchorPoint: CGPoint = .zero
-    private var armedTabID: UUID?
+    private var anchorSide: SplitTabDropSide?
+    private var isArmed = false
     /// Held here rather than captured by the timer's block: the block is
     /// `@Sendable` and this closure, which touches the store, is not.
     private var pendingArm: (() -> Void)?
 
-    /// Reports whether the split is armed for this row *right now*. Call on
-    /// every drop update over a row's middle; it restarts the clock whenever
-    /// the pointer has moved, and runs `arm` once the pointer holds still —
-    /// the pointer being still means no further drop updates arrive, so the
-    /// timer, not the caller, is what finally offers the split.
-    func update(tabID: UUID, point: CGPoint, arm: @escaping () -> Void) -> Bool {
-        if tabID == anchorTabID, hypot(point.x - anchorPoint.x, point.y - anchorPoint.y) <= Self.stillness {
-            return armedTabID == tabID
+    /// Reports whether the split is armed for this row and side *right now*.
+    ///
+    /// The clock restarts when the target row or the split side changes, and
+    /// at no other time — this is Zen's rule, and the important half of it is
+    /// what it does *not* do: movement within one row does not reset it.
+    /// Requiring the pointer to hold still meant the hand had to stop dead
+    /// and only then start waiting, which reads as a much longer delay than
+    /// the number suggests and never arms at all for anyone whose hand
+    /// drifts. Staying on the row is the signal; being motionless is not.
+    ///
+    /// The pointer can go still, at which point no further drop updates
+    /// arrive, so the timer — not the caller — is what finally offers the
+    /// split.
+    func update(tabID: UUID, side: SplitTabDropSide, arm: @escaping () -> Void) -> Bool {
+        if tabID == anchorTabID, side == anchorSide {
+            return isArmed
         }
 
         anchorTabID = tabID
-        anchorPoint = point
-        armedTabID = nil
+        anchorSide = side
+        isArmed = false
         pendingArm = arm
         timer?.invalidate()
 
         let timer = Timer(timeInterval: Self.delay, repeats: false) { [weak self] _ in
             MainActor.assumeIsolated {
-                self?.fire(for: tabID)
+                self?.fire(for: tabID, side: side)
             }
         }
         self.timer = timer
@@ -569,9 +578,9 @@ internal final class SidebarSplitDwell {
         return false
     }
 
-    private func fire(for tabID: UUID) {
-        guard anchorTabID == tabID, let arm = pendingArm else { return }
-        armedTabID = tabID
+    private func fire(for tabID: UUID, side: SplitTabDropSide) {
+        guard anchorTabID == tabID, anchorSide == side, let arm = pendingArm else { return }
+        isArmed = true
         pendingArm = nil
         arm()
     }
@@ -580,14 +589,12 @@ internal final class SidebarSplitDwell {
         timer?.invalidate()
         timer = nil
         anchorTabID = nil
-        armedTabID = nil
+        anchorSide = nil
+        isArmed = false
         pendingArm = nil
     }
-
-    func isArmed(for tabID: UUID) -> Bool {
-        armedTabID == tabID
-    }
 }
+
 
 internal func splitDropSide(for info: DropInfo, axis: SidebarDropAxis = .vertical) -> SplitTabDropSide {
     switch axis {
