@@ -354,6 +354,9 @@ final class BrowserStore: ObservableObject {
     /// (Control release or auto-hide). The overlay can outlive the
     /// interaction by its fade-out; this is the state that must not.
     var isTabSwitcherCycling = false
+    /// Watches for Control coming up when the key monitor cannot see it —
+    /// see startTabSwitcherControlWatchdog.
+    var tabSwitcherControlWatchdog: Timer?
     /// One sweep of stale persisted thumbnails per run, deferred to the
     /// first switcher interaction so launch does no snapshot disk work.
     var hasPrunedPersistedTabSnapshots = false
