@@ -60,33 +60,40 @@ private struct SidebarSplitPreview: ViewModifier {
                 // that happens to be hovered or active — on any other row
                 // the preview was one block floating beside a title, with no
                 // second pane and no divide to read.
-                .background { keeperPane(ghostLeads: ghostLeads) }
+                // Both panes are painted from the same two layers so they
+                // composite to the same grey. Painting only the ghost's half
+                // opaque put it on a different backdrop from the keeper —
+                // one fill over the lane, the same fill over
+                // `sidebarBackground` — and the two halves came out 78 and 70.
+                .background {
+                    // One background, not two: a second `.background` stacks
+                    // *behind* the first, so an opaque base added that way
+                    // hides the fills instead of sitting under them.
+                    ZStack {
+                        paneBase()
+                        paneFills(ghostLeads: ghostLeads)
+                    }
+                }
                 .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                 .overlay {
-                    ghostPane(ghostLeads: ghostLeads)
+                    ghostCover(ghostLeads: ghostLeads)
                 }
         } else {
             content
         }
     }
 
-    /// The empty half: painted opaque to hide the shifted-out end of the
-    /// row's own title, with the ghost pane filled and nothing stroked.
-    ///
-    /// The outline this replaces framed the row *and* the ghost, so an armed
-    /// row wore two borders and read as a card dropped on top of the list
-    /// rather than a row dividing. Zen's `zen-split-fake-tab` is a fill and a
-    /// radius with no border at all, which is also the call already made for
-    /// row hover — the fill alone.
-    ///
-    /// Masking the row to its keeper pane was the obvious way to do that and
-    /// the wrong one: a SwiftUI mask takes hit testing with it, so the half
-    /// under the ghost stopped answering drag updates and the drop routing
-    /// flickered between this row and the section behind it. Paint hides the
-    /// title just as well and the row stays whole to the pointer.
-    /// The pane the row keeps, painted so both halves read the same whatever
-    /// state the row itself is in.
-    private func keeperPane(ghostLeads: Bool) -> some View {
+    /// One opaque ground under the whole row, so neither pane is compositing
+    /// its fill over the lane while the other composites over paint.
+    private func paneBase() -> some View {
+        Rectangle().fill(InterfaceStyle.sidebarBackground)
+    }
+
+    /// The pane the row keeps. Only that one: the ghost's half is painted by
+    /// the cover on top, and filling it here as well laid the same
+    /// translucent tone down twice, which came out two levels darker than
+    /// its opposite number.
+    private func paneFills(ghostLeads: Bool) -> some View {
         GeometryReader { proxy in
             let pane = paneWidth(in: proxy.size.width)
             HStack(spacing: 0) {
@@ -101,7 +108,15 @@ private struct SidebarSplitPreview: ViewModifier {
         }
     }
 
-    private func ghostPane(ghostLeads: Bool) -> some View {
+    /// Redraws the ghost's half — and the divide — over the top, because the
+    /// row's own title is still painted there: it is offset at paint time
+    /// only, so its far end runs on under the divide and into the empty pane.
+    ///
+    /// Covering rather than masking is deliberate. A SwiftUI mask takes hit
+    /// testing with it, so masking the row to its keeper pane made that half
+    /// stop answering drag updates and the drop routing flickered between the
+    /// row and the section behind it.
+    private func ghostCover(ghostLeads: Bool) -> some View {
         GeometryReader { proxy in
             let pane = paneWidth(in: proxy.size.width)
             HStack(spacing: 0) {
@@ -109,23 +124,20 @@ private struct SidebarSplitPreview: ViewModifier {
                     Color.clear.frame(width: pane)
                 }
                 ZStack {
-                    Rectangle()
-                        .fill(InterfaceStyle.sidebarBackground)
-
-                    // A plain rectangle: the outer corners come from the
-                    // row's own clip below, so the pane is square where the
-                    // two meet and rounded only where the row is. Rounding it
-                    // itself made a pill parked beside a clipped slab.
-                    Rectangle()
-                        .fill(InterfaceStyle.sidebarControlFillDropTarget)
-                        .frame(width: pane)
-                    .frame(
-                        maxWidth: .infinity,
-                        alignment: ghostLeads ? .leading : .trailing
-                    )
+                    paneBase()
+                    HStack(spacing: 0) {
+                        if !ghostLeads {
+                            Color.clear.frame(width: SidebarDropMetrics.splitPreviewGap)
+                        }
+                        Rectangle()
+                            .fill(InterfaceStyle.sidebarControlFillDropTarget)
+                            .frame(width: pane)
+                        if ghostLeads {
+                            Color.clear.frame(width: SidebarDropMetrics.splitPreviewGap)
+                        }
+                    }
                 }
                 .frame(width: pane + SidebarDropMetrics.splitPreviewGap)
-
                 if ghostLeads {
                     Color.clear.frame(width: pane)
                 }

@@ -485,6 +485,7 @@ struct ContentView: View {
         .onAppear {
             applyWebsiteAppearance()
             updateService.startCheckingForUpdates()
+            store.applySplitPreviewFixtureIfNeeded()
         }
         .task {
             await userStore.restoreSessionIfNeeded()
