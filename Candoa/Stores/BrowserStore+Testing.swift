@@ -1179,3 +1179,48 @@ extension BrowserStore {
         )
     }
 }
+
+// MARK: - Drop-preview fixture
+
+extension BrowserStore {
+    /// Holds a sidebar row in its armed split state at launch so the preview
+    /// can be looked at in the running app.
+    ///
+    /// The state only exists mid-drag, a drag can only be driven with
+    /// synthetic mouse events, and those are not something to fire at
+    /// somebody's machine while they are using it — so for four rounds this
+    /// was "verified" against a scratch reimplementation of the view instead,
+    /// which drew a row fill the real list does not always have and hid a
+    /// defect that shipped. This is the seam that makes it checkable:
+    ///
+    ///     CANDOA_FIXTURE_SPLIT_PREVIEW=<row index>:<leading|trailing>
+    ///
+    /// Debug only, and deliberately not gated on `CANDOA_UI_TESTING` — that
+    /// swaps in a fixture workspace, and the point is to see the preview
+    /// against real rows with their real titles, favicons and fills.
+    func applySplitPreviewFixtureIfNeeded() {
+#if DEBUG
+        guard
+            let spec = ProcessInfo.processInfo.environment["CANDOA_FIXTURE_SPLIT_PREVIEW"]
+        else { return }
+
+        let parts = spec.split(separator: ":").map(String.init)
+        let index = parts.first.flatMap(Int.init) ?? 0
+        let side: SplitTabDropSide = parts.count > 1 && parts[1] == "leading" ? .leading : .trailing
+
+        let rows = regularTabsForActiveSpace
+        guard rows.indices.contains(index) else { return }
+
+        // A real armed row is mid-drag, so the fixture has to look mid-drag:
+        // `activeSidebarDropIndicator` returns nil without a dragged tab, and
+        // rows suppress their hover treatment off the same flag.
+        draggedTabID = rows.first(where: { $0.id != rows[index].id })?.id ?? rows[index].id
+        sidebarDropIndicator = SidebarTabDropIndicator(
+            placement: .regular,
+            targetTabID: rows[index].id,
+            edge: .split,
+            splitSide: side
+        )
+#endif
+    }
+}
