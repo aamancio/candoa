@@ -127,8 +127,54 @@ extension BrowserStore {
             splitLayout = side.isVerticalAxis ? .vertical : .horizontal
         }
 
+        alignSplitMember(draggedID, beside: targetTab, side: side)
         applySplitGroup(groupIDs, activeID: draggedID)
         updateNavigationState()
+    }
+
+    /// Moves the dragged tab next to the one it was dropped on, so the pair
+    /// sits at the *target's* place in the list.
+    ///
+    /// The row is drawn at whichever member comes first, so without this a
+    /// split made by dropping tab 1 onto tab 3 appeared back up at tab 1's
+    /// position — the tab you dragged decided where the pair lived, rather
+    /// than the tab you aimed at. Being adjacent is also what side-by-side
+    /// implies, and it is what survives a relaunch.
+    private func alignSplitMember(
+        _ draggedID: UUID,
+        beside target: BrowserTab,
+        side: SplitTabDropSide
+    ) {
+        guard
+            let dragged = tabs.first(where: { $0.id == draggedID }),
+            dragged.isFavorite == target.isFavorite,
+            dragged.isPinned == target.isPinned,
+            dragged.folderID == target.folderID
+        else { return }
+
+        let siblings: [BrowserTab]
+        if let folderID = target.folderID {
+            siblings = tabsInFolder(folderID)
+        } else if target.isPinned {
+            siblings = pinnedTabs(in: target.spaceID)
+        } else {
+            siblings = regularTabs(in: target.spaceID)
+        }
+
+        let beforeID = insertionBeforeID(
+            targetTabID: target.id,
+            edge: side.insertsBeforeTarget ? .before : .after,
+            tabs: siblings,
+            draggedID: draggedID
+        )
+        moveTabToPlacement(
+            draggedID,
+            isFavorite: target.isFavorite,
+            isPinned: target.isPinned,
+            folderID: target.folderID,
+            before: beforeID,
+            appendToEnd: beforeID == nil && !side.insertsBeforeTarget
+        )
     }
 
     func focusSplitTab(_ id: UUID) {
