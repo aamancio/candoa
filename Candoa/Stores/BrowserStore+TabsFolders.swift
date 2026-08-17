@@ -46,6 +46,24 @@ extension BrowserStore {
         draggedTabID == nil ? nil : sidebarDropIndicator
     }
 
+    /// The half of this row a split would take, or nil if the row is not
+    /// currently offering one. Rows ask for the side rather than comparing
+    /// against a whole constructed indicator: the side is a detail of the
+    /// state, not part of identifying it, and equality would go stale the
+    /// next time the indicator gains a field.
+    func sidebarSplitDropSide(
+        for tabID: UUID,
+        placement: SidebarTabDropPlacement
+    ) -> SplitTabDropSide? {
+        guard
+            let indicator = activeSidebarDropIndicator,
+            indicator.edge == .split,
+            indicator.placement == placement,
+            indicator.targetTabID == tabID
+        else { return nil }
+        return indicator.splitSide ?? .trailing
+    }
+
     var visibleTabsForActiveSpace: [BrowserTab] {
         visibleTabs(in: activeSpaceID)
     }

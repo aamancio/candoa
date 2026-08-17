@@ -26,6 +26,101 @@ internal struct SidebarHorizontalDropLine: View {
     }
 }
 
+/// The row previewing what a split would look like: the tab it already holds
+/// squeezed into one pane, a divide, and a ghost pane on the side the dragged
+/// tab would take.
+///
+/// A highlight over the whole row said "this row is the target" and stopped
+/// there — which of the two panes you were about to land in was left to the
+/// person to guess. Zen answers it by putting a translucent
+/// `zen-split-fake-tab` into the row on the drop side so the row becomes a
+/// small picture of the result; this is that.
+private struct SidebarSplitPreview: ViewModifier {
+    let side: SplitTabDropSide?
+    let tint: Color
+
+    func body(content: Content) -> some View {
+        if let side {
+            let ghostLeads = side.insertsBeforeTarget
+            content
+                // The existing tab moves into the pane it keeps. Cropping it
+                // in place instead would eat the favicon and start the title
+                // mid-word, which reads as a glitch rather than a preview.
+                .visualEffect { view, proxy in
+                    view.offset(
+                        x: ghostLeads
+                            ? (proxy.size.width + SidebarDropMetrics.splitPreviewGap) / 2
+                            : 0
+                    )
+                }
+                .mask { keeperPane(ghostLeads: ghostLeads) }
+                .overlay {
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(InterfaceStyle.sidebarControlFillDropTarget)
+                        .allowsHitTesting(false)
+
+                    ghostPane(ghostLeads: ghostLeads)
+                }
+        } else {
+            content
+        }
+    }
+
+    /// The half the row keeps, with its trailing edge feathered: a title too
+    /// long for one pane dissolves into the divide instead of being chopped.
+    private func keeperPane(ghostLeads: Bool) -> some View {
+        GeometryReader { proxy in
+            let pane = paneWidth(in: proxy.size.width)
+            HStack(spacing: 0) {
+                if ghostLeads {
+                    Color.clear.frame(width: pane + SidebarDropMetrics.splitPreviewGap)
+                }
+                LinearGradient(
+                    stops: [
+                        .init(color: .black, location: 0.8),
+                        .init(color: .clear, location: 1),
+                    ],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+                .frame(width: pane)
+                if !ghostLeads { Color.clear }
+            }
+        }
+    }
+
+    private func ghostPane(ghostLeads: Bool) -> some View {
+        GeometryReader { proxy in
+            let pane = paneWidth(in: proxy.size.width)
+            HStack(spacing: 0) {
+                if !ghostLeads {
+                    Color.clear.frame(width: pane + SidebarDropMetrics.splitPreviewGap)
+                }
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(tint.opacity(0.22))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .strokeBorder(tint.opacity(0.65), lineWidth: 1)
+                    }
+                    .frame(width: pane)
+                    .padding(.vertical, 3)
+                if ghostLeads { Color.clear }
+            }
+        }
+        .overlay {
+            // The outer edge of the pair, so the two panes read as one row
+            // being divided rather than a card dropped on top of it.
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(tint.opacity(0.5), lineWidth: 1)
+        }
+        .allowsHitTesting(false)
+    }
+
+    private func paneWidth(in rowWidth: CGFloat) -> CGFloat {
+        max((rowWidth - SidebarDropMetrics.splitPreviewGap) / 2, 0)
+    }
+}
+
 internal struct SidebarVerticalDropLine: View {
     let tint: Color
 
@@ -50,26 +145,19 @@ internal extension View {
     /// sit a full line height apart — see `SidebarDropMetrics.dropLineOffset`.
     func sidebarRowDropIndicator(
         showsTop: Bool,
-        showsSplit: Bool = false,
+        splitSide: SplitTabDropSide? = nil,
         showsBottom: Bool,
         tint: Color
     ) -> some View {
-        overlay(alignment: .top) {
+        // The split preview masks and shifts the row's own content, so it
+        // goes on first: the insertion lines sit outside the row's bounds
+        // and a mask applied over them would clip them away.
+        modifier(SidebarSplitPreview(side: splitSide, tint: tint))
+        .overlay(alignment: .top) {
             if showsTop {
                 SidebarHorizontalDropLine(tint: tint)
                     .padding(.horizontal, 8)
                     .offset(y: -SidebarDropMetrics.dropLineOffset)
-            }
-        }
-        .overlay {
-            if showsSplit {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(InterfaceStyle.sidebarControlFillDropTarget)
-                    .allowsHitTesting(false)
-
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .stroke(tint.opacity(0.62), lineWidth: 1)
-                    .allowsHitTesting(false)
             }
         }
         .overlay(alignment: .bottom) {
