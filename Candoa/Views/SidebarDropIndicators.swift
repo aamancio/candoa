@@ -37,7 +37,6 @@ internal struct SidebarHorizontalDropLine: View {
 /// small picture of the result; this is that.
 private struct SidebarSplitPreview: ViewModifier {
     let side: SplitTabDropSide?
-    let tint: Color
 
     func body(content: Content) -> some View {
         if let side {
@@ -64,8 +63,14 @@ private struct SidebarSplitPreview: ViewModifier {
         }
     }
 
-    /// The empty half, painted opaque so it hides the shifted-out end of the
-    /// row's own title.
+    /// The empty half: painted opaque to hide the shifted-out end of the
+    /// row's own title, with the ghost pane filled and nothing stroked.
+    ///
+    /// The outline this replaces framed the row *and* the ghost, so an armed
+    /// row wore two borders and read as a card dropped on top of the list
+    /// rather than a row dividing. Zen's `zen-split-fake-tab` is a fill and a
+    /// radius with no border at all, which is also the call already made for
+    /// row hover — the fill alone.
     ///
     /// Masking the row to its keeper pane was the obvious way to do that and
     /// the wrong one: a SwiftUI mask takes hit testing with it, so the half
@@ -84,11 +89,7 @@ private struct SidebarSplitPreview: ViewModifier {
                         .fill(InterfaceStyle.sidebarBackground)
 
                     RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .fill(tint.opacity(0.22))
-                        .overlay {
-                            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                                .strokeBorder(tint.opacity(0.65), lineWidth: 1)
-                        }
+                        .fill(InterfaceStyle.sidebarControlFillDropTarget)
                         .frame(width: pane)
                         .padding(.vertical, 3)
                         .frame(
@@ -104,12 +105,6 @@ private struct SidebarSplitPreview: ViewModifier {
             }
         }
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-        .overlay {
-            // The outer edge of the pair, so the two panes read as one row
-            // being divided rather than a card dropped on top of it.
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .stroke(tint.opacity(0.5), lineWidth: 1)
-        }
         .allowsHitTesting(false)
     }
 
@@ -149,7 +144,7 @@ internal extension View {
         // The split preview masks and shifts the row's own content, so it
         // goes on first: the insertion lines sit outside the row's bounds
         // and a mask applied over them would clip them away.
-        modifier(SidebarSplitPreview(side: splitSide, tint: tint))
+        modifier(SidebarSplitPreview(side: splitSide))
         .overlay(alignment: .top) {
             if showsTop {
                 SidebarHorizontalDropLine(tint: tint)
