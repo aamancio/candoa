@@ -449,12 +449,14 @@ extension BrowserStore {
     func updateSidebarDropIndicator(
         placement: SidebarTabDropPlacement,
         targetTabID: UUID?,
-        edge: SidebarTabDropEdge
+        edge: SidebarTabDropEdge,
+        splitSide: SplitTabDropSide? = nil
     ) {
         let indicator = SidebarTabDropIndicator(
             placement: placement,
             targetTabID: targetTabID,
-            edge: edge
+            edge: edge,
+            splitSide: edge == .split ? splitSide : nil
         )
         guard sidebarDropIndicator != indicator else { return }
         sidebarDropIndicator = indicator

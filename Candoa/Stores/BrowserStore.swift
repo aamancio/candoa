@@ -103,6 +103,12 @@ struct SidebarTabDropIndicator: Equatable {
     var placement: SidebarTabDropPlacement
     var targetTabID: UUID?
     var edge: SidebarTabDropEdge
+    /// Which half of the row the dragged tab would take, set only while
+    /// `edge` is `.split`. The row previews the split rather than just
+    /// claiming the drop, so it has to know which side the ghost goes on —
+    /// and the drop then commits the side that was shown rather than
+    /// recomputing one, so the preview cannot disagree with the result.
+    var splitSide: SplitTabDropSide?
 }
 
 enum InitialOnboardingStep: String, CaseIterable {

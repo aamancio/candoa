@@ -78,7 +78,7 @@ internal struct TabReorderDropDelegate: DropDelegate {
             ? store.activeSidebarDropIndicator?.edge ?? dropEdge(for: info, axis: dropAxis)
             : dropEdge(for: info, axis: dropAxis)
         if edge == .split {
-            store.splitTab(draggedID, onto: targetTab.id, side: splitDropSide(for: info, axis: dropAxis))
+            store.splitTab(draggedID, onto: targetTab.id, side: committedSplitSide(store: store, info: info, axis: dropAxis))
             store.finishTabDrop(draggedID, from: sourcePlacement, to: sourcePlacement ?? placement)
             return true
         }
@@ -103,16 +103,18 @@ internal struct TabReorderDropDelegate: DropDelegate {
 
     private func updateIndicator(info: DropInfo) {
         guard let draggedID = store.draggedTabID, draggedID != targetTab.id else { return }
+        let resolution = dwellAwareResolution(
+            for: info,
+            axis: dropAxis,
+            targetTabID: targetTab.id,
+            placement: placement,
+            store: store
+        )
         store.updateSidebarDropIndicator(
             placement: placement,
             targetTabID: targetTab.id,
-            edge: dwellAwareEdge(
-                for: info,
-                axis: dropAxis,
-                targetTabID: targetTab.id,
-                placement: placement,
-                store: store
-            )
+            edge: resolution.edge,
+            splitSide: resolution.splitSide
         )
     }
 
@@ -161,7 +163,7 @@ internal struct FolderTabDropDelegate: DropDelegate {
                 ? store.activeSidebarDropIndicator?.edge ?? dropEdge(for: info)
                 : dropEdge(for: info)
             if edge == .split {
-                store.splitTab(draggedID, onto: targetTab.id, side: splitDropSide(for: info))
+                store.splitTab(draggedID, onto: targetTab.id, side: committedSplitSide(store: store, info: info))
                 store.finishTabDrop(draggedID, from: sourcePlacement, to: sourcePlacement ?? .folder(folder.id))
                 return true
             }
@@ -189,15 +191,17 @@ internal struct FolderTabDropDelegate: DropDelegate {
         guard let draggedID = store.draggedTabID else { return }
         if let targetTab {
             guard draggedID != targetTab.id else { return }
+            let resolution = dwellAwareResolution(
+                for: info,
+                targetTabID: targetTab.id,
+                placement: .folder(folder.id),
+                store: store
+            )
             store.updateSidebarDropIndicator(
                 placement: .folder(folder.id),
                 targetTabID: targetTab.id,
-                edge: dwellAwareEdge(
-                    for: info,
-                    targetTabID: targetTab.id,
-                    placement: .folder(folder.id),
-                    store: store
-                )
+                edge: resolution.edge,
+                splitSide: resolution.splitSide
             )
         } else {
             store.updateSidebarDropIndicator(
@@ -242,7 +246,7 @@ internal struct RegularTabSectionDropDelegate: DropDelegate {
             let targetTab = store.regularTabsForActiveSpace.first(where: { $0.id == targetID }) {
             let edge = indicator?.edge ?? .after
             if edge == .split {
-                store.splitTab(draggedID, onto: targetTab.id, side: splitDropSide(for: info))
+                store.splitTab(draggedID, onto: targetTab.id, side: committedSplitSide(store: store, info: info))
                 store.finishTabDrop(draggedID, from: sourcePlacement, to: sourcePlacement ?? .regular)
                 return true
             }
@@ -312,7 +316,7 @@ internal struct PinnedTabSectionDropDelegate: DropDelegate {
             let targetTab = store.pinnedTabsForActiveSpace.first(where: { $0.id == targetID }) {
             let edge = indicator?.edge ?? .after
             if edge == .split {
-                store.splitTab(draggedID, onto: targetTab.id, side: splitDropSide(for: info))
+                store.splitTab(draggedID, onto: targetTab.id, side: committedSplitSide(store: store, info: info))
                 store.finishTabDrop(draggedID, from: sourcePlacement, to: sourcePlacement ?? .pinned)
                 return true
             }
@@ -456,6 +460,11 @@ internal enum SidebarDropMetrics {
     /// the offset below it can be computed off the main actor.
     static let dropLineHeight: CGFloat = 7
 
+    /// The gutter between the two panes in a row's split preview — the
+    /// divide itself, drawn as the space between them rather than a line,
+    /// which is what the real split looks like.
+    static let splitPreviewGap: CGFloat = 4
+
     /// How far past a row's edge the insertion line sits, so the line drawn
     /// below one row and the line drawn above the next land on the same
     /// pixel: the centre of the spacing between them. Half the line's height
@@ -487,22 +496,33 @@ internal func isWithinSplitDwellRegion(_ info: DropInfo) -> Bool {
         && info.location.y <= SidebarDropMetrics.rowHeight - SidebarDropMetrics.splitDwellEdgeInset
 }
 
-/// The edge a row should be showing: the nearest boundary while the pointer
-/// is moving, and `.split` only once it has held still over the row's middle.
+/// What a row should be showing, and — when that is a split — which half of
+/// itself the dragged tab would take.
+internal struct SidebarDropResolution {
+    let edge: SidebarTabDropEdge
+    let splitSide: SplitTabDropSide?
+
+    static func boundary(_ edge: SidebarTabDropEdge) -> Self {
+        Self(edge: edge, splitSide: nil)
+    }
+}
+
+/// The state a row should be showing: the nearest boundary while the pointer
+/// is moving, and `.split` only once it has stayed on the row long enough.
 /// Every caller that marks or commits a vertical drop goes through here, so
-/// no path can split a tab that never showed the ring.
+/// no path can split a tab that never previewed the split.
 @MainActor
-internal func dwellAwareEdge(
+internal func dwellAwareResolution(
     for info: DropInfo,
     axis: SidebarDropAxis = .vertical,
     targetTabID: UUID,
     placement: SidebarTabDropPlacement,
     store: BrowserStore
-) -> SidebarTabDropEdge {
+) -> SidebarDropResolution {
     let boundary = dropEdge(for: info, axis: axis)
     guard axis == .vertical, isWithinSplitDwellRegion(info) else {
         SidebarSplitDwell.shared.cancel()
-        return boundary
+        return .boundary(boundary)
     }
 
     // Keyed on the side as well as the row: crossing the row's midline is a
@@ -517,11 +537,14 @@ internal func dwellAwareEdge(
             store.updateSidebarDropIndicator(
                 placement: placement,
                 targetTabID: targetTabID,
-                edge: .split
+                edge: .split,
+                splitSide: side
             )
         }
     }
-    return armed ? .split : boundary
+    return armed
+        ? SidebarDropResolution(edge: .split, splitSide: side)
+        : .boundary(boundary)
 }
 
 /// Turns "the pointer is over a row's middle" into "the pointer has *stopped*
@@ -602,6 +625,18 @@ internal final class SidebarSplitDwell {
     }
 }
 
+
+/// The side to actually split on: whichever the row previewed, so the result
+/// cannot differ from what was on screen when the button came up. The
+/// position is only a fallback for a drop that somehow never showed a ghost.
+@MainActor
+internal func committedSplitSide(
+    store: BrowserStore,
+    info: DropInfo,
+    axis: SidebarDropAxis = .vertical
+) -> SplitTabDropSide {
+    store.activeSidebarDropIndicator?.splitSide ?? splitDropSide(for: info, axis: axis)
+}
 
 internal func splitDropSide(for info: DropInfo, axis: SidebarDropAxis = .vertical) -> SplitTabDropSide {
     switch axis {

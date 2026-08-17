@@ -1160,11 +1160,7 @@ struct SidebarView: View {
                 targetTabID: tab.id,
                 edge: .before
             ),
-            showsSplit: store.activeSidebarDropIndicator == SidebarTabDropIndicator(
-                placement: .pinned,
-                targetTabID: tab.id,
-                edge: .split
-            ),
+            splitSide: store.sidebarSplitDropSide(for: tab.id, placement: .pinned),
             showsBottom: store.activeSidebarDropIndicator == SidebarTabDropIndicator(
                 placement: .pinned,
                 targetTabID: tab.id,
@@ -1288,11 +1284,7 @@ struct SidebarView: View {
                                 targetTabID: tab.id,
                                 edge: .before
                             ),
-                            showsSplit: store.activeSidebarDropIndicator == SidebarTabDropIndicator(
-                                placement: .regular,
-                                targetTabID: tab.id,
-                                edge: .split
-                            ),
+                            splitSide: store.sidebarSplitDropSide(for: tab.id, placement: .regular),
                             showsBottom: store.activeSidebarDropIndicator == SidebarTabDropIndicator(
                                 placement: .regular,
                                 targetTabID: tab.id,
