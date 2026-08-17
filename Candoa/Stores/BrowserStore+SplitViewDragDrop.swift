@@ -495,7 +495,38 @@ extension BrowserStore {
         orderedIDs.removeAll { $0 == tabID }
         let targetIndex = orderedIDs.firstIndex(of: targetID) ?? orderedIDs.endIndex
         orderedIDs.insert(tabID, at: targetIndex)
+        orderedIDs = Self.keepingSplitPartnersAdjacent(
+            to: tabID,
+            in: orderedIDs,
+            splitGroup: Set(splitTabIDs)
+        )
         reorderTabs(orderedIDs, isFavorite: isFavorite, isPinned: resolvedPinned, folderID: resolvedFolderID)
+    }
+
+    /// Drags the rest of a split along with the member being moved, so the
+    /// group stays contiguous.
+    ///
+    /// The pair is one row drawn at whichever member comes first, so moving
+    /// only the one under the pointer left the other where it was and the
+    /// row redrew at *that* position — the drag ran, the ghost and the
+    /// insertion line were both correct, and the pair appeared not to move
+    /// at all.
+    nonisolated static func keepingSplitPartnersAdjacent(
+        to movedID: UUID,
+        in ordered: [UUID],
+        splitGroup: Set<UUID>
+    ) -> [UUID] {
+        guard splitGroup.contains(movedID) else { return ordered }
+
+        // Partners keep their existing order relative to each other; only
+        // where the block sits changes.
+        let partners = ordered.filter { $0 != movedID && splitGroup.contains($0) }
+        guard !partners.isEmpty else { return ordered }
+
+        var rest = ordered.filter { !splitGroup.contains($0) || $0 == movedID }
+        guard let anchor = rest.firstIndex(of: movedID) else { return ordered }
+        rest.insert(contentsOf: partners, at: rest.index(after: anchor))
+        return rest
     }
 
     func beginTabDrag(_ tabID: UUID) -> NSItemProvider {
