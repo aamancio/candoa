@@ -1293,6 +1293,36 @@ struct SidebarView: View {
                                 tabs: members,
                                 accentColor: AppColor.accent
                             )
+                            // The pair's row was drawn and nothing else: no
+                            // indicator, no delegate. It read as a hole in
+                            // the list — a drag over it showed no line and a
+                            // release did nothing. It anchors on whichever
+                            // member comes first, which is where the row is.
+                            .sidebarRowDropIndicator(
+                                showsTop: store.activeSidebarDropIndicator == SidebarTabDropIndicator(
+                                    placement: .regular,
+                                    targetTabID: members[0].id,
+                                    edge: .before
+                                ),
+                                showsBottom: store.activeSidebarDropIndicator == SidebarTabDropIndicator(
+                                    placement: .regular,
+                                    targetTabID: members[0].id,
+                                    edge: .after
+                                ),
+                                tint: InterfaceStyle.sidebarDropIndicator
+                            )
+                            .onDrop(
+                                of: [UTType.text],
+                                delegate: TabReorderDropDelegate(
+                                    targetTab: members[0],
+                                    tabs: tabs,
+                                    isFavorite: false,
+                                    pinned: false,
+                                    folderID: nil,
+                                    store: store,
+                                    allowsSplit: false
+                                )
+                            )
                         case let .tab(tab):
                         TabRowView(
                             tab: tab,

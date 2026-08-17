@@ -835,4 +835,77 @@ final class PaletteShortcutTests: XCTestCase {
             )
         )
     }
+
+    // MARK: - Dropping onto the split pair's row
+
+    private func tabs(_ n: Int) -> [BrowserTab] {
+        (0..<n).map { i in
+            BrowserTab(
+                title: "Tab \(i)",
+                url: URL(string: "https://example.com/\(i)")!,
+                spaceID: UUID()
+            )
+        }
+    }
+
+    /// The pair's row anchors on whichever member comes first, so a drop on
+    /// its top edge has to land before that member and a drop on its bottom
+    /// edge after it. The row carried no delegate at all before, so neither
+    /// of these was reachable.
+    func testDroppingAboveThePairLandsBeforeItsFirstMember() {
+        let list = tabs(5)
+        let dragged = list[4]
+        XCTAssertEqual(
+            insertionBeforeID(
+                targetTabID: list[1].id,
+                edge: .before,
+                tabs: list,
+                draggedID: dragged.id
+            ),
+            list[1].id
+        )
+    }
+
+    func testDroppingBelowThePairLandsAfterItsFirstMember() {
+        let list = tabs(5)
+        let dragged = list[4]
+        XCTAssertEqual(
+            insertionBeforeID(
+                targetTabID: list[1].id,
+                edge: .after,
+                tabs: list,
+                draggedID: dragged.id
+            ),
+            list[2].id
+        )
+    }
+
+    /// Dropping after the last row appends rather than naming a neighbour.
+    func testDroppingAfterTheLastRowAppends() {
+        let list = tabs(3)
+        let dragged = list[0]
+        XCTAssertNil(
+            insertionBeforeID(
+                targetTabID: list[2].id,
+                edge: .after,
+                tabs: list,
+                draggedID: dragged.id
+            )
+        )
+    }
+
+    /// The dragged tab is not its own neighbour: without filtering it out, a
+    /// drop just below it would resolve to itself and no-op.
+    func testTheDraggedTabIsExcludedFromNeighbourLookup() {
+        let list = tabs(4)
+        XCTAssertEqual(
+            insertionBeforeID(
+                targetTabID: list[0].id,
+                edge: .after,
+                tabs: list,
+                draggedID: list[1].id
+            ),
+            list[2].id
+        )
+    }
 }

@@ -11,6 +11,11 @@ internal struct TabReorderDropDelegate: DropDelegate {
     let pinned: Bool
     let folderID: UUID?
     let store: BrowserStore
+    /// A split pair's row is a reorder target only. Dropping a third tab
+    /// "into" it from the list has no meaning the row can show, and letting
+    /// the middle band arm would put a ghost half over a row that is already
+    /// two halves.
+    var allowsSplit = true
 
     // Only tab drags reorder the list; text dragged off a web page also
     // matches UTType.text and must fall through.
@@ -103,13 +108,15 @@ internal struct TabReorderDropDelegate: DropDelegate {
 
     private func updateIndicator(info: DropInfo) {
         guard let draggedID = store.draggedTabID, draggedID != targetTab.id else { return }
-        let resolution = dwellAwareResolution(
-            for: info,
-            axis: dropAxis,
-            targetTabID: targetTab.id,
-            placement: placement,
-            store: store
-        )
+        let resolution = allowsSplit
+            ? dwellAwareResolution(
+                for: info,
+                axis: dropAxis,
+                targetTabID: targetTab.id,
+                placement: placement,
+                store: store
+            )
+            : .boundary(dropEdge(for: info, axis: dropAxis))
         store.updateSidebarDropIndicator(
             placement: placement,
             targetTabID: targetTab.id,
