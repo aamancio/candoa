@@ -946,6 +946,86 @@ extension CandoaUITests {
         )
     }
 
+    /// A docked Web Inspector belongs inside the visible page card. WebKit
+    /// lays an attached inspector out against its attachment view's superview,
+    /// and the live web view deliberately spans the reserved sidebar lane — so
+    /// while the web view was its own attachment view the inspector spanned
+    /// that lane too, and an open sidebar covered its toolbar, close button
+    /// first.
+    func testDockedWebInspectorStaysInsideThePageCard() throws {
+        let app = launchApp(
+            fixture: "popup-open",
+            extraLaunchEnvironment: ["CANDOA_UI_TESTING_DOCK_INSPECTOR": "1"]
+        )
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
+
+        openFixtureTab(path: "develop", in: app)
+        XCTAssertTrue(waitForState(in: app, containing: "sidebar=true"), currentState(in: app))
+        XCTAssertTrue(
+            waitForState(in: app, containing: "inspector=attached:", timeout: 15),
+            currentState(in: app)
+        )
+
+        let docked = try inspectorPlacement(in: app)
+        XCTAssertGreaterThan(
+            docked.card.minX,
+            0,
+            "the open sidebar should hold a lane the card starts after: \(currentState(in: app))"
+        )
+        assertInspectorFillsCard(docked, in: app)
+
+        // Closing the sidebar hands the lane back: the card widens to the
+        // window and the inspector has to follow it, not stay short.
+        app.typeKey("s", modifierFlags: .command)
+        XCTAssertTrue(waitForState(in: app, containing: "sidebar=false"), currentState(in: app))
+        XCTAssertTrue(
+            waitForState(in: app, containing: "inspector=attached:0,", timeout: 5),
+            currentState(in: app)
+        )
+        assertInspectorFillsCard(try inspectorPlacement(in: app), in: app)
+    }
+
+    private struct InspectorPlacement {
+        var inspector: CGRect
+        var card: CGRect
+    }
+
+    /// Reads `inspector=attached:x,y,w,h:card:x,y,w,h` out of the UI-testing
+    /// state: the docked inspector's frame and the visible page card, both in
+    /// the pane host's own coordinates.
+    private func inspectorPlacement(in app: XCUIApplication) throws -> InspectorPlacement {
+        let value = try XCTUnwrap(stateValue("inspector", in: app), currentState(in: app))
+        let fields = value.split(separator: ":")
+        XCTAssertEqual(fields.count, 4, "unexpected inspector state \(value)")
+
+        func rect(_ field: Substring) throws -> CGRect {
+            let numbers = field.split(separator: ",").compactMap { Double($0) }
+            XCTAssertEqual(numbers.count, 4, "unexpected inspector rect \(field)")
+            return CGRect(x: numbers[0], y: numbers[1], width: numbers[2], height: numbers[3])
+        }
+
+        return InspectorPlacement(inspector: try rect(fields[1]), card: try rect(fields[3]))
+    }
+
+    private func assertInspectorFillsCard(
+        _ placement: InspectorPlacement,
+        in app: XCUIApplication
+    ) {
+        XCTAssertEqual(
+            placement.inspector.minX,
+            placement.card.minX,
+            accuracy: 1,
+            "docked inspector should start at the card's leading edge: \(currentState(in: app))"
+        )
+        XCTAssertEqual(
+            placement.inspector.width,
+            placement.card.width,
+            accuracy: 1,
+            "docked inspector should span the card, lanes excluded: \(currentState(in: app))"
+        )
+        XCTAssertGreaterThan(placement.inspector.height, 0, currentState(in: app))
+    }
+
     /// Stands in for AuthenticationServices routing a session request to the
     /// default browser: real requests need default-browser consent no CI
     /// runner can grant, so the app's UI-testing seam mints an equivalent

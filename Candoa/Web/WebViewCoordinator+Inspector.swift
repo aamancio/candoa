@@ -34,6 +34,47 @@ extension WebViewCoordinator {
         performInspectorCommand("show", for: tabID)
     }
 
+    /// Docks the inspector into the page's own window. WebKit remembers the
+    /// choice, so people reach this through the inspector's own dock buttons;
+    /// the app calls it only to put a UI test in the docked state.
+    func attachWebInspector(for tabID: UUID) {
+        performInspectorCommand("attach", for: tabID)
+    }
+
+    /// Where a docked inspector ended up, for UI tests: its frame and the
+    /// visible page card it has to stay inside, both in the pane host's
+    /// coordinates. `none` while the inspector is closed or in its own window.
+    func uiTestingAttachedInspectorDescription(for tabID: UUID) -> String {
+        guard
+            let host = webViews[tabID]?.superview as? WebPaneHostView,
+            let inspectorView = host.inspectorLane.subviews.first(where: {
+                $0 !== host.inspectorLane.pageArea
+            })
+        else {
+            return "none"
+        }
+
+        let frame = host.inspectorLane.convert(inspectorView.frame, to: host)
+        return "attached:\(describe(frame)):card:\(describe(host.inspectorLane.frame))"
+    }
+
+    /// The state string only refreshes on a store publish, and WebKit
+    /// re-splits the pane on its own schedule — attach, detach, and every
+    /// inspector resize drag — with no store change to ride along with.
+    func reportInspectorPlacementForUITesting(for tabID: UUID) {
+        guard BrowserStore.isUITesting else { return }
+        let placement = uiTestingAttachedInspectorDescription(for: tabID)
+        guard placement != lastReportedInspectorPlacement else { return }
+        lastReportedInspectorPlacement = placement
+        store?.objectWillChange.send()
+    }
+
+    private func describe(_ rect: CGRect) -> String {
+        [rect.minX, rect.minY, rect.width, rect.height]
+            .map { String(Int($0.rounded())) }
+            .joined(separator: ",")
+    }
+
     /// Safari's Connect Web Inspector: attach the inspector backend without
     /// forcing the window forward. Older SDKs lack `connect`, in which case
     /// showing is the closest behavior rather than a silent no-op.

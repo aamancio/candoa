@@ -74,6 +74,10 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
     /// commits in the tab.
     var downloadConvertedTabIDs: Set<UUID> = []
     var hostedActiveTabID: UUID?
+    /// Last docked-inspector placement published to the UI-testing state, so
+    /// WebKit's own re-splits (which no store change accompanies) refresh it
+    /// exactly once each.
+    var lastReportedInspectorPlacement: String?
     var miniPlayerHostedTabID: UUID?
     var contentRuleList: WKContentRuleList?
     /// Whether the compiled rule list is currently attached to web views —

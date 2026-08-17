@@ -14,11 +14,151 @@ struct WKWebViewRepresentable: NSViewRepresentable {
     }
 }
 
+/// Shared behaviour for the AppKit views that host a live `WKWebView`: the
+/// lane-inset box an attached Web Inspector is laid out in, and the page-area
+/// insets that box leaves for the page itself.
+class WebPaneHostView: NSView {
+    let inspectorLane = InspectorLaneHost()
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        addSubview(inspectorLane)
+        // WebKit re-splits the card between page and inspector on its own
+        // schedule (attach, detach, and every inspector resize drag), so the
+        // page's obscured insets are re-derived from the split it settled on.
+        inspectorLane.onPageAreaChange = { [weak self] in
+            self?.needsLayout = true
+        }
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    /// Pins the hosted web views to the host's own bounds — they deliberately
+    /// span the reserved interface lanes — and gives the inspector lane the
+    /// visible page card.
+    func layoutHostedSubviews(laneInsets: BrowserInterfaceInsets) {
+        for subview in subviews where subview !== inspectorLane {
+            subview.frame = bounds
+        }
+
+        inspectorLane.frame = NSRect(
+            x: laneInsets.leading,
+            y: 0,
+            width: max(bounds.width - laneInsets.leading - laneInsets.trailing, 0),
+            height: bounds.height
+        )
+    }
+
+    /// What the hosted page has to be inset by: the reserved interface lanes,
+    /// plus whatever an attached inspector has taken out of the card.
+    var pageAreaInsets: NSEdgeInsets {
+        let pageArea = inspectorLane.convert(inspectorLane.pageArea.frame, to: self)
+        return NSEdgeInsets(
+            top: max(bounds.maxY - pageArea.maxY, 0),
+            left: max(pageArea.minX - bounds.minX, 0),
+            bottom: max(pageArea.minY - bounds.minY, 0),
+            right: max(bounds.maxX - pageArea.maxX, 0)
+        )
+    }
+
+    /// Web views are parented *under* the inspector lane so an attached
+    /// inspector paints over the page instead of behind it.
+    func hostSubview(_ view: NSView) {
+        addSubview(view, positioned: .below, relativeTo: inspectorLane)
+    }
+}
+
+/// The box an attached Web Inspector is laid out in: the visible page card.
+///
+/// WebKit sizes an attached inspector against the *superview bounds* of the
+/// page's inspector attachment view, and rewrites that view's frame to the
+/// area left over (`WebInspectorUIProxyMac::inspectedViewFrameDidChange`).
+/// Candoa's live web views deliberately span their whole host — the sidebar
+/// and Eli lanes are reserved by a mask, never by resizing a live WKWebView
+/// (see `BrowserInterfaceMaskModifier`) — so while a web view was its own
+/// attachment view the inspector spanned those lanes too, and an open sidebar
+/// covered the inspector's toolbar, its close button first.
+///
+/// The web view points WebKit at `pageArea` instead: an empty stand-in filling
+/// this lane-inset host. WebKit then fits the inspector to the visible card and
+/// shrinks the stand-in to what is left for the page — which is exactly the
+/// rectangle the page's obscured content insets have to describe, so the
+/// stand-in's frame is what drives them.
+final class InspectorLaneHost: NSView {
+    /// The view WebKit treats as the inspected page. It never draws and never
+    /// takes a click; only its frame carries information.
+    let pageArea = InspectorPageAreaView()
+    /// Fires whenever WebKit re-splits this host between page and inspector.
+    var onPageAreaChange: (() -> Void)?
+    // nonisolated(unsafe): deinit is not main-actor isolated, and the token is
+    // only ever touched there and in init.
+    private nonisolated(unsafe) var pageAreaFrameObserver: (any NSObjectProtocol)?
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        pageArea.frame = bounds
+        pageArea.autoresizingMask = [.width, .height]
+        addSubview(pageArea)
+
+        pageAreaFrameObserver = NotificationCenter.default.addObserver(
+            forName: NSView.frameDidChangeNotification,
+            object: pageArea,
+            queue: nil
+        ) { [weak self] _ in
+            // Frames only ever change on the main thread; AppKit's own
+            // observer of this same notification is what drives WebKit's side.
+            MainActor.assumeIsolated {
+                self?.onPageAreaChange?()
+            }
+        }
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    deinit {
+        if let pageAreaFrameObserver {
+            NotificationCenter.default.removeObserver(pageAreaFrameObserver)
+        }
+    }
+
+    /// True once WebKit has parked an inspector's own web view in here.
+    var isInspectorAttached: Bool {
+        subviews.contains { $0 !== pageArea }
+    }
+
+    override func layout() {
+        super.layout()
+        // While the inspector is attached WebKit owns the split: autoresizing
+        // carries both panes through the resize, and its frame-change handler
+        // corrects them straight after.
+        guard !isInspectorAttached else { return }
+        pageArea.frame = bounds
+    }
+
+    /// Transparent to the pointer wherever the inspector is not: every click
+    /// the inspector does not want belongs to the page underneath.
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        let hit = super.hitTest(point)
+        return hit === self ? nil : hit
+    }
+}
+
+/// WebKit's stand-in for the inspected page — see `InspectorLaneHost`.
+final class InspectorPageAreaView: NSView {
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+}
+
 struct SplitWebViewHost: NSViewRepresentable {
     let tab: BrowserTab
     let paneIndex: Int
     @ObservedObject var store: BrowserStore
-    let obscuredContentInsets: BrowserInterfaceInsets
+    let laneInsets: BrowserInterfaceInsets
     var onPaneHoverChange: ((Bool) -> Void)? = nil
 
     func makeNSView(context: Context) -> NSView {
@@ -37,7 +177,7 @@ struct SplitWebViewHost: NSViewRepresentable {
         let tabID = tab.id
         container.configure(
             tabID: tabID,
-            obscuredContentInsets: obscuredContentInsets,
+            laneInsets: laneInsets,
             coordinator: store.webCoordinator,
             onPaneInteraction: { [weak store] in
                 guard let store, store.activeTabID != tabID else { return }
@@ -48,9 +188,9 @@ struct SplitWebViewHost: NSViewRepresentable {
     }
 }
 
-private final class SplitWebViewHostContainer: NSView {
+private final class SplitWebViewHostContainer: WebPaneHostView {
     private var tabID: UUID?
-    private var obscuredContentInsets = BrowserInterfaceInsets()
+    private var laneInsets = BrowserInterfaceInsets()
     private weak var coordinator: WebViewCoordinator?
     private var onPaneInteraction: (() -> Void)?
     private var onPaneHoverChange: ((Bool) -> Void)?
@@ -60,13 +200,13 @@ private final class SplitWebViewHostContainer: NSView {
 
     func configure(
         tabID: UUID,
-        obscuredContentInsets: BrowserInterfaceInsets,
+        laneInsets: BrowserInterfaceInsets,
         coordinator: WebViewCoordinator,
         onPaneInteraction: @escaping () -> Void,
         onPaneHoverChange: ((Bool) -> Void)?
     ) {
         self.tabID = tabID
-        self.obscuredContentInsets = obscuredContentInsets
+        self.laneInsets = laneInsets
         self.coordinator = coordinator
         self.onPaneInteraction = onPaneInteraction
         self.onPaneHoverChange = onPaneHoverChange
@@ -126,9 +266,7 @@ private final class SplitWebViewHostContainer: NSView {
 
     override func layout() {
         super.layout()
-        for subview in subviews {
-            subview.frame = bounds
-        }
+        layoutHostedSubviews(laneInsets: laneInsets)
 
         guard
             window != nil,
@@ -142,7 +280,7 @@ private final class SplitWebViewHostContainer: NSView {
         coordinator.hostSplitWebView(
             for: tabID,
             in: self,
-            obscuredContentInsets: obscuredContentInsets
+            pageAreaInsets: pageAreaInsets
         )
     }
 
@@ -202,7 +340,7 @@ private final class SplitWebViewHostContainer: NSView {
 struct ActiveWebViewHost: NSViewRepresentable {
     let tab: BrowserTab
     @ObservedObject var store: BrowserStore
-    let obscuredContentInsets: BrowserInterfaceInsets
+    let laneInsets: BrowserInterfaceInsets
 
     func makeNSView(context: Context) -> NSView {
         let container = WebViewHostContainer()
@@ -221,7 +359,7 @@ struct ActiveWebViewHost: NSViewRepresentable {
         container.configure(
             tabID: tab.id,
             excludingTabIDs: store.displayedSplitTabIDs,
-            obscuredContentInsets: obscuredContentInsets,
+            laneInsets: laneInsets,
             coordinator: store.webCoordinator
         )
     }
@@ -231,30 +369,28 @@ struct ActiveWebViewHost: NSViewRepresentable {
 /// stay alive without keeping every background page in the hierarchy. Keep
 /// hosted web views pinned to the SwiftUI-assigned container bounds whenever
 /// the window or surface layout changes.
-private final class WebViewHostContainer: NSView {
+private final class WebViewHostContainer: WebPaneHostView {
     private var tabID: UUID?
     private var excludingTabIDs = Set<UUID>()
-    private var obscuredContentInsets = BrowserInterfaceInsets()
+    private var laneInsets = BrowserInterfaceInsets()
     private weak var coordinator: WebViewCoordinator?
 
     func configure(
         tabID: UUID,
         excludingTabIDs: Set<UUID>,
-        obscuredContentInsets: BrowserInterfaceInsets,
+        laneInsets: BrowserInterfaceInsets,
         coordinator: WebViewCoordinator
     ) {
         self.tabID = tabID
         self.excludingTabIDs = excludingTabIDs
-        self.obscuredContentInsets = obscuredContentInsets
+        self.laneInsets = laneInsets
         self.coordinator = coordinator
         needsLayout = true
     }
 
     override func layout() {
         super.layout()
-        for subview in subviews {
-            subview.frame = bounds
-        }
+        layoutHostedSubviews(laneInsets: laneInsets)
 
         guard
             window != nil,
@@ -269,7 +405,7 @@ private final class WebViewHostContainer: NSView {
             for: tabID,
             in: self,
             excludingTabIDs: excludingTabIDs,
-            obscuredContentInsets: obscuredContentInsets
+            pageAreaInsets: pageAreaInsets
         )
     }
 }

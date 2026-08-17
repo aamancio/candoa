@@ -38,6 +38,26 @@ extension WebViewCoordinator {
         refreshFavicon(for: webView)
         forwardWebAppPromptIfNeeded(for: webView)
         reportWebsiteAppearanceForUITesting(from: webView)
+        dockWebInspectorForUITestingIfNeeded(from: webView)
+    }
+
+    /// Puts a UI test in the docked-inspector state. WebKit only docks from
+    /// the inspector's own chrome, which no test can reach, and its docked
+    /// placement is the thing under test.
+    func dockWebInspectorForUITestingIfNeeded(from webView: WKWebView) {
+        guard
+            BrowserStore.isUITesting,
+            ProcessInfo.processInfo.environment["CANDOA_UI_TESTING_DOCK_INSPECTOR"] == "1",
+            let tabID = tabID(for: webView),
+            tabID == hostedActiveTabID,
+            !isWebInspectorVisible(for: tabID)
+        else {
+            return
+        }
+
+        showWebInspector(for: tabID)
+        attachWebInspector(for: tabID)
+        reportInspectorPlacementForUITesting(for: tabID)
     }
 
     func reportWebsiteAppearanceForUITesting(from webView: WKWebView) {

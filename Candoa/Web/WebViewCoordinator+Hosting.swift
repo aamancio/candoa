@@ -13,17 +13,23 @@ extension WebViewCoordinator {
         for tabID: UUID,
         in container: NSView,
         excludingTabIDs: Set<UUID>,
-        obscuredContentInsets: BrowserInterfaceInsets
+        pageAreaInsets: NSEdgeInsets
     ) {
         guard let activeWebView = webViews[tabID] else { return }
         syncHostBackground(in: container, with: activeWebView)
-        applyObscuredContentInsets(obscuredContentInsets, to: activeWebView)
+        applyObscuredContentInsets(pageAreaInsets, to: activeWebView)
+        attachInspector(of: activeWebView, to: container)
+        reportInspectorPlacementForUITesting(for: tabID)
         if miniPlayerHostedTabID == tabID {
             restoreMiniPlayerPresentation(tabID: tabID)
             miniPlayerHostedTabID = nil
         }
 
         for (id, webView) in webViews where id != tabID && !excludingTabIDs.contains(id) && id != miniPlayerHostedTabID {
+            // A backgrounded page no longer owns this host's inspector lane;
+            // leaving it pointed here would lay its inspector out over the
+            // page that took its place.
+            attachInspector(of: webView, to: nil)
             if keepsBackgroundWebViewParented(id) {
                 guard webView.superview !== container else { continue }
                 webView.frame = container.bounds
@@ -45,7 +51,7 @@ extension WebViewCoordinator {
         activeWebView.autoresizingMask = [.width, .height]
         activeWebView.isHidden = false
         activeWebView.removeFromSuperview()
-        container.addSubview(activeWebView)
+        addHostedSubview(activeWebView, to: container)
 
         if restoringTabIDs.contains(tabID), let snapshot = wakeSnapshots[tabID] {
             presentRestoreOverlay(snapshot, for: tabID, in: container)
@@ -127,11 +133,12 @@ extension WebViewCoordinator {
     func hostSplitWebView(
         for tabID: UUID,
         in container: NSView,
-        obscuredContentInsets: BrowserInterfaceInsets
+        pageAreaInsets: NSEdgeInsets
     ) {
         guard let webView = webViews[tabID] else { return }
         syncHostBackground(in: container, with: webView)
-        applyObscuredContentInsets(obscuredContentInsets, to: webView)
+        applyObscuredContentInsets(pageAreaInsets, to: webView)
+        attachInspector(of: webView, to: container)
         if miniPlayerHostedTabID == tabID {
             restoreMiniPlayerPresentation(tabID: tabID)
             miniPlayerHostedTabID = nil
@@ -143,7 +150,7 @@ extension WebViewCoordinator {
 
         guard webView.superview !== container else { return }
         webView.removeFromSuperview()
-        container.addSubview(webView)
+        addHostedSubview(webView, to: container)
 
         if restoringTabIDs.contains(tabID), let snapshot = wakeSnapshots[tabID] {
             presentRestoreOverlay(snapshot, for: tabID, in: container)
@@ -158,12 +165,51 @@ extension WebViewCoordinator {
         container.layer?.backgroundColor = webView.underPageBackgroundColor.cgColor
     }
 
-    func applyObscuredContentInsets(_ insets: BrowserInterfaceInsets, to webView: WKWebView) {
+    func applyObscuredContentInsets(_ insets: NSEdgeInsets, to webView: WKWebView) {
         guard #available(macOS 26.0, *) else { return }
-        let edgeInsets = NSEdgeInsets(top: 0, left: insets.leading, bottom: 0, right: insets.trailing)
-        let currentInsets = webView.obscuredContentInsets
-        guard currentInsets.left != edgeInsets.left || currentInsets.right != edgeInsets.right else { return }
-        webView.obscuredContentInsets = edgeInsets
+        let current = webView.obscuredContentInsets
+        guard current.top != insets.top
+            || current.left != insets.left
+            || current.bottom != insets.bottom
+            || current.right != insets.right
+        else {
+            return
+        }
+        webView.obscuredContentInsets = insets
+    }
+
+    /// Points WebKit's attached Web Inspector at the host's lane-inset
+    /// stand-in, so the inspector is laid out inside the visible page card
+    /// instead of running under the sidebar (see `InspectorLaneHost`). Passing
+    /// no host hands the page back its own default, which is the web view.
+    ///
+    /// Private API (`-[WKWebView _setInspectorAttachmentView:]`), probed first
+    /// like the rest of the inspector bridging: an SDK that drops it just
+    /// leaves the inspector where WebKit would have put it anyway.
+    func attachInspector(of webView: WKWebView, to container: NSView?) {
+        let standIn = (container as? WebPaneHostView)?.inspectorLane.pageArea
+
+        let getter = NSSelectorFromString("_inspectorAttachmentView")
+        if webView.responds(to: getter) {
+            let current = webView.perform(getter)?.takeUnretainedValue() as? NSView
+            // Re-setting runs WebKit's whole attach path, which re-parents the
+            // inspector and steals first responder; only move a real change.
+            guard current !== standIn else { return }
+        }
+
+        let setter = NSSelectorFromString("_setInspectorAttachmentView:")
+        guard webView.responds(to: setter) else { return }
+        webView.perform(setter, with: standIn)
+    }
+
+    /// Web views are parented under the host's inspector lane so an attached
+    /// inspector paints over the page rather than behind it.
+    private func addHostedSubview(_ webView: WKWebView, to container: NSView) {
+        if let host = container as? WebPaneHostView {
+            host.hostSubview(webView)
+        } else {
+            container.addSubview(webView)
+        }
     }
 
     func hostMiniPlayerWebView(for tabID: UUID, in container: NSView) {
@@ -175,6 +221,9 @@ extension WebViewCoordinator {
             detachMiniPlayerWebView(for: previousID)
         }
         coverActiveContainerWhileAdopting(webView)
+        // The floating player is not a pane host, so its page hands the
+        // inspector back to WebKit's own default placement.
+        attachInspector(of: webView, to: nil)
         miniPlayerHostedTabID = tabID
         // Activate before shrinking the web view: media selection scores
         // element rects, and at mini player size no video can meet the

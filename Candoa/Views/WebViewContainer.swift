@@ -313,7 +313,7 @@ struct WebViewContainer: View {
                 ActiveWebViewHost(
                     tab: tab,
                     store: store,
-                    obscuredContentInsets: webContentInsets
+                    laneInsets: webContentInsets
                 )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(InterfaceStyle.surfaceFill.opacity(0.72))
@@ -506,7 +506,7 @@ struct WebViewContainer: View {
                     )
 
                     browserSurface {
-                        webPane(for: splitTab, at: paneIndex, obscuredContentInsets: paneInsets)
+                        webPane(for: splitTab, at: paneIndex, laneInsets: paneInsets)
                     }
                     .overlay {
                         // The focused pane carries a restrained accent ring on
@@ -892,7 +892,7 @@ struct WebViewContainer: View {
         webPane(
             for: tab,
             at: paneIndex,
-            obscuredContentInsets: splitPaneInsets(
+            laneInsets: splitPaneInsets(
                 forPaneAt: paneIndex,
                 paneCount: splitTabs.count,
                 layout: store.splitLayout
@@ -903,13 +903,13 @@ struct WebViewContainer: View {
     private func webPane(
         for tab: BrowserTab,
         at paneIndex: Int,
-        obscuredContentInsets: BrowserInterfaceInsets
+        laneInsets: BrowserInterfaceInsets
     ) -> some View {
         SplitWebViewHost(
             tab: tab,
             paneIndex: paneIndex,
             store: store,
-            obscuredContentInsets: obscuredContentInsets,
+            laneInsets: laneInsets,
             onPaneHoverChange: { isInside in
                 if isInside {
                     hoveredSplitPaneIndex = paneIndex
