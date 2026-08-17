@@ -32,9 +32,7 @@ class WebPaneHostView: NSView {
     }
 
     @available(*, unavailable)
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
+    required init?(coder: NSCoder) { nil }
 
     /// Pins the hosted web views to the host's own bounds — they deliberately
     /// span the reserved interface lanes — and gives the inspector lane the
@@ -119,9 +117,7 @@ final class InspectorLaneHost: NSView {
     }
 
     @available(*, unavailable)
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
+    required init?(coder: NSCoder) { nil }
 
     deinit {
         if let pageAreaFrameObserver {
