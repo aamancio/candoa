@@ -408,31 +408,23 @@ internal enum SidebarDropAxis {
 }
 
 internal enum SidebarDropMetrics {
-    /// A sidebar row's laid-out height, and how much of it at either end
-    /// belongs to the boundary rather than to the row.
-    ///
-    /// Reordering is a boundary gesture: the narrow band at each end, plus
-    /// the 4pt gap the next row's band continues on the other side, makes
-    /// one ~16pt zone around each line. Everything else — most of the row —
-    /// drops into the row and splits. A third each way put the line's two
-    /// positions inside the row, so crossing the middle showed it in two
-    /// different places instead of a single target there.
+    /// A sidebar row's laid-out height, and how much of it at the top
+    /// belongs to the gap above it. That band plus the 4pt row spacing is
+    /// the whole target for that boundary — no other row can claim it.
     static let rowHeight: CGFloat = 36
-    static let boundaryDepth: CGFloat = 6
+    static let boundaryDepth: CGFloat = 10
 }
 
 internal func dropEdge(for info: DropInfo, axis: SidebarDropAxis = .vertical) -> SidebarTabDropEdge {
     switch axis {
     case .vertical:
-        // Two things a row can accept, and the pointer says which: a narrow
-        // band at either end belongs to the boundary and reorders, with the
-        // line in the gap there; the body of the row drops into it and
-        // splits. One target in the middle, one line per boundary.
-        if info.location.y < SidebarDropMetrics.boundaryDepth { return .before }
-        if info.location.y > SidebarDropMetrics.rowHeight - SidebarDropMetrics.boundaryDepth {
-            return .after
-        }
-        return .split
+        // A gap belongs to the row *below* it, and only to that row: a band
+        // at the row's top reorders, and the rest of the row splits. Giving
+        // the row a bottom band too made every gap reachable from two rows —
+        // one boundary, two zones, which is the line appearing to have two
+        // places. Dropping after the last row is the empty space below the
+        // list, which the section delegate already appends from.
+        return info.location.y < SidebarDropMetrics.boundaryDepth ? .before : .split
     case .horizontal:
         return info.location.x < 44 ? .before : .after
     }
