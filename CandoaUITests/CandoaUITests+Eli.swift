@@ -5,7 +5,7 @@ extension CandoaUITests {
     /// Selecting a passage and pressing the shortcut opens Eli with the quote
     /// already attached, so the question can be typed straight away. Covers
     /// the whole path the context-menu item also takes: the page's live
-    /// selection, the store hop, and the chip the composer draws.
+    /// selection, the store hop, and the quote block the composer draws.
     func testAskingAboutASelectionOpensEliWithTheQuoteAttached() throws {
         let app = launchApp(fixture: "ask-selection")
         openFixtureTab(path: "ask-selection", in: app)
@@ -22,9 +22,12 @@ extension CandoaUITests {
 
         XCTAssertTrue(element("agent-sidebar", in: app).waitForExistence(timeout: 5), currentState(in: app))
         XCTAssertTrue(
-            waitForAskState(in: app, containing: "Material weakness in revenue controls|fixture.candoa.test"),
+            waitForAskState(in: app, containing: "composerQuotes=[Material weakness in revenue controls|"),
             askState(in: app)
         )
+        // The quote is not one of the attachments: the page was already
+        // attached, and the passage says which part of it the question is about.
+        XCTAssertFalse(askState(in: app).contains("composerChips=[Material weakness"), askState(in: app))
     }
 
     /// The context-menu entry point. WebKit builds this menu itself, so the
@@ -55,7 +58,7 @@ extension CandoaUITests {
 
         XCTAssertTrue(element("agent-sidebar", in: app).waitForExistence(timeout: 5), currentState(in: app))
         XCTAssertTrue(
-            waitForAskState(in: app, containing: "Material weakness in revenue controls|fixture.candoa.test"),
+            waitForAskState(in: app, containing: "composerQuotes=[Material weakness in revenue controls|"),
             askState(in: app)
         )
     }

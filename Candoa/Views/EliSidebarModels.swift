@@ -46,8 +46,9 @@ struct AISidebarSelectionContext: Equatable {
     /// Long enough for a passage worth quoting, short enough that a
     /// select-all can't crowd the page context out of the request.
     static let characterLimit = 8_000
-    /// Roughly one line of chip at the sidebar's default width.
-    static let chipTitleLimit = 42
+    /// Comfortably more than the three lines the quote block shows, so the
+    /// cut lands in the layout rather than mid-sentence in the string.
+    static let quotePreviewLimit = 320
 
     var id = UUID()
     let text: String
@@ -71,14 +72,22 @@ struct AISidebarSelectionContext: Equatable {
         self.pageURL = pageURL
     }
 
-    /// The quote on one line for the composer chip. Newlines and runs of
-    /// space collapse first, so a selection spanning paragraphs still reads
-    /// as a sentence rather than blowing the chip open.
-    var chipTitle: String {
+    /// The quote as the composer block reads it. Newlines and runs of space
+    /// collapse first, so a passage spanning paragraphs reads as prose in a
+    /// three-line block instead of as a column of fragments.
+    var quotePreview: String {
         let collapsed = text.split(whereSeparator: \.isWhitespace).joined(separator: " ")
-        guard collapsed.count > Self.chipTitleLimit else { return collapsed }
-        let head = collapsed.prefix(Self.chipTitleLimit - 1)
+        guard collapsed.count > Self.quotePreviewLimit else { return collapsed }
+        let head = collapsed.prefix(Self.quotePreviewLimit - 1)
         return head.trimmingCharacters(in: .whitespaces) + "…"
+    }
+
+    /// Where the passage came from, under the quote. The page's own title
+    /// says it best; the host stands in when a page has none.
+    var sourceLabel: String {
+        pageTitle
+            ?? pageURL?.host(percentEncoded: false)
+            ?? String(localized: "Selected text")
     }
 }
 
@@ -106,6 +115,10 @@ struct EliMentionedTab: Equatable {
 struct EliSubmission {
     let prompt: String
     let contextChips: [AISidebarContextChip]
+    /// Passages quoted above the composer. Held apart from the chips: a chip
+    /// says a document was attached, a quote says which part of one already
+    /// attached the question is about.
+    let quotedSelections: [AISidebarSelectionContext]
     let contextMentions: [AISidebarContextMention]
     let recentTurns: [AIConversationTurn]
     /// Every page on screen at submission, focused pane first — a split view
@@ -132,6 +145,7 @@ struct AISidebarMessage: Identifiable, Equatable {
     var isStreaming: Bool
     var transientStatus: String? = nil
     var contextChips: [AISidebarContextChip] = []
+    var quotedSelections: [AISidebarSelectionContext] = []
     var action: AISidebarMessageAction? = nil
     var feedback: AISidebarResponseFeedback? = nil
     var responseImageData: Data? = nil
