@@ -108,13 +108,8 @@ struct TabRowView: View {
             Button("Open in Split View", action: onOpenInSplit)
             Button("Close Tab", action: onClose)
         }
-        .overlay {
-            if isHovering {
-                RoundedRectangle(cornerRadius: InterfaceStyle.sidebarRowCornerRadius, style: .continuous)
-                    .stroke(InterfaceStyle.sidebarControlStroke, lineWidth: 1)
-                    .allowsHitTesting(false)
-            }
-        }
+        // Hover is the fill alone — a stroke around it as well made a passing
+        // pointer draw a box, and read as a selected or targeted row.
         .animation(.easeOut(duration: 0.10), value: isHovering)
         // Selection moves with a fast fade rather than a hard swap, and the
         // speaker indicator eases in instead of shoving the title sideways.
