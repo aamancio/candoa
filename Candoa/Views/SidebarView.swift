@@ -1010,7 +1010,6 @@ struct SidebarView: View {
             onToggleFavorite: { store.toggleFavorite(tab.id) },
             onTogglePin: { store.togglePin(tab.id) }
         )
-        .opacity(store.shouldHideSidebarTab(tab.id, placement: .favorites) ? 0 : 1)
         .sidebarEssentialDropIndicator(
             showsLeading: store.activeSidebarDropIndicator == SidebarTabDropIndicator(
                 placement: .favorites,
@@ -1154,7 +1153,6 @@ struct SidebarView: View {
         )
         // The system drag image is the only visible copy while dragging; the
         // source row leaves a gap that doubles as the insertion indicator.
-        .opacity(store.shouldHideSidebarTab(tab.id, placement: .pinned) ? 0 : 1)
         .sidebarRowDropIndicator(
             showsTop: store.activeSidebarDropIndicator == SidebarTabDropIndicator(
                 placement: .pinned,
@@ -1278,10 +1276,6 @@ struct SidebarView: View {
                             onTogglePin: { store.togglePin(tab.id) },
                             onToggleMute: { store.toggleMediaMute(tabID: tab.id) }
                         )
-                        // Hide the source row while its drag session is live so
-                        // the cursor ghost isn't doubled by the in-list row; the
-                        // gap it leaves is the insertion indicator.
-                        .opacity(store.shouldHideSidebarTab(tab.id, placement: .regular) ? 0 : 1)
                         // Rows hold still through a drag — Arc moves nothing
                         // until the drop — so the line on the target row's
                         // edge is what says where the tab lands. Split keeps

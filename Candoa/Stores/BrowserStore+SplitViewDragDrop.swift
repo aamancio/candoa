@@ -446,15 +446,6 @@ extension BrowserStore {
         return .regular
     }
 
-    /// Only the row currently in flight hides — its gap is the drop
-    /// indicator. A dropped row used to stay hidden for the settle delay
-    /// while the old page-card ghost animated, which read as the tab
-    /// vanishing for half a second and popping back; the list now reorders
-    /// live, so the row is already where it belongs when the drop lands.
-    func shouldHideSidebarTab(_ tabID: UUID, placement: SidebarTabDropPlacement) -> Bool {
-        draggedTabID == tabID
-    }
-
     func updateSidebarDropIndicator(
         placement: SidebarTabDropPlacement,
         targetTabID: UUID?,
