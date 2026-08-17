@@ -118,7 +118,7 @@ final class CandoaUITests: XCTestCase {
            style="position:fixed;inset:0;font-size:40px">Download</a>
         """,
         // One short paragraph and nothing else, so Select All produces a
-        // quote the composer chip can hold whole.
+        // quote the composer block can hold whole.
         "ask-selection": """
         <!doctype html>
         <html>

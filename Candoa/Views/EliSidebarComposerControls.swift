@@ -164,6 +164,74 @@ struct AISidebarMentionButton: View {
     }
 }
 
+/// A passage the person picked out of the page, shown above the composer as
+/// a quote rather than beside the context chips. The chips say what Eli was
+/// handed; the quote says which part of it the question is about, and reading
+/// as one of the attachments was exactly the confusion this avoids.
+struct AISidebarQuotedSelectionView: View {
+    let selection: AISidebarSelectionContext
+    let onRemove: () -> Void
+
+    @State private var isHovered = false
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 9) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(selection.quotePreview)
+                    .font(.system(size: 12))
+                    .foregroundStyle(InterfaceStyle.sidebarText)
+                    .lineLimit(3)
+                    .truncationMode(.tail)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                HStack(spacing: 4) {
+                    Image(systemName: "text.quote")
+                        .font(.system(size: 10, weight: .semibold))
+
+                    Text(selection.sourceLabel)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                }
+                .font(.system(size: 11))
+                .foregroundStyle(InterfaceStyle.sidebarTextSecondary)
+            }
+
+            Spacer(minLength: 0)
+
+            // Held in the layout whether or not it is drawn, so the quote does
+            // not reflow the moment the pointer crosses it.
+            Button(action: onRemove) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(InterfaceStyle.sidebarIcon)
+                    .frame(width: 18, height: 18)
+                    .contentShape(Rectangle())
+            }
+            .buttonTreatment(.chrome)
+            .help("Remove Quote")
+            .accessibilityLabel("Remove quoted selection")
+            .opacity(isHovered ? 1 : 0)
+        }
+        .padding(.leading, 11)
+        // The rule is drawn as an overlay rather than a sibling: a bare
+        // Capsule has no height of its own and would stretch the composer to
+        // whatever room the sidebar had going spare.
+        .overlay(alignment: .leading) {
+            Capsule(style: .continuous)
+                .fill(InterfaceStyle.sidebarTextSecondary.opacity(0.42))
+                .frame(width: 2)
+        }
+        .padding(.top, 10)
+        .padding(.trailing, 2)
+        .contentShape(Rectangle())
+        .onHover { hovering in
+            withAnimation(.easeOut(duration: 0.12)) {
+                isHovered = hovering
+            }
+        }
+    }
+}
+
 struct AISidebarContextChipView: View {
     let chip: AISidebarContextChip
     let onPreview: (() -> Void)?
@@ -288,6 +356,29 @@ struct AISidebarMentionIcon: View {
             }
         }
         .frame(width: size, height: size)
+    }
+}
+
+/// The quote as it reads back in the transcript, under the same rule as the
+/// composer block but sized to sit above the sent bubble.
+struct AISidebarSentQuotedSelectionView: View {
+    let selection: AISidebarSelectionContext
+
+    var body: some View {
+        Text(selection.quotePreview)
+            .font(.system(size: 11))
+            .foregroundStyle(InterfaceStyle.sidebarTextSecondary)
+            .lineLimit(2)
+            .truncationMode(.tail)
+            .multilineTextAlignment(.leading)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.leading, 9)
+            .overlay(alignment: .leading) {
+                Capsule(style: .continuous)
+                    .fill(InterfaceStyle.sidebarTextSecondary.opacity(0.42))
+                    .frame(width: 2)
+            }
+            .frame(maxWidth: 300, alignment: .leading)
     }
 }
 

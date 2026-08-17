@@ -203,7 +203,17 @@ struct EliSidebarView: View {
             )
         }
 
-        return currentChips + mentionedContext.map { chip(for: $0) }
+        return currentChips + mentionedContext.compactMap { chip(for: $0) }
+    }
+
+    /// Quoted passages, in the order they were attached. They are kept out of
+    /// `contextChips` on purpose: the chips are things Eli was handed, and a
+    /// selection is a pointer into one of them.
+    private var quotedSelections: [AISidebarSelectionContext] {
+        mentionedContext.compactMap { mention in
+            guard case .selection(let selectionContext) = mention else { return nil }
+            return selectionContext
+        }
     }
 
     private static let paneChipIDPrefix = "split-pane-"
@@ -522,10 +532,19 @@ struct EliSidebarView: View {
     }
 
     private var inputSurface: some View {
-        let hasContext = !contextChips.isEmpty
+        let quotes = quotedSelections
+        let hasContext = !contextChips.isEmpty || !quotes.isEmpty
 
         return VStack(alignment: .leading, spacing: hasContext ? 12 : 0) {
-            if hasContext {
+            // The quote leads: it is what the question is about, and the row
+            // of chips under it is what Eli is reading it in.
+            ForEach(quotes, id: \.id) { selection in
+                AISidebarQuotedSelectionView(selection: selection) {
+                    removeQuotedSelection(selection.id)
+                }
+            }
+
+            if !contextChips.isEmpty {
                 contextTagRow
             }
 
@@ -759,6 +778,9 @@ struct EliSidebarView: View {
         let composerChipText = contextChips
             .map { "\($0.title)|\($0.subtitle)" }
             .joined(separator: ",")
+        let composerQuoteText = quotedSelections
+            .map { "\($0.quotePreview)|\($0.sourceLabel)" }
+            .joined(separator: ",")
         let lastUserText = messages.last { $0.role == .user }?.text ?? ""
         let lastAssistantText = messages.last { $0.role == .assistant }?.text ?? ""
         let messageText = messages.enumerated()
@@ -776,7 +798,7 @@ struct EliSidebarView: View {
             }
             .joined(separator: "||")
 
-        return "composerChips=[\(composerChipText)];lastUser=[\(lastUserText)];lastAssistant=[\(lastAssistantText)];messages=[\(messageText)]"
+        return "composerChips=[\(composerChipText)];composerQuotes=[\(composerQuoteText)];lastUser=[\(lastUserText)];lastAssistant=[\(lastAssistantText)];messages=[\(messageText)]"
     }
 
     private func submitPrompt(_ promptOverride: String? = nil) {
@@ -812,6 +834,7 @@ struct EliSidebarView: View {
                     isRemovable: false
                 )
             },
+            quotedSelections: quotedSelections,
             contextMentions: mentionedContext,
             recentTurns: recentTurns(),
             currentPageTabIDs: currentPageTabs.map(\.id),
@@ -837,7 +860,8 @@ struct EliSidebarView: View {
                 role: .user,
                 text: submission.prompt,
                 isStreaming: false,
-                contextChips: submission.contextChips
+                contextChips: submission.contextChips,
+                quotedSelections: submission.quotedSelections
             ))
         }
 
@@ -913,7 +937,8 @@ struct EliSidebarView: View {
                 role: .user,
                 text: submission.prompt,
                 isStreaming: false,
-                contextChips: submission.contextChips
+                contextChips: submission.contextChips,
+                quotedSelections: submission.quotedSelections
             ))
             messages.append(AISidebarMessage(
                 role: .assistant,
@@ -1695,20 +1720,27 @@ struct EliSidebarView: View {
         }
 
         let removedFileIDs = mentionedContext.compactMap { mention -> UUID? in
-            guard chip(for: mention).id == chipID, case .file(let fileContext) = mention else {
+            guard chip(for: mention)?.id == chipID, case .file(let fileContext) = mention else {
                 return nil
             }
             return fileContext.id
         }
-        mentionedContext.removeAll { chip(for: $0).id == chipID }
+        mentionedContext.removeAll { chip(for: $0)?.id == chipID }
         for fileID in removedFileIDs {
             attachmentPreviewData[fileID] = nil
         }
     }
 
+    private func removeQuotedSelection(_ selectionID: UUID) {
+        mentionedContext.removeAll { mention in
+            guard case .selection(let selectionContext) = mention else { return false }
+            return selectionContext.id == selectionID
+        }
+    }
+
     private func presentImagePreview(for chip: AISidebarContextChip) {
         guard
-            case .file(let fileContext) = mentionedContext.first(where: { self.chip(for: $0).id == chip.id }),
+            case .file(let fileContext) = mentionedContext.first(where: { self.chip(for: $0)?.id == chip.id }),
             let imageData = attachmentPreviewData[fileContext.id] ?? fileContext.previewImageData
         else {
             return
@@ -1720,7 +1752,9 @@ struct EliSidebarView: View {
         )
     }
 
-    private func chip(for mention: AISidebarContextMention) -> AISidebarContextChip {
+    /// nil for a quoted selection, which the composer draws as a quote block
+    /// above the chips rather than as one of them.
+    private func chip(for mention: AISidebarContextMention) -> AISidebarContextChip? {
         switch mention {
         case .tab(let id):
             let tab = store.tabs.first { $0.id == id }
@@ -1754,19 +1788,8 @@ struct EliSidebarView: View {
                 previewImageData: fileContext.previewImageData,
                 isRemovable: true
             )
-        case .selection(let selectionContext):
-            return AISidebarContextChip(
-                id: "selection-\(selectionContext.id.uuidString)",
-                title: selectionContext.chipTitle,
-                // The page is what tells two quotes apart when several are
-                // attached, so it takes the subtitle over a static label.
-                subtitle: selectionContext.pageURL?.host(percentEncoded: false)
-                    ?? String(localized: "Selected text"),
-                symbolName: "text.quote",
-                faviconData: nil,
-                previewImageData: nil,
-                isRemovable: true
-            )
+        case .selection:
+            return nil
         }
     }
 

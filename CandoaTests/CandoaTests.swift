@@ -1067,16 +1067,42 @@ final class PageSelectionTests: XCTestCase {
         XCTAssertTrue(selection.text.hasSuffix("…"))
     }
 
-    func testAShortSelectionIsItsOwnChipTitle() throws {
+    func testAShortSelectionIsItsOwnQuotePreview() throws {
         let selection = try XCTUnwrap(makeSelection("material weakness"))
-        XCTAssertEqual(selection.chipTitle, "material weakness")
+        XCTAssertEqual(selection.quotePreview, "material weakness")
     }
 
-    /// A quote spanning paragraphs has to read as one line in the chip.
-    func testAChipTitleCollapsesWhitespaceAndTruncates() throws {
-        let selection = try XCTUnwrap(makeSelection("management\n\nidentified   a\tmaterial weakness in controls"))
-        XCTAssertEqual(selection.chipTitle, "management identified a material weakness…")
-        XCTAssertEqual(selection.chipTitle.count, AISidebarSelectionContext.chipTitleLimit)
-        XCTAssertFalse(selection.chipTitle.contains("\n"))
+    /// A quote spanning paragraphs has to read as prose in the block, not as
+    /// a column of fragments.
+    func testAQuotePreviewCollapsesWhitespace() throws {
+        let selection = try XCTUnwrap(makeSelection("management\n\nidentified   a\tmaterial weakness"))
+        XCTAssertEqual(selection.quotePreview, "management identified a material weakness")
+    }
+
+    /// Past the cap the block truncates in the layout, so the string only has
+    /// to stop somewhere well beyond three lines.
+    func testALongQuotePreviewIsCappedWithAnEllipsis() throws {
+        let raw = String(repeating: "word ", count: 200)
+        let selection = try XCTUnwrap(makeSelection(raw))
+        XCTAssertLessThanOrEqual(selection.quotePreview.count, AISidebarSelectionContext.quotePreviewLimit)
+        XCTAssertTrue(selection.quotePreview.hasSuffix("…"))
+    }
+
+    /// The line under the quote names the page it came from.
+    func testTheSourceLabelPrefersThePageTitle() throws {
+        let selection = try XCTUnwrap(makeSelection("material weakness"))
+        XCTAssertEqual(selection.sourceLabel, "Filing")
+    }
+
+    /// An untitled page still has to say where the passage came from.
+    func testAnUntitledPageFallsBackToTheHost() throws {
+        let selection = try XCTUnwrap(
+            AISidebarSelectionContext(
+                rawText: "material weakness",
+                pageTitle: nil,
+                pageURL: URL(string: "https://example.com/filing")
+            )
+        )
+        XCTAssertEqual(selection.sourceLabel, "example.com")
     }
 }

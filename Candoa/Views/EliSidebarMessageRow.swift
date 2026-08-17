@@ -21,6 +21,7 @@ struct AISidebarMessageRow: View {
 
                 VStack(alignment: .trailing, spacing: 7) {
                     sentContextChips
+                    sentQuotedSelections
                     userPrompt
                 }
             }
@@ -53,6 +54,20 @@ struct AISidebarMessageRow: View {
                         .frame(height: 24)
                         .background(InterfaceStyle.sidebarControlFill)
                         .clipShape(Capsule())
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .trailing)
+        }
+    }
+
+    /// The passage the turn was about, kept in the transcript so a bare
+    /// "what does this mean?" still reads back with its referent.
+    @ViewBuilder
+    private var sentQuotedSelections: some View {
+        if !message.quotedSelections.isEmpty {
+            VStack(alignment: .leading, spacing: 5) {
+                ForEach(message.quotedSelections, id: \.id) { selection in
+                    AISidebarSentQuotedSelectionView(selection: selection)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .trailing)
