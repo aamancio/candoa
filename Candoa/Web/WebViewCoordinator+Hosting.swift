@@ -188,18 +188,19 @@ extension WebViewCoordinator {
     /// leaves the inspector where WebKit would have put it anyway.
     func attachInspector(of webView: WKWebView, to container: NSView?) {
         let standIn = (container as? WebPaneHostView)?.inspectorLane.pageArea
-
-        let getter = NSSelectorFromString("_inspectorAttachmentView")
-        if webView.responds(to: getter) {
-            let current = webView.perform(getter)?.takeUnretainedValue() as? NSView
-            // Re-setting runs WebKit's whole attach path, which re-parents the
-            // inspector and steals first responder; only move a real change.
-            guard current !== standIn else { return }
-        }
+        // Re-setting runs WebKit's whole attach path, which re-parents the
+        // inspector and steals first responder; only move a real change.
+        guard inspectorAttachmentView(of: webView) !== standIn else { return }
 
         let setter = NSSelectorFromString("_setInspectorAttachmentView:")
         guard webView.responds(to: setter) else { return }
         webView.perform(setter, with: standIn)
+    }
+
+    func inspectorAttachmentView(of webView: WKWebView) -> NSView? {
+        let getter = NSSelectorFromString("_inspectorAttachmentView")
+        guard webView.responds(to: getter) else { return nil }
+        return webView.perform(getter)?.takeUnretainedValue() as? NSView
     }
 
     /// Web views are parented under the host's inspector lane so an attached

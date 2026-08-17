@@ -56,8 +56,26 @@ extension WebViewCoordinator {
         }
 
         showWebInspector(for: tabID)
+        dockWebInspectorForUITesting(tabID: tabID, attemptsLeft: 12)
+    }
+
+    /// WebKit refuses to dock until the inspector's own frontend page is up,
+    /// and says so only by doing nothing, so this keeps asking for a few
+    /// seconds and stops as soon as the inspector lands in the pane's lane.
+    private func dockWebInspectorForUITesting(tabID: UUID, attemptsLeft: Int) {
         attachWebInspector(for: tabID)
         reportInspectorPlacementForUITesting(for: tabID)
+
+        guard
+            attemptsLeft > 1,
+            !uiTestingAttachedInspectorDescription(for: tabID).hasPrefix("attached")
+        else {
+            return
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            self?.dockWebInspectorForUITesting(tabID: tabID, attemptsLeft: attemptsLeft - 1)
+        }
     }
 
     func reportWebsiteAppearanceForUITesting(from webView: WKWebView) {

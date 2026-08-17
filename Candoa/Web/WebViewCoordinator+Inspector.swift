@@ -43,19 +43,25 @@ extension WebViewCoordinator {
 
     /// Where a docked inspector ended up, for UI tests: its frame and the
     /// visible page card it has to stay inside, both in the pane host's
-    /// coordinates. `none` while the inspector is closed or in its own window.
+    /// coordinates. An undocked inspector reports the same card, plus enough
+    /// state to tell a refused dock from a missing one.
     func uiTestingAttachedInspectorDescription(for tabID: UUID) -> String {
+        guard let webView = webViews[tabID] else { return "none" }
+        guard let host = webView.superview as? WebPaneHostView else { return "unhosted" }
+
+        let card = describe(host.inspectorLane.frame)
         guard
-            let host = webViews[tabID]?.superview as? WebPaneHostView,
             let inspectorView = host.inspectorLane.subviews.first(where: {
                 $0 !== host.inspectorLane.pageArea
             })
         else {
-            return "none"
+            let state = isWebInspectorVisible(for: tabID) ? "undocked" : "closed"
+            let standIn = inspectorAttachmentView(of: webView) === host.inspectorLane.pageArea
+            return "\(state):card:\(card):standIn:\(standIn)"
         }
 
         let frame = host.inspectorLane.convert(inspectorView.frame, to: host)
-        return "attached:\(describe(frame)):card:\(describe(host.inspectorLane.frame))"
+        return "attached:\(describe(frame)):card:\(card)"
     }
 
     /// The state string only refreshes on a store publish, and WebKit
