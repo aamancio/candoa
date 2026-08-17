@@ -89,6 +89,19 @@ extension BrowserStore {
         updateNavigationState()
     }
 
+    /// Whether a move takes a split member out of the section it is in, and
+    /// so out of the group. A reorder inside the same section is not one.
+    nonisolated static func splitMemberLeavesItsSection(
+        current: BrowserTab,
+        isFavorite: Bool,
+        isPinned: Bool,
+        folderID: UUID?
+    ) -> Bool {
+        current.isFavorite != isFavorite
+            || current.isPinned != isPinned
+            || current.folderID != folderID
+    }
+
     func splitTab(_ draggedID: UUID, onto targetID: UUID, side: SplitTabDropSide = .leading) {
         guard
             draggedID != targetID,
@@ -359,10 +372,21 @@ extension BrowserStore {
         appendToEnd: Bool = false
     ) {
         guard let index = tabs.firstIndex(where: { $0.id == tabID }) else { return }
-        // Dragging a split member into any sidebar placement takes it out of
-        // the group first — otherwise the drop only rewrites placement flags
-        // and the tab silently stays a hidden split member.
-        if splitTabIDs.contains(tabID) {
+        // Moving a split member to a *different* section takes it out of the
+        // group: pinned, favorites and folders are elsewhere, and a member
+        // parked there would be a split tab you cannot see next to its
+        // partner. Reordering inside its own section is just a reorder, and
+        // detaching there is what made split tabs impossible to drag without
+        // losing the split. This used to fire on every move because members
+        // were hoisted out of the list entirely, so any drop did change
+        // section by definition.
+        if splitTabIDs.contains(tabID),
+           Self.splitMemberLeavesItsSection(
+               current: tabs[index],
+               isFavorite: isFavorite,
+               isPinned: isPinned,
+               folderID: folderID
+           ) {
             removeTabFromSplit(tabID)
         }
         if !isFavorite, tabs[index].isFavorite {

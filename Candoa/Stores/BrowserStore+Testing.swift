@@ -1198,6 +1198,19 @@ extension BrowserStore {
     /// Debug only, and deliberately not gated on `CANDOA_UI_TESTING` — that
     /// swaps in a fixture workspace, and the point is to see the preview
     /// against real rows with their real titles, favicons and fills.
+    /// Puts two real rows into an actual split at launch:
+    ///
+    ///     CANDOA_FIXTURE_SPLIT=<row index>,<row index>
+    func applySplitFixtureIfNeeded() {
+#if DEBUG
+        guard let spec = ProcessInfo.processInfo.environment["CANDOA_FIXTURE_SPLIT"] else { return }
+        let idx = spec.split(separator: ",").compactMap { Int($0) }
+        let rows = regularTabsForActiveSpace
+        guard idx.count == 2, idx.allSatisfy(rows.indices.contains) else { return }
+        splitTab(rows[idx[0]].id, onto: rows[idx[1]].id, side: .trailing)
+#endif
+    }
+
     func applySplitPreviewFixtureIfNeeded() {
 #if DEBUG
         guard

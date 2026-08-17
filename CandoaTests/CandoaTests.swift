@@ -775,4 +775,64 @@ final class PaletteShortcutTests: XCTestCase {
         UserDefaults.standard.set(ShortcutDefinition.removedValue, forKey: key)
         XCTAssertEqual(command.shortcutKeys, [])
     }
+
+    // MARK: - Split membership survives a reorder
+
+    private func regularTab(folderID: UUID? = nil) -> BrowserTab {
+        BrowserTab(
+            title: "Tab",
+            url: URL(string: "https://example.com")!,
+            isFavorite: false,
+            isPinned: false,
+            folderID: folderID,
+            spaceID: UUID()
+        )
+    }
+
+    /// Dragging a split tab within its own section used to detach it, which
+    /// made split tabs impossible to reorder without losing the split.
+    func testReorderingWithinTheSameSectionKeepsSplitMembership() {
+        let tab = regularTab()
+        XCTAssertFalse(
+            BrowserStore.splitMemberLeavesItsSection(
+                current: tab,
+                isFavorite: false,
+                isPinned: false,
+                folderID: nil
+            )
+        )
+    }
+
+    func testMovingASplitMemberToAnotherSectionDetachesIt() {
+        let tab = regularTab()
+        let folder = UUID()
+        for (favorite, pinned, folderID) in [
+            (true, false, nil as UUID?),
+            (false, true, nil as UUID?),
+            (false, false, folder as UUID?)
+        ] {
+            XCTAssertTrue(
+                BrowserStore.splitMemberLeavesItsSection(
+                    current: tab,
+                    isFavorite: favorite,
+                    isPinned: pinned,
+                    folderID: folderID
+                ),
+                "favorite=\(favorite) pinned=\(pinned) folder=\(String(describing: folderID))"
+            )
+        }
+    }
+
+    func testAFolderMemberReorderedInsideThatFolderStaysSplit() {
+        let folder = UUID()
+        let tab = regularTab(folderID: folder)
+        XCTAssertFalse(
+            BrowserStore.splitMemberLeavesItsSection(
+                current: tab,
+                isFavorite: false,
+                isPinned: false,
+                folderID: folder
+            )
+        )
+    }
 }
