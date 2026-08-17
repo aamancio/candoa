@@ -1072,10 +1072,9 @@ struct SidebarView: View {
 
         if !isCollapsed, !pinned.isEmpty || !folders.isEmpty || store.draggedTabID != nil {
             VStack(alignment: .leading, spacing: pinnedSectionSpacing) {
-                let livePinned = liveOrder(pinned, placement: .pinned)
-                if !livePinned.isEmpty {
+                if !pinned.isEmpty {
                     VStack(spacing: 4) {
-                        ForEach(livePinned) { tab in
+                        ForEach(pinned) { tab in
                             pinnedTabRow(for: tab, pinned: pinned, spaceID: spaceID)
                         }
                     }
@@ -1106,10 +1105,7 @@ struct SidebarView: View {
             )
             // Pin, folder, and close settle the section instead of popping; the
             // per-space identity keeps space switches an instant context cut.
-            .animation(
-                Self.rowReorder,
-                value: liveOrder(pinned, placement: .pinned).map(\.id) + folders.map(\.id)
-            )
+            .animation(Self.rowReorder, value: pinned.map(\.id) + folders.map(\.id))
             .id(spaceID)
         }
     }
@@ -1159,20 +1155,22 @@ struct SidebarView: View {
         // The system drag image is the only visible copy while dragging; the
         // source row leaves a gap that doubles as the insertion indicator.
         .opacity(store.shouldHideSidebarTab(tab.id, placement: .pinned) ? 0 : 1)
-        .overlay {
-            if showsDropSlotLine,
-               store.shouldHideSidebarTab(tab.id, placement: .pinned) {
-                SidebarDropSlotLine(tint: AppColor.accent)
-            }
-        }
         .sidebarRowDropIndicator(
-            showsTop: false,
+            showsTop: store.activeSidebarDropIndicator == SidebarTabDropIndicator(
+                placement: .pinned,
+                targetTabID: tab.id,
+                edge: .before
+            ),
             showsSplit: store.activeSidebarDropIndicator == SidebarTabDropIndicator(
                 placement: .pinned,
                 targetTabID: tab.id,
                 edge: .split
             ),
-            showsBottom: false,
+            showsBottom: store.activeSidebarDropIndicator == SidebarTabDropIndicator(
+                placement: .pinned,
+                targetTabID: tab.id,
+                edge: .after
+            ),
             tint: AppColor.accent
         )
         .background(TabDragSourceBackground(store: store, tabID: tab.id))
@@ -1265,7 +1263,7 @@ struct SidebarView: View {
                         )
                     }
 
-                    ForEach(liveOrder(tabs, placement: .regular)) { tab in
+                    ForEach(tabs) { tab in
                         TabRowView(
                             tab: tab,
                             isActive: tab.id == displayedActiveTabID(for: spaceID) && !store.isNewTabPaletteActive,
@@ -1284,24 +1282,26 @@ struct SidebarView: View {
                         // the cursor ghost isn't doubled by the in-list row; the
                         // gap it leaves is the insertion indicator.
                         .opacity(store.shouldHideSidebarTab(tab.id, placement: .regular) ? 0 : 1)
-                        .overlay {
-                            if showsDropSlotLine,
-                               store.shouldHideSidebarTab(tab.id, placement: .regular) {
-                                SidebarDropSlotLine(tint: AppColor.accent)
-                            }
-                        }
-                        // No before/after lines on the neighbours: the list
-                        // reorders live, so the insertion line is drawn in
-                        // the gap itself (SidebarDropSlotLine above). Split
-                        // keeps its ring.
+                        // Rows hold still through a drag — Arc moves nothing
+                        // until the drop — so the line on the target row's
+                        // edge is what says where the tab lands. Split keeps
+                        // its ring, and the two never show together.
                         .sidebarRowDropIndicator(
-                            showsTop: false,
+                            showsTop: store.activeSidebarDropIndicator == SidebarTabDropIndicator(
+                                placement: .regular,
+                                targetTabID: tab.id,
+                                edge: .before
+                            ),
                             showsSplit: store.activeSidebarDropIndicator == SidebarTabDropIndicator(
                                 placement: .regular,
                                 targetTabID: tab.id,
                                 edge: .split
                             ),
-                            showsBottom: false,
+                            showsBottom: store.activeSidebarDropIndicator == SidebarTabDropIndicator(
+                                placement: .regular,
+                                targetTabID: tab.id,
+                                edge: .after
+                            ),
                             tint: AppColor.accent
                         )
                         .background(TabDragSourceBackground(store: store, tabID: tab.id))
@@ -1332,10 +1332,7 @@ struct SidebarView: View {
                 // and the live gap that travels with a drag; the spring is
                 // Arc's make-room feel. The per-space identity keeps space
                 // switches an instant cut.
-                .animation(
-                    Self.rowReorder,
-                    value: liveOrder(tabs, placement: .regular).map(\.id)
-                )
+                .animation(Self.rowReorder, value: tabs.map(\.id))
                 .id(spaceID)
             }
         }
@@ -1354,37 +1351,6 @@ struct SidebarView: View {
     /// from this list entirely while the pointer is over another one. The
     /// model does not change until the drop, so an abandoned drag springs
     /// back to the original order.
-    /// The gap only carries the insertion line while the drop would land
-    /// *between* rows. Hovering a row's middle offers a split instead, and
-    /// that row wears the ring — a line still sitting in the gap at the same
-    /// time reads as two different drops being offered at once.
-    private var showsDropSlotLine: Bool {
-        guard let indicator = store.activeSidebarDropIndicator else { return false }
-        return indicator.edge != .split
-    }
-
-    private func liveOrder(_ tabs: [BrowserTab], placement: SidebarTabDropPlacement) -> [BrowserTab] {
-        guard let draggedID = store.draggedTabID,
-              let indicator = store.activeSidebarDropIndicator,
-              indicator.edge != .split
-        else { return tabs }
-
-        var others = tabs.filter { $0.id != draggedID }
-        guard indicator.placement == placement,
-              let dragged = store.tabs.first(where: { $0.id == draggedID })
-        else { return others }
-
-        if let targetID = indicator.targetTabID,
-           let targetIndex = others.firstIndex(where: { $0.id == targetID }) {
-            others.insert(dragged, at: indicator.edge == .before ? targetIndex : targetIndex + 1)
-        } else if indicator.edge == .after {
-            others.append(dragged)
-        } else {
-            others.insert(dragged, at: 0)
-        }
-        return others
-    }
-
     private func displayedActiveTabID(for spaceID: UUID) -> UUID? {
         if spaceID == store.activeSpaceID {
             return store.activeTabID
