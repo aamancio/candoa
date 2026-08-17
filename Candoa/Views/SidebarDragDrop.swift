@@ -407,16 +407,21 @@ internal enum SidebarDropAxis {
     case horizontal
 }
 
+internal enum SidebarDropMetrics {
+    /// A sidebar row's laid-out height; the drop edge is decided against its
+    /// midpoint.
+    static let rowHeight: CGFloat = 36
+}
+
 internal func dropEdge(for info: DropInfo, axis: SidebarDropAxis = .vertical) -> SidebarTabDropEdge {
     switch axis {
     case .vertical:
-        // Arc reserves splitting for a deliberate hover over the middle of a
-        // row; reordering owns the rest. The band used to be 14 of the row's
-        // 36 points, so an ordinary reorder drag kept flashing the split
-        // ring on its way past.
-        if info.location.y < 14 { return .before }
-        if info.location.y > 22 { return .after }
-        return .split
+        // One boundary, one line: the pointer is either in the top half of a
+        // row or the bottom half, and the line sits in the gap on that side.
+        // A middle band gave a row three states — line above, ring, line
+        // below — which read as the drop line appearing in three places.
+        // Splitting from the sidebar is the page-edge drop, as in Arc.
+        return info.location.y < SidebarDropMetrics.rowHeight / 2 ? .before : .after
     case .horizontal:
         return info.location.x < 44 ? .before : .after
     }
