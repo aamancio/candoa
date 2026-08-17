@@ -465,6 +465,10 @@ internal enum SidebarDropMetrics {
     /// which is what the real split looks like.
     static let splitPreviewGap: CGFloat = 4
 
+    /// How far each pane sits inside the row, matching Zen's margin on its
+    /// fake tab. Applied to both panes or they stop looking like a pair.
+    static let splitPreviewInset: CGFloat = 3
+
     /// How far past a row's edge the insertion line sits, so the line drawn
     /// below one row and the line drawn above the next land on the same
     /// pixel: the centre of the spacing between them. Half the line's height
