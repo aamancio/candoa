@@ -6,7 +6,7 @@ internal struct SidebarHorizontalDropLine: View {
     var body: some View {
         HStack(spacing: 0) {
             Circle()
-                .strokeBorder(tint.opacity(0.92), lineWidth: 2)
+                .strokeBorder(tint, lineWidth: 2)
                 .background(
                     Circle()
                         .fill(InterfaceStyle.sidebarBackground)
@@ -14,13 +14,14 @@ internal struct SidebarHorizontalDropLine: View {
                 .frame(width: 7, height: 7)
 
             Capsule(style: .continuous)
-                .fill(tint.opacity(0.82))
+                .fill(tint)
                 .frame(maxWidth: .infinity)
                 .frame(height: 2)
                 .offset(x: -1)
         }
         .frame(maxWidth: .infinity)
-        .shadow(color: tint.opacity(0.22), radius: 3, y: 1)
+        // No tinted glow: it spread the indicator's colour into the rows
+        // either side, which is what made a muted line still read as blue.
         .allowsHitTesting(false)
     }
 }

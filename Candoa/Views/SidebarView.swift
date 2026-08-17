@@ -1021,7 +1021,7 @@ struct SidebarView: View {
                 targetTabID: tab.id,
                 edge: .after
             ),
-            tint: AppColor.accent
+            tint: InterfaceStyle.sidebarDropIndicator
         )
         .background(TabDragSourceBackground(store: store, tabID: tab.id))
         .onDrop(
@@ -1116,7 +1116,7 @@ struct SidebarView: View {
                 targetTabID: nil,
                 edge: .after
             ) {
-                SidebarHorizontalDropLine(tint: AppColor.accent)
+                SidebarHorizontalDropLine(tint: InterfaceStyle.sidebarDropIndicator)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 2)
             } else {
@@ -1170,7 +1170,7 @@ struct SidebarView: View {
                 targetTabID: tab.id,
                 edge: .after
             ),
-            tint: AppColor.accent
+            tint: InterfaceStyle.sidebarDropIndicator
         )
         .background(TabDragSourceBackground(store: store, tabID: tab.id))
         .onDrop(
@@ -1248,7 +1248,7 @@ struct SidebarView: View {
                     targetTabID: nil,
                     edge: .after
                 ) {
-                    SidebarHorizontalDropLine(tint: AppColor.accent)
+                    SidebarHorizontalDropLine(tint: InterfaceStyle.sidebarDropIndicator)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 2)
                 }
@@ -1298,7 +1298,7 @@ struct SidebarView: View {
                                 targetTabID: tab.id,
                                 edge: .after
                             ),
-                            tint: AppColor.accent
+                            tint: InterfaceStyle.sidebarDropIndicator
                         )
                         .background(TabDragSourceBackground(store: store, tabID: tab.id))
                         .onDrop(
@@ -1319,7 +1319,7 @@ struct SidebarView: View {
                         targetTabID: nil,
                         edge: .after
                     ) {
-                        SidebarHorizontalDropLine(tint: AppColor.accent)
+                        SidebarHorizontalDropLine(tint: InterfaceStyle.sidebarDropIndicator)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 2)
                     }

@@ -62,6 +62,23 @@ enum InterfaceStyle {
     /// Zen's scrolled-edge rule on the tab list, a shade lighter than the
     /// pinned hairline: `--zen-scrollbar-overflow-background:
     /// light-dark(rgba(0, 0, 0, 0.08), rgba(255, 255, 255, 0.08))`.
+    /// The drop indicator's tone: half the accent, half the label colour —
+    /// Zen's `color-mix(in srgb, primary 50%, light-dark(black, white) 50%)`.
+    /// Keeps the palette (and whatever accent the person picked) while
+    /// reading as chrome rather than a system-blue alert.
+    static var sidebarDropIndicator: Color {
+        Color(nsColor: NSColor(name: nil) { appearance in
+            let accent = NSColor.controlAccentColor
+            let toward: NSColor = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+                ? .white
+                : .black
+            // Zen mixes half and half, but its primary is already a muted
+            // theme colour; the macOS accent needs pulling further to read
+            // as chrome rather than as a blue mark.
+            return accent.blended(withFraction: 0.72, of: toward) ?? accent
+        })
+    }
+
     static var zenScrollEdgeRule: Color {
         increasesContrast ? separatorTone : Color.primary.opacity(0.08)
     }
