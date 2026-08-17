@@ -643,6 +643,13 @@ internal struct SidebarSplitGroupView: View {
 
     @State private var isHovering = false
 
+    /// The pair is drawn at this member's place in the list, so dragging the
+    /// row is dragging it; the other member follows because the pair renders
+    /// wherever the first one lands.
+    private var anchorTabID: UUID {
+        tabs.first?.id ?? UUID()
+    }
+
     var body: some View {
         HStack(spacing: 2) {
             ForEach(tabs) { tab in
@@ -660,11 +667,15 @@ internal struct SidebarSplitGroupView: View {
                     onToggleFavorite: { store.toggleFavorite(tab.id) },
                     onTogglePin: { store.togglePin(tab.id) }
                 )
-                .background(TabDragSourceBackground(store: store, tabID: tab.id))
             }
         }
         .padding(4)
         .frame(minHeight: 36)
+        // The row drags as one thing. A drag source per chip meant grabbing
+        // the pair picked up whichever half was under the pointer, which is
+        // not what the row looks like it is; taking a single pane out of the
+        // split is Remove from Split View on the chip's menu.
+        .background(TabDragSourceBackground(store: store, tabID: anchorTabID))
         .background(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .fill(isHovering ? InterfaceStyle.sidebarControlFillHover : InterfaceStyle.sidebarControlFill)

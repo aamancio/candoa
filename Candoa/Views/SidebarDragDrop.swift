@@ -531,6 +531,13 @@ internal func dwellAwareResolution(
     store: BrowserStore
 ) -> SidebarDropResolution {
     let boundary = dropEdge(for: info, axis: axis)
+    // Dragging a pane out of a split offers no split of its own: the pair it
+    // came from is the split, and dropping it on a third tab would be asking
+    // for a second one from a row that is already half of the first.
+    guard let draggedID = store.draggedTabID, !store.activeSplitGroupTabIDs.contains(draggedID) else {
+        SidebarSplitDwell.shared.cancel()
+        return .boundary(boundary)
+    }
     guard axis == .vertical, isWithinSplitDwellRegion(info) else {
         SidebarSplitDwell.shared.cancel()
         return .boundary(boundary)
