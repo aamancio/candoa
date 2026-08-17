@@ -35,129 +35,44 @@ internal struct SidebarHorizontalDropLine: View {
 /// person to guess. Zen answers it by putting a translucent
 /// `zen-split-fake-tab` into the row on the drop side so the row becomes a
 /// small picture of the result; this is that.
+/// A single translucent rectangle over the half of the row the dragged tab
+/// would take. That is the whole treatment — it is what Zen shows, and the
+/// row underneath is left exactly as it is.
+///
+/// What this replaces tried to draw the *result*: the row's tab shifted into
+/// the pane it would keep, an opaque cover, a matching fill on both halves.
+/// It measured correctly and it was the wrong idea — a row mid-drag turning
+/// into two solid blocks reads as two rows, not as one tab being offered a
+/// split. A ghost is one rectangle that is not there yet.
 private struct SidebarSplitPreview: ViewModifier {
     let side: SplitTabDropSide?
 
     func body(content: Content) -> some View {
-        if let side {
-            let ghostLeads = side.insertsBeforeTarget
-            content
-                // The existing tab moves into the pane it keeps. Cropping it
-                // in place instead would eat the favicon and start the title
-                // mid-word, which reads as a glitch rather than a preview.
-                // `visualEffect` is a paint-time offset, so the row's drop
-                // target does not move out from under the pointer.
-                .visualEffect { view, proxy in
-                    view.offset(
-                        x: ghostLeads
-                            ? (proxy.size.width + SidebarDropMetrics.splitPreviewGap) / 2
-                            : 0
-                    )
-                }
-                // Applied after the offset, so it is not carried along with
-                // the content: the pane stays put while the tab slides into
-                // it. Without this the keeper half is only visible on a row
-                // that happens to be hovered or active — on any other row
-                // the preview was one block floating beside a title, with no
-                // second pane and no divide to read.
-                // Both panes are painted from the same two layers so they
-                // composite to the same grey. Painting only the ghost's half
-                // opaque put it on a different backdrop from the keeper —
-                // one fill over the lane, the same fill over
-                // `sidebarBackground` — and the two halves came out 78 and 70.
-                .background {
-                    // One background, not two: a second `.background` stacks
-                    // *behind* the first, so an opaque base added that way
-                    // hides the fills instead of sitting under them.
-                    ZStack {
-                        paneBase()
-                        paneFills(ghostLeads: ghostLeads)
-                    }
-                }
-                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                .overlay {
-                    ghostCover(ghostLeads: ghostLeads)
-                }
-        } else {
-            content
-        }
-    }
-
-    /// One opaque ground under the whole row, so neither pane is compositing
-    /// its fill over the lane while the other composites over paint.
-    private func paneBase() -> some View {
-        Rectangle().fill(InterfaceStyle.sidebarBackground)
-    }
-
-    /// The pane the row keeps. Only that one: the ghost's half is painted by
-    /// the cover on top, and filling it here as well laid the same
-    /// translucent tone down twice, which came out two levels darker than
-    /// its opposite number.
-    private func paneFills(ghostLeads: Bool) -> some View {
-        GeometryReader { proxy in
-            let pane = paneWidth(in: proxy.size.width)
-            HStack(spacing: 0) {
-                if ghostLeads {
-                    Color.clear.frame(width: pane + SidebarDropMetrics.splitPreviewGap)
-                }
-                paneShape()
-                    .frame(width: pane)
-                if !ghostLeads { Color.clear }
+        content.overlay {
+            if let side {
+                ghost(ghostLeads: side.insertsBeforeTarget)
             }
         }
     }
 
-    /// Redraws the ghost's half — and the divide — over the top, because the
-    /// row's own title is still painted there: it is offset at paint time
-    /// only, so its far end runs on under the divide and into the empty pane.
-    ///
-    /// Covering rather than masking is deliberate. A SwiftUI mask takes hit
-    /// testing with it, so masking the row to its keeper pane made that half
-    /// stop answering drag updates and the drop routing flickered between the
-    /// row and the section behind it.
-    private func ghostCover(ghostLeads: Bool) -> some View {
+    private func ghost(ghostLeads: Bool) -> some View {
         GeometryReader { proxy in
-            let pane = paneWidth(in: proxy.size.width)
+            let pane = max(
+                (proxy.size.width - SidebarDropMetrics.splitPreviewGap) / 2,
+                0
+            )
             HStack(spacing: 0) {
                 if !ghostLeads {
-                    Color.clear.frame(width: pane)
+                    Color.clear.frame(width: pane + SidebarDropMetrics.splitPreviewGap)
                 }
-                ZStack {
-                    paneBase()
-                    HStack(spacing: 0) {
-                        if !ghostLeads {
-                            Color.clear.frame(width: SidebarDropMetrics.splitPreviewGap)
-                        }
-                        paneShape()
-                            .frame(width: pane)
-                        if ghostLeads {
-                            Color.clear.frame(width: SidebarDropMetrics.splitPreviewGap)
-                        }
-                    }
-                }
-                .frame(width: pane + SidebarDropMetrics.splitPreviewGap)
-                if ghostLeads {
-                    Color.clear.frame(width: pane)
-                }
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(InterfaceStyle.sidebarControlFillDropTarget)
+                    .frame(width: pane)
+                    .padding(.vertical, SidebarDropMetrics.splitPreviewInset)
+                if ghostLeads { Color.clear }
             }
         }
-        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         .allowsHitTesting(false)
-    }
-
-    /// One pane. Rounded on every corner and inset all round, which is what
-    /// `zen-split-fake-tab` is — `border-radius` plus a margin, not a shape
-    /// squared off where the two meet. Both panes are drawn from this, so
-    /// they match; giving only the ghost a radius while the keeper stayed a
-    /// full-height slab is what made them look like different objects.
-    private func paneShape() -> some View {
-        RoundedRectangle(cornerRadius: 6, style: .continuous)
-            .fill(InterfaceStyle.sidebarControlFillDropTarget)
-            .padding(.vertical, SidebarDropMetrics.splitPreviewInset)
-    }
-
-    private func paneWidth(in rowWidth: CGFloat) -> CGFloat {
-        max((rowWidth - SidebarDropMetrics.splitPreviewGap) / 2, 0)
     }
 }
 
