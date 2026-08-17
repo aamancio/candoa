@@ -415,14 +415,15 @@ internal enum SidebarDropMetrics {
     /// A sidebar row's laid-out height, the 4pt list spacing below it, and
     /// how deep into the row each of its two boundary bands reaches.
     ///
-    /// A boundary is therefore `boundaryDepth * 2 + rowSpacing` wide — 24pt
+    /// A boundary is therefore `boundaryDepth * 2 + rowSpacing` wide — 28pt
     /// of the 40pt pitch — and is reachable from the row above it *and* the
     /// row below it. A single band on one edge was 14pt you had to come at
     /// from one side, which is what made dropping between two tabs harder
-    /// than splitting with one. The row keeps the 16pt in its middle.
+    /// than splitting with one. The row keeps the 12pt in its middle, which
+    /// is enough for a gesture that was never the hard one to land.
     static let rowHeight: CGFloat = 36
     static let rowSpacing: CGFloat = 4
-    static let boundaryDepth: CGFloat = 10
+    static let boundaryDepth: CGFloat = 12
 
     /// The insertion line's own height. Lives here rather than on the view so
     /// the offset below it can be computed off the main actor.
