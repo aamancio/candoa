@@ -434,6 +434,12 @@ internal struct BrowserCommands: Commands {
 
             Divider()
 
+            Button(BrowserCommandTitles.reportAProblem) {
+                openWindow(id: AppConfiguration.reportProblemWindowSceneID)
+            }
+
+            Divider()
+
             // The acknowledgments window is its own scene, so it opens with
             // no browser window key — help stays reachable from anywhere.
             Button(BrowserCommandTitles.acknowledgments) {

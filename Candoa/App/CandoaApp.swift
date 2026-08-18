@@ -80,6 +80,17 @@ struct CandoaApp: App {
         // the Window menu, duplicating the Help menu entry.
         .commandsRemoved()
 
+        // Help ▸ Report an Issue…. Its own scene so it opens with no browser
+        // window key, the same way Acknowledgments does.
+        Window(
+            BrowserCommandTitles.reportAProblemWindowTitle,
+            id: AppConfiguration.reportProblemWindowSceneID
+        ) {
+            ReportProblemView()
+        }
+        .windowResizability(.contentSize)
+        .commandsRemoved()
+
         // Develop ▸ Feature Flags…, Safari's WebKit experimental-feature
         // panel.
         Window(

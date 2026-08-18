@@ -132,6 +132,9 @@
 		DE0000000000000000000104 /* BrowserStore+DevelopMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE0000000000000000000004 /* BrowserStore+DevelopMenu.swift */; };
 		AB1200000000000000000101 /* WhatsNewBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB1200000000000000000001 /* WhatsNewBanner.swift */; };
 		AB1200000000000000000102 /* WhatsNewService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB1200000000000000000002 /* WhatsNewService.swift */; };
+		CA1100000000000000000101 /* ProblemReport.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA1100000000000000000001 /* ProblemReport.swift */; };
+		CA1100000000000000000102 /* ProblemReportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA1100000000000000000002 /* ProblemReportService.swift */; };
+		CA1100000000000000000103 /* ReportProblemView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA1100000000000000000003 /* ReportProblemView.swift */; };
 		AB1300000000000000000102 /* ProviderModelDirectory.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB1300000000000000000002 /* ProviderModelDirectory.swift */; };
 		AB7700000000000000000101 /* WebAuthenticationSessionHostService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB7700000000000000000001 /* WebAuthenticationSessionHostService.swift */; };
 		BA0000000000000000000101 /* BrowserAgentDriver.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA0000000000000000000001 /* BrowserAgentDriver.swift */; };
@@ -334,6 +337,9 @@
 		DE0000000000000000000004 /* BrowserStore+DevelopMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+DevelopMenu.swift"; sourceTree = "<group>"; };
 		AB1200000000000000000001 /* WhatsNewBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhatsNewBanner.swift; sourceTree = "<group>"; };
 		AB1200000000000000000002 /* WhatsNewService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhatsNewService.swift; sourceTree = "<group>"; };
+		CA1100000000000000000001 /* ProblemReport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProblemReport.swift; sourceTree = "<group>"; };
+		CA1100000000000000000002 /* ProblemReportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProblemReportService.swift; sourceTree = "<group>"; };
+		CA1100000000000000000003 /* ReportProblemView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportProblemView.swift; sourceTree = "<group>"; };
 		AB1300000000000000000002 /* ProviderModelDirectory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderModelDirectory.swift; sourceTree = "<group>"; };
 		AB7700000000000000000001 /* WebAuthenticationSessionHostService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebAuthenticationSessionHostService.swift; sourceTree = "<group>"; };
 		B1C2D3E4F5A60718293A4B5C /* CommandPaletteSearch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandPaletteSearch.swift; sourceTree = "<group>"; };
@@ -461,6 +467,7 @@
 		010000000000000000000023 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				CA1100000000000000000001 /* ProblemReport.swift */,
 				010000000000000000000002 /* BrowserTab.swift */,
 				010000000000000000000003 /* BrowserSpace.swift */,
 				010000000000000000000004 /* BrowserWindowState.swift */,
@@ -478,6 +485,7 @@
 		010000000000000000000024 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				CA1100000000000000000003 /* ReportProblemView.swift */,
 				F60000000000000000000201 /* UI */,
 				010000000000000000000011 /* ContentView.swift */,
 				010000000000000000000069 /* QuickNoteActivity.swift */,
@@ -561,6 +569,7 @@
 		010000000000000000000025 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				CA1100000000000000000002 /* ProblemReportService.swift */,
 				010000000000000000000006 /* NavigationService.swift */,
 				010000000000000000000007 /* PersistenceService.swift */,
 				CA00000000000000000A0005 /* HistoryRetentionService.swift */,
@@ -976,6 +985,9 @@
 				TF00000000000000000000B1 /* TabLoadFailure.swift in Sources */,
 				010000000000000000000120 /* AppUpdateService.swift in Sources */,
 				AB1200000000000000000102 /* WhatsNewService.swift in Sources */,
+				CA1100000000000000000101 /* ProblemReport.swift in Sources */,
+				CA1100000000000000000102 /* ProblemReportService.swift in Sources */,
+				CA1100000000000000000103 /* ReportProblemView.swift in Sources */,
 				SI00000000000000000000B1 /* SitePermissions.swift in Sources */,
 				SI00000000000000000000B2 /* SiteInfoView.swift in Sources */,
 				EF000000000000000000010F /* TopAddressBar.swift in Sources */,

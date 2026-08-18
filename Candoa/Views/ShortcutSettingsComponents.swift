@@ -580,6 +580,7 @@ enum ShortcutDefinition: String, CaseIterable, Identifiable {
     case zoomIn
     case zoomOut
     case resetZoom
+    case reportAProblem
 
     var id: String { rawValue }
     var storageKey: String { "CandoaShortcut.\(rawValue)" }
@@ -623,11 +624,14 @@ enum ShortcutDefinition: String, CaseIterable, Identifiable {
         case .zoomIn: return BrowserCommandTitles.zoomIn
         case .zoomOut: return BrowserCommandTitles.zoomOut
         case .resetZoom: return BrowserCommandTitles.resetZoom
+        case .reportAProblem: return BrowserCommandTitles.reportAProblem
         }
     }
 
     var category: String {
         switch self {
+        case .reportAProblem:
+            return String(localized: "Help")
         case .captureFullPage:
             return String(localized: "Capture")
         case .toggleAISidebar:
@@ -656,6 +660,9 @@ enum ShortcutDefinition: String, CaseIterable, Identifiable {
         case .copyURL: return "Shift-Command-C"
         case .copyURLAsMarkdown: return "Option-Shift-Command-C"
         case .captureFullPage: return "None"
+        // Safari gives its own report command no shortcut either; the row
+        // exists so anyone who reports often can bind one.
+        case .reportAProblem: return "None"
         case .pinOrUnpinTab: return "Command-D"
         case .toggleSidebar: return "Command-S"
         case .toggleAISidebar: return "Command-E"
@@ -741,6 +748,7 @@ enum ShortcutDefinition: String, CaseIterable, Identifiable {
         case .zoomIn: return "plus.magnifyingglass"
         case .zoomOut: return "minus.magnifyingglass"
         case .resetZoom: return "1.magnifyingglass"
+        case .reportAProblem: return "exclamationmark.bubble"
         }
     }
 

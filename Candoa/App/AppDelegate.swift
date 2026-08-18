@@ -35,6 +35,13 @@ internal final class AppDelegate: NSObject, NSApplicationDelegate {
             HistoryRetentionService.shared.activate()
         }
 
+        // Subscribed unconditionally; the submitter drops everything unless
+        // someone has turned sharing on. Subscribing later, only once consent
+        // exists, would miss the payload the system had already queued.
+        if ProcessInfo.processInfo.environment["CANDOA_UI_TESTING"] != "1" {
+            CrashDiagnosticReporter.shared.start()
+        }
+
         MenuAlternateInstaller.install()
         DevelopMenuStyler.install()
         webAuthenticationHostService.activate()

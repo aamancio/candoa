@@ -8,6 +8,7 @@ enum AppConfiguration {
     static let privateBrowserWindowSceneID = "browser.private"
     static let acknowledgmentsWindowSceneID = "browser.acknowledgments"
     static let featureFlagsWindowSceneID = "browser.feature-flags"
+    static let reportProblemWindowSceneID = "browser.report-problem"
     static let windowAutosaveNamePrefix = "Candoa.BrowserWindow"
 }
 
@@ -53,6 +54,8 @@ enum BrowserCommandTitles {
     static let unmuteThisTab = String(localized: "Unmute This Tab")
     static let muteOtherTabs = String(localized: "Mute Other Tabs")
     static let acknowledgments = String(localized: "Acknowledgments")
+    static let reportAProblem = String(localized: "Report an Issue…")
+    static let reportAProblemWindowTitle = String(localized: "Report an Issue")
     static let addToFavorites = String(localized: "Add to Favorites")
     static let removeFromFavorites = String(localized: "Remove from Favorites")
     static let siteInfo = String(localized: "Site Info…")
