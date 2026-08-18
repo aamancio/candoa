@@ -53,6 +53,7 @@ enum BrowserCommandTitles {
     static let muteThisTab = String(localized: "Mute This Tab")
     static let unmuteThisTab = String(localized: "Unmute This Tab")
     static let muteOtherTabs = String(localized: "Mute Other Tabs")
+    static let getExtensions = String(localized: "Get Extensions…")
     static let acknowledgments = String(localized: "Acknowledgments")
     static let reportAProblem = String(localized: "Report an Issue…")
     static let reportAProblemWindowTitle = String(localized: "Report an Issue")

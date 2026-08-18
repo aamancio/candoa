@@ -226,6 +226,16 @@ final class WebExtensionManager: NSObject, ObservableObject {
         WebExtensionRecords.save(installations)
     }
 
+    /// Opens the Chrome Web Store in the frontmost browser window. Settings
+    /// is its own scene with no store to navigate, so it borrows one from the
+    /// window bookkeeping here — an ordinary window by preference, since a
+    /// private one keeps nothing.
+    func openExtensionGallery() {
+        let stores = orderedWindowAdapters.compactMap(\.store)
+        let store = stores.first { !$0.isPrivate } ?? stores.first
+        store?.navigateNewTab(to: ChromeWebStore.galleryURL)
+    }
+
     private func loadEnabledExtensions() async {
         for installation in installations where installation.isEnabled {
             await loadPersistedExtension(installation)

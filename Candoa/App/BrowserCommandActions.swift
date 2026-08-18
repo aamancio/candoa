@@ -21,6 +21,7 @@ struct BrowserCommandActions {
     var canToggleReader: Bool
     var isReaderActive: Bool
     var showQuickTour: () -> Void
+    var openExtensionGallery: () -> Void
     var reloadTab: () -> Void
     var reloadTabFromOrigin: () -> Void
     var printPage: () -> Void

@@ -22,6 +22,7 @@ internal struct ExtensionsCommands: Commands {
 private struct ExtensionsMenuItems: View {
     @ObservedObject private var manager = WebExtensionManager.shared
     @Environment(\.openSettings) private var openSettings
+    @FocusedValue(\.browserCommandActions) private var actions
 
     var body: some View {
         // actionDescriptors already reflects the focused window: in a
@@ -47,6 +48,14 @@ private struct ExtensionsMenuItems: View {
 
             Divider()
         }
+
+        // The Chrome Web Store is where the extensions are; Candoa
+        // installs from its item pages directly (see `ChromeWebStore`).
+        Button(BrowserCommandTitles.getExtensions) {
+            actions?.openExtensionGallery()
+        }
+        .keyboardShortcut(ShortcutDefinition.getExtensions.currentKeyboardShortcut)
+        .disabled(actions == nil)
 
         Button(String(localized: "Manage Extensions…")) {
             SettingsPaneRequest.request(.extensions)

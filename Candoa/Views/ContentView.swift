@@ -660,6 +660,7 @@ struct ContentView: View {
             canToggleReader: store.canToggleReaderForActiveTab,
             isReaderActive: store.isReaderActiveForActiveTab,
             showQuickTour: showQuickTour,
+            openExtensionGallery: { store.navigateNewTab(to: ChromeWebStore.galleryURL) },
             reloadTab: store.reloadActiveTab,
             reloadTabFromOrigin: store.reloadActiveTabFromOrigin,
             printPage: store.printActiveTab,

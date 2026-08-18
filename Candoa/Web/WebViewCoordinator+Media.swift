@@ -36,6 +36,19 @@ extension WebViewCoordinator {
             let href = (message.body as? [String: Any])?["href"] as? String
             store?.updateHoveredLink(tabID: tabID, href: href)
 
+        case WebPageScripts.webStoreInstallMessageName:
+            guard
+                let body = message.body as? [String: Any],
+                let itemID = body["itemID"] as? String
+            else {
+                return
+            }
+            installWebStoreItem(
+                itemID: itemID,
+                name: body["name"] as? String ?? "",
+                in: webView
+            )
+
         case WebPageScripts.popupDiagnosticsMessageName:
             guard let body = message.body as? [String: Any] else { return }
             let phase = body["phase"] as? String ?? "?"
