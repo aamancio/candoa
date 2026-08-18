@@ -1188,3 +1188,48 @@ final class ProblemReportTests: XCTestCase {
         }
     }
 }
+
+/// The Chrome Web Store's item pages are the only input to Candoa's install
+/// path, and its download endpoint the only output — both are pure string
+/// work, so both are checked here.
+final class ChromeWebStoreTests: XCTestCase {
+    func testStoreItemIDIsReadFromEveryDetailPageShape() {
+        let expected = "ddkjiahejlhfcafbddmgiahcphecmpfh"
+        let urls = [
+            "https://chromewebstore.google.com/detail/ublock-origin-lite/\(expected)",
+            "https://chromewebstore.google.com/detail/\(expected)",
+            "https://chromewebstore.google.com/detail/ublock-origin-lite/\(expected)/reviews",
+            "https://chromewebstore.google.com/detail/ublock-origin-lite/\(expected)?hl=fr",
+            "https://chrome.google.com/webstore/detail/ublock-origin-lite/\(expected)"
+        ]
+        for string in urls {
+            let url = URL(string: string) ?? URL(fileURLWithPath: "/")
+            XCTAssertEqual(ChromeWebStore.itemID(from: url), expected, string)
+        }
+    }
+
+    func testPagesWithoutAnItemAreNotInstallable() {
+        let urls = [
+            "https://chromewebstore.google.com/category/extensions",
+            "https://chromewebstore.google.com/search/ublock",
+            "https://example.com/detail/ublock/ddkjiahejlhfcafbddmgiahcphecmpfh",
+            "https://chromewebstore.google.com/detail/ublock-origin-lite/short"
+        ]
+        for string in urls {
+            let url = URL(string: string) ?? URL(fileURLWithPath: "/")
+            XCTAssertNil(ChromeWebStore.itemID(from: url), string)
+        }
+    }
+
+    func testDownloadURLCarriesTheItemAndAVersionTheStoreAccepts() throws {
+        let itemID = "ddkjiahejlhfcafbddmgiahcphecmpfh"
+        let url = try XCTUnwrap(ChromeWebStore.downloadURL(forItemID: itemID))
+        let components = try XCTUnwrap(URLComponents(url: url, resolvingAgainstBaseURL: false))
+        let queryItems = try XCTUnwrap(components.queryItems)
+
+        XCTAssertEqual(components.host, "clients2.google.com")
+        XCTAssertEqual(queryItems.first { $0.name == "x" }?.value, "id=\(itemID)&installsource=ondemand&uc")
+        XCTAssertEqual(queryItems.first { $0.name == "acceptformat" }?.value, "crx2,crx3")
+        XCTAssertNotNil(queryItems.first { $0.name == "prodversion" }?.value)
+    }
+}

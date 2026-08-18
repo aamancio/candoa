@@ -581,6 +581,7 @@ enum ShortcutDefinition: String, CaseIterable, Identifiable {
     case zoomOut
     case resetZoom
     case reportAProblem
+    case getExtensions
 
     var id: String { rawValue }
     var storageKey: String { "CandoaShortcut.\(rawValue)" }
@@ -625,6 +626,7 @@ enum ShortcutDefinition: String, CaseIterable, Identifiable {
         case .zoomOut: return BrowserCommandTitles.zoomOut
         case .resetZoom: return BrowserCommandTitles.resetZoom
         case .reportAProblem: return BrowserCommandTitles.reportAProblem
+        case .getExtensions: return BrowserCommandTitles.getExtensions
         }
     }
 
@@ -632,6 +634,8 @@ enum ShortcutDefinition: String, CaseIterable, Identifiable {
         switch self {
         case .reportAProblem:
             return String(localized: "Help")
+        case .getExtensions:
+            return String(localized: "Extensions")
         case .captureFullPage:
             return String(localized: "Capture")
         case .toggleAISidebar:
@@ -663,6 +667,9 @@ enum ShortcutDefinition: String, CaseIterable, Identifiable {
         // Safari gives its own report command no shortcut either; the row
         // exists so anyone who reports often can bind one.
         case .reportAProblem: return "None"
+        // No Chrome or Safari precedent to copy — the row exists so anyone
+        // who browses the store often can bind one.
+        case .getExtensions: return "None"
         case .pinOrUnpinTab: return "Command-D"
         case .toggleSidebar: return "Command-S"
         case .toggleAISidebar: return "Command-E"
@@ -749,6 +756,7 @@ enum ShortcutDefinition: String, CaseIterable, Identifiable {
         case .zoomOut: return "minus.magnifyingglass"
         case .resetZoom: return "1.magnifyingglass"
         case .reportAProblem: return "exclamationmark.bubble"
+        case .getExtensions: return "puzzlepiece.extension"
         }
     }
 

@@ -284,6 +284,8 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         contentController.add(self, name: WebPageScripts.mediaStateMessageName)
         contentController.removeScriptMessageHandler(forName: WebPageScripts.linkHoverMessageName)
         contentController.add(self, name: WebPageScripts.linkHoverMessageName)
+        contentController.removeScriptMessageHandler(forName: WebPageScripts.webStoreInstallMessageName)
+        contentController.add(self, name: WebPageScripts.webStoreInstallMessageName)
         addUserScriptOnce(
             WebPageScripts.mediaObserverScript,
             to: contentController,
@@ -297,6 +299,11 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         )
         addUserScriptOnce(
             WebPageScripts.youtubeMiniplayerGuardScript,
+            to: contentController,
+            forMainFrameOnly: true
+        )
+        addUserScriptOnce(
+            WebPageScripts.chromeWebStoreScript,
             to: contentController,
             forMainFrameOnly: true
         )
@@ -567,6 +574,9 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         )
         webView.configuration.userContentController.removeScriptMessageHandler(
             forName: WebPageScripts.linkHoverMessageName
+        )
+        webView.configuration.userContentController.removeScriptMessageHandler(
+            forName: WebPageScripts.webStoreInstallMessageName
         )
         webView.loadHTMLString("", baseURL: nil)
         webView.removeFromSuperview()

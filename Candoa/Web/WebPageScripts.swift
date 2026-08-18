@@ -2,6 +2,7 @@ enum WebPageScripts {
     static let mediaStateMessageName = "candoaMediaState"
     static let linkHoverMessageName = "candoaLinkHover"
     static let popupDiagnosticsMessageName = "candoaPopupDiagnostics"
+    static let webStoreInstallMessageName = "candoaWebStoreInstall"
 
     /// UI-testing only: reports each page's opener linkage so tests can see
     /// inside cross-origin popups (e.g. OAuth flows) that XCUITest can't reach.
@@ -19,6 +20,143 @@ enum WebPageScripts {
       addEventListener("pagehide", () => report("pagehide"));
     })();
     """
+
+    /// Chrome Web Store detail pages, made installable. The store hard-codes
+    /// its "Add to Chrome" button to `chrome.webstorePrivate` and ships it
+    /// disabled to every non-Chrome browser, so Candoa relabels that same
+    /// button, re-enables it, and takes the click itself — the native side
+    /// then downloads the item's CRX and installs it (see `ChromeWebStore`).
+    ///
+    /// Every class name on the page is obfuscated and rotates, so nothing
+    /// here selects on one. The button is found by what it says (the brand
+    /// name "Chrome" survives in every locale the store translates into) plus
+    /// the fact that the store disabled it for us; the "Install Chrome"
+    /// banner is told apart by being enabled and carrying the banner's own
+    /// copy in its `aria-label`, and its container is hidden — a Chrome
+    /// download is not the answer to a page Candoa can install from.
+    static var chromeWebStoreScript: String {
+        """
+        (() => {
+          const HOSTS = ["chromewebstore.google.com", "chrome.google.com"];
+          if (!HOSTS.includes(location.hostname)) { return; }
+
+          const LABEL_ADD = \(jsStringLiteral(String(localized: "Add to Candoa")));
+          const LABEL_BUSY = \(jsStringLiteral(String(localized: "Adding…")));
+          const LABEL_DONE = \(jsStringLiteral(String(localized: "Added to Candoa")));
+          const ITEM_PATTERN = /\\/detail\\/(?:[^/]+\\/)?([a-p]{32})/;
+
+          let pending = null;
+
+          const itemID = () => {
+            const match = location.pathname.match(ITEM_PATTERN);
+            return match ? match[1] : null;
+          };
+
+          // Material buttons keep their text in a labelled span; falling back
+          // to the button itself would drop its ripple spans, so only do that
+          // when the span is gone.
+          const labelNode = (button) => button.querySelector('[jsname="V67aGc"]') || button;
+
+          const setLabel = (button, text) => {
+            labelNode(button).textContent = text;
+            button.setAttribute("aria-label", text);
+          };
+
+          const candidates = () => Array.prototype.filter.call(
+            document.querySelectorAll("button"),
+            (button) => button.dataset.candoaStore === "1" || /chrome/i.test(button.textContent || "")
+          );
+
+          const onClick = (event) => {
+            const button = event.currentTarget;
+            // The store's own click handler is delegated to an ancestor;
+            // stopping the event here is what keeps it out of it.
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            const id = itemID();
+            if (!id || button.dataset.candoaState === "busy" || button.dataset.candoaState === "done") { return; }
+            button.dataset.candoaState = "busy";
+            pending = button;
+            setLabel(button, LABEL_BUSY);
+            window.webkit?.messageHandlers?.\(webStoreInstallMessageName)?.postMessage({
+              itemID: id,
+              name: document.querySelector("h1")?.textContent?.trim() || ""
+            });
+          };
+
+          const adopt = (button) => {
+            if (button.dataset.candoaStore === "1") {
+              // Re-renders put the store's `disabled` back; take it off again,
+              // unless this button already finished installing.
+              if (button.disabled && button.dataset.candoaState !== "done") { button.disabled = false; }
+              return;
+            }
+            button.dataset.candoaStore = "1";
+            button.disabled = false;
+            button.removeAttribute("aria-disabled");
+            setLabel(button, LABEL_ADD);
+            button.addEventListener("click", onClick, true);
+          };
+
+          const hideBanner = (button) => {
+            // Only the "Switch to Chrome" strip at the top of the page, never
+            // some other Chrome-mentioning control further down.
+            if (button.getBoundingClientRect().top + window.scrollY > 400) { return; }
+            let node = button;
+            for (let depth = 0; depth < 6 && node; depth += 1) {
+              node = node.parentElement;
+              if (!node) { return; }
+              if (node.clientWidth >= document.documentElement.clientWidth * 0.5) {
+                node.style.display = "none";
+                return;
+              }
+            }
+          };
+
+          const sync = () => {
+            if (!itemID()) { return; }
+            candidates().forEach((button) => {
+              if (button.dataset.candoaStore === "1" || button.disabled) {
+                adopt(button);
+              } else if ((button.getAttribute("aria-label") || "").length > (button.textContent || "").length + 4) {
+                hideBanner(button);
+              }
+            });
+          };
+
+          // The native side answers every request, so a button never sits on
+          // "Adding…" forever.
+          window.__candoaWebStoreResult = (state) => {
+            const button = pending;
+            pending = null;
+            if (!button) { return; }
+            if (state === "installed") {
+              button.dataset.candoaState = "done";
+              button.disabled = true;
+              setLabel(button, LABEL_DONE);
+            } else {
+              button.dataset.candoaState = "";
+              setLabel(button, LABEL_ADD);
+            }
+          };
+
+          // The store is a single-page app: item pages swap in without a
+          // navigation, so re-run on every DOM change rather than once.
+          const start = () => {
+            sync();
+            new MutationObserver(() => sync()).observe(document.documentElement, {
+              childList: true,
+              subtree: true
+            });
+          };
+          if (document.readyState === "loading") {
+            document.addEventListener("DOMContentLoaded", start, { once: true });
+          } else {
+            start();
+          }
+        })();
+        """
+    }
 
     /// Link-destination preview: posts the hovered link's resolved URL, or
     /// null when the pointer leaves links entirely. Injected into every frame

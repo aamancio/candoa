@@ -175,6 +175,8 @@
 		EF000000000000000000010A /* WebViewCoordinator+Media.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF000000000000000000000A /* WebViewCoordinator+Media.swift */; };
 		EF000000000000000000010B /* WebViewCoordinator+Delegates.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF000000000000000000000B /* WebViewCoordinator+Delegates.swift */; };
 		EF000000000000000000010C /* WebViewCoordinator+Downloads.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF000000000000000000000C /* WebViewCoordinator+Downloads.swift */; };
+		CW0000000000000000000101 /* ChromeWebStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = CW0000000000000000000001 /* ChromeWebStore.swift */; };
+		CW0000000000000000000102 /* WebViewCoordinator+WebStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = CW0000000000000000000002 /* WebViewCoordinator+WebStore.swift */; };
 		EF000000000000000000010D /* WebViewCoordinator+PageIntegration.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF000000000000000000000D /* WebViewCoordinator+PageIntegration.swift */; };
 		EF0000000000000000000110 /* AIModelCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000000000000010 /* AIModelCatalog.swift */; };
 		F60000000000000000000101 /* ButtonTreatment.swift in Sources */ = {isa = PBXBuildFile; fileRef = F60000000000000000000001 /* ButtonTreatment.swift */; };
@@ -376,6 +378,8 @@
 		EF000000000000000000000A /* WebViewCoordinator+Media.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WebViewCoordinator+Media.swift"; sourceTree = "<group>"; };
 		EF000000000000000000000B /* WebViewCoordinator+Delegates.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WebViewCoordinator+Delegates.swift"; sourceTree = "<group>"; };
 		EF000000000000000000000C /* WebViewCoordinator+Downloads.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WebViewCoordinator+Downloads.swift"; sourceTree = "<group>"; };
+		CW0000000000000000000001 /* ChromeWebStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ChromeWebStore.swift"; sourceTree = "<group>"; };
+		CW0000000000000000000002 /* WebViewCoordinator+WebStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WebViewCoordinator+WebStore.swift"; sourceTree = "<group>"; };
 		EF000000000000000000000D /* WebViewCoordinator+PageIntegration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WebViewCoordinator+PageIntegration.swift"; sourceTree = "<group>"; };
 		EF0000000000000000000010 /* AIModelCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIModelCatalog.swift; sourceTree = "<group>"; };
 		F1A2B3C4D5E60718293A4B5C /* SettingsPanes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsPanes.swift; sourceTree = "<group>"; };
@@ -623,6 +627,8 @@
 				RD00000000000000000000A2 /* WebViewCoordinator+Reader.swift */,
 				EF000000000000000000000B /* WebViewCoordinator+Delegates.swift */,
 				EF000000000000000000000C /* WebViewCoordinator+Downloads.swift */,
+				CW0000000000000000000001 /* ChromeWebStore.swift */,
+				CW0000000000000000000002 /* WebViewCoordinator+WebStore.swift */,
 				EF000000000000000000000D /* WebViewCoordinator+PageIntegration.swift */,
 			);
 			path = Web;
@@ -939,6 +945,8 @@
 				EF000000000000000000010A /* WebViewCoordinator+Media.swift in Sources */,
 				EF000000000000000000010B /* WebViewCoordinator+Delegates.swift in Sources */,
 				EF000000000000000000010C /* WebViewCoordinator+Downloads.swift in Sources */,
+				CW0000000000000000000101 /* ChromeWebStore.swift in Sources */,
+				CW0000000000000000000102 /* WebViewCoordinator+WebStore.swift in Sources */,
 				EF000000000000000000010D /* WebViewCoordinator+PageIntegration.swift in Sources */,
 				010000000000000000000111 /* ContentView.swift in Sources */,
 				010000000000000000000169 /* QuickNoteActivity.swift in Sources */,

@@ -105,7 +105,24 @@ private struct ExtensionsSettingsContent: View {
             }
             .buttonStyle(.plain)
             .padding(.horizontal, 16)
-            .padding(.vertical, 12)
+            .padding(.top, 12)
+            .padding(.bottom, 8)
+
+            // Where extensions actually come from: the store's own button
+            // can't install here, so Candoa puts its own on those pages.
+            Button {
+                manager.openExtensionGallery()
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "storefront")
+                        .foregroundStyle(.secondary)
+                    Text(BrowserCommandTitles.getExtensions)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal, 16)
+            .padding(.bottom, 12)
 
             Text(String(localized: "Installed"))
                 .font(.system(size: 11, weight: .semibold))
