@@ -137,6 +137,9 @@ enum SettingsOption {
     static let prefix = "Candoa.Settings.ZenOption."
 
     static let checkDefaultBrowser = prefix + "CheckDefaultBrowser"
+    /// Off until someone turns it on: nothing about a failure leaves this Mac
+    /// by default, not even an anonymous crash.
+    static let shareProblemReports = prefix + "ShareProblemReports"
     static let askBeforeQuitting = prefix + "AskBeforeQuitting"
     static let askConnection = prefix + "AskConnection"
     static let askHostedModel = prefix + "AskHostedModel"

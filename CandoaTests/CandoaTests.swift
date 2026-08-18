@@ -1022,3 +1022,169 @@ final class PaletteShortcutTests: XCTestCase {
         )
     }
 }
+
+/// Problem reporting's pure logic: the crash-stack parsing that turns a
+/// MetricKit call-stack tree into readable frames, the signature that stops one
+/// crash being reported twice, and the payload the intake has to accept.
+final class ProblemReportTests: XCTestCase {
+    // MARK: - Call stack parsing
+
+    /// Shaped like `MXCallStackTree.jsonRepresentation()`: frames nest under
+    /// `subFrames`, and only one thread carries `threadAttributed`.
+    private func callStackTreeJSON(
+        attributedBinary: String = "Candoa",
+        includeOtherThread: Bool = true
+    ) -> Data {
+        var callStacks: [[String: Any]] = []
+        if includeOtherThread {
+            callStacks.append([
+                "threadAttributed": false,
+                "callStackRootFrames": [[
+                    "binaryName": "libsystem_kernel.dylib",
+                    "offsetIntoBinaryTextSegment": 9_000,
+                    "subFrames": []
+                ]]
+            ])
+        }
+        callStacks.append([
+            "threadAttributed": true,
+            "callStackRootFrames": [[
+                "binaryName": attributedBinary,
+                "offsetIntoBinaryTextSegment": 100,
+                "subFrames": [[
+                    "binaryName": attributedBinary,
+                    "offsetIntoBinaryTextSegment": 200,
+                    "subFrames": [[
+                        "binaryName": "AppKit",
+                        "offsetIntoBinaryTextSegment": 300,
+                        "subFrames": []
+                    ]]
+                ]]
+            ]]
+        ])
+        return try! JSONSerialization.data(
+            withJSONObject: ["callStacks": callStacks, "callStackPerThread": true]
+        )
+    }
+
+    func testCrashParserReadsTheThreadThatActuallyCrashed() {
+        let frames = CrashCallStackParser.frames(fromCallStackTreeJSON: callStackTreeJSON())
+        XCTAssertEqual(frames, ["Candoa +100", "Candoa +200", "AppKit +300"])
+    }
+
+    func testCrashParserFallsBackToTheFirstThreadWhenNoneIsAttributed() {
+        let json = try! JSONSerialization.data(withJSONObject: [
+            "callStacks": [[
+                "callStackRootFrames": [[
+                    "binaryName": "Candoa",
+                    "offsetIntoBinaryTextSegment": 42,
+                    "subFrames": []
+                ]]
+            ]]
+        ])
+        XCTAssertEqual(
+            CrashCallStackParser.frames(fromCallStackTreeJSON: json),
+            ["Candoa +42"]
+        )
+    }
+
+    func testCrashParserSurvivesAnUnexpectedShape() {
+        XCTAssertEqual(CrashCallStackParser.frames(fromCallStackTreeJSON: Data()), [])
+        XCTAssertEqual(
+            CrashCallStackParser.frames(
+                fromCallStackTreeJSON: Data("{\"callStacks\":\"unexpected\"}".utf8)
+            ),
+            []
+        )
+    }
+
+    // MARK: - Not reporting the same crash twice
+
+    func testSameCrashProducesTheSameSignature() {
+        let frames = ["Candoa +100", "Candoa +200", "AppKit +300"]
+        XCTAssertEqual(
+            CrashReportBuilder.signature(name: "SIGSEGV", frames: frames, appVersion: "0.78.4"),
+            CrashReportBuilder.signature(name: "SIGSEGV", frames: frames, appVersion: "0.78.4")
+        )
+    }
+
+    func testADifferentCrashProducesADifferentSignature() {
+        let signature = CrashReportBuilder.signature(
+            name: "SIGSEGV", frames: ["Candoa +100"], appVersion: "0.78.4"
+        )
+        XCTAssertNotEqual(
+            signature,
+            CrashReportBuilder.signature(
+                name: "SIGABRT", frames: ["Candoa +100"], appVersion: "0.78.4"
+            )
+        )
+        XCTAssertNotEqual(
+            signature,
+            CrashReportBuilder.signature(
+                name: "SIGSEGV", frames: ["Candoa +999"], appVersion: "0.78.4"
+            )
+        )
+    }
+
+    /// A fix ships as a new version. The same crash there is news again, not a
+    /// duplicate of what was already reported.
+    func testANewVersionReportsTheCrashAgain() {
+        XCTAssertNotEqual(
+            CrashReportBuilder.signature(
+                name: "SIGSEGV", frames: ["Candoa +100"], appVersion: "0.78.4"
+            ),
+            CrashReportBuilder.signature(
+                name: "SIGSEGV", frames: ["Candoa +100"], appVersion: "0.79.0"
+            )
+        )
+    }
+
+    // MARK: - The payload
+
+    private func encoded(_ report: ProblemReport) throws -> [String: Any] {
+        let data = try JSONEncoder().encode(report)
+        return try XCTUnwrap(
+            JSONSerialization.jsonObject(with: data) as? [String: Any]
+        )
+    }
+
+    func testWrittenReportCarriesTheWordsAndNothingAboutBrowsing() throws {
+        let report = ProblemReport.written(description: "  The sidebar forgets my Spaces.  ")
+        let json = try encoded(report)
+
+        XCTAssertEqual(json["source"] as? String, "browser")
+        XCTAssertEqual(json["kind"] as? String, "report")
+        XCTAssertEqual(json["userDescription"] as? String, "The sidebar forgets my Spaces.")
+        // No page, no tab, no history — the report names the app and nothing else.
+        XCTAssertEqual(try XCTUnwrap(json["context"] as? [String: String]), [:])
+        XCTAssertEqual(try XCTUnwrap(json["stack"] as? [String]), [])
+    }
+
+    func testCrashReportCarriesItsStackAndNoProse() throws {
+        let report = CrashReportBuilder.report(
+            name: "SIGSEGV",
+            message: "",
+            frames: ["Candoa +100"],
+            appVersion: "0.78.4",
+            platform: "macOS 15.5",
+            context: ["signal": "11"]
+        )
+        let json = try encoded(report)
+
+        XCTAssertEqual(json["kind"] as? String, "crash")
+        XCTAssertEqual(try XCTUnwrap(json["stack"] as? [String]), ["Candoa +100"])
+        XCTAssertEqual(json["userDescription"] as? String, "")
+        XCTAssertEqual(try XCTUnwrap(json["context"] as? [String: String])["signal"], "11")
+    }
+
+    func testEmptyWrittenReportIsRefusedBeforeItIsSent() async {
+        do {
+            try await ProblemReportSubmitter.shared.submitWritten(description: "   \n  ")
+            XCTFail("An empty report should never reach the network.")
+        } catch let error as ProblemReportError {
+            XCTAssertEqual(error, .emptyDescription)
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+    }
+}

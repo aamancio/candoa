@@ -294,6 +294,12 @@ enum CloudAPI {
         return endpoint("ai/chat")
     }
 
+    /// Problem-report intake. Unauthenticated on purpose: a crash is worth
+    /// hearing about whether or not anyone was signed in when it happened.
+    static var problemReportURL: URL {
+        return endpoint("report")
+    }
+
     /// The plan-filtered hosted model catalog. The server stays authoritative
     /// for availability, credit cost, and model metadata; the curated client
     /// catalog only backfills fields the server response omits.
