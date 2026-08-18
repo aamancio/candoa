@@ -10,6 +10,7 @@ enum WebExtensionInstaller {
         case unreadableSource
         case unpackFailed
         case manifestNotFound
+        case browserTheme
 
         var errorDescription: String? {
             switch self {
@@ -20,6 +21,10 @@ enum WebExtensionInstaller {
             case .manifestNotFound:
                 return String(
                     localized: "No manifest.json found — this doesn't look like a web extension."
+                )
+            case .browserTheme:
+                return String(
+                    localized: "Candoa has its own themes, so Chrome and Firefox themes don't install here. Pick a look in Settings ▸ Spaces."
                 )
             }
         }
@@ -56,6 +61,9 @@ enum WebExtensionInstaller {
 
             guard let manifestRoot = manifestRoot(in: destination) else {
                 throw InstallError.manifestNotFound
+            }
+            guard !isBrowserTheme(manifestRoot) else {
+                throw InstallError.browserTheme
             }
             return manifestRoot
         } catch {
@@ -110,6 +118,24 @@ enum WebExtensionInstaller {
         guard process.terminationStatus == 0 else {
             throw InstallError.unpackFailed
         }
+    }
+
+    /// Chrome and Firefox themes ship as extensions — an archive with a
+    /// manifest whose only real content is a top-level `theme` object, no
+    /// code at all. They describe a Chrome window (frame, toolbar, ntp) that
+    /// Candoa doesn't have, and Candoa dresses its windows from its own
+    /// Spaces, so they are turned away here rather than installed inert.
+    nonisolated static func isBrowserTheme(_ manifestRoot: URL) -> Bool {
+        guard
+            let data = try? Data(contentsOf: manifestRoot.appendingPathComponent("manifest.json")),
+            let manifest = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else {
+            return false
+        }
+        // Firefox's static themes and Chrome's both key off `theme`;
+        // "theme_experiment" and the like are extensions, so require the
+        // exact key holding an object.
+        return manifest["theme"] is [String: Any]
     }
 
     /// The directory `manifest.json` lives in: the staged root itself, or a

@@ -52,6 +52,12 @@ enum WebPageScripts {
             return match ? match[1] : null;
           };
 
+          // Theme pages are left exactly as the store shipped them: a Chrome
+          // theme paints a Chrome window, and Candoa dresses its own from
+          // Spaces. The category chip links to the themes category, which is
+          // an href rather than one of the page's rotating class names.
+          const isTheme = () => document.querySelector('a[href*="category/themes"]') !== null;
+
           // Material buttons keep their text in a labelled span; falling back
           // to the button itself would drop its ripple spans, so only do that
           // when the span is gone.
@@ -119,7 +125,7 @@ enum WebPageScripts {
           };
 
           const sync = () => {
-            if (!itemID()) { return; }
+            if (!itemID() || isTheme()) { return; }
             candidates().forEach((button) => {
               if (button.dataset.candoaStore === "1" || button.disabled) {
                 adopt(button);
