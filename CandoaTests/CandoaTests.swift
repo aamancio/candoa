@@ -1233,3 +1233,111 @@ final class ChromeWebStoreTests: XCTestCase {
         XCTAssertNotNil(queryItems.first { $0.name == "prodversion" }?.value)
     }
 }
+
+/// Themes are the one thing the extension install path turns away: Chrome and
+/// Firefox both ship them as extensions, and Candoa dresses its windows from
+/// its own Spaces.
+final class WebExtensionInstallerTests: XCTestCase {
+    private func stagedResult(manifest: String) throws -> Result<URL, Error> {
+        let source = FileManager.default.temporaryDirectory
+            .appendingPathComponent("source-\(UUID().uuidString)", isDirectory: true)
+        let destination = FileManager.default.temporaryDirectory
+            .appendingPathComponent("staged-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: source, withIntermediateDirectories: true)
+        try Data(manifest.utf8).write(to: source.appendingPathComponent("manifest.json"))
+        defer {
+            try? FileManager.default.removeItem(at: source)
+            try? FileManager.default.removeItem(at: destination)
+        }
+        do {
+            // Read the staged tree before the defer above clears it.
+            let root = try WebExtensionInstaller.stage(source, to: destination)
+            return .success(
+                FileManager.default.fileExists(atPath: root.appendingPathComponent("manifest.json").path)
+                    ? root : URL(fileURLWithPath: "/nonexistent")
+            )
+        } catch {
+            return .failure(error)
+        }
+    }
+
+    func testChromeAndFirefoxThemesAreRefused() throws {
+        let manifests = [
+            #"{"manifest_version": 3, "name": "Deep Dark", "version": "1", "theme": {"colors": {"frame": [0, 0, 0]}}}"#,
+            #"{"manifest_version": 2, "name": "Firefox Look", "version": "1", "theme": {"images": {"theme_frame": "f.png"}}}"#
+        ]
+        for manifest in manifests {
+            switch try stagedResult(manifest: manifest) {
+            case .success:
+                XCTFail("A browser theme should never stage as an extension.")
+            case .failure(let error):
+                XCTAssertEqual(error as? WebExtensionInstaller.InstallError, .browserTheme)
+            }
+        }
+    }
+
+    func testOrdinaryExtensionsStillStage() throws {
+        let manifest = #"{"manifest_version": 3, "name": "Blocker", "version": "1", "permissions": ["storage"]}"#
+        switch try stagedResult(manifest: manifest) {
+        case .success(let root):
+            XCTAssertNotEqual(root.path, "/nonexistent", "The staged tree should hold the manifest.")
+        case .failure(let error):
+            XCTFail("Unexpected error: \(error)")
+        }
+    }
+}
+
+/// The words the install prompt puts in front of someone: no API names, host
+/// access first, and silence for the permissions that tell nobody anything.
+final class WebExtensionPermissionCopyTests: XCTestCase {
+    func testHostAccessReadsLikeChromesDialog() {
+        XCTAssertEqual(
+            WebExtensionPermissionCopy.websiteWarning(
+                allHosts: false,
+                hosts: ["*.youtube.com", "sponsor.ajay.app", "www.youtube-nocookie.com"]
+            ),
+            "Read and change your data on all youtube.com sites, sponsor.ajay.app, and www.youtube-nocookie.com"
+        )
+        XCTAssertEqual(
+            WebExtensionPermissionCopy.websiteWarning(allHosts: true, hosts: ["example.com"]),
+            "Read and change all your data on all websites"
+        )
+        XCTAssertNil(WebExtensionPermissionCopy.websiteWarning(allHosts: false, hosts: []))
+    }
+
+    func testLongHostListsEndInACount() {
+        let hosts = (1...8).map { "site\($0).com" }
+        let warning = try? XCTUnwrap(
+            WebExtensionPermissionCopy.websiteWarning(allHosts: false, hosts: hosts)
+        )
+        XCTAssertEqual(warning?.contains("3 more sites"), true)
+        XCTAssertEqual(warning?.contains("site6.com"), false)
+    }
+
+    func testUninformativePermissionsAreLeftUnsaid() {
+        let warnings = WebExtensionPermissionCopy.warnings(
+            permissions: ["storage", "alarms", "contextMenus", "activeTab", "scripting", "unlimitedStorage"],
+            allHosts: false,
+            hosts: []
+        )
+        XCTAssertEqual(warnings, [])
+        XCTAssertEqual(
+            WebExtensionPermissionCopy.informativeText(for: warnings),
+            "It doesn't ask for access to your data."
+        )
+    }
+
+    func testWebsiteAccessLeadsAndDuplicatesCollapse() {
+        let warnings = WebExtensionPermissionCopy.warnings(
+            permissions: ["tabs", "webNavigation", "downloads", "storage"],
+            allHosts: true,
+            hosts: []
+        )
+        XCTAssertEqual(warnings, [
+            "Read and change all your data on all websites",
+            "Manage your downloads",
+            "Read your browsing history"
+        ])
+        XCTAssertTrue(WebExtensionPermissionCopy.informativeText(for: warnings).hasPrefix("It can:"))
+    }
+}

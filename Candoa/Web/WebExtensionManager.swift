@@ -282,25 +282,35 @@ final class WebExtensionManager: NSObject, ObservableObject {
         contextsByInstallationID[installation.id] = context
     }
 
+    /// Chrome's install dialog, in Candoa's words: what the extension can do,
+    /// in plain language, with none of the manifest's API names.
     private func confirmInstall(of webExtension: WKWebExtension) -> Bool {
         let alert = NSAlert()
-        let name = webExtension.displayName ?? String(localized: "This extension")
-        alert.messageText = String(localized: "Install “\(name)”?")
-        var details: [String] = []
-        let permissions = webExtension.requestedPermissions.map(\.rawValue).sorted()
-        if !permissions.isEmpty {
-            details.append(String(localized: "Permissions: \(permissions.joined(separator: ", "))"))
-        }
-        let hosts = webExtension.requestedPermissionMatchPatterns.map(\.string).sorted()
-        if !hosts.isEmpty {
-            details.append(String(localized: "Websites: \(hosts.joined(separator: ", "))"))
-        }
-        alert.informativeText = details.isEmpty
-            ? String(localized: "It requests no special permissions.")
-            : details.joined(separator: "\n")
-        alert.addButton(withTitle: String(localized: "Install"))
+        let name = webExtension.displayName ?? String(localized: "this extension")
+        alert.messageText = String(localized: "Add “\(name)”?")
+        alert.informativeText = WebExtensionPermissionCopy.informativeText(
+            for: WebExtensionPermissionCopy.warnings(
+                permissions: webExtension.requestedPermissions.map(\.rawValue),
+                allHosts: webExtension.requestedPermissionMatchPatterns.contains { $0.matchesAllHosts },
+                hosts: Self.hostList(of: webExtension.requestedPermissionMatchPatterns)
+            )
+        )
+        alert.addButton(withTitle: String(localized: "Add Extension"))
         alert.addButton(withTitle: String(localized: "Cancel"))
         return alert.runModal() == .alertFirstButtonReturn
+    }
+
+    /// The distinct hosts a set of match patterns reaches, in the order the
+    /// prompt should read them.
+    private static func hostList(of patterns: some Sequence<WKWebExtension.MatchPattern>) -> [String] {
+        var hosts: [String] = []
+        for pattern in patterns {
+            guard let host = pattern.host, !host.isEmpty, host != "*" else { continue }
+            if !hosts.contains(host) {
+                hosts.append(host)
+            }
+        }
+        return hosts.sorted()
     }
 
     // MARK: - Window and tab bookkeeping
@@ -512,7 +522,11 @@ extension WebExtensionManager: WKWebExtensionControllerDelegate {
     ) {
         let granted = promptForAccess(
             context: extensionContext,
-            requestDescriptions: permissions.map(\.rawValue).sorted()
+            requestDescriptions: WebExtensionPermissionCopy.warnings(
+                permissions: permissions.map(\.rawValue),
+                allHosts: false,
+                hosts: []
+            )
         )
         completionHandler(granted ? permissions : [], nil)
     }
@@ -526,7 +540,11 @@ extension WebExtensionManager: WKWebExtensionControllerDelegate {
     ) {
         let granted = promptForAccess(
             context: extensionContext,
-            requestDescriptions: urls.map(\.absoluteString).sorted()
+            requestDescriptions: WebExtensionPermissionCopy.warnings(
+                permissions: [],
+                allHosts: false,
+                hosts: urls.compactMap(\.host).sorted()
+            )
         )
         completionHandler(granted ? urls : [], nil)
     }
@@ -540,7 +558,11 @@ extension WebExtensionManager: WKWebExtensionControllerDelegate {
     ) {
         let granted = promptForAccess(
             context: extensionContext,
-            requestDescriptions: matchPatterns.map(\.string).sorted()
+            requestDescriptions: WebExtensionPermissionCopy.warnings(
+                permissions: [],
+                allHosts: matchPatterns.contains { $0.matchesAllHosts },
+                hosts: Self.hostList(of: matchPatterns)
+            )
         )
         completionHandler(granted ? matchPatterns : [], nil)
     }
@@ -618,8 +640,8 @@ extension WebExtensionManager: WKWebExtensionControllerDelegate {
     ) -> Bool {
         let alert = NSAlert()
         let name = context.webExtension.displayName ?? String(localized: "This extension")
-        alert.messageText = String(localized: "“\(name)” wants additional access.")
-        alert.informativeText = requestDescriptions.joined(separator: "\n")
+        alert.messageText = String(localized: "Let “\(name)” do more?")
+        alert.informativeText = WebExtensionPermissionCopy.informativeText(for: requestDescriptions)
         alert.addButton(withTitle: String(localized: "Allow"))
         alert.addButton(withTitle: String(localized: "Don't Allow"))
         return alert.runModal() == .alertFirstButtonReturn
