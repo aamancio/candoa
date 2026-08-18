@@ -232,7 +232,13 @@ extension BrowserStore {
         // reports it as about:blank; keep the tab URL-less instead of
         // surfacing the placeholder in the tab row and address bar.
         let isInternalHomePage = Self.isInternalBlankPlaceholderURL(url)
-        let reportedURL = isInternalHomePage ? nil : url
+        // A web view reports no URL until its first navigation commits — and
+        // a pop-up's opening navigation is WebKit's own, so the window it was
+        // handed sits URL-less until then, and stays that way if it fails.
+        // That is the web view having nothing to report, not the tab losing
+        // its address: keep the destination already recorded, so the row, the
+        // address bar, and Try Again all still know where the tab points.
+        let reportedURL = isInternalHomePage ? nil : (url ?? tabs[index].url)
 
         if isInternalHomePage {
             tabs[index].title = BrowserDefaults.newTabTitle
