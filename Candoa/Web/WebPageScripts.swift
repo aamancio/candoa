@@ -98,19 +98,24 @@ enum WebPageScripts {
             button.addEventListener("click", onClick, true);
           };
 
+          // Hide the "Switch to Chrome" strip, and nothing else. Two guards
+          // matter: an already-hidden button has no offsetParent, which stops
+          // a hidden strip from sending the next pass up to hide its parent
+          // too, and a strip is wide but short — hitting anything tall means
+          // this is page content, so hide nothing at all.
           const hideBanner = (button) => {
-            // Only the "Switch to Chrome" strip at the top of the page, never
-            // some other Chrome-mentioning control further down.
+            if (!button.offsetParent) { return; }
             if (button.getBoundingClientRect().top + window.scrollY > 400) { return; }
+            let strip = null;
             let node = button;
-            for (let depth = 0; depth < 6 && node; depth += 1) {
+            for (let depth = 0; depth < 6; depth += 1) {
               node = node.parentElement;
-              if (!node) { return; }
-              if (node.clientWidth >= document.documentElement.clientWidth * 0.5) {
-                node.style.display = "none";
-                return;
-              }
+              if (!node || node === document.body) { break; }
+              const rect = node.getBoundingClientRect();
+              if (rect.height > 160) { break; }
+              if (rect.width >= document.documentElement.clientWidth * 0.5) { strip = node; }
             }
+            if (strip) { strip.style.display = "none"; }
           };
 
           const sync = () => {
