@@ -70,6 +70,18 @@ extension CandoaUITests {
             currentState(in: app)
         )
         XCTAssertEqual(app.state, .runningForeground)
+
+        // The pop-up's own navigation goes to the network — which the fixture
+        // host does not answer — so it never commits and the web view keeps
+        // reporting no URL. The tab has to hold the destination it was opened
+        // with anyway; blanking it here is what made this test fail on CI,
+        // where the failure lands before the assertion above is even polled.
+        Thread.sleep(forTimeInterval: 5)
+        XCTAssertEqual(
+            stateValue("url", in: app),
+            "https://fixture.candoa.test/popup-child",
+            currentState(in: app)
+        )
     }
 
     /// The address pill's leading icon opens Site Info: the popover names the
