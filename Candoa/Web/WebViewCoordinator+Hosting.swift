@@ -17,9 +17,7 @@ extension WebViewCoordinator {
     ) {
         guard let activeWebView = webViews[tabID] else { return }
         syncHostBackground(in: container, with: activeWebView)
-        var layoutInsets = pageAreaInsets
-        layoutInsets.right += (container as? WebPaneHostView)?.trailingOverhang ?? 0
-        applyObscuredContentInsets(layoutInsets, to: activeWebView)
+        applyObscuredContentInsets(pageAreaInsets, to: activeWebView)
         attachInspector(of: activeWebView, to: container)
         reportInspectorPlacementForUITesting(for: tabID)
         if miniPlayerHostedTabID == tabID {
@@ -189,6 +187,16 @@ extension WebViewCoordinator {
             let canvas: NSColor = values.last == "dark" ? NSColor(white: 0.12, alpha: 1) : .white
             let color = values.prefix(2).lazy.compactMap(Self.color(fromCSS:)).first ?? canvas
             webView.underPageBackgroundColor = color
+            // WebKit fills the strips beside the layout viewport (the
+            // obscured lanes, and mid-toggle the slack beside a moving one)
+            // with the window's background, whatever the page; stop it
+            // drawing one, so those strips show the host behind — synced to
+            // the page's color just below. (`drawsBackground` reaches
+            // `-[WKWebView _setDrawsBackground:]` through KVC; a build where
+            // it is gone just keeps the window-colored strips.)
+            if webView.responds(to: NSSelectorFromString("_setDrawsBackground:")) {
+                webView.setValue(false, forKey: "drawsBackground")
+            }
             if let host = webView.superview {
                 self.syncHostBackground(in: host, with: webView)
             }
@@ -215,9 +223,9 @@ extension WebViewCoordinator {
     /// final value.
     ///
     /// "Landed" is WebKit's after-commit callback (pacing); the page's own
-    /// report that it has painted at the new width goes to the pane host,
-    /// which pulls a closing page by its lag (`WebPaneHostView`), and stands
-    /// in for pacing where the callback is missing or never comes.
+    /// report that it has painted at the new width tells Eli's close when
+    /// the page is ready under the panel, and stands in for pacing where the
+    /// callback is missing or never comes.
     func applyObscuredContentInsets(_ insets: NSEdgeInsets, to webView: WKWebView) {
         guard #available(macOS 26.0, *) else { return }
         let key = ObjectIdentifier(webView)
@@ -228,9 +236,6 @@ extension WebViewCoordinator {
             || current.right != insets.right
         else {
             pendingObscuredContentInsets.removeValue(forKey: key)
-            if !obscuredContentInsetsInFlight.contains(key) {
-                (webView.superview as? WebPaneHostView)?.paintedLeadingInset = insets.left
-            }
             return
         }
         if obscuredContentInsetsInFlight.contains(key) {
@@ -294,7 +299,6 @@ extension WebViewCoordinator {
 
     private func notePainted(_ insets: NSEdgeInsets, of webView: WKWebView?) {
         guard let webView else { return }
-        (webView.superview as? WebPaneHostView)?.paintedLeadingInset = insets.left
         guard let activeID = hostedActiveTabID, webViews[activeID] === webView else { return }
         let waiters = trailingLaneWaiters
         trailingLaneWaiters = waiters.filter { $0.trailing != insets.right }
@@ -328,16 +332,6 @@ extension WebViewCoordinator {
         }
         trailingLaneWaiters.append(LaneWaiter(trailing: trailing, completion: once))
         DispatchQueue.main.asyncAfter(deadline: .now() + timeout) { once() }
-    }
-
-    /// While the leading lane closes the page is pulled back under the
-    /// sidebar's edge by its layout lag; give it that much page-colored
-    /// margin past the card's far edge to be pulled over.
-    func setLeadingLaneClosing(_ closing: Bool, overhang: CGFloat) {
-        guard let activeID = hostedActiveTabID, let webView = webViews[activeID],
-              let host = webView.superview as? WebPaneHostView else { return }
-        host.trailingOverhang = closing ? overhang : 0
-        host.needsLayout = true
     }
 
     /// Points WebKit's attached Web Inspector at the host's lane-inset

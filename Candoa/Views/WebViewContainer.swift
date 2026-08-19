@@ -331,8 +331,7 @@ struct WebViewContainer: View {
                 ActiveWebViewHost(
                     tab: tab,
                     store: store,
-                    laneInsets: webLayoutInsets,
-                    visualLeadingInset: visibleInterfaceInsets.leading
+                    laneInsets: webLayoutInsets
                 )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(InterfaceStyle.surfaceFill.opacity(0.72))
@@ -916,7 +915,6 @@ struct WebViewContainer: View {
             paneIndex: paneIndex,
             store: store,
             laneInsets: laneInsets,
-            visualLeadingInset: laneInsets.leading > 0 ? visibleInterfaceInsets.leading : 0,
             onPaneHoverChange: { isInside in
                 if isInside {
                     hoveredSplitPaneIndex = paneIndex

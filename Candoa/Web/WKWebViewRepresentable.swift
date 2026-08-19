@@ -34,62 +34,13 @@ class WebPaneHostView: NSView {
     @available(*, unavailable)
     required init?(coder: NSCoder) { nil }
 
-    /// Where the page card's leading edge is this frame. While the sidebar
-    /// *closes*, the web views are pulled back by however far the page's
-    /// layout trails the moving lane — the page lays out a frame or three
-    /// behind, and that much of its margin would otherwise show beside the
-    /// sidebar — so the page's leading edge stays glued to the sidebar's.
-    /// The pull unwinds as each layout lands. (Opening needs no push: the
-    /// page trails *under* the sidebar's edge there, which is invisible.)
-    var visualLeadingInset: CGFloat = 0 {
-        didSet { updateLeadingLag() }
-    }
-
-    /// The leading lane the page has painted against, by the page's own
-    /// report (two animation frames after its viewport took the new width).
-    /// That can run a frame behind the display, which errs the right way:
-    /// the pull is never too small, so the page can sit a few points under
-    /// the sidebar's edge for a frame but never leaves a gap beside it.
-    var paintedLeadingInset: CGFloat = 0 {
-        didSet { updateLeadingLag() }
-    }
-
-    /// Extra width past the host's trailing edge, only while the leading
-    /// lane closes: pulled back, the page would otherwise leave the card's
-    /// far edge; the overhang is the page's own margin (painted in the
-    /// page's background), so what shows there is page-colored.
-    var trailingOverhang: CGFloat = 0 {
-        didSet {
-            guard trailingOverhang != oldValue else { return }
-            layoutHostedWebViews()
-        }
-    }
-
-    private(set) var leadingLag: CGFloat = 0
-
-    private func updateLeadingLag() {
-        let lag = min(0, max(-trailingOverhang, visualLeadingInset - paintedLeadingInset))
-        guard lag != leadingLag else { return }
-        leadingLag = lag
-        layoutHostedWebViews()
-    }
-
-    private func layoutHostedWebViews() {
-        for subview in subviews where subview !== inspectorLane {
-            subview.frame = CGRect(
-                x: bounds.minX + leadingLag,
-                y: bounds.minY,
-                width: bounds.width + trailingOverhang,
-                height: bounds.height
-            )
-        }
-    }
-
     /// Pins the hosted web views to the host's own bounds — they deliberately
     /// span the reserved interface lanes — and gives the inspector lane the
     /// visible page card.
     func layoutHostedSubviews(laneInsets: BrowserInterfaceInsets) {
-        layoutHostedWebViews()
+        for subview in subviews where subview !== inspectorLane {
+            subview.frame = bounds
+        }
 
         inspectorLane.resizeCard(
             to: NSRect(
@@ -218,9 +169,6 @@ struct SplitWebViewHost: NSViewRepresentable {
     let paneIndex: Int
     @ObservedObject var store: BrowserStore
     let laneInsets: BrowserInterfaceInsets
-    /// Where the page card's leading edge is this frame (see
-    /// `WebPaneHostView.leadingLag`).
-    var visualLeadingInset: CGFloat = 0
     var onPaneHoverChange: ((Bool) -> Void)? = nil
 
     func makeNSView(context: Context) -> NSView {
@@ -237,7 +185,6 @@ struct SplitWebViewHost: NSViewRepresentable {
         guard let container = container as? SplitWebViewHostContainer else { return }
         container.setAccessibilityIdentifier("split-pane-\(paneIndex)")
         let tabID = tab.id
-        container.visualLeadingInset = visualLeadingInset
         container.configure(
             tabID: tabID,
             laneInsets: laneInsets,
@@ -404,9 +351,6 @@ struct ActiveWebViewHost: NSViewRepresentable {
     let tab: BrowserTab
     @ObservedObject var store: BrowserStore
     let laneInsets: BrowserInterfaceInsets
-    /// Where the page card's leading edge is this frame (see
-    /// `WebPaneHostView.leadingLag`).
-    var visualLeadingInset: CGFloat = 0
 
     func makeNSView(context: Context) -> NSView {
         let container = WebViewHostContainer()
@@ -422,7 +366,6 @@ struct ActiveWebViewHost: NSViewRepresentable {
     func updateNSView(_ container: NSView, context: Context) {
         store.webCoordinator.ensureLoaded(tab)
         guard let container = container as? WebViewHostContainer else { return }
-        container.visualLeadingInset = visualLeadingInset
         container.configure(
             tabID: tab.id,
             excludingTabIDs: store.displayedSplitTabIDs,

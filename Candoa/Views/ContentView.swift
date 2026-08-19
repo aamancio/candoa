@@ -899,14 +899,9 @@ struct ContentView: View {
         }
         if showing {
             // Opening: the page lays out against the moving lane live. Its
-            // layout lands a frame or three behind the edge, so the content
+            // layout lands a frame or two behind the edge, so the content
             // sits that little under the sidebar's edge as it comes in —
-            // never beside it. (Pushing the page forward by that lag, to glue
-            // it to the edge, needed to know when each layout reached the
-            // screen, and no signal WebKit offers says so reliably for every
-            // page; a push that outlived its layout left a blank strip that
-            // then snapped shut.)
-            store.webCoordinator.setLeadingLaneClosing(false, overhang: 0)
+            // never beside it.
             withAnimation(Self.sidebarToggleAnimation, completionCriteria: .logicallyComplete) {
                 isSidebarVisible = true
                 sidebarLane = lane
@@ -916,22 +911,19 @@ struct ContentView: View {
             }
             return
         }
-        // Closing: the page lays out against the moving lane live here too,
-        // and the pane host pulls it back by however far its layout trails
-        // the edge, so its edge stays glued to the sidebar's; what the pull
-        // uncovers at the card's far edge is the page's own margin, over an
-        // overhang set up for the slide. (A full-width layout first, under
-        // the pinned edge, looked better on paper, but the moment that
-        // layout reaches the screen cannot be known, and a frame either side
-        // of it showed the page jump.)
-        store.webCoordinator.setLeadingLaneClosing(true, overhang: lane)
+        // Closing: the page lays out against the moving lane live here too.
+        // Where its layout trails the edge for a frame or two, what shows
+        // beside the sidebar is the page's own margin, in the page's
+        // background. Nothing is translated or held: every other scheme
+        // tried (a full-width layout first, pulling the page by its lag) put
+        // the page where a signal said its layout was, and no signal WebKit
+        // offers says so reliably for every page — the page jumped when it
+        // was wrong, and toggling rapidly turned that into a shake.
         withAnimation(Self.sidebarToggleAnimation, completionCriteria: .logicallyComplete) {
             isSidebarVisible = false
             sidebarLane = 0
             sidebarLayoutLane = 0
         } completion: {
-            guard sidebarToggleGeneration == generation else { return }
-            store.webCoordinator.setLeadingLaneClosing(false, overhang: 0)
             completion?()
         }
     }
