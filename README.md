@@ -6,7 +6,7 @@ Candoa Browser is an open-source Mac browser workspace for people who live in ta
 between projects, and want browsing to stay native, quiet, and
 battery-conscious.
 
-[Website](https://candoa.app)
+[Website](https://candoa.app) · [Discussions](https://github.com/aamancio/candoa-browser/discussions)
 
 ## Why Candoa Browser
 
