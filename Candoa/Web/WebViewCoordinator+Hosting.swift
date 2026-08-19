@@ -17,7 +17,9 @@ extension WebViewCoordinator {
     ) {
         guard let activeWebView = webViews[tabID] else { return }
         syncHostBackground(in: container, with: activeWebView)
-        applyObscuredContentInsets(pageAreaInsets, to: activeWebView)
+        var layoutInsets = pageAreaInsets
+        layoutInsets.right += (container as? WebPaneHostView)?.trailingOverhang ?? 0
+        applyObscuredContentInsets(layoutInsets, to: activeWebView)
         attachInspector(of: activeWebView, to: container)
         reportInspectorPlacementForUITesting(for: tabID)
         if miniPlayerHostedTabID == tabID {
@@ -169,14 +171,18 @@ extension WebViewCoordinator {
 
     /// Lays the page out against the interface lanes. While a sidebar
     /// toggles this arrives every frame; the web process is given one
-    /// layout at a time — the next value waits until the page has *painted*
-    /// the last one (two animation frames after the change; WebKit's
-    /// after-commit callback can run 100ms ahead of what is on screen on a
-    /// heavy page) — so it never queues up behind itself. The page then
-    /// tracks the moving edge at its own paint rate, a frame or two behind,
-    /// and always lands on the final value; the pane host shifts the page by
-    /// the leading lag in the meantime (`WebPaneHostView.leadingLag`), and
-    /// anyone waiting on a particular lane to be on screen is told.
+    /// layout at a time — the next value waits for the last one to land —
+    /// so it never queues up behind itself (back-to-back changes backlogged
+    /// a widening page to 100ms+ a commit). The page then tracks the moving
+    /// edge at its own rate, a frame or two behind, and always lands on the
+    /// final value; the pane host shifts the page by the lag in the meantime
+    /// (`WebPaneHostView.leadingLag`).
+    ///
+    /// Two readings of "landed" go to the host: WebKit's after-commit
+    /// callback (can run ahead of the display on a heavy page) and the page's
+    /// own report that it has painted at the new width (can run a frame or
+    /// two behind it). A widening change paces on the latter, a narrowing
+    /// one on the former — the readings each direction pulls the page by.
     func applyObscuredContentInsets(_ insets: NSEdgeInsets, to webView: WKWebView) {
         guard #available(macOS 26.0, *) else { return }
         let key = ObjectIdentifier(webView)
@@ -188,7 +194,7 @@ extension WebViewCoordinator {
         else {
             pendingObscuredContentInsets.removeValue(forKey: key)
             if !obscuredContentInsetsInFlight.contains(key) {
-                noteCommittedInsets(insets, of: webView)
+                noteCommittedInsets(insets, of: webView, earliest: true, latest: true)
             }
             return
         }
@@ -196,6 +202,7 @@ extension WebViewCoordinator {
             pendingObscuredContentInsets[key] = insets
             return
         }
+        let widens = insets.left < current.left || insets.right < current.right
         webView.obscuredContentInsets = insets
         obscuredContentInsetsInFlight.insert(key)
         var settled = false
@@ -205,10 +212,20 @@ extension WebViewCoordinator {
             guard let self else { return }
             self.obscuredContentInsetsInFlight.remove(key)
             guard let webView else { return }
-            self.noteCommittedInsets(insets, of: webView)
+            self.noteCommittedInsets(insets, of: webView, earliest: true, latest: true)
             if let pending = self.pendingObscuredContentInsets.removeValue(forKey: key) {
                 self.applyObscuredContentInsets(pending, to: webView)
             }
+        }
+        if webView.responds(to: Self.doAfterNextPresentationUpdate) {
+            let afterCommit: @convention(block) () -> Void = { [weak self, weak webView] in
+                MainActor.assumeIsolated {
+                    guard let self, let webView else { return }
+                    self.noteCommittedInsets(insets, of: webView, earliest: true, latest: false)
+                    if !widens { settle() }
+                }
+            }
+            webView.perform(Self.doAfterNextPresentationUpdate, with: afterCommit)
         }
         // "Painted" = the page's layout viewport has the new width (the inset
         // reaches the page's layout a rendering update or two after the
@@ -242,9 +259,12 @@ extension WebViewCoordinator {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { settle() }
     }
 
-    private func noteCommittedInsets(_ insets: NSEdgeInsets, of webView: WKWebView) {
-        (webView.superview as? WebPaneHostView)?.committedLeadingInset = insets.left
-        guard let activeID = hostedActiveTabID, webViews[activeID] === webView else { return }
+    private func noteCommittedInsets(_ insets: NSEdgeInsets, of webView: WKWebView, earliest: Bool, latest: Bool) {
+        if let host = webView.superview as? WebPaneHostView {
+            if earliest { host.earliestCommittedLeadingInset = insets.left }
+            if latest { host.latestCommittedLeadingInset = insets.left }
+        }
+        guard latest, let activeID = hostedActiveTabID, webViews[activeID] === webView else { return }
         let waiters = leadingLaneWaiters
         leadingLaneWaiters.removeAll()
         for waiter in waiters {
@@ -255,6 +275,16 @@ extension WebViewCoordinator {
         for waiter in trailingWaiters {
             if waiter.leading == insets.right { waiter.completion() } else { trailingLaneWaiters.append(waiter) }
         }
+    }
+
+    /// While the leading lane closes the page is pulled back under the
+    /// sidebar's edge by its layout lag; give it that much page-colored
+    /// margin past the card's far edge to be pulled over.
+    func setLeadingLaneClosing(_ closing: Bool, overhang: CGFloat) {
+        guard let activeID = hostedActiveTabID, let webView = webViews[activeID],
+              let host = webView.superview as? WebPaneHostView else { return }
+        host.trailingOverhang = closing ? overhang : 0
+        host.needsLayout = true
     }
 
     /// Calls back once the active page has laid out against `leading` (or

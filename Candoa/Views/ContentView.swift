@@ -900,6 +900,7 @@ struct ContentView: View {
         if showing {
             // Opening: the page lays out against the moving lane live, and
             // the pane host keeps its edge glued to the sidebar's.
+            store.webCoordinator.setLeadingLaneClosing(false, overhang: 0)
             withAnimation(Self.sidebarToggleAnimation, completionCriteria: .logicallyComplete) {
                 isSidebarVisible = true
                 sidebarLane = lane
@@ -909,22 +910,21 @@ struct ContentView: View {
             }
             return
         }
-        // Closing: lay the page out at full width first, under the still-
-        // pinned edge (nothing visible changes — the pane host translates the
-        // page by the lane once that layout is on screen), and slide only
-        // then, so the edge never pulls away from a page that has not caught
-        // up. Typical pages take a frame or two; a heavy page (a YouTube
-        // watch page) a couple of hundred milliseconds, which still reads as
-        // a deliberate slide rather than a glitch. Capped all the same.
-        sidebarLayoutLane = 0
-        store.webCoordinator.waitForLeadingLane(0, timeout: 0.4) {
+        // Closing: the page lays out against the moving lane live here too,
+        // pulled back by its layout lag (over a page-colored overhang past
+        // the card's far edge) so its edge stays glued to the sidebar's. A
+        // full-width layout first, under the pinned edge, looked better on
+        // paper but the moment the new layout reaches the screen cannot be
+        // known exactly, and a frame either side of it showed the page jump.
+        store.webCoordinator.setLeadingLaneClosing(true, overhang: lane)
+        withAnimation(Self.sidebarToggleAnimation, completionCriteria: .logicallyComplete) {
+            isSidebarVisible = false
+            sidebarLane = 0
+            sidebarLayoutLane = 0
+        } completion: {
             guard sidebarToggleGeneration == generation else { return }
-            withAnimation(Self.sidebarToggleAnimation, completionCriteria: .logicallyComplete) {
-                isSidebarVisible = false
-                sidebarLane = 0
-            } completion: {
-                completion?()
-            }
+            store.webCoordinator.setLeadingLaneClosing(false, overhang: 0)
+            completion?()
         }
     }
 

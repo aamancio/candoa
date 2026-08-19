@@ -34,35 +34,66 @@ class WebPaneHostView: NSView {
     @available(*, unavailable)
     required init?(coder: NSCoder) { nil }
 
-    /// Where the page card's leading edge is this frame, and the leading
-    /// lane the page's layout last committed against (the coordinator sets
-    /// it from WebKit's commit callback). The web views are shifted by the
-    /// difference so the page's leading edge — toolbar, content — stays
-    /// glued to the sidebar's edge, Dia's push: opening, the layout trails
-    /// the moving lane by a frame or so; closing, the page is already laid
-    /// out at full width under the still-pinned edge and rides the edge out.
-    /// The shift unwinds in the very transaction each commit lands in. Only
-    /// forwards: trailing the other way would pull the page off the far edge.
+    /// Where the page card's leading edge is this frame. The web views are
+    /// shifted so the page's leading edge — toolbar, content — stays glued to
+    /// it (Dia's push) while the page's layout catches up with the moving
+    /// lane: opening, the layout trails by a frame or so and the page is
+    /// pushed forward; closing, the layout trails the other way and the
+    /// page is pulled back, over the trailing overhang. The shift unwinds as
+    /// the layout lands.
     var visualLeadingInset: CGFloat = 0 {
         didSet { updateLeadingLag() }
     }
 
-    /// The leading lane the page is currently *displayed* laid out against
-    /// (the coordinator sets it once the page has painted a frame with the
-    /// new lane — WebKit shows the old layout, at its old origin, until
-    /// then). The lag below is the difference to where the card's edge is.
-    var committedLeadingInset: CGFloat = 0 {
+    /// Two readings of the leading lane the page's layout is on screen
+    /// against, neither exact: WebKit's after-commit callback can run ahead
+    /// of the display (`earliest`), the page's own paint report a frame or
+    /// two behind it (`latest`). Each direction uses the reading that errs
+    /// toward the page sitting *under* the sidebar's edge rather than a gap
+    /// showing beside it: opening pushes by the earliest, closing pulls by
+    /// the latest.
+    var earliestCommittedLeadingInset: CGFloat = 0 {
         didSet { updateLeadingLag() }
+    }
+
+    var latestCommittedLeadingInset: CGFloat = 0 {
+        didSet { updateLeadingLag() }
+    }
+
+    /// Extra width past the host's trailing edge, only while the leading
+    /// lane closes: pulled back by the lag, the page would otherwise leave
+    /// the card's far edge; the overhang is the page's own margin (the
+    /// obscured strip WebKit paints in the page's background), so what shows
+    /// there is page-colored, never the window backdrop.
+    var trailingOverhang: CGFloat = 0 {
+        didSet {
+            guard trailingOverhang != oldValue else { return }
+            layoutHostedWebViews()
+        }
     }
 
     private(set) var leadingLag: CGFloat = 0
 
     private func updateLeadingLag() {
-        let lag = max(0, visualLeadingInset - committedLeadingInset)
+        let lag: CGFloat
+        if visualLeadingInset >= latestCommittedLeadingInset {
+            lag = max(0, visualLeadingInset - earliestCommittedLeadingInset)
+        } else {
+            lag = max(-trailingOverhang, visualLeadingInset - latestCommittedLeadingInset)
+        }
         guard lag != leadingLag else { return }
         leadingLag = lag
+        layoutHostedWebViews()
+    }
+
+    private func layoutHostedWebViews() {
         for subview in subviews where subview !== inspectorLane {
-            subview.frame = bounds.offsetBy(dx: leadingLag, dy: 0)
+            subview.frame = CGRect(
+                x: bounds.minX + leadingLag,
+                y: bounds.minY,
+                width: bounds.width + trailingOverhang,
+                height: bounds.height
+            )
         }
     }
 
@@ -70,9 +101,7 @@ class WebPaneHostView: NSView {
     /// span the reserved interface lanes — and gives the inspector lane the
     /// visible page card.
     func layoutHostedSubviews(laneInsets: BrowserInterfaceInsets) {
-        for subview in subviews where subview !== inspectorLane {
-            subview.frame = bounds.offsetBy(dx: leadingLag, dy: 0)
-        }
+        layoutHostedWebViews()
 
         inspectorLane.resizeCard(
             to: NSRect(
