@@ -81,8 +81,30 @@ extension WebViewCoordinator {
         return CGRect(x: x, y: y, width: width, height: height)
     }
 
-    func activateMiniPlayerPresentation(tabID: UUID) {
-        webViews[tabID]?.evaluateJavaScript("window.__candoaActivateMiniPlayerPresentation?.()")
+    /// Strips the page down to its video. `didSettle` fires once the page
+    /// has painted that presentation (two animation frames after the
+    /// restyle), which is when the floating player can drop its freeze
+    /// frame — or after a short ceiling, so a throttled page never leaves
+    /// the freeze frame up.
+    func activateMiniPlayerPresentation(tabID: UUID, didSettle: @escaping @MainActor () -> Void) {
+        guard let webView = webViews[tabID] else { return }
+        var settled = false
+        let settle: @MainActor () -> Void = {
+            guard !settled else { return }
+            settled = true
+            didSettle()
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { settle() }
+        webView.callAsyncJavaScript(
+            """
+            window.__candoaActivateMiniPlayerPresentation?.();
+            await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+            """,
+            in: nil,
+            in: .page
+        ) { _ in
+            settle()
+        }
     }
 
     func restoreMiniPlayerPresentation(tabID: UUID) {

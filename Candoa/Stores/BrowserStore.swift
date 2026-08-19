@@ -18,9 +18,13 @@ struct TabMediaState: Equatable {
 }
 
 /// Snapshot taken at the moment the user switches away from the playing tab,
-/// so the summoned mini player can animate from where the video was.
+/// so the summoned mini player can animate from where the video was. The
+/// freeze frame covers the live web view while the page strips itself down
+/// to the video at mini-player size; it is dropped the moment the page
+/// reports that presentation painted.
 struct MiniPlayerSummonContext {
     var pageVideoFrame: CGRect?
+    var freezeFrame: NSImage?
 }
 
 /// Drives the return-to-tab morph: the floating player swaps to a freeze
@@ -332,6 +336,14 @@ final class BrowserStore: ObservableObject {
     /// (which the activeTabID change already triggers), and publishing it
     /// would cause a redundant view update per tab switch.
     var pendingMiniPlayerSummon: MiniPlayerSummonContext?
+    /// The tab whose freeze frame is being captured for the summon morph.
+    /// The floating player stays unmounted (and the page stays where it was,
+    /// on top of the incoming tab) until the capture lands, so the video
+    /// never blinks out between the page and the player.
+    @Published var miniPlayerSummonPreparingTabID: UUID?
+    /// Set once the hosted web view has painted the mini-player presentation,
+    /// which is when the summon freeze frame can hand over to live video.
+    @Published var miniPlayerSettledTabID: UUID?
 
     @Published var miniPlayerReturn: MiniPlayerReturnContext?
 

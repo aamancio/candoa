@@ -95,6 +95,13 @@ struct FloatingMiniPlayerContainer: View {
     @State private var summon: MiniPlayerSummonContext?
     @State private var isSummoning: Bool
     @State private var isReturning = false
+    // True for the summon glide's whole flight (the summoning flag flips at
+    // its start), so the controls stay out of a moving player.
+    @State private var isGliding = false
+    // The video as it looked on the page, shown over the live web view
+    // until the page reports its mini presentation painted. Released then
+    // (or after a ceiling) — it exists only for the handoff.
+    @State private var summonFreezeFrame: NSImage?
 
     init(
         store: BrowserStore,
@@ -116,6 +123,7 @@ struct FloatingMiniPlayerContainer: View {
         // starting it from onAppear would commit the corner frame first.
         self._summon = State(initialValue: summon)
         self._isSummoning = State(initialValue: summon != nil)
+        self._summonFreezeFrame = State(initialValue: summon?.freezeFrame)
     }
 
     private var currentSize: CGSize {
@@ -130,7 +138,7 @@ struct FloatingMiniPlayerContainer: View {
 
     var body: some View {
         let restingFrame = CGRect(origin: currentOrigin, size: currentSize)
-        let isMorphing = isSummoning || isReturning
+        let isMorphing = isSummoning || isReturning || isGliding
         let morph: MorphTarget? = {
             if isReturning { return returnTarget(restingFrame: restingFrame) }
             if isSummoning { return summonStart(restingFrame: restingFrame) }
@@ -145,6 +153,7 @@ struct FloatingMiniPlayerContainer: View {
                 state: state,
                 size: size,
                 hidesControls: isMorphing,
+                summonFreezeFrame: summonFreezeFrame,
                 isProgressScrubbing: $isProgressScrubbing
             )
 
@@ -183,6 +192,9 @@ struct FloatingMiniPlayerContainer: View {
         }
         .onChange(of: availableSize) { _, _ in
             clampLayout()
+        }
+        .onChange(of: store.miniPlayerSettledTabID == tab.id, initial: true) { _, isSettled in
+            if isSettled { releaseSummonFreezeFrame() }
         }
         .onChange(of: store.miniPlayerReturn != nil) { _, hasReturn in
             if hasReturn {
@@ -279,7 +291,8 @@ struct FloatingMiniPlayerContainer: View {
 
     /// The player hosts the same video the page was showing, so anchoring a
     /// morph at the video's on-page rect makes the handoff read as one
-    /// object gliding between page and corner. That only works when most of
+    /// object gliding between page and corner — the way macOS PiP lifts a
+    /// video out of Safari, whatever its size. That only works when most of
     /// the rect is actually on screen — from a scrolled-away rect the player
     /// would streak offscreen, so fall back to a scale-fade at the corner.
     private func morphTarget(pageFrame: CGRect?, restingFrame: CGRect) -> MorphTarget {
@@ -287,14 +300,7 @@ struct FloatingMiniPlayerContainer: View {
             let bounds = CGRect(origin: .zero, size: availableSize)
             let visible = pageFrame.intersection(bounds)
             let pageArea = pageFrame.width * pageFrame.height
-            let contentArea = max(availableSize.width * availableSize.height, 1)
-            // A rect that dominates the content area (YouTube's player on a
-            // big window) would make the morph read as a fullscreen
-            // transition, not a PiP handoff — those take the quiet corner
-            // fade instead.
-            if pageArea > 0,
-               visible.width * visible.height >= pageArea * 0.5,
-               pageArea / contentArea <= 0.5 {
+            if pageArea > 0, visible.width * visible.height >= pageArea * 0.5 {
                 return MorphTarget(frame: pageFrame, fades: false)
             }
         }
@@ -316,15 +322,33 @@ struct FloatingMiniPlayerContainer: View {
         morphTarget(pageFrame: store.miniPlayerReturn?.targetFrame, restingFrame: restingFrame)
     }
 
+    private func releaseSummonFreezeFrame() {
+        guard summonFreezeFrame != nil else { return }
+        withAnimation(.easeOut(duration: 0.15)) {
+            summonFreezeFrame = nil
+        }
+    }
+
     private func settleSummonIfNeeded() {
         guard isSummoning else { return }
         store.consumeMiniPlayerSummon()
+        if summonFreezeFrame != nil {
+            // Ceiling in case the page never reports its presentation
+            // (closed mid-morph, script blocked): the freeze frame must not
+            // outlive the handoff.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+                releaseSummonFreezeFrame()
+            }
+        }
         // One runloop hop so the start frame commits before the morph;
         // flipping the flag in the same transaction collapses both frames
         // into a single keyframe and nothing animates.
+        isGliding = true
         DispatchQueue.main.async {
             withAnimation(.spring(response: 0.42, dampingFraction: 0.85)) {
                 isSummoning = false
+            } completion: {
+                isGliding = false
             }
         }
     }
@@ -348,6 +372,7 @@ private struct FloatingMiniPlayerView: View {
     let state: TabMediaState
     let size: CGSize
     let hidesControls: Bool
+    let summonFreezeFrame: NSImage?
     @Binding var isProgressScrubbing: Bool
 
     @State private var isHovering = false
@@ -364,6 +389,15 @@ private struct FloatingMiniPlayerView: View {
                 Image(nsImage: freezeFrame)
                     .resizable()
                     .scaledToFill()
+            }
+
+            // Summon: the on-page video stands in while the live page
+            // strips itself down underneath, then fades out over it.
+            if let summonFreezeFrame {
+                Image(nsImage: summonFreezeFrame)
+                    .resizable()
+                    .scaledToFill()
+                    .transition(.opacity)
             }
 
             // Controls stay invisible while morphing so the page-anchored
