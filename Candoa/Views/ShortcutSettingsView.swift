@@ -13,12 +13,6 @@ struct SettingsView: View {
                 }
                 .tag(SettingsTab.general)
 
-            SpacesSettingsPane()
-                .tabItem {
-                    Label(SettingsTab.spaces.title, systemImage: SettingsTab.spaces.symbolName)
-                }
-                .tag(SettingsTab.spaces)
-
             SearchSettingsPane()
                 .tabItem {
                     Label(SettingsTab.search.title, systemImage: SettingsTab.search.symbolName)
@@ -95,7 +89,6 @@ internal enum SettingsPaneRequest {
 
 internal enum SettingsTab: Hashable {
     case general
-    case spaces
     case search
     case privacy
     case extensions
@@ -106,7 +99,6 @@ internal enum SettingsTab: Hashable {
     var title: String {
         switch self {
         case .general: return String(localized: "General")
-        case .spaces: return String(localized: "Spaces")
         case .search: return String(localized: "Search")
         case .privacy: return String(localized: "Privacy")
         case .extensions: return String(localized: "Extensions")
@@ -119,7 +111,6 @@ internal enum SettingsTab: Hashable {
     var symbolName: String {
         switch self {
         case .general: return "gearshape"
-        case .spaces: return "square.grid.2x2"
         case .search: return "magnifyingglass"
         case .privacy: return "hand.raised"
         case .extensions: return "puzzlepiece.extension"

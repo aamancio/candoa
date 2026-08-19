@@ -12,6 +12,7 @@ internal struct GeneralSettingsPane: View {
     @AppStorage(SettingsOption.downloadLocationMode) private var downloadLocationMode = DownloadLocationPreference.Mode.downloads.rawValue
     @AppStorage(SettingsOption.downloadListRetention) private var downloadListRetention = DownloadListRetentionPreference.afterOneDay.rawValue
     @AppStorage(SettingsOption.openSafeDownloads) private var openSafeDownloads = true
+    @AppStorage(SettingsOption.floatingMiniPlayer) private var floatingMiniPlayer = true
     @State private var customDownloadFolderName: String?
     @FocusState private var homepageFieldFocused: Bool
     @StateObject private var defaultBrowserService = DefaultBrowserService()
@@ -115,6 +116,15 @@ internal struct GeneralSettingsPane: View {
                             .controlSize(.small)
                         }
                     }
+
+                    SettingsDivider()
+
+                    SettingsToggleRow(
+                        systemImage: "pip",
+                        title: String(localized: "Show floating video player"),
+                        subtitle: String(localized: "A playing video keeps playing in a small floating player when you leave its tab."),
+                        isOn: $floatingMiniPlayer
+                    )
                 }
 
                 SettingsCard {
@@ -324,25 +334,6 @@ internal struct GeneralSettingsPane: View {
         homepage = normalized.absoluteString
     }
 
-}
-
-internal struct SpacesSettingsPane: View {
-    @AppStorage(SettingsOption.floatingMiniPlayer) private var floatingMiniPlayer = true
-
-    var body: some View {
-        SettingsPane {
-            VStack(alignment: .leading, spacing: 20) {
-                SettingsCard {
-                    SettingsToggleRow(
-                        systemImage: "pip",
-                        title: String(localized: "Show floating video player"),
-                        subtitle: String(localized: "A playing video keeps playing in a small floating player when you leave its tab."),
-                        isOn: $floatingMiniPlayer
-                    )
-                }
-            }
-        }
-    }
 }
 
 internal struct SearchSettingsPane: View {
