@@ -29,13 +29,22 @@ Candoa Browser is built independently with native Apple technologies and WebKit.
 
 ## Status
 
-Candoa Browser is an early public prototype. The core shell, WebKit tab model, Spaces,
-pinned tabs, split view, local persistence, Sparkle updates, and the first sync
-hooks are in place.
+Candoa Browser is in beta and updates most days. See
+[Releases](https://github.com/aamancio/candoa-browser/releases) for the current
+version.
 
-Expect rough edges. The project is still shaping the daily browsing experience,
-with battery efficiency and native macOS behavior treated as product features,
-not implementation details.
+Working today: Spaces with iCloud sync, vertical and pinned tabs, split view,
+a quick search that targets a site directly, an assistant that asks before it
+acts, ad and tracker blocking with no extension needed, extensions installed straight from the Chrome Web Store,
+opt-in crash reporting that never carries a page address, and automatic updates
+through Sparkle.
+
+Not there yet: picture in picture, and an equivalent of Arc's peek window. DRM
+playback is unverified, so assume some streaming services may not work until
+proven otherwise.
+
+Expect rough edges. Battery efficiency and native macOS behavior are treated as
+product features rather than implementation details.
 
 ## Download
 
