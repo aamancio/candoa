@@ -169,16 +169,17 @@ extension WebViewCoordinator {
 
     /// Lays the page out against the interface lanes. While a sidebar
     /// toggles this arrives every frame; the web process is given one
-    /// layout at a time — the next value waits for the last one to commit —
-    /// so it never queues up behind itself (back-to-back changes backlogged
-    /// a widening page to 100ms+ a commit). The page then tracks the moving
-    /// edge at its own commit rate, a frame or so behind, and always lands
-    /// on the final value; the host shifts the page by the leading lag in
-    /// the meantime (`WebPaneHostView.leadingLag`).
+    /// layout at a time — the next value waits until the page has *painted*
+    /// the last one (two animation frames after the change; WebKit's
+    /// after-commit callback can run 100ms ahead of what is on screen on a
+    /// heavy page) — so it never queues up behind itself. The page then
+    /// tracks the moving edge at its own paint rate, a frame or two behind,
+    /// and always lands on the final value; the pane host shifts the page by
+    /// the leading lag in the meantime (`WebPaneHostView.leadingLag`), and
+    /// anyone waiting on a particular lane to be on screen is told.
     func applyObscuredContentInsets(_ insets: NSEdgeInsets, to webView: WKWebView) {
         guard #available(macOS 26.0, *) else { return }
         let key = ObjectIdentifier(webView)
-        requestedLeadingInsets[key] = insets.left
         let current = webView.obscuredContentInsets
         guard current.top != insets.top
             || current.left != insets.left
@@ -187,46 +188,113 @@ extension WebViewCoordinator {
         else {
             pendingObscuredContentInsets.removeValue(forKey: key)
             if !obscuredContentInsetsInFlight.contains(key) {
-                committedLeadingInsets[key] = insets.left
+                noteCommittedInsets(insets, of: webView)
             }
-            updateLeadingLag(of: webView)
             return
         }
         if obscuredContentInsetsInFlight.contains(key) {
             pendingObscuredContentInsets[key] = insets
-            updateLeadingLag(of: webView)
             return
         }
         webView.obscuredContentInsets = insets
-        guard webView.responds(to: Self.doAfterNextPresentationUpdate) else {
-            committedLeadingInsets[key] = insets.left
-            updateLeadingLag(of: webView)
-            return
-        }
         obscuredContentInsetsInFlight.insert(key)
-        updateLeadingLag(of: webView)
-        afterNextPresentationUpdate(of: webView, fallbackDelay: 0.1) { [weak self, weak webView] in
+        var settled = false
+        let settle: @MainActor () -> Void = { [weak self, weak webView] in
+            guard !settled else { return }
+            settled = true
             guard let self else { return }
             self.obscuredContentInsetsInFlight.remove(key)
-            self.committedLeadingInsets[key] = insets.left
             guard let webView else { return }
+            self.noteCommittedInsets(insets, of: webView)
             if let pending = self.pendingObscuredContentInsets.removeValue(forKey: key) {
                 self.applyObscuredContentInsets(pending, to: webView)
-            } else {
-                self.updateLeadingLag(of: webView)
             }
+        }
+        // "Painted" = the page's layout viewport has the new width (the inset
+        // reaches the page's layout a rendering update or two after the
+        // message, and a frame painted before then is the old layout) and
+        // two more animation frames have run.
+        let zoom = max(webView.pageZoom, 0.01)
+        let targetWidth = (webView.bounds.width - insets.left - insets.right) / zoom
+        webView.callAsyncJavaScript(
+            """
+            await new Promise((resolve) => {
+              let tries = 0;
+              const check = () => {
+                if (Math.abs(window.innerWidth - target) < 1.5 || tries > 40) {
+                  requestAnimationFrame(() => requestAnimationFrame(resolve));
+                } else {
+                  tries += 1;
+                  requestAnimationFrame(check);
+                }
+              };
+              check();
+            });
+            """,
+            arguments: ["target": Double(targetWidth)],
+            in: nil,
+            in: .page
+        ) { _ in
+            settle()
+        }
+        // A page that never paints (throttled, mid-navigation) must not hold
+        // the lane.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { settle() }
+    }
+
+    private func noteCommittedInsets(_ insets: NSEdgeInsets, of webView: WKWebView) {
+        (webView.superview as? WebPaneHostView)?.committedLeadingInset = insets.left
+        guard let activeID = hostedActiveTabID, webViews[activeID] === webView else { return }
+        let waiters = leadingLaneWaiters
+        leadingLaneWaiters.removeAll()
+        for waiter in waiters {
+            if waiter.leading == insets.left { waiter.completion() } else { leadingLaneWaiters.append(waiter) }
+        }
+        let trailingWaiters = trailingLaneWaiters
+        trailingLaneWaiters.removeAll()
+        for waiter in trailingWaiters {
+            if waiter.leading == insets.right { waiter.completion() } else { trailingLaneWaiters.append(waiter) }
         }
     }
 
-    /// The page shifted forward by however far its committed layout trails
-    /// the lane it has been asked for, in the same transaction as the
-    /// commit that reports it. Only the active pane host does this.
-    private func updateLeadingLag(of webView: WKWebView) {
-        guard let host = webView.superview as? WebPaneHostView else { return }
-        let key = ObjectIdentifier(webView)
-        let requested = requestedLeadingInsets[key] ?? 0
-        let committed = committedLeadingInsets[key] ?? requested
-        host.leadingLag = max(0, requested - committed)
+    /// Calls back once the active page has laid out against `leading` (or
+    /// the timeout passes): a closing sidebar waits for the page's full-width
+    /// layout before its edge moves, so it never slides off a page that has
+    /// not caught up.
+    func waitForLeadingLane(_ leading: CGFloat, timeout: TimeInterval, completion: @escaping @MainActor () -> Void) {
+        wait(for: leading, on: \.leadingLaneWaiters, timeout: timeout, completion: completion)
+    }
+
+    func waitForTrailingLane(_ trailing: CGFloat, timeout: TimeInterval, completion: @escaping @MainActor () -> Void) {
+        wait(for: trailing, on: \.trailingLaneWaiters, timeout: timeout, completion: completion)
+    }
+
+    private func wait(
+        for value: CGFloat,
+        on list: ReferenceWritableKeyPath<WebViewCoordinator, [LaneWaiter]>,
+        timeout: TimeInterval,
+        completion: @escaping @MainActor () -> Void
+    ) {
+        var done = false
+        let once: @MainActor () -> Void = {
+            guard !done else { return }
+            done = true
+            completion()
+        }
+        if #available(macOS 26.0, *),
+           let activeID = hostedActiveTabID, let webView = webViews[activeID] {
+            let key = ObjectIdentifier(webView)
+            let current = list == \.leadingLaneWaiters ? webView.obscuredContentInsets.left : webView.obscuredContentInsets.right
+            if current == value, !obscuredContentInsetsInFlight.contains(key), pendingObscuredContentInsets[key] == nil {
+                once()
+                return
+            }
+        } else {
+            once()
+            return
+        }
+        self[keyPath: list].append(LaneWaiter(leading: value, completion: once))
+        DispatchQueue.main.asyncAfter(deadline: .now() + timeout) { once() }
     }
 
     /// Points WebKit's attached Web Inspector at the host's lane-inset
@@ -482,3 +550,11 @@ struct MiniPlayerSummonHandoff {
     let tabID: UUID
     let pageFrame: CGRect
 }
+
+/// Someone waiting for the active page to have laid out against a lane.
+struct LaneWaiter {
+    let leading: CGFloat
+    let completion: @MainActor () -> Void
+}
+
+

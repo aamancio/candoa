@@ -4,12 +4,16 @@ import SwiftUI
 /// Keep this at the WebViewContainer boundary: moving the reservation into a
 /// parent HStack makes WebKit stretch a stale remote-layer frame on every
 /// sidebar toggle.
-/// The interface lanes the page is laid out and clipped against, as they
-/// are *this frame*. Written per frame by `BrowserLaneEffect` while a
-/// sidebar toggles, so the page card's edge, the web layout and the chrome
-/// inside the card all move together — the way Dia pushes the page.
+/// The interface lanes this frame. `visual` is where the page card's edges
+/// are (mask, border, the chrome inside the card); `layout` is the lane the
+/// web page is laid out against. They differ only mid-toggle: while a
+/// sidebar opens the page is laid out against the moving lane live, and
+/// while one closes the page has already been laid out against the final
+/// lane (under the still-pinned edge) and only the visual edge moves, the
+/// page translating with it — so no empty page ever shows beside a sidebar.
 internal struct BrowserLaneState: Equatable {
-    var insets = BrowserInterfaceInsets()
+    var visual = BrowserInterfaceInsets()
+    var layout = BrowserInterfaceInsets()
     /// The gutter between the page card and the trailing lane: the window's
     /// 8pt when nothing is docked there, 0 once Eli is, and in between while
     /// Eli's edge is on the move.
@@ -28,35 +32,47 @@ extension EnvironmentValues {
 }
 
 /// Interpolates the lanes through an animated transaction and hands each
-/// frame's value to the subtree. The web host below re-lays the page out
-/// against the interpolated lane every frame, so the page content follows
-/// the sidebar's edge live (Dia's push) rather than snapping at either end;
-/// WebKit commits an inset change for typical pages within a frame.
+/// frame's value to the subtree (Dia's push: the page card's edge, the
+/// chrome inside it and — on open — the web layout follow the sidebar's
+/// edge frame by frame; WebKit commits an inset change for typical pages
+/// within a frame or two, and the pane host translates the page by
+/// whatever its layout trails).
 internal struct BrowserLaneEffect: @MainActor AnimatableModifier {
-    var leading: CGFloat
-    var trailing: CGFloat
+    var visualLeading: CGFloat
+    var visualTrailing: CGFloat
+    var layoutLeading: CGFloat
+    var layoutTrailing: CGFloat
     var trailingGutter: CGFloat
 
-    var animatableData: AnimatablePair<CGFloat, AnimatablePair<CGFloat, CGFloat>> {
-        get { AnimatablePair(leading, AnimatablePair(trailing, trailingGutter)) }
+    var animatableData: AnimatablePair<AnimatablePair<CGFloat, CGFloat>, AnimatablePair<AnimatablePair<CGFloat, CGFloat>, CGFloat>> {
+        get {
+            AnimatablePair(
+                AnimatablePair(visualLeading, visualTrailing),
+                AnimatablePair(AnimatablePair(layoutLeading, layoutTrailing), trailingGutter)
+            )
+        }
         set {
-            leading = newValue.first
-            trailing = newValue.second.first
+            visualLeading = newValue.first.first
+            visualTrailing = newValue.first.second
+            layoutLeading = newValue.second.first.first
+            layoutTrailing = newValue.second.first.second
             trailingGutter = newValue.second.second
         }
     }
 
+    // Half-point steps: the spring's settling tail would otherwise feed the
+    // web process a run of sub-pixel relayouts for nothing.
+    private func snapped(_ value: CGFloat) -> CGFloat {
+        max(0, (value * 2).rounded() / 2)
+    }
+
     func body(content: Content) -> some View {
-        // Half-point steps: the spring's settling tail would otherwise feed
-        // the web process a run of sub-pixel relayouts for nothing.
         content.environment(
             \.browserLaneState,
             BrowserLaneState(
-                insets: BrowserInterfaceInsets(
-                    leading: max(0, (leading * 2).rounded() / 2),
-                    trailing: max(0, (trailing * 2).rounded() / 2)
-                ),
-                trailingGutter: max(0, (trailingGutter * 2).rounded() / 2)
+                visual: BrowserInterfaceInsets(leading: snapped(visualLeading), trailing: snapped(visualTrailing)),
+                layout: BrowserInterfaceInsets(leading: snapped(layoutLeading), trailing: snapped(layoutTrailing)),
+                trailingGutter: snapped(trailingGutter)
             )
         )
     }

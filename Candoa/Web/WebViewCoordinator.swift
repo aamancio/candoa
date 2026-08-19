@@ -96,11 +96,10 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
     /// latest value waiting behind each (see `applyObscuredContentInsets`).
     var obscuredContentInsetsInFlight = Set<ObjectIdentifier>()
     var pendingObscuredContentInsets: [ObjectIdentifier: NSEdgeInsets] = [:]
-    /// The leading inset each page was last asked to lay out against, and
-    /// the one its layout last committed; their difference is the lag the
-    /// pane host shifts the page by while the sidebar opens.
-    var requestedLeadingInsets: [ObjectIdentifier: CGFloat] = [:]
-    var committedLeadingInsets: [ObjectIdentifier: CGFloat] = [:]
+    /// Closing sidebars waiting for the active page to have laid out against
+    /// their final lane before their edge moves.
+    var leadingLaneWaiters: [LaneWaiter] = []
+    var trailingLaneWaiters: [LaneWaiter] = []
     var contentRuleList: WKContentRuleList?
     /// Whether the compiled rule list is currently attached to web views —
     /// diverges from the preference only until the observer reconciles.

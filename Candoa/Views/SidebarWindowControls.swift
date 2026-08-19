@@ -112,8 +112,12 @@ internal struct WindowControlsView: View {
 
     @Environment(\.sidebarRevealProgress) private var revealProgress
 
+    /// Anything but fully hidden or exactly at rest counts as in flight —
+    /// including the spring's overshoot past 1 and its settling tail — so
+    /// the swap between faux and native buttons happens once, at the end,
+    /// never back and forth while the sidebar bounces.
     private var isRevealSlideInFlight: Bool {
-        revealProgress > 0.0001 && revealProgress < 0.9999
+        revealProgress > 0.0001 && abs(revealProgress - 1) > 0.0001
     }
 
     var body: some View {
@@ -191,7 +195,9 @@ private final class NativeWindowControlsHost: NSView {
         isSuppressed: Bool,
         geometry: WindowControlsGeometry
     ) {
-        self.revealProgress = min(max(revealProgress, 0), 1)
+        // Not clamped to 1: the spring overshoots, and the buttons must stay
+        // handed off to the faux snapshots until it has settled exactly.
+        self.revealProgress = max(revealProgress, 0)
         self.isSuppressed = isSuppressed
         self.geometry = geometry
         attachWindowControlsIfPossible()
@@ -258,6 +264,12 @@ private final class NativeWindowControlsHost: NSView {
     }
 
     private func publishGeometryIfNeeded() {
+        // Measure only at full reveal, where the native buttons and this
+        // host coincide: mid-slide the host is translated and the buttons
+        // are not, so a measurement then would park the faux snapshots at
+        // the buttons' absolute spot instead of riding the slide with the
+        // sidebar (and at full hide the host is off-window altogether).
+        guard abs(revealProgress - 1) < 0.0001 else { return }
         guard
             let coordinator = controlsCoordinator,
             let geometry,
@@ -415,8 +427,10 @@ private final class NativeWindowControlsCoordinator {
             // Full screen bypasses suppression entirely: the buttons live in
             // the system's top-edge reveal strip there, and hiding them
             // leaves no way to exit with the green button.
+            // Exactly at rest only: the spring overshoots past 1 and settles
+            // back, and the faux snapshots carry that whole tail.
             let isFullScreen = window.styleMask.contains(.fullScreen)
-            let shouldShow = isFullScreen || effectiveProgress >= 0.9999
+            let shouldShow = isFullScreen || abs(effectiveProgress - 1) < 0.0001
 
             // Keep the native buttons participating in title-bar layout.
             // Transparency avoids AppKit's per-button hidden-state relayout
@@ -757,3 +771,4 @@ internal struct BrowserNavigationControls: View {
 
 /// Candoa's semantic color tokens. Native controls follow the person's macOS
 /// accent preference; explicit blue uses Apple's adaptable system blue.
+

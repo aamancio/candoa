@@ -42,8 +42,15 @@ struct WebViewContainer: View {
     static let surfacePadding: CGFloat = 8
     private var surfacePadding: CGFloat { Self.surfacePadding }
 
+    /// Where the page card's edges are this frame: mask, border and the
+    /// chrome inside the card follow these.
     private var visibleInterfaceInsets: BrowserInterfaceInsets {
-        laneState.insets
+        laneState.visual
+    }
+
+    /// The lanes the web page is laid out against (see `BrowserLaneState`).
+    private var webLayoutInsets: BrowserInterfaceInsets {
+        laneState.layout
     }
     private static let splitPaneMinimumWidth: CGFloat = 160
 
@@ -229,17 +236,19 @@ struct WebViewContainer: View {
     private func splitPaneInsets(
         forPaneAt index: Int,
         paneCount: Int,
-        layout: SplitViewLayout
+        layout: SplitViewLayout,
+        lanes: BrowserInterfaceInsets? = nil
     ) -> BrowserInterfaceInsets {
+        let lanes = lanes ?? webContentInsets
         switch layout {
         case .horizontal:
             return BrowserInterfaceInsets(
-                leading: index == 0 ? webContentInsets.leading : 0,
-                trailing: index == paneCount - 1 ? webContentInsets.trailing : 0
+                leading: index == 0 ? lanes.leading : 0,
+                trailing: index == paneCount - 1 ? lanes.trailing : 0
             )
         case .vertical:
             // Stacked rows all span the full width, touching both edges.
-            return webContentInsets
+            return lanes
         }
     }
 
@@ -322,7 +331,8 @@ struct WebViewContainer: View {
                 ActiveWebViewHost(
                     tab: tab,
                     store: store,
-                    laneInsets: webContentInsets
+                    laneInsets: webLayoutInsets,
+                    visualLeadingInset: visibleInterfaceInsets.leading
                 )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(InterfaceStyle.surfaceFill.opacity(0.72))
@@ -511,11 +521,22 @@ struct WebViewContainer: View {
                     let paneInsets = splitPaneInsets(
                         forPaneAt: slot,
                         paneCount: visibleTabs.count,
+                        layout: layout,
+                        lanes: webLayoutInsets
+                    )
+                    let visualPaneInsets = splitPaneInsets(
+                        forPaneAt: slot,
+                        paneCount: visibleTabs.count,
                         layout: layout
                     )
 
                     browserSurface {
-                        webPane(for: splitTab, at: paneIndex, laneInsets: paneInsets)
+                        webPane(
+                            for: splitTab,
+                            at: paneIndex,
+                            laneInsets: paneInsets,
+                            visualLeadingInset: visualPaneInsets.leading
+                        )
                     }
                     // No accent ring on the focused pane: the panes wear the
                     // standard surface border only, and focus is read from the
@@ -889,21 +910,29 @@ struct WebViewContainer: View {
             laneInsets: splitPaneInsets(
                 forPaneAt: paneIndex,
                 paneCount: splitTabs.count,
+                layout: store.splitLayout,
+                lanes: webLayoutInsets
+            ),
+            visualLeadingInset: splitPaneInsets(
+                forPaneAt: paneIndex,
+                paneCount: splitTabs.count,
                 layout: store.splitLayout
-            )
+            ).leading
         )
     }
 
     private func webPane(
         for tab: BrowserTab,
         at paneIndex: Int,
-        laneInsets: BrowserInterfaceInsets
+        laneInsets: BrowserInterfaceInsets,
+        visualLeadingInset: CGFloat
     ) -> some View {
         SplitWebViewHost(
             tab: tab,
             paneIndex: paneIndex,
             store: store,
             laneInsets: laneInsets,
+            visualLeadingInset: visualLeadingInset,
             onPaneHoverChange: { isInside in
                 if isInside {
                     hoveredSplitPaneIndex = paneIndex

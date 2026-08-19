@@ -34,19 +34,35 @@ class WebPaneHostView: NSView {
     @available(*, unavailable)
     required init?(coder: NSCoder) { nil }
 
-    /// While the sidebar opens, the page's layout commits a frame or so
-    /// behind the lane it is asked for. The web views are shifted by that
-    /// lag so the page's leading edge (toolbar, content) stays glued to the
-    /// sidebar's edge — Dia's push — and the shift unwinds in the very
-    /// transaction each commit lands in (the coordinator sets it from the
-    /// commit callback). Only forwards: trailing the other way would pull
-    /// the page off the far edge.
-    var leadingLag: CGFloat = 0 {
-        didSet {
-            guard leadingLag != oldValue else { return }
-            for subview in subviews where subview !== inspectorLane {
-                subview.frame = bounds.offsetBy(dx: leadingLag, dy: 0)
-            }
+    /// Where the page card's leading edge is this frame, and the leading
+    /// lane the page's layout last committed against (the coordinator sets
+    /// it from WebKit's commit callback). The web views are shifted by the
+    /// difference so the page's leading edge — toolbar, content — stays
+    /// glued to the sidebar's edge, Dia's push: opening, the layout trails
+    /// the moving lane by a frame or so; closing, the page is already laid
+    /// out at full width under the still-pinned edge and rides the edge out.
+    /// The shift unwinds in the very transaction each commit lands in. Only
+    /// forwards: trailing the other way would pull the page off the far edge.
+    var visualLeadingInset: CGFloat = 0 {
+        didSet { updateLeadingLag() }
+    }
+
+    /// The leading lane the page is currently *displayed* laid out against
+    /// (the coordinator sets it once the page has painted a frame with the
+    /// new lane — WebKit shows the old layout, at its old origin, until
+    /// then). The lag below is the difference to where the card's edge is.
+    var committedLeadingInset: CGFloat = 0 {
+        didSet { updateLeadingLag() }
+    }
+
+    private(set) var leadingLag: CGFloat = 0
+
+    private func updateLeadingLag() {
+        let lag = max(0, visualLeadingInset - committedLeadingInset)
+        guard lag != leadingLag else { return }
+        leadingLag = lag
+        for subview in subviews where subview !== inspectorLane {
+            subview.frame = bounds.offsetBy(dx: leadingLag, dy: 0)
         }
     }
 
@@ -185,6 +201,9 @@ struct SplitWebViewHost: NSViewRepresentable {
     let paneIndex: Int
     @ObservedObject var store: BrowserStore
     let laneInsets: BrowserInterfaceInsets
+    /// Where the page card's leading edge is this frame (see
+    /// `WebPaneHostView.leadingLag`).
+    var visualLeadingInset: CGFloat = 0
     var onPaneHoverChange: ((Bool) -> Void)? = nil
 
     func makeNSView(context: Context) -> NSView {
@@ -201,6 +220,7 @@ struct SplitWebViewHost: NSViewRepresentable {
         guard let container = container as? SplitWebViewHostContainer else { return }
         container.setAccessibilityIdentifier("split-pane-\(paneIndex)")
         let tabID = tab.id
+        container.visualLeadingInset = visualLeadingInset
         container.configure(
             tabID: tabID,
             laneInsets: laneInsets,
@@ -367,6 +387,9 @@ struct ActiveWebViewHost: NSViewRepresentable {
     let tab: BrowserTab
     @ObservedObject var store: BrowserStore
     let laneInsets: BrowserInterfaceInsets
+    /// Where the page card's leading edge is this frame (see
+    /// `WebPaneHostView.leadingLag`).
+    var visualLeadingInset: CGFloat = 0
 
     func makeNSView(context: Context) -> NSView {
         let container = WebViewHostContainer()
@@ -382,6 +405,7 @@ struct ActiveWebViewHost: NSViewRepresentable {
     func updateNSView(_ container: NSView, context: Context) {
         store.webCoordinator.ensureLoaded(tab)
         guard let container = container as? WebViewHostContainer else { return }
+        container.visualLeadingInset = visualLeadingInset
         container.configure(
             tabID: tab.id,
             excludingTabIDs: store.displayedSplitTabIDs,

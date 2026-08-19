@@ -24,10 +24,15 @@ struct ContentView: View {
         WebsiteAppearance.automatic.rawValue
     @SceneStorage("candoa.windowAutosaveID") private var windowAutosaveID = UUID().uuidString
     @State private var isSidebarVisible = true
-    /// The sidebar lane the page is laid out and clipped against — the
-    /// sidebar's width while it is pinned. Animated through `BrowserLaneEffect`
-    /// by the toggle, so the page follows the sidebar's edge frame by frame.
+    /// The sidebar lane: where the page card's leading edge is (`sidebarLane`,
+    /// animated through `BrowserLaneEffect` so the card follows the sidebar's
+    /// edge frame by frame) and the lane the page is laid out against
+    /// (`sidebarLayoutLane`): the same while opening, but a close lays the
+    /// page out at full width first, under the still-pinned edge, and the
+    /// page then rides the edge out as a translation.
     @State private var sidebarLane: CGFloat = InterfaceStyle.sidebarWidth
+    @State private var sidebarLayoutLane: CGFloat = InterfaceStyle.sidebarWidth
+    @State private var sidebarToggleGeneration = 0
     @State private var isSidebarHoverRevealed = false
     @State private var isSidebarRevealSuppressed = false
     @State private var isAISidebarVisible = false
@@ -35,8 +40,11 @@ struct ContentView: View {
     @State private var isHistoryPresented = false
     /// Eli's lane: the panel's width once open and at rest, animated by the
     /// toggle (the page card's edge slides across the docked panel and the
-    /// page lays out against the moving edge), 0 when closed.
+    /// page lays out against the moving edge), 0 when closed. A close lays
+    /// the page out at full width first, under the still-docked panel
+    /// (`aiSidebarLayoutLane`), then slides the edge back across it.
     @State private var aiSidebarLane: CGFloat = 0
+    @State private var aiSidebarLayoutLane: CGFloat = 0
     /// The committed panel width the lane is laid out against between resize
     /// drags; the lane follows the pointer only through the slide mask.
     @State private var reservedAISidebarInset: CGFloat = 0
@@ -166,8 +174,10 @@ struct ContentView: View {
                         // edge comes in, so the card never jumps 8pt at
                         // either end of the slide.
                         .modifier(BrowserLaneEffect(
-                            leading: sidebarLane,
-                            trailing: aiSidebarLane,
+                            visualLeading: sidebarLane,
+                            visualTrailing: aiSidebarLane,
+                            layoutLeading: sidebarLayoutLane,
+                            layoutTrailing: aiSidebarLayoutLane,
                             trailingGutter: isAISidebarMounted && currentAISidebarWidth > 0
                                 ? WebViewContainer.surfacePadding * (1 - min(1, aiSidebarLane / currentAISidebarWidth))
                                 : WebViewContainer.surfacePadding
@@ -851,6 +861,7 @@ struct ContentView: View {
                             // the visible card edge exactly in place.
                             reservedAISidebarInset = clampedAISidebarWidth(CGFloat(aiSidebarWidth))
                             aiSidebarLane = reservedAISidebarInset
+                            aiSidebarLayoutLane = reservedAISidebarInset
                             aiSidebarSlideMaskInset = 0
                         }
                 )
@@ -874,19 +885,46 @@ struct ContentView: View {
 
     private func toggleSidebar(completion: (() -> Void)?) {
         let showing = !isSidebarVisible
+        let lane = sidebarTotalWidth
+        sidebarToggleGeneration += 1
+        let generation = sidebarToggleGeneration
         isSidebarHoverRevealed = false
         isSidebarRevealSuppressed = !showing
         guard !reduceMotion else {
             isSidebarVisible = showing
-            sidebarLane = showing ? sidebarTotalWidth : 0
+            sidebarLane = showing ? lane : 0
+            sidebarLayoutLane = showing ? lane : 0
             completion?()
             return
         }
-        withAnimation(Self.sidebarToggleAnimation, completionCriteria: .logicallyComplete) {
-            isSidebarVisible = showing
-            sidebarLane = showing ? sidebarTotalWidth : 0
-        } completion: {
-            completion?()
+        if showing {
+            // Opening: the page lays out against the moving lane live, and
+            // the pane host keeps its edge glued to the sidebar's.
+            withAnimation(Self.sidebarToggleAnimation, completionCriteria: .logicallyComplete) {
+                isSidebarVisible = true
+                sidebarLane = lane
+                sidebarLayoutLane = lane
+            } completion: {
+                completion?()
+            }
+            return
+        }
+        // Closing: lay the page out at full width first, under the still-
+        // pinned edge (nothing visible changes — the pane host translates the
+        // page by the lane once that layout is on screen), and slide only
+        // then, so the edge never pulls away from a page that has not caught
+        // up. Typical pages take a frame or two; a heavy page (a YouTube
+        // watch page) a couple of hundred milliseconds, which still reads as
+        // a deliberate slide rather than a glitch. Capped all the same.
+        sidebarLayoutLane = 0
+        store.webCoordinator.waitForLeadingLane(0, timeout: 0.4) {
+            guard sidebarToggleGeneration == generation else { return }
+            withAnimation(Self.sidebarToggleAnimation, completionCriteria: .logicallyComplete) {
+                isSidebarVisible = false
+                sidebarLane = 0
+            } completion: {
+                completion?()
+            }
         }
     }
 
@@ -978,6 +1016,7 @@ struct ContentView: View {
             isAISidebarMounted = true
             isAISidebarVisible = true
             aiSidebarLane = width
+            aiSidebarLayoutLane = width
             return
         }
         // Mount first, fully covered (a view inserted and animated in the
@@ -985,6 +1024,7 @@ struct ContentView: View {
         // never play); slide the edge across it once that has committed.
         isAISidebarMounted = true
         aiSidebarLane = 0
+        aiSidebarLayoutLane = 0
         CATransaction.setCompletionBlock {
             // One more turn: the panel's first render is the heaviest frame
             // of the whole toggle, and the slide should not start on it.
@@ -993,6 +1033,7 @@ struct ContentView: View {
                 withAnimation(Self.sidebarToggleAnimation) {
                     isAISidebarVisible = true
                     aiSidebarLane = width
+                    aiSidebarLayoutLane = width
                 }
             }
         }
@@ -1005,20 +1046,27 @@ struct ContentView: View {
 
         aiSidebarResizeStartWidth = nil
         aiSidebarSlideMaskInset = 0
+        // Logically closed and inert at once.
+        isAISidebarVisible = false
         guard !reduceMotion else {
-            isAISidebarVisible = false
             isAISidebarMounted = false
             aiSidebarLane = 0
+            aiSidebarLayoutLane = 0
             return
         }
-        // Logically closed and inert at once; the panel stays mounted while
-        // the page's edge slides back across it, then goes.
-        withAnimation(Self.sidebarToggleAnimation, completionCriteria: .logicallyComplete) {
-            isAISidebarVisible = false
-            aiSidebarLane = 0
-        } completion: {
+        // Lay the page out at full width first, under the still-docked
+        // panel, and slide the edge back across it only once that layout has
+        // committed (capped), so the slide uncovers real content, never the
+        // page's margin. The panel stays mounted for the slide, then goes.
+        aiSidebarLayoutLane = 0
+        store.webCoordinator.waitForTrailingLane(0, timeout: 0.4) {
             guard aiSidebarTransitionGeneration == generation else { return }
-            isAISidebarMounted = false
+            withAnimation(Self.sidebarToggleAnimation, completionCriteria: .logicallyComplete) {
+                aiSidebarLane = 0
+            } completion: {
+                guard aiSidebarTransitionGeneration == generation else { return }
+                isAISidebarMounted = false
+            }
         }
     }
 
