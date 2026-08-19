@@ -164,6 +164,14 @@ extension CommandPaletteView {
             return [autocompleteSuggestion.command, navigateCommand] + commands
         }
 
+        // A remembered pick that can't complete the field inline still
+        // leads the list, so Return goes where it went last time.
+        if !isResumingSearchURL,
+           selectedSearchProvider == nil,
+           let learnedCommand = learnedSelectionCommand(for: trimmedQuery) {
+            return [learnedCommand, navigateCommand] + commands
+        }
+
         if !store.commandPalettePrefersCurrentTabNavigation,
            let provider = suggestedSearchProvider(for: trimmedQuery, allowsAutocomplete: false) {
             let matchingProviders = searchProviderCommands.filter { $0.provider == provider }
@@ -411,7 +419,89 @@ extension CommandPaletteView {
 
     internal func historyCommands(for query: String) -> [PaletteCommand] {
         guard !query.isEmpty else { return [] }
-        return store.recentHistory(matching: query, limit: 8).map(historyCommand)
+        let visits = store.recentHistory(matching: query, limit: 8)
+        let learnedKeys = learnedSelectionKeys(for: query)
+        guard !learnedKeys.isEmpty else { return visits.map(historyCommand) }
+
+        // Pages this person has chosen for these keystrokes before lead the
+        // history matches; everything else keeps its recency order.
+        return visits
+            .enumerated()
+            .sorted { lhs, rhs in
+                let lhsRank = learnedRank(of: lhs.element.url, in: learnedKeys)
+                let rhsRank = learnedRank(of: rhs.element.url, in: learnedKeys)
+                if lhsRank != rhsRank { return lhsRank < rhsRank }
+                return lhs.offset < rhs.offset
+            }
+            .map { historyCommand(for: $0.element) }
+    }
+
+    internal func learnedSelectionKeys(for query: String) -> [String] {
+        store.commandBarSelections
+            .selections(matching: query)
+            .map { normalizedURLKey($0.urlString) }
+    }
+
+    internal func learnedRank(of url: URL, in learnedKeys: [String]) -> Int {
+        learnedKeys.firstIndex(of: normalizedURLKey(url.absoluteString)) ?? learnedKeys.count
+    }
+
+    /// The destination this person picked the last time they typed this
+    /// text. Built from the remembered page rather than the current history
+    /// search, so the row leads even when the typed shorthand appears
+    /// nowhere in the page's title or URL.
+    internal func learnedSelectionCommand(for query: String) -> PaletteCommand? {
+        guard !query.isEmpty,
+              let selection = store.commandBarSelections.selections(matching: query).first,
+              let url = selection.url
+        else {
+            return nil
+        }
+
+        var command = historyCommand(
+            for: HistoryVisit(
+                id: UUID(),
+                title: selection.title,
+                url: url,
+                tabID: UUID(),
+                spaceID: store.activeSpaceID,
+                visitedAt: selection.lastSelectedAt
+            )
+        )
+        // The row matches these keystrokes because the person taught it to,
+        // which the plain title/URL filter can't know.
+        command.searchText += " \(query)"
+        return command
+    }
+
+    /// Learns from the row the person actually opened: next time they type
+    /// the same text, that row leads instead of whatever was most recent.
+    internal func recordSelection(for command: PaletteCommand) {
+        guard !store.isPrivate, !shouldSelectCurrentURL, !isResumingSearchURL else { return }
+        let typedText = commandQueryText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !typedText.isEmpty else { return }
+
+        switch command.action {
+        case .navigate(let input):
+            // Only rows that stand for a page teach anything; a typed URL
+            // or search needs no shortcut back to itself.
+            guard command.style == .history || command.style == .tab,
+                  let url = URL(string: input),
+                  url.host(percentEncoded: false) != nil
+            else {
+                return
+            }
+            store.commandBarSelections.record(typedText: typedText, title: command.title, url: url)
+        case .switchTab(let id):
+            guard let tab = store.tabs.first(where: { $0.id == id }), let url = tab.url else { return }
+            store.commandBarSelections.record(
+                typedText: typedText,
+                title: tab.title.isEmpty ? command.title : tab.title,
+                url: url
+            )
+        default:
+            return
+        }
     }
 
     internal func historyCommand(for visit: HistoryVisit) -> PaletteCommand {
@@ -536,6 +626,7 @@ extension CommandPaletteView {
 
     internal func run(_ command: PaletteCommand) {
         store.setUITestingLastCommandDescription(command.title)
+        recordSelection(for: command)
 
         let opensNewTab = store.consumeCommandPaletteNewTabIntent()
         dismissPalette()

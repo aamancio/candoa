@@ -14,6 +14,9 @@ internal final class AppDelegate: NSObject, NSApplicationDelegate {
         // which read from the argument domain and survive this reset.
         if ProcessInfo.processInfo.environment["CANDOA_UI_TESTING"] == "1" {
             UserDefaults.standard.removeObject(forKey: SitePermissionConfiguration.storageKey)
+            // Command bar learning would carry a prior run's picks into the
+            // next one's suggestion order.
+            UserDefaults.standard.removeObject(forKey: CommandBarSelectionMemory.storageKey)
             // The General pane's behavior choices leak between runs the same
             // way, and tests assume the defaults (⌘T arms the palette,
             // download fixtures survive the popover's retention pass).
