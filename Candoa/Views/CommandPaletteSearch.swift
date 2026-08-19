@@ -320,7 +320,7 @@ extension CommandPaletteView {
         let urlText = tab.url?.absoluteString ?? ""
         return PaletteCommand(
             title: tab.title,
-            detail: urlText.isEmpty ? spaceName : hostDisplayText(for: tab.url),
+            detail: urlText.isEmpty ? spaceName : addressDisplayText(for: tab.url),
             symbolName: tab.faviconSymbol,
             faviconData: tab.faviconData,
             searchText: "\(tab.title) \(spaceName) \(urlText)",
@@ -341,7 +341,12 @@ extension CommandPaletteView {
     }
 
     internal func autocompleteTexts(title: String, url: URL?) -> [String] {
-        let hostText = normalizedHostDisplayText(for: url?.host(percentEncoded: false))
+        // A port is part of where the page lives ("localhost:8080" is not
+        // "localhost"), so the inline completion carries it the way Arc does.
+        var hostText = normalizedHostDisplayText(for: url?.host(percentEncoded: false))
+        if let port = url?.port, let host = hostText {
+            hostText = "\(host):\(port)"
+        }
         return uniqueAutocompleteTexts(([hostText, url?.absoluteString].compactMap { $0 } + [title]))
     }
 

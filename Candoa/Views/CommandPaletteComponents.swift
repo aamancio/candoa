@@ -158,14 +158,18 @@ internal struct PaletteCommandRow: View {
                 provider: command.provider
             )
 
+            // The title wins the width fight; a long address gives way in
+            // its middle ("localhost:8080/em…ber/details") as Arc's rows do.
             Text(command.title)
                 .foregroundStyle(isSelected ? Color.white : Color.primary)
                 .lineLimit(1)
+                .layoutPriority(1)
 
             if let detail = command.detail, !detail.isEmpty {
                 Text("— \(detail)")
                     .foregroundStyle(isSelected ? Color.white.opacity(0.68) : Color.secondary)
                     .lineLimit(1)
+                    .truncationMode(.middle)
             }
 
             if let sourceLabel = command.sourceLabel, !sourceLabel.isEmpty {

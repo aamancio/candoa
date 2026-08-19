@@ -198,7 +198,7 @@ extension CommandPaletteView {
             .map { tab in
                 PaletteCommand(
                     title: tab.title,
-                    detail: hostDisplayText(for: tab.url),
+                    detail: addressDisplayText(for: tab.url),
                     symbolName: tab.faviconSymbol,
                     faviconData: tab.faviconData,
                     searchText: "\(tab.title) \(tab.url?.absoluteString ?? "")",
@@ -510,7 +510,7 @@ extension CommandPaletteView {
         if let openTab = openTab(for: visit), openTab.id != store.activeTabID {
             return PaletteCommand(
                 title: openTab.title.isEmpty ? visit.title : openTab.title,
-                detail: hostDisplayText(for: visit.url),
+                detail: addressDisplayText(for: visit.url),
                 symbolName: openTab.faviconSymbol,
                 faviconData: openTab.faviconData,
                 searchText: "\(visit.title) \(visit.url.absoluteString)",
@@ -522,7 +522,7 @@ extension CommandPaletteView {
 
         return PaletteCommand(
             title: visit.title,
-            detail: hostDisplayText(for: visit.url),
+            detail: addressDisplayText(for: visit.url),
             symbolName: FaviconService.shared.placeholderSymbol(for: visit.url),
             faviconPageURL: visit.url,
             searchText: "\(visit.title) \(visit.url.absoluteString)",
@@ -699,8 +699,30 @@ extension CommandPaletteView {
         store.spaces.first { $0.id == id }?.name ?? String(localized: "Unknown Space")
     }
 
-    internal func hostDisplayText(for url: URL?) -> String {
-        url?.host(percentEncoded: false) ?? ""
+    /// The address the way Arc prints it beside a row title: host, port and
+    /// path with the scheme and "www." dropped — "localhost:8080/dashboard"
+    /// rather than a bare "localhost" that hides which server and page the
+    /// row stands for (and made distinct pages collapse into one row).
+    internal func addressDisplayText(for url: URL?) -> String {
+        guard let url, let host = normalizedHostDisplayText(for: url.host(percentEncoded: false)) else {
+            return ""
+        }
+
+        var text = host
+        if let port = url.port {
+            text += ":\(port)"
+        }
+
+        let path = url.path(percentEncoded: false)
+        if !path.isEmpty, path != "/" {
+            text += path.hasSuffix("/") ? String(path.dropLast()) : path
+        }
+
+        if let query = url.query(percentEncoded: false), !query.isEmpty {
+            text += "?\(query)"
+        }
+
+        return text
     }
 
 }

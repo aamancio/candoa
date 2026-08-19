@@ -2,6 +2,57 @@ import AppKit
 import XCTest
 
 extension CandoaUITests {
+    /// Arc prints the address beside each command-bar row as host, port and
+    /// path ("localhost:8080/dashboard"); a bare host hid which server and
+    /// page a row stood for and folded same-title pages into one row.
+    func testCommandBarRowsShowPortAndPathLikeArc() throws {
+        let app = launchApp(extraLaunchEnvironment: [
+            "CANDOA_UI_TESTING_PAGE_HTML":
+                "<!doctype html><html><head><title>Dashboard - Dev Fixture</title></head><body>fixture</body></html>"
+        ])
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
+
+        for path in ["dashboard", "employers"] {
+            openNewTabPalette(in: app)
+            submitCommandPaletteText("localhost:8080/\(path)", in: app)
+            XCTAssertTrue(
+                waitForState(in: app, containing: "url=http://localhost:8080/\(path)", timeout: 15),
+                currentState(in: app)
+            )
+            XCTAssertTrue(
+                waitForState(in: app, containing: "active=Dashboard - Dev Fixture", timeout: 15),
+                currentState(in: app)
+            )
+        }
+
+        // Close both pages so they surface as history rows, not tab rows.
+        app.typeKey("w", modifierFlags: .command)
+        app.typeKey("w", modifierFlags: .command)
+        XCTAssertFalse(waitForState(in: app, containing: "url=http://localhost:8080", timeout: 3))
+
+        openNewTabPalette(in: app)
+        let field = element("command-palette-field", in: app)
+        XCTAssertTrue(field.waitForExistence(timeout: 5), currentState(in: app))
+        field.click()
+        pasteText("localhost:8080", into: field)
+
+        let rows = app.descendants(matching: .any)
+            .matching(identifier: "command-row-dashboard-dev-fixture")
+        let dashboardRow = rows.matching(
+            NSPredicate(format: "label CONTAINS %@", "localhost:8080/dashboard, History")
+        ).firstMatch
+        let employersRow = rows.matching(
+            NSPredicate(format: "label CONTAINS %@", "localhost:8080/employers, History")
+        ).firstMatch
+        XCTAssertTrue(dashboardRow.waitForExistence(timeout: 5), currentState(in: app))
+        XCTAssertTrue(employersRow.waitForExistence(timeout: 5), currentState(in: app))
+
+        let attachment = XCTAttachment(screenshot: app.windows.firstMatch.screenshot())
+        attachment.name = "Command bar history rows with port and path"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+
     func testLocalhostDeveloperBarWearsTheChromeTreatment() throws {
         // No server anywhere (neither the app nor the runner carries the
         // network-server entitlement): the coordinator's UI-testing fixture
