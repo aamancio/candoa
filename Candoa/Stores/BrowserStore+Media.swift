@@ -24,6 +24,7 @@ extension BrowserStore {
     }
 
     var floatingMiniPlayerTab: BrowserTab? {
+        guard isFloatingMiniPlayerEnabled else { return nil }
         guard let tab = backgroundMediaControllerTab, tab.id != dismissedMiniPlayerTabID else { return nil }
         guard mediaStates[tab.id]?.isMiniPlayerEligible == true,
               mediaStates[tab.id]?.isPlaying == true || retainedPausedMiniPlayerTabID == tab.id else {
@@ -135,6 +136,17 @@ extension BrowserStore {
     /// video at player size (under its freeze frame, see the coordinator).
     func miniPlayerSummonGlideDidEnd(tabID: UUID) {
         webCoordinator.finishMiniPlayerSummon(for: tabID)
+    }
+
+    /// Settings changed: a toggle turned off while the player floats hands
+    /// the page back right away so it is not left stripped to its video.
+    func syncFloatingMiniPlayerPreference() {
+        let enabled = SettingsOption.bool(SettingsOption.floatingMiniPlayer, default: true)
+        guard enabled != isFloatingMiniPlayerEnabled else { return }
+        isFloatingMiniPlayerEnabled = enabled
+        if !enabled, let hostedTabID = webCoordinator.miniPlayerHostedTabID {
+            webCoordinator.detachMiniPlayerWebView(for: hostedTabID)
+        }
     }
 
     func miniPlayerPresentationDidSettle(tabID: UUID) {

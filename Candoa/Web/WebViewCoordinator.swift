@@ -852,6 +852,7 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
     }
 
     private func userDefaultsDidChange() {
+        store?.syncFloatingMiniPlayerPreference()
         guard let contentRuleList, strictTrackingProtectionEnabled != appliedTrackingProtection else { return }
         appliedTrackingProtection.toggle()
 

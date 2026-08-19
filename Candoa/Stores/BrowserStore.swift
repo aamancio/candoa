@@ -338,6 +338,10 @@ final class BrowserStore: ObservableObject {
     /// moment the page reports that presentation painted. It exists only
     /// for the handoff.
     @Published var miniPlayerSummonFreezeFrame: NSImage?
+    /// Mirrors the Settings toggle so the player can leave (and the page
+    /// be handed back) the moment it is switched off, not at the next
+    /// media report.
+    @Published var isFloatingMiniPlayerEnabled = SettingsOption.bool(SettingsOption.floatingMiniPlayer, default: true)
 
     @Published var miniPlayerReturn: MiniPlayerReturnContext?
 

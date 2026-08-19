@@ -907,6 +907,46 @@
         }
       }
     },
+    "A playing video keeps playing in a small floating player when you leave its tab." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ein laufendes Video läuft in einem kleinen schwebenden Player weiter, wenn du seinen Tab verlässt."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un vídeo en reproducción sigue reproduciéndose en un pequeño reproductor flotante cuando sales de su pestaña."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Une vidéo en cours continue dans un petit lecteur flottant lorsque vous quittez son onglet."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "再生中のビデオは、そのタブを離れても小さなフローティングプレーヤーで再生され続けます。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Um vídeo em reprodução continua tocando em um pequeno player flutuante quando você sai da aba dele."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "离开标签页后，正在播放的视频会继续在一个小的浮动播放器中播放。"
+          }
+        }
+      }
+    },
     "About Candoa" : {
       "localizations" : {
         "de" : {
@@ -26654,6 +26694,46 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "显示 Eli 边栏"
+          }
+        }
+      }
+    },
+    "Show floating video player" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schwebenden Videoplayer anzeigen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostrar reproductor de vídeo flotante"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Afficher le lecteur vidéo flottant"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "フローティングビデオプレーヤーを表示"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostrar player de vídeo flutuante"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示浮动视频播放器"
           }
         }
       }

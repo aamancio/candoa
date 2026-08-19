@@ -154,6 +154,9 @@ enum SettingsOption {
     static let addressBarPlacement = prefix + "AddressBarPlacement"
 
     static let selectRecentlyUsedOnClose = prefix + "SelectRecentlyUsedOnClose"
+    /// Whether a playing video floats in the mini player when its tab is
+    /// left. Off, the tab just plays on in the background.
+    static let floatingMiniPlayer = prefix + "FloatingMiniPlayer"
 
     static let homepage = prefix + "Homepage"
     static let newTabsOpenWith = prefix + "NewTabsOpenWith"
