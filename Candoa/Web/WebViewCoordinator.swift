@@ -92,6 +92,15 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
     /// `hostMiniPlayerWebView`), until the glide lands and the freeze frame
     /// for the strip-down is in.
     var miniPlayerSummon: MiniPlayerSummonHandoff?
+    /// Obscured-inset changes the web process is still committing, and the
+    /// latest value waiting behind each (see `applyObscuredContentInsets`).
+    var obscuredContentInsetsInFlight = Set<ObjectIdentifier>()
+    var pendingObscuredContentInsets: [ObjectIdentifier: NSEdgeInsets] = [:]
+    /// The leading inset each page was last asked to lay out against, and
+    /// the one its layout last committed; their difference is the lag the
+    /// pane host shifts the page by while the sidebar opens.
+    var requestedLeadingInsets: [ObjectIdentifier: CGFloat] = [:]
+    var committedLeadingInsets: [ObjectIdentifier: CGFloat] = [:]
     var contentRuleList: WKContentRuleList?
     /// Whether the compiled rule list is currently attached to web views —
     /// diverges from the preference only until the observer reconciles.

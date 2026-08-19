@@ -275,6 +275,9 @@ final class BrowserStore: ObservableObject {
     /// developer bar's Chat button. Sidebar visibility itself lives in the
     /// view that owns the layout.
     @Published var aiSidebarToggleRequestID = UUID()
+    /// Bumped by the UI-testing seam to toggle the navigation sidebar; the
+    /// pinned state itself lives in the view that owns the layout.
+    @Published var sidebarToggleRequestID = UUID()
     /// Position of the current match among all of them, or nil when there is
     /// nothing to count yet — an empty query, or a page the in-page find
     /// engine could not tally.
@@ -367,6 +370,7 @@ final class BrowserStore: ObservableObject {
     var downloadsChangeCancellable: AnyCancellable?
     var uiTestingDownloadFixtureCancellable: AnyCancellable?
     var uiTestingTabSwitcherCancellable: AnyCancellable?
+    var uiTestingInterfaceCancellable: AnyCancellable?
     var tabSwitcherHideWorkItem: DispatchWorkItem?
     var tabSwitcherShowWorkItem: DispatchWorkItem?
     var copiedURLToastHideWorkItem: DispatchWorkItem?
@@ -580,6 +584,7 @@ final class BrowserStore: ObservableObject {
             .sink { [weak self] _ in self?.objectWillChange.send() }
         configureUITestingDownloadFixtureTrigger()
         configureUITestingTabSwitcherTrigger()
+        configureUITestingInterfaceTrigger()
         seedUITestingSpaceMemoryIfNeeded()
     }
 

@@ -9,8 +9,10 @@ struct BrowserInterfaceInsets: Equatable {
 
 struct WebViewContainer: View {
     @ObservedObject var store: BrowserStore
-    let visibleInterfaceInsets: BrowserInterfaceInsets
-    let attachesToTrailingPanel: Bool
+    /// The interface lanes, per frame while a sidebar toggles (see
+    /// `BrowserLaneEffect`): the page card is clipped to them and the web
+    /// layout follows them.
+    @Environment(\.browserLaneState) private var laneState
     /// The strip above the page takes over the sidebar's toggle while the
     /// sidebar is away, so it needs the same action the sidebar header uses.
     let onToggleSidebar: () -> Void
@@ -35,7 +37,14 @@ struct WebViewContainer: View {
     /// pill.
     @State private var hoveredSplitPaneIndex: Int?
     private let surfaceCornerRadius: CGFloat = 12
-    private let surfacePadding: CGFloat = 8
+    /// The gutter between the page card and the window or lane edges (the
+    /// `BrowserLaneState` default matches).
+    static let surfacePadding: CGFloat = 8
+    private var surfacePadding: CGFloat { Self.surfacePadding }
+
+    private var visibleInterfaceInsets: BrowserInterfaceInsets {
+        laneState.insets
+    }
     private static let splitPaneMinimumWidth: CGFloat = 160
 
     var body: some View {
@@ -99,7 +108,7 @@ struct WebViewContainer: View {
                 slideOverTrailingInset: slideOverTrailingInset,
                 surfaceCornerRadius: surfaceCornerRadius,
                 surfacePadding: surfacePadding,
-                trailingSurfacePadding: attachesToTrailingPanel ? 0 : surfacePadding,
+                trailingSurfacePadding: laneState.trailingGutter,
                 drawsFullSurfaceBorder: store.displayedSplitTabs.count < 2
             )
         )
@@ -194,9 +203,9 @@ struct WebViewContainer: View {
             top: surfacePadding,
             leading: surfacePadding,
             bottom: surfacePadding,
-            // Eli owns the adjacent trailing lane after its transition. It
-            // must not add a second inset inside the page surface.
-            trailing: attachesToTrailingPanel ? 0 : surfacePadding
+            // Eli owns the adjacent trailing lane once docked. It must not
+            // add a second inset inside the page surface.
+            trailing: laneState.trailingGutter
         )
     }
 

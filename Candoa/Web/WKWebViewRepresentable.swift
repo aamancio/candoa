@@ -34,12 +34,28 @@ class WebPaneHostView: NSView {
     @available(*, unavailable)
     required init?(coder: NSCoder) { nil }
 
+    /// While the sidebar opens, the page's layout commits a frame or so
+    /// behind the lane it is asked for. The web views are shifted by that
+    /// lag so the page's leading edge (toolbar, content) stays glued to the
+    /// sidebar's edge — Dia's push — and the shift unwinds in the very
+    /// transaction each commit lands in (the coordinator sets it from the
+    /// commit callback). Only forwards: trailing the other way would pull
+    /// the page off the far edge.
+    var leadingLag: CGFloat = 0 {
+        didSet {
+            guard leadingLag != oldValue else { return }
+            for subview in subviews where subview !== inspectorLane {
+                subview.frame = bounds.offsetBy(dx: leadingLag, dy: 0)
+            }
+        }
+    }
+
     /// Pins the hosted web views to the host's own bounds — they deliberately
     /// span the reserved interface lanes — and gives the inspector lane the
     /// visible page card.
     func layoutHostedSubviews(laneInsets: BrowserInterfaceInsets) {
         for subview in subviews where subview !== inspectorLane {
-            subview.frame = bounds
+            subview.frame = bounds.offsetBy(dx: leadingLag, dy: 0)
         }
 
         inspectorLane.resizeCard(

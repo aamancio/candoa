@@ -150,6 +150,31 @@ extension BrowserStore {
             }
     }
 
+    /// Test-runner signal for the sidebar toggles (the navigation sidebar and
+    /// Eli): their shortcuts need a key window, and pointer automation can't
+    /// run while a person is using the Mac. The actions map onto the store
+    /// entry points the keyboard shortcuts call.
+    static let uiTestingInterfaceNotification =
+        Notification.Name("app.candoa.uitesting.interface")
+
+    func configureUITestingInterfaceTrigger() {
+        guard Self.isUITesting, !isPrivate else { return }
+
+        uiTestingInterfaceCancellable = DistributedNotificationCenter.default()
+            .publisher(for: Self.uiTestingInterfaceNotification)
+            .sink { [weak self] notification in
+                guard let action = notification.object as? String else { return }
+                Task { @MainActor [weak self] in
+                    guard let self else { return }
+                    switch action {
+                    case "toggle-sidebar": self.sidebarToggleRequestID = UUID()
+                    case "toggle-eli": self.requestAISidebarToggle()
+                    default: break
+                    }
+                }
+            }
+    }
+
     static var uiTestingOnboardingStep: InitialOnboardingStep? {
         guard isUITesting else { return nil }
         return ProcessInfo.processInfo.environment["CANDOA_UI_TESTING_ONBOARDING_STEP"]

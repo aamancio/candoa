@@ -167,17 +167,66 @@ extension WebViewCoordinator {
         container.layer?.backgroundColor = webView.underPageBackgroundColor.cgColor
     }
 
+    /// Lays the page out against the interface lanes. While a sidebar
+    /// toggles this arrives every frame; the web process is given one
+    /// layout at a time — the next value waits for the last one to commit —
+    /// so it never queues up behind itself (back-to-back changes backlogged
+    /// a widening page to 100ms+ a commit). The page then tracks the moving
+    /// edge at its own commit rate, a frame or so behind, and always lands
+    /// on the final value; the host shifts the page by the leading lag in
+    /// the meantime (`WebPaneHostView.leadingLag`).
     func applyObscuredContentInsets(_ insets: NSEdgeInsets, to webView: WKWebView) {
         guard #available(macOS 26.0, *) else { return }
+        let key = ObjectIdentifier(webView)
+        requestedLeadingInsets[key] = insets.left
         let current = webView.obscuredContentInsets
         guard current.top != insets.top
             || current.left != insets.left
             || current.bottom != insets.bottom
             || current.right != insets.right
         else {
+            pendingObscuredContentInsets.removeValue(forKey: key)
+            if !obscuredContentInsetsInFlight.contains(key) {
+                committedLeadingInsets[key] = insets.left
+            }
+            updateLeadingLag(of: webView)
+            return
+        }
+        if obscuredContentInsetsInFlight.contains(key) {
+            pendingObscuredContentInsets[key] = insets
+            updateLeadingLag(of: webView)
             return
         }
         webView.obscuredContentInsets = insets
+        guard webView.responds(to: Self.doAfterNextPresentationUpdate) else {
+            committedLeadingInsets[key] = insets.left
+            updateLeadingLag(of: webView)
+            return
+        }
+        obscuredContentInsetsInFlight.insert(key)
+        updateLeadingLag(of: webView)
+        afterNextPresentationUpdate(of: webView, fallbackDelay: 0.1) { [weak self, weak webView] in
+            guard let self else { return }
+            self.obscuredContentInsetsInFlight.remove(key)
+            self.committedLeadingInsets[key] = insets.left
+            guard let webView else { return }
+            if let pending = self.pendingObscuredContentInsets.removeValue(forKey: key) {
+                self.applyObscuredContentInsets(pending, to: webView)
+            } else {
+                self.updateLeadingLag(of: webView)
+            }
+        }
+    }
+
+    /// The page shifted forward by however far its committed layout trails
+    /// the lane it has been asked for, in the same transaction as the
+    /// commit that reports it. Only the active pane host does this.
+    private func updateLeadingLag(of webView: WKWebView) {
+        guard let host = webView.superview as? WebPaneHostView else { return }
+        let key = ObjectIdentifier(webView)
+        let requested = requestedLeadingInsets[key] ?? 0
+        let committed = committedLeadingInsets[key] ?? requested
+        host.leadingLag = max(0, requested - committed)
     }
 
     /// Points WebKit's attached Web Inspector at the host's lane-inset
