@@ -96,9 +96,8 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
     /// latest value waiting behind each (see `applyObscuredContentInsets`).
     var obscuredContentInsetsInFlight = Set<ObjectIdentifier>()
     var pendingObscuredContentInsets: [ObjectIdentifier: NSEdgeInsets] = [:]
-    /// Closing sidebars waiting for the active page to have laid out against
-    /// their final lane before their edge moves.
-    var leadingLaneWaiters: [LaneWaiter] = []
+    /// Eli's close waiting for the active page to have painted at full width
+    /// under the docked panel before the edge moves.
     var trailingLaneWaiters: [LaneWaiter] = []
     var contentRuleList: WKContentRuleList?
     /// Whether the compiled rule list is currently attached to web views —

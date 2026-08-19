@@ -169,20 +169,55 @@ extension WebViewCoordinator {
         container.layer?.backgroundColor = webView.underPageBackgroundColor.cgColor
     }
 
+    /// WebKit's default under-page color is the window's, not the page's.
+    /// Everything that shows beside or behind the page for a frame — the
+    /// host behind an inset commit, the margin a closing sidebar pulls the
+    /// page over — paints in that color, so take it from the page itself:
+    /// the document's own background, `<body>`'s if the root has none.
+    func adoptPageBackgroundColor(of webView: WKWebView) {
+        webView.evaluateJavaScript("""
+        [
+          getComputedStyle(document.documentElement).backgroundColor,
+          document.body ? getComputedStyle(document.body).backgroundColor : "",
+          (getComputedStyle(document.documentElement).colorScheme || "").includes("dark") ? "dark" : "light"
+        ]
+        """) { [weak self, weak webView] result, _ in
+            guard let self, let webView else { return }
+            let values = (result as? [String]) ?? []
+            // A transparent document paints on the canvas: white, or the
+            // dark canvas for a page that opts into a dark color scheme.
+            let canvas: NSColor = values.last == "dark" ? NSColor(white: 0.12, alpha: 1) : .white
+            let color = values.prefix(2).lazy.compactMap(Self.color(fromCSS:)).first ?? canvas
+            webView.underPageBackgroundColor = color
+            if let host = webView.superview {
+                self.syncHostBackground(in: host, with: webView)
+            }
+        }
+    }
+
+    /// `rgb(r, g, b)` / `rgba(r, g, b, a)` as getComputedStyle reports it.
+    static func color(fromCSS css: String) -> NSColor? {
+        let scalars = css.split(whereSeparator: { !"0123456789.".contains($0) }).compactMap { Double($0) }
+        guard scalars.count >= 3 else { return nil }
+        let alpha = scalars.count >= 4 ? scalars[3] : 1
+        guard alpha > 0.99 else { return nil }
+        return NSColor(
+            srgbRed: CGFloat(scalars[0] / 255), green: CGFloat(scalars[1] / 255), blue: CGFloat(scalars[2] / 255), alpha: 1
+        )
+    }
+
     /// Lays the page out against the interface lanes. While a sidebar
     /// toggles this arrives every frame; the web process is given one
     /// layout at a time — the next value waits for the last one to land —
     /// so it never queues up behind itself (back-to-back changes backlogged
     /// a widening page to 100ms+ a commit). The page then tracks the moving
     /// edge at its own rate, a frame or two behind, and always lands on the
-    /// final value; the pane host shifts the page by the lag in the meantime
-    /// (`WebPaneHostView.leadingLag`).
+    /// final value.
     ///
-    /// Two readings of "landed" go to the host: WebKit's after-commit
-    /// callback (can run ahead of the display on a heavy page) and the page's
-    /// own report that it has painted at the new width (can run a frame or
-    /// two behind it). A widening change paces on the latter, a narrowing
-    /// one on the former — the readings each direction pulls the page by.
+    /// "Landed" is WebKit's after-commit callback (pacing); the page's own
+    /// report that it has painted at the new width goes to the pane host,
+    /// which pulls a closing page by its lag (`WebPaneHostView`), and stands
+    /// in for pacing where the callback is missing or never comes.
     func applyObscuredContentInsets(_ insets: NSEdgeInsets, to webView: WKWebView) {
         guard #available(macOS 26.0, *) else { return }
         let key = ObjectIdentifier(webView)
@@ -194,7 +229,7 @@ extension WebViewCoordinator {
         else {
             pendingObscuredContentInsets.removeValue(forKey: key)
             if !obscuredContentInsetsInFlight.contains(key) {
-                noteCommittedInsets(insets, of: webView, earliest: true, latest: true)
+                (webView.superview as? WebPaneHostView)?.paintedLeadingInset = insets.left
             }
             return
         }
@@ -202,7 +237,6 @@ extension WebViewCoordinator {
             pendingObscuredContentInsets[key] = insets
             return
         }
-        let widens = insets.left < current.left || insets.right < current.right
         webView.obscuredContentInsets = insets
         obscuredContentInsetsInFlight.insert(key)
         var settled = false
@@ -212,18 +246,13 @@ extension WebViewCoordinator {
             guard let self else { return }
             self.obscuredContentInsetsInFlight.remove(key)
             guard let webView else { return }
-            self.noteCommittedInsets(insets, of: webView, earliest: true, latest: true)
             if let pending = self.pendingObscuredContentInsets.removeValue(forKey: key) {
                 self.applyObscuredContentInsets(pending, to: webView)
             }
         }
         if webView.responds(to: Self.doAfterNextPresentationUpdate) {
-            let afterCommit: @convention(block) () -> Void = { [weak self, weak webView] in
-                MainActor.assumeIsolated {
-                    guard let self, let webView else { return }
-                    self.noteCommittedInsets(insets, of: webView, earliest: true, latest: false)
-                    if !widens { settle() }
-                }
+            let afterCommit: @convention(block) () -> Void = {
+                MainActor.assumeIsolated { settle() }
             }
             webView.perform(Self.doAfterNextPresentationUpdate, with: afterCommit)
         }
@@ -251,30 +280,54 @@ extension WebViewCoordinator {
             arguments: ["target": Double(targetWidth)],
             in: nil,
             in: .page
-        ) { _ in
+        ) { [weak self, weak webView] _ in
+            self?.notePainted(insets, of: webView)
             settle()
         }
         // A page that never paints (throttled, mid-navigation) must not hold
         // the lane.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { settle() }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self, weak webView] in
+            self?.notePainted(insets, of: webView)
+            settle()
+        }
     }
 
-    private func noteCommittedInsets(_ insets: NSEdgeInsets, of webView: WKWebView, earliest: Bool, latest: Bool) {
-        if let host = webView.superview as? WebPaneHostView {
-            if earliest { host.earliestCommittedLeadingInset = insets.left }
-            if latest { host.latestCommittedLeadingInset = insets.left }
+    private func notePainted(_ insets: NSEdgeInsets, of webView: WKWebView?) {
+        guard let webView else { return }
+        (webView.superview as? WebPaneHostView)?.paintedLeadingInset = insets.left
+        guard let activeID = hostedActiveTabID, webViews[activeID] === webView else { return }
+        let waiters = trailingLaneWaiters
+        trailingLaneWaiters = waiters.filter { $0.trailing != insets.right }
+        for waiter in waiters where waiter.trailing == insets.right {
+            waiter.completion()
         }
-        guard latest, let activeID = hostedActiveTabID, webViews[activeID] === webView else { return }
-        let waiters = leadingLaneWaiters
-        leadingLaneWaiters.removeAll()
-        for waiter in waiters {
-            if waiter.leading == insets.left { waiter.completion() } else { leadingLaneWaiters.append(waiter) }
+    }
+
+    /// Calls back once the active page has painted against the trailing lane
+    /// `trailing` (or the timeout passes): Eli's close lays the page out at
+    /// full width under the still-docked panel first and slides only then,
+    /// so the slide uncovers content rather than the page's margin.
+    func waitForTrailingLane(_ trailing: CGFloat, timeout: TimeInterval, completion: @escaping @MainActor () -> Void) {
+        var done = false
+        let once: @MainActor () -> Void = {
+            guard !done else { return }
+            done = true
+            completion()
         }
-        let trailingWaiters = trailingLaneWaiters
-        trailingLaneWaiters.removeAll()
-        for waiter in trailingWaiters {
-            if waiter.leading == insets.right { waiter.completion() } else { trailingLaneWaiters.append(waiter) }
+        if #available(macOS 26.0, *),
+           let activeID = hostedActiveTabID, let webView = webViews[activeID] {
+            let key = ObjectIdentifier(webView)
+            if webView.obscuredContentInsets.right == trailing,
+               !obscuredContentInsetsInFlight.contains(key), pendingObscuredContentInsets[key] == nil {
+                once()
+                return
+            }
+        } else {
+            once()
+            return
         }
+        trailingLaneWaiters.append(LaneWaiter(trailing: trailing, completion: once))
+        DispatchQueue.main.asyncAfter(deadline: .now() + timeout) { once() }
     }
 
     /// While the leading lane closes the page is pulled back under the
@@ -285,46 +338,6 @@ extension WebViewCoordinator {
               let host = webView.superview as? WebPaneHostView else { return }
         host.trailingOverhang = closing ? overhang : 0
         host.needsLayout = true
-    }
-
-    /// Calls back once the active page has laid out against `leading` (or
-    /// the timeout passes): a closing sidebar waits for the page's full-width
-    /// layout before its edge moves, so it never slides off a page that has
-    /// not caught up.
-    func waitForLeadingLane(_ leading: CGFloat, timeout: TimeInterval, completion: @escaping @MainActor () -> Void) {
-        wait(for: leading, on: \.leadingLaneWaiters, timeout: timeout, completion: completion)
-    }
-
-    func waitForTrailingLane(_ trailing: CGFloat, timeout: TimeInterval, completion: @escaping @MainActor () -> Void) {
-        wait(for: trailing, on: \.trailingLaneWaiters, timeout: timeout, completion: completion)
-    }
-
-    private func wait(
-        for value: CGFloat,
-        on list: ReferenceWritableKeyPath<WebViewCoordinator, [LaneWaiter]>,
-        timeout: TimeInterval,
-        completion: @escaping @MainActor () -> Void
-    ) {
-        var done = false
-        let once: @MainActor () -> Void = {
-            guard !done else { return }
-            done = true
-            completion()
-        }
-        if #available(macOS 26.0, *),
-           let activeID = hostedActiveTabID, let webView = webViews[activeID] {
-            let key = ObjectIdentifier(webView)
-            let current = list == \.leadingLaneWaiters ? webView.obscuredContentInsets.left : webView.obscuredContentInsets.right
-            if current == value, !obscuredContentInsetsInFlight.contains(key), pendingObscuredContentInsets[key] == nil {
-                once()
-                return
-            }
-        } else {
-            once()
-            return
-        }
-        self[keyPath: list].append(LaneWaiter(leading: value, completion: once))
-        DispatchQueue.main.asyncAfter(deadline: .now() + timeout) { once() }
     }
 
     /// Points WebKit's attached Web Inspector at the host's lane-inset
@@ -581,8 +594,8 @@ struct MiniPlayerSummonHandoff {
     let pageFrame: CGRect
 }
 
-/// Someone waiting for the active page to have laid out against a lane.
+/// Someone waiting for the active page to have painted against a lane.
 struct LaneWaiter {
-    let leading: CGFloat
+    let trailing: CGFloat
     let completion: @MainActor () -> Void
 }

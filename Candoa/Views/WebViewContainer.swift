@@ -524,19 +524,9 @@ struct WebViewContainer: View {
                         layout: layout,
                         lanes: webLayoutInsets
                     )
-                    let visualPaneInsets = splitPaneInsets(
-                        forPaneAt: slot,
-                        paneCount: visibleTabs.count,
-                        layout: layout
-                    )
 
                     browserSurface {
-                        webPane(
-                            for: splitTab,
-                            at: paneIndex,
-                            laneInsets: paneInsets,
-                            visualLeadingInset: visualPaneInsets.leading
-                        )
+                        webPane(for: splitTab, at: paneIndex, laneInsets: paneInsets)
                     }
                     // No accent ring on the focused pane: the panes wear the
                     // standard surface border only, and focus is read from the
@@ -912,27 +902,21 @@ struct WebViewContainer: View {
                 paneCount: splitTabs.count,
                 layout: store.splitLayout,
                 lanes: webLayoutInsets
-            ),
-            visualLeadingInset: splitPaneInsets(
-                forPaneAt: paneIndex,
-                paneCount: splitTabs.count,
-                layout: store.splitLayout
-            ).leading
+            )
         )
     }
 
     private func webPane(
         for tab: BrowserTab,
         at paneIndex: Int,
-        laneInsets: BrowserInterfaceInsets,
-        visualLeadingInset: CGFloat
+        laneInsets: BrowserInterfaceInsets
     ) -> some View {
         SplitWebViewHost(
             tab: tab,
             paneIndex: paneIndex,
             store: store,
             laneInsets: laneInsets,
-            visualLeadingInset: visualLeadingInset,
+            visualLeadingInset: laneInsets.leading > 0 ? visibleInterfaceInsets.leading : 0,
             onPaneHoverChange: { isInside in
                 if isInside {
                     hoveredSplitPaneIndex = paneIndex

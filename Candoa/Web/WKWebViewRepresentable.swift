@@ -34,37 +34,30 @@ class WebPaneHostView: NSView {
     @available(*, unavailable)
     required init?(coder: NSCoder) { nil }
 
-    /// Where the page card's leading edge is this frame. The web views are
-    /// shifted so the page's leading edge — toolbar, content — stays glued to
-    /// it (Dia's push) while the page's layout catches up with the moving
-    /// lane: opening, the layout trails by a frame or so and the page is
-    /// pushed forward; closing, the layout trails the other way and the
-    /// page is pulled back, over the trailing overhang. The shift unwinds as
-    /// the layout lands.
+    /// Where the page card's leading edge is this frame. While the sidebar
+    /// *closes*, the web views are pulled back by however far the page's
+    /// layout trails the moving lane — the page lays out a frame or three
+    /// behind, and that much of its margin would otherwise show beside the
+    /// sidebar — so the page's leading edge stays glued to the sidebar's.
+    /// The pull unwinds as each layout lands. (Opening needs no push: the
+    /// page trails *under* the sidebar's edge there, which is invisible.)
     var visualLeadingInset: CGFloat = 0 {
         didSet { updateLeadingLag() }
     }
 
-    /// Two readings of the leading lane the page's layout is on screen
-    /// against, neither exact: WebKit's after-commit callback can run ahead
-    /// of the display (`earliest`), the page's own paint report a frame or
-    /// two behind it (`latest`). Each direction uses the reading that errs
-    /// toward the page sitting *under* the sidebar's edge rather than a gap
-    /// showing beside it: opening pushes by the earliest, closing pulls by
-    /// the latest.
-    var earliestCommittedLeadingInset: CGFloat = 0 {
-        didSet { updateLeadingLag() }
-    }
-
-    var latestCommittedLeadingInset: CGFloat = 0 {
+    /// The leading lane the page has painted against, by the page's own
+    /// report (two animation frames after its viewport took the new width).
+    /// That can run a frame behind the display, which errs the right way:
+    /// the pull is never too small, so the page can sit a few points under
+    /// the sidebar's edge for a frame but never leaves a gap beside it.
+    var paintedLeadingInset: CGFloat = 0 {
         didSet { updateLeadingLag() }
     }
 
     /// Extra width past the host's trailing edge, only while the leading
-    /// lane closes: pulled back by the lag, the page would otherwise leave
-    /// the card's far edge; the overhang is the page's own margin (the
-    /// obscured strip WebKit paints in the page's background), so what shows
-    /// there is page-colored, never the window backdrop.
+    /// lane closes: pulled back, the page would otherwise leave the card's
+    /// far edge; the overhang is the page's own margin (painted in the
+    /// page's background), so what shows there is page-colored.
     var trailingOverhang: CGFloat = 0 {
         didSet {
             guard trailingOverhang != oldValue else { return }
@@ -75,12 +68,7 @@ class WebPaneHostView: NSView {
     private(set) var leadingLag: CGFloat = 0
 
     private func updateLeadingLag() {
-        let lag: CGFloat
-        if visualLeadingInset >= latestCommittedLeadingInset {
-            lag = max(0, visualLeadingInset - earliestCommittedLeadingInset)
-        } else {
-            lag = max(-trailingOverhang, visualLeadingInset - latestCommittedLeadingInset)
-        }
+        let lag = min(0, max(-trailingOverhang, visualLeadingInset - paintedLeadingInset))
         guard lag != leadingLag else { return }
         leadingLag = lag
         layoutHostedWebViews()

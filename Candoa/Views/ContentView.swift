@@ -898,8 +898,14 @@ struct ContentView: View {
             return
         }
         if showing {
-            // Opening: the page lays out against the moving lane live, and
-            // the pane host keeps its edge glued to the sidebar's.
+            // Opening: the page lays out against the moving lane live. Its
+            // layout lands a frame or three behind the edge, so the content
+            // sits that little under the sidebar's edge as it comes in —
+            // never beside it. (Pushing the page forward by that lag, to glue
+            // it to the edge, needed to know when each layout reached the
+            // screen, and no signal WebKit offers says so reliably for every
+            // page; a push that outlived its layout left a blank strip that
+            // then snapped shut.)
             store.webCoordinator.setLeadingLaneClosing(false, overhang: 0)
             withAnimation(Self.sidebarToggleAnimation, completionCriteria: .logicallyComplete) {
                 isSidebarVisible = true
@@ -911,11 +917,13 @@ struct ContentView: View {
             return
         }
         // Closing: the page lays out against the moving lane live here too,
-        // pulled back by its layout lag (over a page-colored overhang past
-        // the card's far edge) so its edge stays glued to the sidebar's. A
-        // full-width layout first, under the pinned edge, looked better on
-        // paper but the moment the new layout reaches the screen cannot be
-        // known exactly, and a frame either side of it showed the page jump.
+        // and the pane host pulls it back by however far its layout trails
+        // the edge, so its edge stays glued to the sidebar's; what the pull
+        // uncovers at the card's far edge is the page's own margin, over an
+        // overhang set up for the slide. (A full-width layout first, under
+        // the pinned edge, looked better on paper, but the moment that
+        // layout reaches the screen cannot be known, and a frame either side
+        // of it showed the page jump.)
         store.webCoordinator.setLeadingLaneClosing(true, overhang: lane)
         withAnimation(Self.sidebarToggleAnimation, completionCriteria: .logicallyComplete) {
             isSidebarVisible = false
@@ -1055,9 +1063,11 @@ struct ContentView: View {
             return
         }
         // Lay the page out at full width first, under the still-docked
-        // panel, and slide the edge back across it only once that layout has
-        // committed (capped), so the slide uncovers real content, never the
-        // page's margin. The panel stays mounted for the slide, then goes.
+        // panel — invisible there — and slide the edge back across it only
+        // once the page reports it has painted that layout (capped), so the
+        // slide uncovers content that is already in place, never the page's
+        // margin catching up. The panel stays mounted for the slide, then
+        // goes.
         aiSidebarLayoutLane = 0
         store.webCoordinator.waitForTrailingLane(0, timeout: 0.4) {
             guard aiSidebarTransitionGeneration == generation else { return }
