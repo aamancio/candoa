@@ -252,7 +252,6 @@ extension WebViewCoordinator {
                 container.addSubview(webView)
             }
             container.bounds = stage
-            captureSummonFreezeFrame(for: tabID, pageFrame: summonPageFrame)
             return
         }
 
@@ -286,7 +285,9 @@ extension WebViewCoordinator {
         )
     }
 
-    /// Strips the page down to its video at player size — the steady state.
+    /// The page at player size, stripped down to its video — the steady
+    /// state. Activation is idempotent, so a page the seamless handoff
+    /// already stripped just confirms it.
     private func presentMiniPlayer(_ webView: WKWebView, tabID: UUID, in container: MiniPlayerHostView) {
         miniPlayerSummon = nil
         container.bounds = CGRect(origin: .zero, size: container.frame.size)
@@ -308,55 +309,111 @@ extension WebViewCoordinator {
         container.addSubview(webView)
     }
 
-    /// Snapshot of the video's on-page rect while the page still has its
-    /// full layout; the freeze frame the strip-down happens under.
-    private func captureSummonFreezeFrame(for tabID: UUID, pageFrame: CGRect) {
-        guard let webView = webViews[tabID] else { return }
+    /// The player's glide landed: hand the live video over to the
+    /// player-size presentation.
+    func finishMiniPlayerSummon(for tabID: UUID) {
+        guard
+            let summon = miniPlayerSummon, summon.tabID == tabID,
+            let webView = webViews[tabID],
+            let container = webView.superview as? MiniPlayerHostView
+        else { return }
+        if canHandOffSeamlessly(webView) {
+            handOffSeamlessly(webView, tabID: tabID, in: container)
+        } else {
+            handOffUnderFreezeFrame(webView, tabID: tabID, pageFrame: summon.pageFrame, in: container)
+        }
+    }
+
+    /// The handoff has to change two things at once — what the page lays
+    /// out (full page → video at player size) and what the host shows of it
+    /// (the video's rect → the whole view) — and the first lands a web
+    /// process round trip after the second. The page's layout is shrunk
+    /// through obscured insets rather than the view's frame, which changes
+    /// nothing on screen, and WebKit's own after-next-commit callback
+    /// moves the host's window onto the new layout in the very transaction
+    /// that commits it. Nothing shows the wrong region of the wrong layout,
+    /// and the video never stops. Only then does the view itself take the
+    /// player's frame, which lays out identically and so changes nothing.
+    private static let doAfterNextPresentationUpdate = NSSelectorFromString("_doAfterNextPresentationUpdate:")
+
+    private func canHandOffSeamlessly(_ webView: WKWebView) -> Bool {
+        guard #available(macOS 26.0, *) else { return false }
+        return webView.responds(to: Self.doAfterNextPresentationUpdate)
+    }
+
+    private func handOffSeamlessly(_ webView: WKWebView, tabID: UUID, in container: MiniPlayerHostView) {
+        let viewSize = webView.frame.size
+        let playerSize = container.frame.size
+        guard viewSize.width >= playerSize.width, viewSize.height >= playerSize.height else {
+            handOffUnderFreezeFrame(webView, tabID: tabID, pageFrame: miniPlayerSummon?.pageFrame ?? .zero, in: container)
+            return
+        }
+        // Layout viewport = the player's size, at the view's top-left.
+        applyObscuredContentInsets(
+            NSEdgeInsets(top: 0, left: 0, bottom: viewSize.height - playerSize.height, right: viewSize.width - playerSize.width),
+            to: webView
+        )
+        // Activate before the layout shrinks: media selection scores
+        // element rects, and at player size no video can meet the area
+        // thresholds — the page would keep its full layout (the X bug).
+        // IPC keeps the order: the script runs, then the insets apply, and
+        // the commit the callback waits for reflects both.
+        activateMiniPlayerPresentation(tabID: tabID) { [weak self] in
+            self?.store?.miniPlayerPresentationDidSettle(tabID: tabID)
+        }
+        let afterCommit: @convention(block) () -> Void = { [weak self, weak webView, weak container] in
+            MainActor.assumeIsolated {
+                guard
+                    let self, let webView, let container,
+                    self.miniPlayerHostedTabID == tabID, webView.superview === container
+                else { return }
+                // Same transaction as the commit: the host shows the new
+                // layout's region of the view (the top-left player-size
+                // rect, in bottom-left coordinates) — 1:1 — and the view
+                // then takes the player's frame, which lays out the same.
+                container.bounds = CGRect(
+                    x: 0,
+                    y: viewSize.height - playerSize.height,
+                    width: playerSize.width,
+                    height: playerSize.height
+                )
+                self.presentMiniPlayer(webView, tabID: tabID, in: container)
+            }
+        }
+        webView.perform(Self.doAfterNextPresentationUpdate, with: afterCommit)
+    }
+
+    /// Without the commit callback the handoff happens under a freeze frame
+    /// of the video, taken now so it is at most a frame behind: the page
+    /// relayouts under it and it fades once the page reports the new
+    /// presentation painted.
+    private func handOffUnderFreezeFrame(_ webView: WKWebView, tabID: UUID, pageFrame: CGRect, in container: MiniPlayerHostView) {
         let configuration = WKSnapshotConfiguration()
         configuration.afterScreenUpdates = false
         // Snapshot rects are page coordinates (unlike the host's stage,
         // which is view coordinates and so sits inside the obscured lanes).
         configuration.rect = pageFrame
         configuration.snapshotWidth = NSNumber(value: Double(min(pageFrame.width, 800)))
-        webView.takeSnapshot(with: configuration) { [weak self] image, _ in
-            DispatchQueue.main.async {
+        var handedOff = false
+        let handOff: @MainActor (NSImage?) -> Void = { [weak self, weak webView, weak container] image in
+            guard !handedOff, let self, let webView, let container, self.miniPlayerSummon?.tabID == tabID else { return }
+            handedOff = true
+            self.store?.miniPlayerSummonFreezeFrame = image
+            // The freeze frame has to be on screen before the page relayouts
+            // underneath it. SwiftUI commits the published change in this
+            // turn's transaction; a plain main-queue hop can run ahead of
+            // that commit, so the strip-down waits for the transaction.
+            CATransaction.setCompletionBlock { [weak self] in
                 guard let self, self.miniPlayerSummon?.tabID == tabID else { return }
-                self.miniPlayerSummon?.freezeFrame = image
-                self.miniPlayerSummon?.hasFreezeFrame = true
-                self.settleMiniPlayerSummonIfReady()
+                self.presentMiniPlayer(webView, tabID: tabID, in: container)
             }
+        }
+        webView.takeSnapshot(with: configuration) { image, _ in
+            DispatchQueue.main.async { handOff(image) }
         }
         // A page that never answers (throttled, mid-navigation) must not
         // keep the glide's full-size page in the player indefinitely.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
-            guard let self, self.miniPlayerSummon?.tabID == tabID else { return }
-            self.miniPlayerSummon?.hasFreezeFrame = true
-            self.settleMiniPlayerSummonIfReady()
-        }
-    }
-
-    /// The player's glide landed.
-    func finishMiniPlayerSummon(for tabID: UUID) {
-        guard miniPlayerSummon?.tabID == tabID else { return }
-        miniPlayerSummon?.glideLanded = true
-        settleMiniPlayerSummonIfReady()
-    }
-
-    private func settleMiniPlayerSummonIfReady() {
-        guard
-            let summon = miniPlayerSummon, summon.glideLanded, summon.hasFreezeFrame,
-            let webView = webViews[summon.tabID],
-            let container = webView.superview as? MiniPlayerHostView
-        else { return }
-        store?.miniPlayerSummonFreezeFrame = summon.freezeFrame
-        // The freeze frame has to be on screen before the page relayouts
-        // underneath it. SwiftUI commits the published change in this
-        // turn's transaction; a plain main-queue hop can run ahead of that
-        // commit, so the strip-down waits for the transaction to land.
-        CATransaction.setCompletionBlock { [weak self] in
-            guard let self, self.miniPlayerSummon?.tabID == summon.tabID else { return }
-            self.presentMiniPlayer(webView, tabID: summon.tabID, in: container)
-        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { handOff(nil) }
     }
 
     func detachMiniPlayerWebView(for tabID: UUID) {
@@ -436,12 +493,9 @@ extension WebViewCoordinator {
     }
 }
 
-/// The summon glide's handoff bookkeeping: the strip-down waits for both
-/// the glide to land and the freeze frame to come in (or time out).
+/// The summon glide in flight: which tab, and the on-page rect its stage
+/// shows until the glide lands.
 struct MiniPlayerSummonHandoff {
     let tabID: UUID
     let pageFrame: CGRect
-    var freezeFrame: NSImage?
-    var hasFreezeFrame = false
-    var glideLanded = false
 }
