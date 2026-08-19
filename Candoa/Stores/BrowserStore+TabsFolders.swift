@@ -305,12 +305,16 @@ extension BrowserStore {
         return true
     }
 
-    func replacementTabIDAfterClosing(_ id: UUID, prefersRecentlyUsed: Bool? = nil) -> UUID? {
+    /// Closing the active tab returns to the tab used most recently (the
+    /// place the person came from — Arc's behavior), not its neighbor in
+    /// the list; the pinned-tab reset is the one caller that wants the
+    /// neighbor, since that tab stays where it is.
+    func replacementTabIDAfterClosing(_ id: UUID, prefersRecentlyUsed: Bool = true) -> UUID? {
         guard let closingTab = tabs.first(where: { $0.id == id }) else { return nil }
         let candidates = tabs.filter { $0.id != id && $0.spaceID == closingTab.spaceID }
         guard !candidates.isEmpty else { return nil }
 
-        if prefersRecentlyUsed ?? selectsRecentlyUsedTabOnClose {
+        if prefersRecentlyUsed {
             return candidates
                 .sorted {
                     if $0.lastAccessedAt == $1.lastAccessedAt {

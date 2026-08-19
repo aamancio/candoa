@@ -163,10 +163,6 @@ final class BrowserStore: ObservableObject {
     static let hasCompletedOnboardingKey = "Candoa.InitialOnboarding.Completed"
     static let hasCompletedTourKey = "Candoa.InitialOnboarding.TourCompleted"
 
-    var selectsRecentlyUsedTabOnClose: Bool {
-        boolSetting(SettingsOption.selectRecentlyUsedOnClose, default: true)
-    }
-
     var defaultSearchProviderID: String? {
         UserDefaults.standard.string(forKey: SettingsOption.defaultSearchProvider)
     }

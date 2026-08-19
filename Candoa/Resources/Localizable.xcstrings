@@ -24323,46 +24323,6 @@
         }
       }
     },
-    "Return to the tab you used most recently." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Zum zuletzt verwendeten Tab zurückkehren."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vuelve a la pestaña que usaste más recientemente."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Revient à l’onglet utilisé le plus récemment."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "最後に使ったタブに戻ります。"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Volta para a aba que você usou mais recentemente."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "返回你最近使用的标签页。"
-          }
-        }
-      }
-    },
     "Safari — iOS" : {
       "localizations" : {
         "de" : {
@@ -25326,46 +25286,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "查看新功能"
-          }
-        }
-      }
-    },
-    "Select recently used tab on close" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Beim Schließen zuletzt verwendeten Tab auswählen"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Seleccionar la pestaña usada recientemente al cerrar"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sélectionner l’onglet récemment utilisé à la fermeture"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "閉じるときに最近使ったタブを選択"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Selecionar aba usada recentemente ao fechar"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "关闭时选择最近使用的标签页"
           }
         }
       }

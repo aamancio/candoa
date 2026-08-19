@@ -327,22 +327,12 @@ internal struct GeneralSettingsPane: View {
 }
 
 internal struct SpacesSettingsPane: View {
-    @AppStorage(SettingsOption.selectRecentlyUsedOnClose) private var selectRecentlyUsedOnClose = true
     @AppStorage(SettingsOption.floatingMiniPlayer) private var floatingMiniPlayer = true
 
     var body: some View {
         SettingsPane {
             VStack(alignment: .leading, spacing: 20) {
                 SettingsCard {
-                    SettingsToggleRow(
-                        systemImage: "arrow.left.arrow.right",
-                        title: String(localized: "Select recently used tab on close"),
-                        subtitle: String(localized: "Return to the tab you used most recently."),
-                        isOn: $selectRecentlyUsedOnClose
-                    )
-
-                    SettingsDivider()
-
                     SettingsToggleRow(
                         systemImage: "pip",
                         title: String(localized: "Show floating video player"),
