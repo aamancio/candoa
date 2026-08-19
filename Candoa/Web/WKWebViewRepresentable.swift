@@ -422,6 +422,10 @@ private final class WebViewHostContainer: WebPaneHostView {
 
 struct MiniPlayerWebViewHost: NSViewRepresentable {
     let tabID: UUID
+    /// The video's on-page rect the player is gliding out from, while it
+    /// is: the page is adopted at full layout and scaled into the player
+    /// (see `hostMiniPlayerWebView`). Nil for a plain appearance.
+    let summonPageFrame: CGRect?
     @ObservedObject var store: BrowserStore
 
     func makeNSView(context: Context) -> MiniPlayerHostView {
@@ -443,12 +447,13 @@ struct MiniPlayerWebViewHost: NSViewRepresentable {
         // layout, which also guarantees the active host swap has happened.
         let coordinator = store.webCoordinator
         if container.isPositioned {
-            coordinator.hostMiniPlayerWebView(for: tabID, in: container)
+            coordinator.hostMiniPlayerWebView(for: tabID, in: container, summonPageFrame: summonPageFrame)
         } else {
             let tabID = tabID
+            let summonPageFrame = summonPageFrame
             container.onPositioned = { [weak container] in
                 guard let container else { return }
-                coordinator.hostMiniPlayerWebView(for: tabID, in: container)
+                coordinator.hostMiniPlayerWebView(for: tabID, in: container, summonPageFrame: summonPageFrame)
             }
         }
     }

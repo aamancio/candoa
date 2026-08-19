@@ -87,10 +87,11 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
     /// exactly once each.
     var lastReportedInspectorPlacement: String?
     var miniPlayerHostedTabID: UUID?
-    /// The outgoing playing page whose summon freeze frame is in flight. It
-    /// stays on top of the incoming page until the floating player adopts
-    /// it, so the video never blinks out between page and player.
-    var miniPlayerSummonHoldTabID: UUID?
+    /// Summon glide in flight for the hosted tab: its page is still at full
+    /// layout, scaled into the player by the host's bounds (see
+    /// `hostMiniPlayerWebView`), until the glide lands and the freeze frame
+    /// for the strip-down is in.
+    var miniPlayerSummon: MiniPlayerSummonHandoff?
     var contentRuleList: WKContentRuleList?
     /// Whether the compiled rule list is currently attached to web views —
     /// diverges from the preference only until the observer reconciles.
@@ -591,8 +592,8 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         if miniPlayerHostedTabID == tabID {
             miniPlayerHostedTabID = nil
         }
-        if miniPlayerSummonHoldTabID == tabID {
-            miniPlayerSummonHoldTabID = nil
+        if miniPlayerSummon?.tabID == tabID {
+            miniPlayerSummon = nil
         }
     }
 

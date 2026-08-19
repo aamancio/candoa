@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 extension BrowserStore {
     var mediaControllerTab: BrowserTab? {
@@ -24,8 +25,6 @@ extension BrowserStore {
 
     var floatingMiniPlayerTab: BrowserTab? {
         guard let tab = backgroundMediaControllerTab, tab.id != dismissedMiniPlayerTabID else { return nil }
-        // Summon in flight: the player mounts once its freeze frame lands.
-        guard tab.id != miniPlayerSummonPreparingTabID else { return nil }
         guard mediaStates[tab.id]?.isMiniPlayerEligible == true,
               mediaStates[tab.id]?.isPlaying == true || retainedPausedMiniPlayerTabID == tab.id else {
             return nil
@@ -132,33 +131,17 @@ extension BrowserStore {
     func dismissMiniPlayer() { hideMiniPlayer(pausesPlayback: true) }
     func consumeMiniPlayerSummon() { pendingMiniPlayerSummon = nil }
 
-    /// Switching away from the playing tab. The page keeps covering the
-    /// content area while a freeze frame of its video is captured, then the
-    /// player mounts showing that frame at the video's on-page rect and
-    /// glides to its corner. The live web view is adopted underneath and
-    /// takes over once its mini presentation has painted (see
-    /// `miniPlayerSettledTabID`), so the person never sees the page relayout.
-    private func beginMiniPlayerSummon(from tabID: UUID) {
-        miniPlayerSettledTabID = nil
-        miniPlayerSummonPreparingTabID = tabID
-        webCoordinator.captureMiniPlayerFreezeFrame(for: tabID) { [weak self] pageVideoFrame, freezeFrame in
-            guard let self, self.miniPlayerSummonPreparingTabID == tabID else { return }
-            let frame = pageVideoFrame ?? self.mediaStates[tabID]?.pageVideoFrame
-            self.pendingMiniPlayerSummon = MiniPlayerSummonContext(pageVideoFrame: frame, freezeFrame: freezeFrame)
-            self.miniPlayerSummonPreparingTabID = nil
-            // Conditions can change during the capture (the media paused,
-            // the tab closed). If the player will not mount, nothing will
-            // adopt the held web view, so release it here.
-            if self.floatingMiniPlayerTab?.id != tabID {
-                self.pendingMiniPlayerSummon = nil
-                self.webCoordinator.cancelMiniPlayerSummonHold(for: tabID)
-            }
-        }
+    /// The summon glide landed: the page may now strip itself down to the
+    /// video at player size (under its freeze frame, see the coordinator).
+    func miniPlayerSummonGlideDidEnd(tabID: UUID) {
+        webCoordinator.finishMiniPlayerSummon(for: tabID)
     }
 
     func miniPlayerPresentationDidSettle(tabID: UUID) {
         guard webCoordinator.miniPlayerHostedTabID == tabID else { return }
-        miniPlayerSettledTabID = tabID
+        withAnimation(.easeOut(duration: 0.15)) {
+            miniPlayerSummonFreezeFrame = nil
+        }
     }
 
     func beginMiniPlayerReturn(tabID: UUID, updatesAccessTime: Bool) {
@@ -199,16 +182,11 @@ extension BrowserStore {
 
     func handleActiveTabChange(from previousID: UUID?) {
         if activeTabID == dismissedMiniPlayerTabID { dismissedMiniPlayerTabID = nil }
-        pendingMiniPlayerSummon = nil
-        if let preparingID = miniPlayerSummonPreparingTabID {
-            // A second switch before the first summon landed: the player
-            // mounts for the same tab either way, only the morph anchor
-            // becomes stale, so it starts over from the current page.
-            miniPlayerSummonPreparingTabID = nil
-            webCoordinator.cancelMiniPlayerSummonHold(for: preparingID)
-        }
         if let previousID, floatingMiniPlayerTab?.id == previousID {
-            beginMiniPlayerSummon(from: previousID)
+            miniPlayerSummonFreezeFrame = nil
+            pendingMiniPlayerSummon = MiniPlayerSummonContext(pageVideoFrame: mediaStates[previousID]?.pageVideoFrame)
+        } else {
+            pendingMiniPlayerSummon = nil
         }
         if let previousID, !displayedSplitTabIDs.contains(previousID), tabs.contains(where: { $0.id == previousID }) {
             webCoordinator.refreshMediaState(tabID: previousID)

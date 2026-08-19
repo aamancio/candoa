@@ -98,10 +98,6 @@ struct FloatingMiniPlayerContainer: View {
     // True for the summon glide's whole flight (the summoning flag flips at
     // its start), so the controls stay out of a moving player.
     @State private var isGliding = false
-    // The video as it looked on the page, shown over the live web view
-    // until the page reports its mini presentation painted. Released then
-    // (or after a ceiling) — it exists only for the handoff.
-    @State private var summonFreezeFrame: NSImage?
 
     init(
         store: BrowserStore,
@@ -123,7 +119,6 @@ struct FloatingMiniPlayerContainer: View {
         // starting it from onAppear would commit the corner frame first.
         self._summon = State(initialValue: summon)
         self._isSummoning = State(initialValue: summon != nil)
-        self._summonFreezeFrame = State(initialValue: summon?.freezeFrame)
     }
 
     private var currentSize: CGSize {
@@ -153,7 +148,7 @@ struct FloatingMiniPlayerContainer: View {
                 state: state,
                 size: size,
                 hidesControls: isMorphing,
-                summonFreezeFrame: summonFreezeFrame,
+                summonPageFrame: summonPageFrame,
                 isProgressScrubbing: $isProgressScrubbing
             )
 
@@ -192,9 +187,6 @@ struct FloatingMiniPlayerContainer: View {
         }
         .onChange(of: availableSize) { _, _ in
             clampLayout()
-        }
-        .onChange(of: store.miniPlayerSettledTabID == tab.id, initial: true) { _, isSettled in
-            if isSettled { releaseSummonFreezeFrame() }
         }
         .onChange(of: store.miniPlayerReturn != nil) { _, hasReturn in
             if hasReturn {
@@ -322,24 +314,17 @@ struct FloatingMiniPlayerContainer: View {
         morphTarget(pageFrame: store.miniPlayerReturn?.targetFrame, restingFrame: restingFrame)
     }
 
-    private func releaseSummonFreezeFrame() {
-        guard summonFreezeFrame != nil else { return }
-        withAnimation(.easeOut(duration: 0.15)) {
-            summonFreezeFrame = nil
-        }
+    /// The on-page rect the glide starts from, when it morphs from the
+    /// page (nil for the corner fade): the web view host scales the page's
+    /// own video into the player for the flight.
+    private var summonPageFrame: CGRect? {
+        guard let summon, let pageFrame = summon.pageVideoFrame else { return nil }
+        return morphTarget(pageFrame: pageFrame, restingFrame: .zero).fades ? nil : pageFrame
     }
 
     private func settleSummonIfNeeded() {
         guard isSummoning else { return }
         store.consumeMiniPlayerSummon()
-        if summonFreezeFrame != nil {
-            // Ceiling in case the page never reports its presentation
-            // (closed mid-morph, script blocked): the freeze frame must not
-            // outlive the handoff.
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
-                releaseSummonFreezeFrame()
-            }
-        }
         // One runloop hop so the start frame commits before the morph;
         // flipping the flag in the same transaction collapses both frames
         // into a single keyframe and nothing animates.
@@ -349,6 +334,9 @@ struct FloatingMiniPlayerContainer: View {
                 isSummoning = false
             } completion: {
                 isGliding = false
+                // Landed: later (re)adoptions of the web view are plain.
+                summon = nil
+                store.miniPlayerSummonGlideDidEnd(tabID: tab.id)
             }
         }
     }
@@ -372,14 +360,14 @@ private struct FloatingMiniPlayerView: View {
     let state: TabMediaState
     let size: CGSize
     let hidesControls: Bool
-    let summonFreezeFrame: NSImage?
+    let summonPageFrame: CGRect?
     @Binding var isProgressScrubbing: Bool
 
     @State private var isHovering = false
 
     var body: some View {
         ZStack {
-            MiniPlayerWebViewHost(tabID: tab.id, store: store)
+            MiniPlayerWebViewHost(tabID: tab.id, summonPageFrame: summonPageFrame, store: store)
                 .allowsHitTesting(false)
 
             // During the return morph the live web view has been handed back
@@ -391,9 +379,12 @@ private struct FloatingMiniPlayerView: View {
                     .scaledToFill()
             }
 
-            // Summon: the on-page video stands in while the live page
-            // strips itself down underneath, then fades out over it.
-            if let summonFreezeFrame {
+            // Summon landed: the on-page video stands in while the live
+            // page strips itself down underneath, then fades out over it.
+            // Read straight off the store so it commits in the same pass
+            // the coordinator publishes it — a hop through local state
+            // would land a frame after the relayout it is meant to cover.
+            if let summonFreezeFrame = store.miniPlayerSummonFreezeFrame {
                 Image(nsImage: summonFreezeFrame)
                     .resizable()
                     .scaledToFill()

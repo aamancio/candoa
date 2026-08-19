@@ -1294,6 +1294,10 @@ enum WebPageScripts {
         document.addEventListener(eventName, queueReport, true);
       });
       document.addEventListener("visibilitychange", queueReport);
+      // The floating player morphs out from the video's last reported
+      // on-page rect, so scrolling and resizing refresh it (coalesced).
+      window.addEventListener("scroll", queueReport, { passive: true, capture: true });
+      window.addEventListener("resize", queueReport, { passive: true });
       window.setTimeout(report, 0);
     })();
     """
