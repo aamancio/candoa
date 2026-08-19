@@ -36,8 +36,9 @@ extension CandoaUITests {
         field.click()
         pasteText("localhost:8080", into: field)
 
-        let rows = app.descendants(matching: .any)
-            .matching(identifier: "command-row-dashboard-dev-fixture")
+        // Matched by label: the visit's recorded title is the host, so the
+        // identifier slug isn't the page title.
+        let rows = app.buttons
         let dashboardRow = rows.matching(
             NSPredicate(format: "label CONTAINS %@", "localhost:8080/dashboard, History")
         ).firstMatch
