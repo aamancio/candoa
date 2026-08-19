@@ -39,6 +39,7 @@ acts, ad and tracker blocking with no extension needed, extensions installed
 straight from the Chrome Web Store, a floating mini player that takes a video
 with you when you switch tabs, opt-in crash reporting that never carries a page
 address, and automatic updates through Sparkle.
+
 Not there yet: an equivalent of Arc's peek window. DRM playback is unverified,
 so assume some streaming services may not work until proven otherwise.
 
