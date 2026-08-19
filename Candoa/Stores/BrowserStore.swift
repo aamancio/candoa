@@ -368,6 +368,10 @@ final class BrowserStore: ObservableObject {
     let workspaceRepository: any WorkspaceRepository
     let historyRepository: any HistoryRepository
     let faviconService: FaviconService
+    /// Which command bar row the person picks for the text they type, so
+    /// the bar stops re-offering the row they keep skipping past. Private
+    /// windows get an ephemeral one that learns nothing.
+    let commandBarSelections: CommandBarSelectionMemory
     let browserImportService: BrowserImportService
     var saveCancellable: AnyCancellable?
     var remoteChangeCancellable: AnyCancellable?
@@ -445,6 +449,7 @@ final class BrowserStore: ObservableObject {
             : CoreDataHistoryRepository(persistence: persistenceService))
         self.navigationService = navigationService
         self.faviconService = faviconService ?? (isPrivate ? .makeEphemeral() : .shared)
+        self.commandBarSelections = isPrivate ? .makeEphemeral() : .shared
         self.browserImportService = browserImportService
             ?? Self.uiTestingBrowserImportService()
             ?? BrowserImportService()

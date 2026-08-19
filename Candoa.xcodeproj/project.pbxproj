@@ -18,6 +18,7 @@
 		010000000000000000000104 /* BrowserWindowState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000004 /* BrowserWindowState.swift */; };
 		010000000000000000000105 /* BrowserStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000005 /* BrowserStore.swift */; };
 		010000000000000000000106 /* NavigationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000006 /* NavigationService.swift */; };
+		CB00000000000000000000C2 /* CommandBarSelectionMemory.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB00000000000000000000C1 /* CommandBarSelectionMemory.swift */; };
 		010000000000000000000107 /* PersistenceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000007 /* PersistenceService.swift */; };
 		010000000000000000000108 /* FaviconService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000008 /* FaviconService.swift */; };
 		010000000000000000000109 /* WKWebViewRepresentable.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000009 /* WKWebViewRepresentable.swift */; };
@@ -224,6 +225,7 @@
 		010000000000000000000004 /* BrowserWindowState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserWindowState.swift; sourceTree = "<group>"; };
 		010000000000000000000005 /* BrowserStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserStore.swift; sourceTree = "<group>"; };
 		010000000000000000000006 /* NavigationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavigationService.swift; sourceTree = "<group>"; };
+		CB00000000000000000000C1 /* CommandBarSelectionMemory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandBarSelectionMemory.swift; sourceTree = "<group>"; };
 		010000000000000000000007 /* PersistenceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceService.swift; sourceTree = "<group>"; };
 		010000000000000000000008 /* FaviconService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FaviconService.swift; sourceTree = "<group>"; };
 		010000000000000000000009 /* WKWebViewRepresentable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WKWebViewRepresentable.swift; sourceTree = "<group>"; };
@@ -577,6 +579,7 @@
 			children = (
 				CA1100000000000000000002 /* ProblemReportService.swift */,
 				010000000000000000000006 /* NavigationService.swift */,
+				CB00000000000000000000C1 /* CommandBarSelectionMemory.swift */,
 				010000000000000000000007 /* PersistenceService.swift */,
 				CA00000000000000000A0005 /* HistoryRetentionService.swift */,
 				010000000000000000000008 /* FaviconService.swift */,
@@ -930,6 +933,7 @@
 				AA000000000000000000010C /* BrowserStore+SessionRepair.swift in Sources */,
 				AA000000000000000000010D /* ImageTextRecognizer.swift in Sources */,
 				010000000000000000000106 /* NavigationService.swift in Sources */,
+				CB00000000000000000000C2 /* CommandBarSelectionMemory.swift in Sources */,
 				010000000000000000000107 /* PersistenceService.swift in Sources */,
 				010000000000000000000108 /* FaviconService.swift in Sources */,
 				DB00000000000000000000B1 /* DefaultBrowserService.swift in Sources */,

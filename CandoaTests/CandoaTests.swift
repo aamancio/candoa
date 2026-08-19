@@ -1341,3 +1341,164 @@ final class WebExtensionPermissionCopyTests: XCTestCase {
         XCTAssertTrue(WebExtensionPermissionCopy.informativeText(for: warnings).hasPrefix("It can:"))
     }
 }
+
+/// Command bar learning ("typed this, opened that"): the ranking and
+/// retention rules behind the address bar reordering suggestions around the
+/// row a person actually picks.
+final class CommandBarSelectionMemoryTests: XCTestCase {
+
+    private func selection(
+        typed: String,
+        url: String,
+        count: Int = 1,
+        secondsAgo: TimeInterval = 0
+    ) -> CommandBarSelection {
+        CommandBarSelection(
+            typedText: typed,
+            title: url,
+            urlString: url,
+            count: count,
+            lastSelectedAt: Date(timeIntervalSince1970: 1_700_000_000 - secondsAgo)
+        )
+    }
+
+    func testTheChosenRowLeadsTheNextTimeTheSameTextIsTyped() {
+        let selections = CommandBarSelectionRanking.recording(
+            [],
+            typedText: "sls",
+            title: "SwingLifeStyle.com",
+            urlString: "https://www.swinglifestyle.com",
+            at: Date(timeIntervalSince1970: 1_700_000_000)
+        )
+        let matches = CommandBarSelectionRanking.matches(selections, for: "sls")
+        XCTAssertEqual(matches.map(\.urlString), ["https://www.swinglifestyle.com"])
+    }
+
+    func testRepeatedPicksOutrankASingleStrayOne() {
+        let selections = [
+            selection(typed: "news", url: "https://stray.example.com", count: 1, secondsAgo: 0),
+            selection(typed: "news", url: "https://daily.example.com", count: 4, secondsAgo: 600)
+        ]
+        XCTAssertEqual(
+            CommandBarSelectionRanking.matches(selections, for: "news").map(\.urlString),
+            ["https://daily.example.com", "https://stray.example.com"]
+        )
+    }
+
+    func testTheMostRecentPickWinsATie() {
+        let selections = [
+            selection(typed: "sls", url: "https://www.google.com/search?q=sls", secondsAgo: 600),
+            selection(typed: "sls", url: "https://www.swinglifestyle.com", secondsAgo: 0)
+        ]
+        XCTAssertEqual(
+            CommandBarSelectionRanking.matches(selections, for: "sls").first?.urlString,
+            "https://www.swinglifestyle.com"
+        )
+    }
+
+    func testATypedPrefixRecallsTheLongerPhraseButNotTheOtherWayAround() {
+        let selections = [selection(typed: "swing", url: "https://www.swinglifestyle.com")]
+        XCTAssertEqual(CommandBarSelectionRanking.matches(selections, for: "sw").count, 1)
+        XCTAssertEqual(CommandBarSelectionRanking.matches(selections, for: "SWING").count, 1)
+        XCTAssertEqual(CommandBarSelectionRanking.matches(selections, for: "swings").count, 0)
+        XCTAssertEqual(CommandBarSelectionRanking.matches(selections, for: " ").count, 0)
+    }
+
+    func testPickingTheSamePageAgainReinforcesOneEntry() {
+        var selections: [CommandBarSelection] = []
+        for offset in 0..<3 {
+            selections = CommandBarSelectionRanking.recording(
+                selections,
+                typedText: "  SLS ",
+                title: "SwingLifeStyle",
+                urlString: "https://www.swinglifestyle.com/",
+                at: Date(timeIntervalSince1970: 1_700_000_000 + TimeInterval(offset))
+            )
+        }
+        XCTAssertEqual(selections.count, 1)
+        XCTAssertEqual(selections.first?.count, 3)
+        XCTAssertEqual(selections.first?.typedText, "sls")
+    }
+
+    func testTheListStaysCappedAndDropsTheLeastUsedPairing() {
+        var selections = (0..<CommandBarSelectionRanking.maximumSelections).map {
+            selection(typed: "q\($0)", url: "https://site\($0).example.com", count: 5)
+        }
+        selections[0].count = 1
+        selections = CommandBarSelectionRanking.recording(
+            selections,
+            typedText: "fresh",
+            title: "Fresh",
+            urlString: "https://fresh.example.com",
+            at: Date(timeIntervalSince1970: 1_700_000_000)
+        )
+        XCTAssertEqual(selections.count, CommandBarSelectionRanking.maximumSelections)
+        XCTAssertEqual(CommandBarSelectionRanking.matches(selections, for: "q0"), [])
+        XCTAssertEqual(CommandBarSelectionRanking.matches(selections, for: "fresh").count, 1)
+    }
+
+    func testClearingHistoryTakesThePicksLearnedFromIt() {
+        let selections = [
+            selection(typed: "sls", url: "https://www.swinglifestyle.com", secondsAgo: 0),
+            selection(typed: "old", url: "https://old.example.com", secondsAgo: 10_000)
+        ]
+        let cutoff = Date(timeIntervalSince1970: 1_700_000_000 - 5_000)
+        XCTAssertEqual(
+            CommandBarSelectionRanking.forgetting(selections, selectedAfter: cutoff).map(\.urlString),
+            ["https://old.example.com"]
+        )
+        XCTAssertEqual(CommandBarSelectionRanking.forgetting(selections, selectedAfter: nil), [])
+        XCTAssertEqual(
+            CommandBarSelectionRanking.forgetting(
+                selections,
+                urls: ["https://www.swinglifestyle.com/"]
+            ).map(\.urlString),
+            ["https://old.example.com"]
+        )
+    }
+
+    func testPicksAgeOutWithTheRetentionWindow() {
+        let selections = [
+            selection(typed: "sls", url: "https://www.swinglifestyle.com", secondsAgo: 0),
+            selection(typed: "sls", url: "https://stale.example.com", secondsAgo: 100_000)
+        ]
+        let cutoff = Date(timeIntervalSince1970: 1_700_000_000 - 50_000)
+        XCTAssertEqual(
+            CommandBarSelectionRanking.pruned(selections, before: cutoff).map(\.urlString),
+            ["https://www.swinglifestyle.com"]
+        )
+        XCTAssertEqual(CommandBarSelectionRanking.pruned(selections, before: nil).count, 2)
+    }
+
+    @MainActor
+    func testPrivateWindowsLearnNothingAndRecallNothing() throws {
+        let memory = CommandBarSelectionMemory.makeEphemeral()
+        memory.record(
+            typedText: "sls",
+            title: "SwingLifeStyle",
+            url: try XCTUnwrap(URL(string: "https://www.swinglifestyle.com"))
+        )
+        XCTAssertEqual(memory.selections(matching: "sls"), [])
+    }
+
+    @MainActor
+    func testLearnedPicksSurviveAReadBackFromDefaults() throws {
+        let suiteName = "CommandBarSelectionMemoryTests-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let memory = CommandBarSelectionMemory(defaults: defaults)
+        memory.record(
+            typedText: "sls",
+            title: "SwingLifeStyle",
+            url: try XCTUnwrap(URL(string: "https://www.swinglifestyle.com"))
+        )
+        XCTAssertEqual(
+            CommandBarSelectionMemory(defaults: defaults).selections(matching: "sl").first?.title,
+            "SwingLifeStyle"
+        )
+
+        memory.removeAll()
+        XCTAssertEqual(CommandBarSelectionMemory(defaults: defaults).selections(matching: "sl"), [])
+    }
+}

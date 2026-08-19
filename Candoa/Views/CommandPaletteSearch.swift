@@ -213,8 +213,31 @@ extension CommandPaletteView {
             return nil
         }
 
+        // What this person chose for these keystrokes before outranks both
+        // the provider guess and plain recency. It completes the field only
+        // when the remembered page actually continues what was typed;
+        // otherwise the row leads on its own (see commandCandidates).
+        if let learnedCommand = learnedSelectionCommand(for: trimmedQuery) {
+            return learnedAutocompleteSuggestion(for: trimmedQuery, command: learnedCommand)
+        }
+
         return providerAutocompleteSuggestion(for: trimmedQuery)
             ?? localAutocompleteSuggestion(for: trimmedQuery)
+    }
+
+    internal func learnedAutocompleteSuggestion(
+        for rawQuery: String,
+        command: PaletteCommand
+    ) -> PaletteAutocompleteSuggestion? {
+        guard let selection = store.commandBarSelections.selections(matching: rawQuery).first,
+              let url = selection.url
+        else {
+            return nil
+        }
+
+        return autocompleteTexts(title: selection.title, url: url)
+            .compactMap { makeAutocompleteSuggestion(text: $0, query: rawQuery, command: command) }
+            .first
     }
 
     internal func providerAutocompleteSuggestion(for rawQuery: String) -> PaletteAutocompleteSuggestion? {
@@ -260,7 +283,9 @@ extension CommandPaletteView {
     }
 
     internal func localAutocompleteSuggestion(for rawQuery: String) -> PaletteAutocompleteSuggestion? {
+        let learnedKeys = learnedSelectionKeys(for: rawQuery)
         let historySuggestion = store.recentHistory(matching: rawQuery, limit: 8)
+            .sorted { learnedRank(of: $0.url, in: learnedKeys) < learnedRank(of: $1.url, in: learnedKeys) }
             .flatMap { visit in
                 autocompleteTexts(title: visit.title, url: visit.url).map { (visit, $0) }
             }

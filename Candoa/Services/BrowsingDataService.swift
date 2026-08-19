@@ -39,6 +39,12 @@ enum BrowsingDataService {
             try historyRepository.deleteVisits(visitedAfter: startDate, in: spaceID)
         }.value
 
+        // Command bar learning quotes the pages it was taught with, so it
+        // clears with them. It isn't Space-scoped, so a per-Space clear
+        // drops picks from the same range everywhere rather than leaving
+        // cleared pages reachable from the address bar.
+        CommandBarSelectionMemory.shared.forget(selectedAfter: startDate)
+
         if includeWebsiteData {
             let identifiers: [UUID]
             switch scope {

@@ -86,6 +86,11 @@ final class HistoryStore: ObservableObject {
 
     private func deleteVisits(withIDs ids: Set<UUID>) {
         guard !ids.isEmpty else { return }
+        // Command bar learning quotes these pages, so a deleted visit takes
+        // the shortcut that was learned from it.
+        CommandBarSelectionMemory.shared.forget(
+            urls: Set(visits.filter { ids.contains($0.id) }.map { $0.url.absoluteString })
+        )
         let repository = repository
         let requestedSpaceID = spaceID
         isLoading = true
