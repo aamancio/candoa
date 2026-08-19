@@ -172,12 +172,9 @@ internal struct PaletteCommandRow: View {
                     .truncationMode(.middle)
             }
 
-            if let sourceLabel = command.sourceLabel, !sourceLabel.isEmpty {
-                Text("— \(sourceLabel)")
-                    .foregroundStyle(isSelected ? Color.white.opacity(0.72) : Color.secondary)
-                    .lineLimit(1)
-                    .fixedSize(horizontal: true, vertical: false)
-            }
+            // No "— History" / "— Tab" / "— Search" tag: Arc's rows are
+            // favicon, title and address only. The source still reaches
+            // VoiceOver through the row's accessibility label.
 
             Spacer(minLength: 12)
 
