@@ -94,7 +94,6 @@ struct FloatingMiniPlayerContainer: View {
     // in-flight animation to the fallback frame.
     @State private var summon: MiniPlayerSummonContext?
     @State private var isSummoning: Bool
-    @State private var isReturning = false
     // True for the summon glide's whole flight (the summoning flag flips at
     // its start), so the controls stay out of a moving player.
     @State private var isGliding = false
@@ -133,12 +132,8 @@ struct FloatingMiniPlayerContainer: View {
 
     var body: some View {
         let restingFrame = CGRect(origin: currentOrigin, size: currentSize)
-        let isMorphing = isSummoning || isReturning || isGliding
-        let morph: MorphTarget? = {
-            if isReturning { return returnTarget(restingFrame: restingFrame) }
-            if isSummoning { return summonStart(restingFrame: restingFrame) }
-            return nil
-        }()
+        let isMorphing = isSummoning || isGliding
+        let morph: MorphTarget? = isSummoning ? summonStart(restingFrame: restingFrame) : nil
         let size = restingFrame.size
 
         ZStack {
@@ -187,19 +182,6 @@ struct FloatingMiniPlayerContainer: View {
         }
         .onChange(of: availableSize) { _, _ in
             clampLayout()
-        }
-        .onChange(of: store.miniPlayerReturn != nil) { _, hasReturn in
-            if hasReturn {
-                startReturn()
-            } else if isReturning {
-                // Interrupted by another switch: the player floats on, so it
-                // snaps back to its corner without replaying any animation.
-                var transaction = Transaction()
-                transaction.disablesAnimations = true
-                withTransaction(transaction) {
-                    isReturning = false
-                }
-            }
         }
     }
 
@@ -310,10 +292,6 @@ struct FloatingMiniPlayerContainer: View {
         morphTarget(pageFrame: summon?.pageVideoFrame, restingFrame: restingFrame)
     }
 
-    private func returnTarget(restingFrame: CGRect) -> MorphTarget {
-        morphTarget(pageFrame: store.miniPlayerReturn?.targetFrame, restingFrame: restingFrame)
-    }
-
     /// The on-page rect the glide starts from, when it morphs from the
     /// page (nil for the corner fade): the web view host scales the page's
     /// own video into the player for the flight.
@@ -341,17 +319,6 @@ struct FloatingMiniPlayerContainer: View {
         }
     }
 
-    private func startReturn() {
-        guard !isReturning else { return }
-        // A return can land while the summon morph is still in flight; the
-        // return owns the transform from here on.
-        isSummoning = false
-        withAnimation(.spring(response: 0.40, dampingFraction: 0.86)) {
-            isReturning = true
-        } completion: {
-            store.finishMiniPlayerReturn()
-        }
-    }
 }
 
 private struct FloatingMiniPlayerView: View {
@@ -369,27 +336,6 @@ private struct FloatingMiniPlayerView: View {
         ZStack {
             MiniPlayerWebViewHost(tabID: tab.id, summonPageFrame: summonPageFrame, store: store)
                 .allowsHitTesting(false)
-
-            // During the return morph the live web view has been handed back
-            // to the page (relayouting hidden underneath), so the player
-            // shows the freeze frame captured at hand-back instead.
-            if let freezeFrame = store.miniPlayerReturn?.snapshot {
-                Image(nsImage: freezeFrame)
-                    .resizable()
-                    .scaledToFill()
-            }
-
-            // Summon landed: the on-page video stands in while the live
-            // page strips itself down underneath, then fades out over it.
-            // Read straight off the store so it commits in the same pass
-            // the coordinator publishes it — a hop through local state
-            // would land a frame after the relayout it is meant to cover.
-            if let summonFreezeFrame = store.miniPlayerSummonFreezeFrame {
-                Image(nsImage: summonFreezeFrame)
-                    .resizable()
-                    .scaledToFill()
-                    .transition(.opacity)
-            }
 
             // Controls stay invisible while morphing so the page-anchored
             // frame reads as the page's own video, not a floating panel.

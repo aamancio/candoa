@@ -436,10 +436,10 @@ struct MiniPlayerWebViewHost: NSViewRepresentable {
     }
 
     func updateNSView(_ container: MiniPlayerHostView, context: Context) {
-        // During the return-to-tab morph the page has been handed back and
-        // is relayouting hidden; re-hosting would strip it down again
-        // mid-flight. (The player shows the freeze frame instead.)
-        guard store.miniPlayerReturn == nil else { return }
+        // While a return is landing the page sits under the active one,
+        // restoring its full layout; re-hosting would strip it down again.
+        // (The player shows the freeze frame meanwhile.)
+        guard store.pendingMiniPlayerReturnTabID != tabID else { return }
 
         // updateNSView runs inside the SwiftUI commit, before this container
         // is laid out at the panel's corner — adopting the web view now
@@ -460,6 +460,7 @@ struct MiniPlayerWebViewHost: NSViewRepresentable {
 
     static func dismantleNSView(_ nsView: MiniPlayerHostView, coordinator: ()) {
         nsView.onPositioned = nil
+        nsView.onResize = nil
         nsView.subviews.forEach { $0.removeFromSuperview() }
     }
 }
@@ -469,6 +470,10 @@ struct MiniPlayerWebViewHost: NSViewRepresentable {
 final class MiniPlayerHostView: NSView {
     private(set) var isPositioned = false
     var onPositioned: (() -> Void)?
+    /// The player was resized (its resize handles): the hosted page's
+    /// presentation follows.
+    var onResize: (() -> Void)?
+    private var lastSize: CGSize = .zero
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
@@ -477,10 +482,18 @@ final class MiniPlayerHostView: NSView {
 
     override func layout() {
         super.layout()
-        guard !isPositioned, window != nil, !bounds.isEmpty else { return }
-        isPositioned = true
-        let callback = onPositioned
-        onPositioned = nil
-        callback?()
+        guard window != nil, !frame.isEmpty else { return }
+        if !isPositioned {
+            isPositioned = true
+            lastSize = frame.size
+            let callback = onPositioned
+            onPositioned = nil
+            callback?()
+            return
+        }
+        if frame.size != lastSize {
+            lastSize = frame.size
+            onResize?()
+        }
     }
 }

@@ -23,17 +23,6 @@ struct MiniPlayerSummonContext {
     var pageVideoFrame: CGRect?
 }
 
-/// Drives the return-to-tab morph: the floating player swaps to a freeze
-/// frame of its video, glides back over the video's on-page rect while the
-/// restored page lays itself out hidden underneath, and the actual tab
-/// switch lands on an already-settled page (no top-left relayout flash).
-struct MiniPlayerReturnContext {
-    let tabID: UUID
-    let updatesAccessTime: Bool
-    let snapshot: NSImage?
-    let targetFrame: CGRect?
-}
-
 enum SidebarTabDropPlacement: Equatable {
     case favorites
     case pinned
@@ -328,18 +317,10 @@ final class BrowserStore: ObservableObject {
     /// (which the activeTabID change already triggers), and publishing it
     /// would cause a redundant view update per tab switch.
     var pendingMiniPlayerSummon: MiniPlayerSummonContext?
-    /// The summon glide shows the page's own video, full-size and scaled
-    /// into the player. Once it lands, the page strips itself down to the
-    /// video at player size under this freeze frame of it, released the
-    /// moment the page reports that presentation painted. It exists only
-    /// for the handoff.
-    @Published var miniPlayerSummonFreezeFrame: NSImage?
     /// Mirrors the Settings toggle so the player can leave (and the page
     /// be handed back) the moment it is switched off, not at the next
     /// media report.
     @Published var isFloatingMiniPlayerEnabled = SettingsOption.bool(SettingsOption.floatingMiniPlayer, default: true)
-
-    @Published var miniPlayerReturn: MiniPlayerReturnContext?
 
     var recentlyClosedTabs: [ClosedTabSnapshot] = []
     static let recentlyClosedTabLimit = 50
@@ -401,9 +382,10 @@ final class BrowserStore: ObservableObject {
     /// One sweep of stale persisted thumbnails per run, deferred to the
     /// first switcher interaction so launch does no snapshot disk work.
     var hasPrunedPersistedTabSnapshots = false
-    /// The mini player's return morph defers the actual switch; until it
-    /// lands, recency cycling must treat the destination as current or a
-    /// rapid Ctrl-Tab walks past it into the wrong tab.
+    /// Returning to the floating player's tab defers the actual switch by a
+    /// beat (the page restores its full layout first); until it lands,
+    /// recency cycling must treat the destination as current or a rapid
+    /// Ctrl-Tab walks past it into the wrong tab.
     var pendingMiniPlayerReturnTabID: UUID?
     var isApplyingRemoteState = false
     var needsWorkspaceSaveAfterRepair = false

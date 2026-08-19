@@ -1101,16 +1101,19 @@ enum WebPageScripts {
         const hasProgress = media.currentTime > 0 && !media.ended;
         if (!isPlaying && !hasProgress && media.readyState < 2) { return -1; }
 
-        const isMiniPlayerPresentation = document.documentElement.classList.contains(miniPlayerClass);
-        if (!isMiniPlayerPresentation && looksLikeTransientPreview(media)) { return -1; }
+        // While the page floats, its video is the one pinned in the host:
+        // scoring (which measures against the viewport) no longer applies.
+        const presented = window.__candoaMiniPlayerState?.media;
+        if (document.documentElement.classList.contains(miniPlayerClass) && presented?.isConnected) {
+          return media === presented ? 1000000 : -1;
+        }
+        if (looksLikeTransientPreview(media)) { return -1; }
 
         const rect = visibleRect(media);
         const viewportArea = Math.max(window.innerWidth * window.innerHeight, 1);
         const prominentDimensions = (rect.width >= 360 && rect.height >= 200) ||
           (rect.width >= 240 && rect.height >= 360);
-        const fillsEnoughSpace = isMiniPlayerPresentation
-          ? rect.area / viewportArea >= 0.60
-          : prominentDimensions && rect.area >= 120000 && rect.area / viewportArea >= 0.08;
+        const fillsEnoughSpace = prominentDimensions && rect.area >= 120000 && rect.area / viewportArea >= 0.08;
         const duration = finiteDuration(media);
         const longEnough = duration >= 45;
         const audible = !(media.muted || media.volume === 0);
@@ -1160,26 +1163,30 @@ enum WebPageScripts {
         }
 
         delete window.__candoaMiniPlayerState;
-
-        // Collapsing the page to the video zeroed the scroll position; put
-        // it back so the page returns exactly where the user left it.
-        if (Number.isFinite(state.scrollX) && Number.isFinite(state.scrollY)) {
-          window.scrollTo(state.scrollX, state.scrollY);
-        }
       };
 
+      // Pure style, no layout: the page keeps its full layout while it
+      // floats (so going back to it costs nothing), everything but the
+      // video just turns invisible, and the video is pinned at player size
+      // in the layout viewport's top-left — the region the floating player
+      // shows. The player's size arrives from the app; YouTube and friends
+      // pick stream quality from the element's size, so it is real pixels.
       const installMiniPlayerStyle = () => {
         if (document.getElementById(miniPlayerStyleID)) { return; }
         const style = document.createElement("style");
         style.id = miniPlayerStyleID;
         style.textContent = [
-          "html." + miniPlayerClass + ", html." + miniPlayerClass + " body { background: #000 !important; margin: 0 !important; width: 100% !important; height: 100% !important; overflow: hidden !important; }",
-          "html." + miniPlayerClass + " body > :not(#" + miniPlayerHostID + ") { display: none !important; }",
-          "html." + miniPlayerClass + " #" + miniPlayerHostID + " { display: flex !important; position: fixed !important; inset: 0 !important; width: 100vw !important; height: 100vh !important; align-items: center !important; justify-content: center !important; overflow: hidden !important; z-index: 2147483647 !important; visibility: visible !important; background: #000 !important; pointer-events: none !important; }",
+          "html." + miniPlayerClass + " body > :not(#" + miniPlayerHostID + ") { visibility: hidden !important; }",
+          "html." + miniPlayerClass + " #" + miniPlayerHostID + " { display: flex !important; position: fixed !important; left: 0 !important; top: 0 !important; margin: 0 !important; padding: 0 !important; align-items: center !important; justify-content: center !important; overflow: hidden !important; z-index: 2147483647 !important; visibility: visible !important; background: #000 !important; pointer-events: none !important; }",
           "html." + miniPlayerClass + " #" + miniPlayerHostID + " * { visibility: visible !important; }",
-          "html." + miniPlayerClass + " #" + miniPlayerHostID + " video[" + miniPlayerAttr + "='true'] { display: block !important; position: static !important; width: 100vw !important; height: 100vh !important; max-width: 100vw !important; max-height: 100vh !important; min-width: 0 !important; min-height: 0 !important; object-fit: contain !important; opacity: 1 !important; background: #000 !important; transform: none !important; border-radius: 0 !important; box-shadow: none !important; pointer-events: none !important; }"
+          "html." + miniPlayerClass + " #" + miniPlayerHostID + " video[" + miniPlayerAttr + "='true'] { display: block !important; position: static !important; width: 100% !important; height: 100% !important; max-width: 100% !important; max-height: 100% !important; min-width: 0 !important; min-height: 0 !important; margin: 0 !important; object-fit: contain !important; opacity: 1 !important; background: #000 !important; transform: none !important; border-radius: 0 !important; box-shadow: none !important; pointer-events: none !important; }"
         ].join("");
         document.documentElement.appendChild(style);
+      };
+
+      const sizeMiniPlayerHost = (host, width, height) => {
+        host.style.setProperty("width", width + "px", "important");
+        host.style.setProperty("height", height + "px", "important");
       };
 
       // Last media that passed full-layout selection. Activation may run
@@ -1188,7 +1195,7 @@ enum WebPageScripts {
       let lastEligibleMedia = null;
 
       window.__candoaSelectMedia = selectMedia;
-      window.__candoaActivateMiniPlayerPresentation = () => {
+      window.__candoaActivateMiniPlayerPresentation = (width, height) => {
         const existingState = window.__candoaMiniPlayerState;
         if (
           existingState?.media?.isConnected &&
@@ -1196,6 +1203,7 @@ enum WebPageScripts {
         ) {
           document.documentElement.classList.add(miniPlayerClass);
           existingState.media.setAttribute(miniPlayerAttr, "true");
+          sizeMiniPlayerHost(existingState.media.parentElement, width, height);
           return true;
         }
 
@@ -1208,6 +1216,7 @@ enum WebPageScripts {
         installMiniPlayerStyle();
         clearMiniPlayerMarkers();
         const host = ensureMiniPlayerHost();
+        sizeMiniPlayerHost(host, width, height);
         const placeholder = document.createComment("Candoa mini player media placeholder");
         const parent = media.parentNode;
         const nextSibling = media.nextSibling;
@@ -1220,9 +1229,7 @@ enum WebPageScripts {
           media,
           parent,
           nextSibling,
-          placeholder,
-          scrollX: window.scrollX,
-          scrollY: window.scrollY
+          placeholder
         };
 
         document.documentElement.classList.add(miniPlayerClass);

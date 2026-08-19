@@ -263,7 +263,9 @@ struct ContentView: View {
                     .offset(x: leadingInset)
                 }
                 .ignoresSafeArea(.container, edges: .top)
-                .transition(.scale(scale: 0.98, anchor: .bottomLeading).combined(with: .opacity))
+                // Leaving (back to its tab, or the media ending) is a plain
+                // fade over the page — the page itself is already in place.
+                .transition(.opacity)
                 .zIndex(1)
             }
         }

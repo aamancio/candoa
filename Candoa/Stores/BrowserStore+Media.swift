@@ -132,12 +132,6 @@ extension BrowserStore {
     func dismissMiniPlayer() { hideMiniPlayer(pausesPlayback: true) }
     func consumeMiniPlayerSummon() { pendingMiniPlayerSummon = nil }
 
-    /// The summon glide landed: the page may now strip itself down to the
-    /// video at player size (under its freeze frame, see the coordinator).
-    func miniPlayerSummonGlideDidEnd(tabID: UUID) {
-        webCoordinator.finishMiniPlayerSummon(for: tabID)
-    }
-
     /// Settings changed: a toggle turned off while the player floats hands
     /// the page back right away so it is not left stripped to its video.
     func syncFloatingMiniPlayerPreference() {
@@ -149,35 +143,33 @@ extension BrowserStore {
         }
     }
 
-    func miniPlayerPresentationDidSettle(tabID: UUID) {
-        guard webCoordinator.miniPlayerHostedTabID == tabID else { return }
-        withAnimation(.easeOut(duration: 0.15)) {
-            miniPlayerSummonFreezeFrame = nil
-        }
+    /// The summon glide landed: the page styles down to the video at player
+    /// size (the stage hand-off, see the coordinator).
+    func miniPlayerSummonGlideDidEnd(tabID: UUID) {
+        webCoordinator.finishMiniPlayerSummon(for: tabID)
     }
 
+    /// Back to the floating player's tab. The page never lost its full
+    /// layout; the player's presentation comes off and the switch lands in
+    /// the frame that commits it — the page appears at full size at once,
+    /// the way Arc's does, and the player is simply gone. No morph back onto
+    /// the page: a player growing over a page reads as flicker.
     func beginMiniPlayerReturn(tabID: UUID, updatesAccessTime: Bool) {
         pendingMiniPlayerReturnTabID = tabID
         retainedPausedMiniPlayerTabID = tabID
-        let targetFrame = mediaStates[tabID]?.pageVideoFrame
-        let activeTabIDAtBegin = activeTabID
 
-        webCoordinator.prepareMiniPlayerReturn(for: tabID) { [weak self] snapshot in
-            guard let self, self.activeTabID == activeTabIDAtBegin, self.pendingMiniPlayerReturnTabID == tabID else { return }
-            guard self.floatingMiniPlayerTab?.id == tabID, self.miniPlayerReturn == nil else {
-                self.performSwitchTab(to: tabID, updatesAccessTime: updatesAccessTime)
+        webCoordinator.prepareMiniPlayerReturn(for: tabID) { [weak self] in
+            guard let self else { return }
+            // Another switch landed meanwhile (it cleared the pending
+            // return): the player floats on, so the page styles back down.
+            guard self.pendingMiniPlayerReturnTabID == tabID else {
+                self.webCoordinator.abandonMiniPlayerReturn(for: tabID)
                 return
             }
-            self.miniPlayerReturn = MiniPlayerReturnContext(tabID: tabID, updatesAccessTime: updatesAccessTime, snapshot: snapshot, targetFrame: targetFrame)
+            self.dismissedMiniPlayerTabID = nil
+            self.retainedPausedMiniPlayerTabID = nil
+            self.performSwitchTab(to: tabID, updatesAccessTime: updatesAccessTime)
         }
-    }
-
-    func finishMiniPlayerReturn() {
-        guard let returning = miniPlayerReturn else { return }
-        dismissedMiniPlayerTabID = nil
-        retainedPausedMiniPlayerTabID = nil
-        performSwitchTab(to: returning.tabID, updatesAccessTime: returning.updatesAccessTime)
-        miniPlayerReturn = nil
     }
 
     private func hideMiniPlayer(pausesPlayback: Bool) {
@@ -195,7 +187,6 @@ extension BrowserStore {
     func handleActiveTabChange(from previousID: UUID?) {
         if activeTabID == dismissedMiniPlayerTabID { dismissedMiniPlayerTabID = nil }
         if let previousID, floatingMiniPlayerTab?.id == previousID {
-            miniPlayerSummonFreezeFrame = nil
             pendingMiniPlayerSummon = MiniPlayerSummonContext(pageVideoFrame: mediaStates[previousID]?.pageVideoFrame)
         } else {
             pendingMiniPlayerSummon = nil

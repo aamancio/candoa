@@ -9,21 +9,13 @@ extension BrowserStore {
     func switchTab(to id: UUID, updatesAccessTime: Bool) {
         guard tabs.contains(where: { $0.id == id }) else { return }
 
-        // Switching to the floating player's own tab morphs the player back
-        // into the page instead of swapping abruptly; the real switch lands
-        // in finishMiniPlayerReturn once the morph completes. The Ctrl-Tab
-        // switcher's release commit keeps the instant swap — a morph landing
-        // under the dismissing overlay would fight the switcher.
-        if miniPlayerReturn == nil, floatingMiniPlayerTab?.id == id, !isTabSwitcherPresented {
+        // Switching to the floating player's own tab lets the page restore
+        // its full layout inside the player first, so the swap lands on a
+        // page that is already big; the real switch follows a beat later.
+        if floatingMiniPlayerTab?.id == id {
+            guard pendingMiniPlayerReturnTabID != id else { return }
             beginMiniPlayerReturn(tabID: id, updatesAccessTime: updatesAccessTime)
             return
-        }
-
-        if let returning = miniPlayerReturn {
-            guard returning.tabID != id else { return }
-            // A different switch interrupts the in-flight return; clearing
-            // the context lets the player re-adopt its web view and float on.
-            miniPlayerReturn = nil
         }
 
         performSwitchTab(to: id, updatesAccessTime: updatesAccessTime)
@@ -111,8 +103,8 @@ extension BrowserStore {
         if let selectedTabID = tabSwitcherSelectedTabID, selectedTabID != activeTabID {
             switchTab(to: selectedTabID, updatesAccessTime: false)
         } else if pendingMiniPlayerReturnTabID != nil, pendingMiniPlayerReturnTabID != landedTabID {
-            // Re-selecting the current tab while a return morph is still in
-            // flight cancels that pending switch — the newest intent wins.
+            // Re-selecting the current tab while a return is still landing
+            // cancels that pending switch — the newest intent wins.
             pendingMiniPlayerReturnTabID = nil
         }
 
@@ -254,8 +246,8 @@ extension BrowserStore {
             return
         }
 
-        // A fresh press while the return morph is still landing must cycle
-        // from the morph's destination, not the not-yet-switched active tab.
+        // A fresh press while a return is still landing must cycle from its
+        // destination, not the not-yet-switched active tab.
         let currentSelectionID = (isFreshInteraction ? nil : tabSwitcherSelectedTabID)
             ?? pendingMiniPlayerReturnTabID
             ?? activeTabID
