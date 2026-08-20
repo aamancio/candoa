@@ -53,6 +53,7 @@ internal struct PageToggleShieldView: View {
                 image: shield.image,
                 leadingEdge: laneState.visual.leading,
                 trailingEdge: proxy.size.width - laneState.visual.trailing,
+                restLeadingEdge: shield.anchorLeading,
                 imageSize: shield.size
             )
         }
@@ -67,19 +68,23 @@ internal struct PageToggleShieldView: View {
 /// on the main thread at mount — one to two dropped frames exactly as a
 /// slide started or reversed, felt as a stutter on every toggle.
 ///
-/// Three segments, not one uniform stretch: the pictured page spans from
-/// the moving edge to the pinned far edge, so its width changes mid-slide,
-/// and a uniform stretch drifted content near the moving edge by up to nine
-/// points against the sidebar riding beside it — on dark pages, where the
-/// card boundary disappears, that read as the sidebar's own content coming
-/// loose. Instead the 40% of the picture at each edge translates rigidly
-/// with its edge, and only the middle 20% stretches to connect them: what
-/// slides beside the sidebar is pixel-rigid with it, and the compression
-/// lives where nothing anchors the eye.
+/// Two segments, not one uniform stretch and not a narrow stretched band:
+/// the pictured page spans from the moving edge to the pinned far edge, so
+/// its width changes mid-slide. A uniform stretch drifted content near the
+/// moving edge by up to nine points against the sidebar riding beside it —
+/// on dark pages, where the card boundary disappears, that read as the
+/// sidebar's own content coming loose. Concentrating the whole change in a
+/// narrow middle band read worse — mid-page content visibly ballooned and
+/// shrank. So: the 30% of the picture at the MOVING edge translates rigidly
+/// with it (that is where the eye is), and the remaining 70% stretches
+/// toward the static edge, where a stretch anchored at that edge displaces
+/// content least — a mild ~14% at full travel, the macOS window-resize
+/// look, gone under the end crossfade.
 private struct ShieldSurface: NSViewRepresentable {
     let image: NSImage
     let leadingEdge: CGFloat
     let trailingEdge: CGFloat
+    let restLeadingEdge: CGFloat
     let imageSize: CGSize
 
     func makeNSView(context: Context) -> ShieldSurfaceView {
@@ -91,20 +96,20 @@ private struct ShieldSurface: NSViewRepresentable {
             image: image,
             leadingEdge: leadingEdge,
             trailingEdge: trailingEdge,
+            restLeadingEdge: restLeadingEdge,
             imageSize: imageSize
         )
     }
 }
 
 final class ShieldSurfaceView: NSView {
-    private let leadingSegment = CALayer()
-    private let middleSegment = CALayer()
-    private let trailingSegment = CALayer()
+    private let rigidSegment = CALayer()
+    private let stretchSegment = CALayer()
     private var appliedImage: NSImage?
 
-    /// Bitmap share translating rigidly with each edge; the remainder in
-    /// the middle absorbs the width change.
-    private static let rigidShare: CGFloat = 0.4
+    /// Bitmap share translating rigidly with the moving edge; the rest
+    /// absorbs the width change toward the static edge.
+    private static let rigidShare: CGFloat = 0.3
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -112,14 +117,9 @@ final class ShieldSurfaceView: NSView {
         // The segments run past this view's trailing edge mid-slide; the
         // page card's own mask is the clip that matters.
         layer?.masksToBounds = false
-        for (segment, rect) in [
-            (leadingSegment, CGRect(x: 0, y: 0, width: Self.rigidShare, height: 1)),
-            (middleSegment, CGRect(x: Self.rigidShare, y: 0, width: 1 - 2 * Self.rigidShare, height: 1)),
-            (trailingSegment, CGRect(x: 1 - Self.rigidShare, y: 0, width: Self.rigidShare, height: 1))
-        ] {
+        for segment in [rigidSegment, stretchSegment] {
             segment.anchorPoint = .zero
             segment.contentsGravity = .resize
-            segment.contentsRect = rect
             layer?.addSublayer(segment)
         }
     }
@@ -129,7 +129,13 @@ final class ShieldSurfaceView: NSView {
 
     override var isFlipped: Bool { true }
 
-    func apply(image: NSImage, leadingEdge: CGFloat, trailingEdge: CGFloat, imageSize: CGSize) {
+    func apply(
+        image: NSImage,
+        leadingEdge: CGFloat,
+        trailingEdge: CGFloat,
+        restLeadingEdge: CGFloat,
+        imageSize: CGSize
+    ) {
         // Every assignment here lands exactly where the driving frame's
         // values say — CALayer's implicit .25s animations would trail the
         // spring otherwise.
@@ -138,20 +144,38 @@ final class ShieldSurfaceView: NSView {
         if appliedImage !== image {
             appliedImage = image
             let contents = image.cgImage(forProposedRect: nil, context: nil, hints: nil)
-            leadingSegment.contents = contents
-            middleSegment.contents = contents
-            trailingSegment.contents = contents
+            rigidSegment.contents = contents
+            stretchSegment.contents = contents
         }
-        let rigidWidth = imageSize.width * Self.rigidShare
+        let width = imageSize.width
         let height = imageSize.height
-        leadingSegment.frame = CGRect(x: leadingEdge, y: 0, width: rigidWidth, height: height)
-        trailingSegment.frame = CGRect(x: trailingEdge - rigidWidth, y: 0, width: rigidWidth, height: height)
-        middleSegment.frame = CGRect(
-            x: leadingEdge + rigidWidth,
-            y: 0,
-            width: max(trailingEdge - rigidWidth - (leadingEdge + rigidWidth), 1),
-            height: height
-        )
+        let rigidWidth = width * Self.rigidShare
+        // Which edge is on the move decides which end of the picture stays
+        // rigid; at rest both deltas are zero and either mapping is the
+        // identity.
+        let leadingIsMoving =
+            abs(leadingEdge - restLeadingEdge) >= abs(trailingEdge - (restLeadingEdge + width))
+        if leadingIsMoving {
+            rigidSegment.contentsRect = CGRect(x: 0, y: 0, width: Self.rigidShare, height: 1)
+            rigidSegment.frame = CGRect(x: leadingEdge, y: 0, width: rigidWidth, height: height)
+            stretchSegment.contentsRect = CGRect(x: Self.rigidShare, y: 0, width: 1 - Self.rigidShare, height: 1)
+            stretchSegment.frame = CGRect(
+                x: leadingEdge + rigidWidth,
+                y: 0,
+                width: max(trailingEdge - leadingEdge - rigidWidth, 1),
+                height: height
+            )
+        } else {
+            rigidSegment.contentsRect = CGRect(x: 1 - Self.rigidShare, y: 0, width: Self.rigidShare, height: 1)
+            rigidSegment.frame = CGRect(x: trailingEdge - rigidWidth, y: 0, width: rigidWidth, height: height)
+            stretchSegment.contentsRect = CGRect(x: 0, y: 0, width: 1 - Self.rigidShare, height: 1)
+            stretchSegment.frame = CGRect(
+                x: leadingEdge,
+                y: 0,
+                width: max(trailingEdge - rigidWidth - leadingEdge, 1),
+                height: height
+            )
+        }
         CATransaction.commit()
     }
 }
