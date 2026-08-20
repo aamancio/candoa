@@ -275,6 +275,15 @@ final class BrowserStore: ObservableObject {
     /// developer bar's Chat button. Sidebar visibility itself lives in the
     /// view that owns the layout.
     @Published var aiSidebarToggleRequestID = UUID()
+    /// Bumped when Share is invoked from somewhere with no anchor of its own —
+    /// the File menu, the bound shortcut, or the command palette. ContentView
+    /// routes the request (revealing the sidebar first when the pill is the
+    /// anchor and hidden) and then bumps `sharePickerPresentationID`.
+    @Published var sharePickerRequestID = UUID()
+    /// Bumped once routing has settled; whichever mounted surface owns the
+    /// visible share anchor — the sidebar pill, the address strip, or the
+    /// developer bar — presents its picker.
+    @Published var sharePickerPresentationID = UUID()
     /// Position of the current match among all of them, or nil when there is
     /// nothing to count yet — an empty query, or a page the in-page find
     /// engine could not tally.

@@ -399,6 +399,18 @@ extension CommandPaletteView {
             }
         }
 
+        // Sharing needs a page to share; without one the row would only
+        // demonstrate its own disabled state.
+        if store.activeTab?.url != nil {
+            commands.append(
+                PaletteCommand(
+                    title: BrowserCommandTitles.share,
+                    symbolName: "square.and.arrow.up",
+                    action: .sharePage
+                )
+            )
+        }
+
         if let url = store.activeTab?.url,
            let host = DeveloperModeConfiguration.displayHost(for: url) {
             let isEnabled = DeveloperModeConfiguration.isEnabled(for: url)
@@ -666,6 +678,8 @@ extension CommandPaletteView {
             store.copyActiveTabURL()
         case .copyURLAsMarkdown:
             store.copyActiveTabURL(asMarkdown: true)
+        case .sharePage:
+            store.requestSharePicker()
         case .setDeveloperMode(let isEnabled):
             guard let url = store.activeTab?.url else { return }
             store.setDeveloperMode(isEnabled, for: url)

@@ -839,8 +839,7 @@ struct SidebarView: View {
                 }
                 .buttonTreatment(.content)
                 .background(SharePickerAnchor(coordinator: addressPillSharePicker))
-                .help("Share")
-                .accessibilityLabel("Share")
+                .shortcutTooltip("Share", shortcut: .sharePage)
                 .accessibilityIdentifier("sidebar-share-url-button")
                 // Not 0: fully transparent views stop hit-testing, and the
                 // button must keep its click footprint while visually absent.
@@ -858,6 +857,18 @@ struct SidebarView: View {
         }
         .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
         .onHover { isHoveringAddressPill = $0 }
+        // The routed Share command (menu, shortcut, palette). Only the active
+        // Space's pill answers, so paged sidebar copies can never co-present,
+        // and only while the pill is the address surface at all.
+        .onChange(of: store.sharePickerPresentationID) { _, _ in
+            guard showsAddressPill, spaceID == store.activeSpaceID, let url else { return }
+            let tab = displayedActiveTab(for: spaceID)
+            addressPillSharePicker.present(
+                url: url,
+                title: tab?.title,
+                faviconData: tab?.faviconData
+            ) {}
+        }
         .contextMenu {
             if let url,
                let host = DeveloperModeConfiguration.displayHost(for: url) {

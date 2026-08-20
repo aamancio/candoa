@@ -28,6 +28,8 @@ struct BrowserCommandActions {
     var canPrintActiveTab: Bool
     var openLocalFile: () -> Void
     var saveActiveTabAs: () -> Void
+    var sharePage: () -> Void
+    var canSharePage: Bool
     var exportActiveTabAsPDF: () -> Void
     var canSaveActiveTab: Bool
     var stopLoading: () -> Void

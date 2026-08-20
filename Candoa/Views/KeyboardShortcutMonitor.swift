@@ -9,6 +9,7 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
     let onOpenCommandBar: () -> Void
     let onCopyURL: () -> Void
     let onCopyURLAsMarkdown: () -> Void
+    let onSharePage: () -> Void
     let onCaptureFullPage: () -> Void
     let onPinOrUnpinTab: () -> Void
     let onToggleSidebar: () -> Void
@@ -71,6 +72,7 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
         coordinator.onOpenCommandBar = onOpenCommandBar
         coordinator.onCopyURL = onCopyURL
         coordinator.onCopyURLAsMarkdown = onCopyURLAsMarkdown
+        coordinator.onSharePage = onSharePage
         coordinator.onCaptureFullPage = onCaptureFullPage
         coordinator.onPinOrUnpinTab = onPinOrUnpinTab
         coordinator.onToggleSidebar = onToggleSidebar
@@ -116,6 +118,7 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
         var onOpenCommandBar: () -> Void = {}
         var onCopyURL: () -> Void = {}
         var onCopyURLAsMarkdown: () -> Void = {}
+        var onSharePage: () -> Void = {}
         var onCaptureFullPage: () -> Void = {}
         var onPinOrUnpinTab: () -> Void = {}
         var onToggleSidebar: () -> Void = {}
@@ -248,6 +251,11 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
 
             if Self.matchesConfiguredShortcut(.copyURL, event) {
                 onCopyURL()
+                return nil
+            }
+
+            if Self.matchesConfiguredShortcut(.sharePage, event) {
+                onSharePage()
                 return nil
             }
 

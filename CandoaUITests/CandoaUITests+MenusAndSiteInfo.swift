@@ -276,9 +276,32 @@ extension CandoaUITests {
         let saveAsItem = app.menuBars.menuItems["Save As…"]
         XCTAssertTrue(saveAsItem.exists)
         XCTAssertTrue(saveAsItem.isEnabled)
+        let shareItem = app.menuBars.menuItems["Share…"]
+        XCTAssertTrue(shareItem.exists)
+        XCTAssertTrue(shareItem.isEnabled)
         let exportItem = app.menuBars.menuItems["Export as PDF…"]
         XCTAssertTrue(exportItem.exists)
         XCTAssertTrue(exportItem.isEnabled)
+        app.typeKey(.escape, modifierFlags: [])
+    }
+
+    /// File ▸ Share… routes to the sidebar address pill's picker — the same
+    /// NSSharingServicePicker the pill's hover button anchors, whose Copy item
+    /// is the stable first entry across macOS versions.
+    func testFileMenuShareCommandOpensSharePicker() {
+        let app = launchApp(fixture: "popup-open")
+
+        openFixtureTab(path: "popup", in: app)
+
+        let fileMenu = app.menuBarItems["File"]
+        XCTAssertTrue(fileMenu.waitForExistence(timeout: 5))
+        fileMenu.click()
+        let shareItem = app.menuBars.menuItems["Share…"]
+        XCTAssertTrue(shareItem.waitForExistence(timeout: 5))
+        shareItem.click()
+
+        let copyItem = app.menuItems["Copy"]
+        XCTAssertTrue(copyItem.waitForExistence(timeout: 5), currentState(in: app))
         app.typeKey(.escape, modifierFlags: [])
     }
 

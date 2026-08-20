@@ -104,8 +104,23 @@ struct TopAddressBar: View {
                 .frame(height: 1)
         }
         .onHover { isHovering = $0 }
+        // The routed Share command (menu, shortcut, palette): under the "Above
+        // the Page" placement this strip owns the visible share anchor.
+        .onChange(of: store.sharePickerPresentationID) { _, _ in
+            presentSharePicker()
+        }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("top-address-bar")
+    }
+
+    private func presentSharePicker() {
+        guard let url else { return }
+        let tab = store.activeTab
+        sharePicker.present(
+            url: url,
+            title: tab?.title,
+            faviconData: tab?.faviconData
+        ) {}
     }
 
     /// The lock and the address read as one target, the way the sidebar pill
@@ -149,20 +164,13 @@ struct TopAddressBar: View {
 
     private var shareButton: some View {
         Button {
-            guard let url else { return }
-            let tab = store.activeTab
-            sharePicker.present(
-                url: url,
-                title: tab?.title,
-                faviconData: tab?.faviconData
-            ) {}
+            presentSharePicker()
         } label: {
             Image(systemName: "square.and.arrow.up")
         }
         .toolbarIconButton()
         .background(SharePickerAnchor(coordinator: sharePicker))
-        .help("Share")
-        .accessibilityLabel("Share")
+        .shortcutTooltip("Share", shortcut: .sharePage)
         .accessibilityIdentifier("top-share-url-button")
         // Not 0: fully transparent views stop hit-testing, and the button
         // must keep its click footprint while visually absent.

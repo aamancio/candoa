@@ -65,6 +65,18 @@ extension BrowserStore {
         presentCopiedURLToast(title: title, url: url)
     }
 
+    /// Share invoked without an anchor of its own (menu, shortcut, palette).
+    /// ContentView routes the request to the visible share anchor.
+    func requestSharePicker() {
+        guard activeTab?.url != nil else { return }
+        sharePickerRequestID = UUID()
+    }
+
+    /// Called by ContentView once the anchoring surface is on screen.
+    func presentSharePickerAtAddressSurface() {
+        sharePickerPresentationID = UUID()
+    }
+
     func captureActiveTabPage() {
         guard let tab = activeTab, let url = tab.url else { return }
 
