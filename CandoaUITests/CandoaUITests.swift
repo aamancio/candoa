@@ -133,6 +133,24 @@ final class CandoaUITests: XCTestCase {
           </body>
         </html>
         """,
+        "external-app-link": """
+        <!doctype html>
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <script>document.title = location.pathname.slice(1)</script>
+          </head>
+          <body>
+            <script>
+              document.addEventListener("click", (event) => {
+                location.href = event.clientX < window.innerWidth / 2
+                  ? "mailto:someone@example.com"
+                  : "zoom://join?confno=1";
+              });
+            </script>
+          </body>
+        </html>
+        """,
         "reader-article": """
         <!doctype html>
         <html>

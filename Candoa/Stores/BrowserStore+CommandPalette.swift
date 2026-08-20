@@ -109,6 +109,11 @@ extension BrowserStore {
 
     func resetSitePermissions(for url: URL) {
         SitePermissionConfiguration.resetDecisions(for: url)
+        ExternalAppLinkConfiguration.resetAllowances(for: url)
+    }
+
+    func setExternalSchemeAllowed(_ allowed: Bool, scheme: String, url: URL) {
+        ExternalAppLinkConfiguration.setAllowed(allowed, scheme: scheme, pageURL: url)
     }
 
     func siteSecuritySummary(for tabID: UUID?) -> SiteSecuritySummary? {

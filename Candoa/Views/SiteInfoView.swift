@@ -13,6 +13,9 @@ struct SiteInfoPopoverView: View {
     @AppStorage(SitePermissionConfiguration.storageKey)
     private var permissionOverrides = ""
 
+    @AppStorage(ExternalAppLinkConfiguration.storageKey)
+    private var externalSchemeOverrides = ""
+
     @AppStorage(SettingsOption.strictTrackingProtection)
     private var strictTrackingProtection = true
 
@@ -257,16 +260,63 @@ struct SiteInfoPopoverView: View {
                 permissionRow(for: permission)
             }
 
+            // Schemes this site was allowed to hand to other apps. Rows only
+            // exist once a person has said "always allow" — there is no
+            // roster of inert scheme controls to wade through before that.
+            ForEach(allowedExternalSchemes, id: \.self) { scheme in
+                externalSchemeRow(for: scheme)
+            }
+
             if SitePermissionConfiguration.hasDecisions(
                 for: url,
                 storedOverrides: permissionOverrides
-            ) {
+            ) || !allowedExternalSchemes.isEmpty {
                 Button("Reset Permissions") {
                     store.resetSitePermissions(for: url)
                 }
                 .font(.caption)
                 .accessibilityIdentifier("site-info-reset")
             }
+        }
+    }
+
+    private var allowedExternalSchemes: [String] {
+        ExternalAppLinkConfiguration.allowedSchemes(
+            for: url,
+            storedOverrides: externalSchemeOverrides
+        )
+    }
+
+    private func externalSchemeRow(for scheme: String) -> some View {
+        HStack(spacing: 8) {
+            Label(
+                String(localized: "\(scheme) links"),
+                systemImage: "arrow.up.forward.app"
+            )
+            .font(.system(size: 12))
+
+            Spacer(minLength: 12)
+
+            Picker(
+                String(localized: "\(scheme) links"),
+                selection: Binding(
+                    get: {
+                        ExternalAppLinkConfiguration.isAllowed(
+                            scheme: scheme,
+                            pageURL: url,
+                            storedOverrides: externalSchemeOverrides
+                        ) ? SitePermissionDecision.allow : .ask
+                    },
+                    set: { store.setExternalSchemeAllowed($0 == .allow, scheme: scheme, url: url) }
+                )
+            ) {
+                Text("Ask").tag(SitePermissionDecision.ask)
+                Text("Allow").tag(SitePermissionDecision.allow)
+            }
+            .pickerStyle(.menu)
+            .labelsHidden()
+            .fixedSize()
+            .accessibilityIdentifier("site-info-external-\(scheme)")
         }
     }
 

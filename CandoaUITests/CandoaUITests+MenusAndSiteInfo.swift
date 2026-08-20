@@ -84,6 +84,95 @@ extension CandoaUITests {
         )
     }
 
+    /// A zoom: link asks before opening the handler app; consenting with the
+    /// always-allow checkbox records the site allowance, so the next click
+    /// opens silently, Site Info lists the scheme, and Reset Permissions
+    /// clears it back to asking.
+    func testExternalAppLinkPromptRemembersSiteAllowance() {
+        let app = launchApp(
+            fixture: "external-app-link",
+            extraLaunchEnvironment: ["CANDOA_UI_TESTING_EXTERNAL_APP_NAME": "Zoom"]
+        )
+
+        openFixtureTab(path: "meeting", in: app)
+
+        let webView = app.webViews.firstMatch
+        XCTAssertTrue(webView.waitForExistence(timeout: 10), currentState(in: app))
+        webView.coordinate(withNormalizedOffset: CGVector(dx: 0.75, dy: 0.5)).click()
+
+        let sheet = app.sheets.firstMatch
+        XCTAssertTrue(sheet.waitForExistence(timeout: 5), currentState(in: app))
+        let checkbox = sheet.checkBoxes.firstMatch
+        XCTAssertTrue(checkbox.waitForExistence(timeout: 5), currentState(in: app))
+        checkbox.click()
+        sheet.buttons["Allow"].click()
+
+        XCTAssertTrue(
+            waitForState(in: app, containing: "open=zoom://join?confno=1"),
+            currentState(in: app)
+        )
+
+        // Remembered: the second click opens without a prompt.
+        webView.coordinate(withNormalizedOffset: CGVector(dx: 0.75, dy: 0.5)).click()
+        XCTAssertTrue(
+            waitForState(
+                in: app,
+                containing: "open=zoom://join?confno=1|open=zoom://join?confno=1"
+            ),
+            currentState(in: app)
+        )
+        XCTAssertFalse(app.sheets.firstMatch.exists, currentState(in: app))
+
+        // The allowance is a Site Info row, and Reset Permissions clears it.
+        let siteInfoButton = element("sidebar-site-info-button", in: app)
+        XCTAssertTrue(siteInfoButton.waitForExistence(timeout: 5), currentState(in: app))
+        siteInfoButton.click()
+        XCTAssertTrue(
+            element("site-info-external-zoom", in: app).waitForExistence(timeout: 5),
+            currentState(in: app)
+        )
+        element("site-info-reset", in: app).click()
+        XCTAssertFalse(element("site-info-external-zoom", in: app).exists, currentState(in: app))
+    }
+
+    /// Cancel is a one-time answer: nothing opens and nothing is remembered.
+    func testExternalAppLinkPromptCancelOpensNothing() {
+        let app = launchApp(
+            fixture: "external-app-link",
+            extraLaunchEnvironment: ["CANDOA_UI_TESTING_EXTERNAL_APP_NAME": "Zoom"]
+        )
+
+        openFixtureTab(path: "meeting", in: app)
+
+        let webView = app.webViews.firstMatch
+        XCTAssertTrue(webView.waitForExistence(timeout: 10), currentState(in: app))
+        webView.coordinate(withNormalizedOffset: CGVector(dx: 0.75, dy: 0.5)).click()
+
+        let sheet = app.sheets.firstMatch
+        XCTAssertTrue(sheet.waitForExistence(timeout: 5), currentState(in: app))
+        sheet.buttons["Cancel"].click()
+
+        XCTAssertTrue(waitForState(in: app, containing: "declined=zoom"), currentState(in: app))
+        XCTAssertFalse(currentState(in: app).contains("open=zoom"), currentState(in: app))
+    }
+
+    /// mailto: routes straight to the default mail client, no prompt.
+    func testMailtoLinkOpensWithoutPrompting() {
+        let app = launchApp(fixture: "external-app-link")
+
+        openFixtureTab(path: "meeting", in: app)
+
+        let webView = app.webViews.firstMatch
+        XCTAssertTrue(webView.waitForExistence(timeout: 10), currentState(in: app))
+        webView.coordinate(withNormalizedOffset: CGVector(dx: 0.25, dy: 0.5)).click()
+
+        XCTAssertTrue(
+            waitForState(in: app, containing: "open=mailto:someone@example.com"),
+            currentState(in: app)
+        )
+        XCTAssertFalse(app.sheets.firstMatch.exists, currentState(in: app))
+    }
+
     /// The address pill's leading icon opens Site Info: the popover names the
     /// effective origin, and its Pop-up Windows control persists a Block
     /// decision that the create-web-view delegate then enforces.

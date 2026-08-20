@@ -370,6 +370,47 @@
         }
       }
     },
+    "%@ links" : {
+      "comment" : "Site Info row naming a remembered link scheme, e.g. \"zoom links\".",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@-Links"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enlaces %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Liens %@"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@リンク"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Links %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 链接"
+          }
+        }
+      }
+    },
     "%@ wants to use %@" : {
       "comment" : "Permission prompt: first placeholder is a website name or 'This website'; second is a device phrase like 'your camera'.",
       "localizations" : {
@@ -2473,6 +2514,47 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "同时自动发送崩溃报告"
+          }
+        }
+      }
+    },
+    "Always allow %@ to open %@ links" : {
+      "comment" : "Checkbox on the open-in-app prompt: first placeholder is the website host, second the link scheme (zoom, spotify).",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ immer erlauben, %2$@-Links zu öffnen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Permitir siempre que %1$@ abra enlaces %2$@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toujours autoriser %1$@ à ouvrir les liens %2$@"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@に%2$@リンクを開くことを常に許可"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sempre permitir que %1$@ abra links %2$@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "始终允许 %1$@ 打开 %2$@ 链接"
           }
         }
       }
@@ -9846,6 +9928,47 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "关闭个人收藏提示"
+          }
+        }
+      }
+    },
+    "Do you want to allow this page to open “%@”?" : {
+      "comment" : "Title of the prompt shown before a link opens another app; the placeholder is the app name.",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Möchtest du zulassen, dass diese Seite „%@“ öffnet?"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "¿Quieres permitir que esta página abra “%@”?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Voulez-vous autoriser cette page à ouvrir « %@ » ?"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このページで“%@”を開くことを許可しますか?"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deseja permitir que esta página abra “%@”?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "要允许此页面打开“%@”吗？"
           }
         }
       }
@@ -30807,6 +30930,47 @@
         }
       }
     },
+    "The link on %@ opens in another app." : {
+      "comment" : "Prompt detail line; the placeholder is the website host.",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Link auf %@ wird in einer anderen App geöffnet."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El enlace de %@ se abre en otra app."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le lien sur %@ s’ouvre dans une autre app."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@のリンクは別のアプリで開きます。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O link em %@ abre em outro app."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 上的链接将在其他 App 中打开。"
+          }
+        }
+      }
+    },
     "The reset date isn’t available yet." : {
       "localizations" : {
         "de" : {
@@ -31284,6 +31448,47 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "这包括网页中的敏感信息，如密码、电话号码和信用卡。"
+          }
+        }
+      }
+    },
+    "This link opens in another app." : {
+      "comment" : "Prompt detail line when the page has no host to name.",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dieser Link wird in einer anderen App geöffnet."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Este enlace se abre en otra app."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ce lien s’ouvre dans une autre app."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このリンクは別のアプリで開きます。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Este link abre em outro app."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此链接将在其他 App 中打开。"
           }
         }
       }
