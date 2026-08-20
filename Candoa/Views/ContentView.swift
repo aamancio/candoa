@@ -899,9 +899,11 @@ struct ContentView: View {
     /// sidebar with a 0.12s bounce-0 spring) and Dia's ~120-150ms push:
     /// the whole toggle reads as one quick gesture, not a glide — the
     /// earlier 0.30-response spring's motion-plus-settle ran two to three
-    /// times longer and felt sluggish. A whisper of underdamping keeps the
-    /// Dia softness at the end without a visible bounce tail.
-    static let sidebarToggleAnimation = Animation.spring(response: 0.17, dampingFraction: 0.82)
+    /// times longer and felt sluggish. Damping 0.9, not lower: at 0.82 the
+    /// settle tail drained its last point and a half over ~300ms, and that
+    /// slow drift — icons and edge included — read as a wiggle at the end
+    /// of every toggle.
+    static let sidebarToggleAnimation = Animation.spring(response: 0.17, dampingFraction: 0.9)
 
     private func toggleSidebar() {
         toggleSidebar(completion: nil)
