@@ -49,11 +49,11 @@ internal struct PageToggleShieldView: View {
         // under the shield by up to its 8pt — a capture-sized shield left a
         // sliver of the live page showing at the trailing edge.
         GeometryReader { proxy in
-            let leading = laneState.visual.leading
-            let width = max(proxy.size.width - leading - laneState.visual.trailing, 1)
             ShieldSurface(
                 image: shield.image,
-                frame: CGRect(x: leading, y: 0, width: width, height: shield.size.height)
+                leadingEdge: laneState.visual.leading,
+                trailingEdge: proxy.size.width - laneState.visual.trailing,
+                imageSize: shield.size
             )
         }
         .opacity(shield.opacity)
@@ -61,38 +61,67 @@ internal struct PageToggleShieldView: View {
     }
 }
 
-/// The shield's bitmap on a bare CALayer: `contents` takes the snapshot's
-/// CGImage as-is and `.resize` gravity does the stretch on the compositor.
-/// Drawing the same bitmap through SwiftUI's `Image` rasterized the whole
-/// window-sized still on the main thread at mount — one to two dropped
-/// frames exactly as a slide started or reversed, felt as a stutter on
-/// every toggle.
+/// The shield's bitmap on bare CALayers: `contents` takes the snapshot's
+/// CGImage as-is and the compositor does all the work. Drawing the same
+/// bitmap through SwiftUI's `Image` rasterized the whole window-sized still
+/// on the main thread at mount — one to two dropped frames exactly as a
+/// slide started or reversed, felt as a stutter on every toggle.
+///
+/// Three segments, not one uniform stretch: the pictured page spans from
+/// the moving edge to the pinned far edge, so its width changes mid-slide,
+/// and a uniform stretch drifted content near the moving edge by up to nine
+/// points against the sidebar riding beside it — on dark pages, where the
+/// card boundary disappears, that read as the sidebar's own content coming
+/// loose. Instead the 40% of the picture at each edge translates rigidly
+/// with its edge, and only the middle 20% stretches to connect them: what
+/// slides beside the sidebar is pixel-rigid with it, and the compression
+/// lives where nothing anchors the eye.
 private struct ShieldSurface: NSViewRepresentable {
     let image: NSImage
-    let frame: CGRect
+    let leadingEdge: CGFloat
+    let trailingEdge: CGFloat
+    let imageSize: CGSize
 
     func makeNSView(context: Context) -> ShieldSurfaceView {
         ShieldSurfaceView()
     }
 
     func updateNSView(_ view: ShieldSurfaceView, context: Context) {
-        view.apply(image: image, contentFrame: frame)
+        view.apply(
+            image: image,
+            leadingEdge: leadingEdge,
+            trailingEdge: trailingEdge,
+            imageSize: imageSize
+        )
     }
 }
 
 final class ShieldSurfaceView: NSView {
-    private let content = CALayer()
+    private let leadingSegment = CALayer()
+    private let middleSegment = CALayer()
+    private let trailingSegment = CALayer()
     private var appliedImage: NSImage?
+
+    /// Bitmap share translating rigidly with each edge; the remainder in
+    /// the middle absorbs the width change.
+    private static let rigidShare: CGFloat = 0.4
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         wantsLayer = true
-        // The stretched still runs past this view's trailing edge mid-slide;
-        // the page card's own mask is the clip that matters.
+        // The segments run past this view's trailing edge mid-slide; the
+        // page card's own mask is the clip that matters.
         layer?.masksToBounds = false
-        content.anchorPoint = .zero
-        content.contentsGravity = .resize
-        layer?.addSublayer(content)
+        for (segment, rect) in [
+            (leadingSegment, CGRect(x: 0, y: 0, width: Self.rigidShare, height: 1)),
+            (middleSegment, CGRect(x: Self.rigidShare, y: 0, width: 1 - 2 * Self.rigidShare, height: 1)),
+            (trailingSegment, CGRect(x: 1 - Self.rigidShare, y: 0, width: Self.rigidShare, height: 1))
+        ] {
+            segment.anchorPoint = .zero
+            segment.contentsGravity = .resize
+            segment.contentsRect = rect
+            layer?.addSublayer(segment)
+        }
     }
 
     @available(*, unavailable)
@@ -100,7 +129,7 @@ final class ShieldSurfaceView: NSView {
 
     override var isFlipped: Bool { true }
 
-    func apply(image: NSImage, contentFrame: CGRect) {
+    func apply(image: NSImage, leadingEdge: CGFloat, trailingEdge: CGFloat, imageSize: CGSize) {
         // Every assignment here lands exactly where the driving frame's
         // values say — CALayer's implicit .25s animations would trail the
         // spring otherwise.
@@ -108,9 +137,21 @@ final class ShieldSurfaceView: NSView {
         CATransaction.setDisableActions(true)
         if appliedImage !== image {
             appliedImage = image
-            content.contents = image.cgImage(forProposedRect: nil, context: nil, hints: nil)
+            let contents = image.cgImage(forProposedRect: nil, context: nil, hints: nil)
+            leadingSegment.contents = contents
+            middleSegment.contents = contents
+            trailingSegment.contents = contents
         }
-        content.frame = contentFrame
+        let rigidWidth = imageSize.width * Self.rigidShare
+        let height = imageSize.height
+        leadingSegment.frame = CGRect(x: leadingEdge, y: 0, width: rigidWidth, height: height)
+        trailingSegment.frame = CGRect(x: trailingEdge - rigidWidth, y: 0, width: rigidWidth, height: height)
+        middleSegment.frame = CGRect(
+            x: leadingEdge + rigidWidth,
+            y: 0,
+            width: max(trailingEdge - rigidWidth - (leadingEdge + rigidWidth), 1),
+            height: height
+        )
         CATransaction.commit()
     }
 }
