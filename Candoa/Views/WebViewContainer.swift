@@ -9,10 +9,8 @@ struct BrowserInterfaceInsets: Equatable {
 
 struct WebViewContainer: View {
     @ObservedObject var store: BrowserStore
-    /// The interface lanes, per frame while a sidebar toggles (see
-    /// `BrowserLaneEffect`): the page card is clipped to them and the web
-    /// layout follows them.
-    @Environment(\.browserLaneState) private var laneState
+    let visibleInterfaceInsets: BrowserInterfaceInsets
+    let attachesToTrailingPanel: Bool
     /// The strip above the page takes over the sidebar's toggle while the
     /// sidebar is away, so it needs the same action the sidebar header uses.
     let onToggleSidebar: () -> Void
@@ -21,10 +19,6 @@ struct WebViewContainer: View {
     /// Mask-only: it never reaches the WKWebView's obscured content insets
     /// or frame.
     let slideOverTrailingInset: CGFloat
-    /// A still of the page ridden over the live web view while a sidebar
-    /// toggles, so the toggle shows real pixels at the moving edge instead
-    /// of WebKit's stale mid-reflow layout (see `PageToggleShield`).
-    var toggleShield: PageToggleShield? = nil
     @AppStorage(DeveloperModeConfiguration.storageKey) private var developerModeOverrides = ""
     @AppStorage(SettingsOption.addressBarPlacement)
     private var addressBarPlacement = AddressBarPlacement.default.rawValue
@@ -41,21 +35,7 @@ struct WebViewContainer: View {
     /// pill.
     @State private var hoveredSplitPaneIndex: Int?
     private let surfaceCornerRadius: CGFloat = 12
-    /// The gutter between the page card and the window or lane edges (the
-    /// `BrowserLaneState` default matches).
-    static let surfacePadding: CGFloat = 8
-    private var surfacePadding: CGFloat { Self.surfacePadding }
-
-    /// Where the page card's edges are this frame: mask, border and the
-    /// chrome inside the card follow these.
-    private var visibleInterfaceInsets: BrowserInterfaceInsets {
-        laneState.visual
-    }
-
-    /// The lanes the web page is laid out against (see `BrowserLaneState`).
-    private var webLayoutInsets: BrowserInterfaceInsets {
-        laneState.layout
-    }
+    private let surfacePadding: CGFloat = 8
     private static let splitPaneMinimumWidth: CGFloat = 160
 
     var body: some View {
@@ -119,7 +99,7 @@ struct WebViewContainer: View {
                 slideOverTrailingInset: slideOverTrailingInset,
                 surfaceCornerRadius: surfaceCornerRadius,
                 surfacePadding: surfacePadding,
-                trailingSurfacePadding: laneState.trailingGutter,
+                trailingSurfacePadding: attachesToTrailingPanel ? 0 : surfacePadding,
                 drawsFullSurfaceBorder: store.displayedSplitTabs.count < 2
             )
         )
@@ -214,9 +194,9 @@ struct WebViewContainer: View {
             top: surfacePadding,
             leading: surfacePadding,
             bottom: surfacePadding,
-            // Eli owns the adjacent trailing lane once docked. It must not
-            // add a second inset inside the page surface.
-            trailing: laneState.trailingGutter
+            // Eli owns the adjacent trailing lane after its transition. It
+            // must not add a second inset inside the page surface.
+            trailing: attachesToTrailingPanel ? 0 : surfacePadding
         )
     }
 
@@ -240,19 +220,17 @@ struct WebViewContainer: View {
     private func splitPaneInsets(
         forPaneAt index: Int,
         paneCount: Int,
-        layout: SplitViewLayout,
-        lanes: BrowserInterfaceInsets? = nil
+        layout: SplitViewLayout
     ) -> BrowserInterfaceInsets {
-        let lanes = lanes ?? webContentInsets
         switch layout {
         case .horizontal:
             return BrowserInterfaceInsets(
-                leading: index == 0 ? lanes.leading : 0,
-                trailing: index == paneCount - 1 ? lanes.trailing : 0
+                leading: index == 0 ? webContentInsets.leading : 0,
+                trailing: index == paneCount - 1 ? webContentInsets.trailing : 0
             )
         case .vertical:
             // Stacked rows all span the full width, touching both edges.
-            return lanes
+            return webContentInsets
         }
     }
 
@@ -335,15 +313,10 @@ struct WebViewContainer: View {
                 ActiveWebViewHost(
                     tab: tab,
                     store: store,
-                    laneInsets: webLayoutInsets
+                    laneInsets: webContentInsets
                 )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(InterfaceStyle.surfaceFill.opacity(0.72))
-                    .overlay(alignment: .topLeading) {
-                        if let toggleShield {
-                            PageToggleShieldView(shield: toggleShield)
-                        }
-                    }
                     .overlay {
                         // Covers the pane, never replaces it: the web view
                         // stays mounted so retrying repaints underneath and
@@ -529,8 +502,7 @@ struct WebViewContainer: View {
                     let paneInsets = splitPaneInsets(
                         forPaneAt: slot,
                         paneCount: visibleTabs.count,
-                        layout: layout,
-                        lanes: webLayoutInsets
+                        layout: layout
                     )
 
                     browserSurface {
@@ -908,8 +880,7 @@ struct WebViewContainer: View {
             laneInsets: splitPaneInsets(
                 forPaneAt: paneIndex,
                 paneCount: splitTabs.count,
-                layout: store.splitLayout,
-                lanes: webLayoutInsets
+                layout: store.splitLayout
             )
         )
     }

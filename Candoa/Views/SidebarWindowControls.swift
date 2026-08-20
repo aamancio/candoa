@@ -62,12 +62,7 @@ internal final class WindowControlsGeometry: ObservableObject {
                 image: index < resolvedImages.count ? resolvedImages[index] : nil
             )
         }
-        // Sub-point only when re-measured across a slide's settle (the
-        // host's frame carries a float residue of the translation there):
-        // the header icons sit on this offset, and republishing the jitter
-        // nudged them a pixel after every toggle. A real relayout of the
-        // titlebar moves the buttons by whole points.
-        if abs(controlsCenterOffsetY - centerOffsetY) > 0.5 {
+        if controlsCenterOffsetY != centerOffsetY {
             controlsCenterOffsetY = centerOffsetY
         }
     }
@@ -117,12 +112,8 @@ internal struct WindowControlsView: View {
 
     @Environment(\.sidebarRevealProgress) private var revealProgress
 
-    /// Anything but fully hidden or exactly at rest counts as in flight —
-    /// including the spring's overshoot past 1 and its settling tail — so
-    /// the swap between faux and native buttons happens once, at the end,
-    /// never back and forth while the sidebar bounces.
     private var isRevealSlideInFlight: Bool {
-        revealProgress > 0.0001 && abs(revealProgress - 1) > 0.0001
+        revealProgress > 0.0001 && revealProgress < 0.9999
     }
 
     var body: some View {
@@ -193,14 +184,6 @@ private final class NativeWindowControlsHost: NSView {
         observeWindowKeyState()
         attachWindowControlsIfPossible()
         needsLayout = true
-        // AppKit can place the standard buttons a beat after this host lands
-        // in the window; when the launch-time measurement loses that race,
-        // the first publish happens at the first toggle's settle instead and
-        // visibly nudges the header icons onto the buttons' real centerline.
-        // One deferred pass closes the race before anyone is looking.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
-            self?.publishGeometryIfNeeded()
-        }
     }
 
     func configure(
@@ -208,9 +191,7 @@ private final class NativeWindowControlsHost: NSView {
         isSuppressed: Bool,
         geometry: WindowControlsGeometry
     ) {
-        // Not clamped to 1: the spring overshoots, and the buttons must stay
-        // handed off to the faux snapshots until it has settled exactly.
-        self.revealProgress = max(revealProgress, 0)
+        self.revealProgress = min(max(revealProgress, 0), 1)
         self.isSuppressed = isSuppressed
         self.geometry = geometry
         attachWindowControlsIfPossible()
@@ -277,23 +258,13 @@ private final class NativeWindowControlsHost: NSView {
     }
 
     private func publishGeometryIfNeeded() {
-        // Measure only at full reveal, where the native buttons and this
-        // host coincide: mid-slide the host is translated and the buttons
-        // are not, so a measurement then would park the faux snapshots at
-        // the buttons' absolute spot instead of riding the slide with the
-        // sidebar (and at full hide the host is off-window altogether).
-        guard abs(revealProgress - 1) < 0.0001 else { return }
         guard
             let coordinator = controlsCoordinator,
             let geometry,
             let measurement = coordinator.measureControls(in: self)
         else { return }
 
-        // Whole-point movement only: a settle-instant measurement can carry
-        // a sub-point residue of the slide's translation, and publishing it
-        // (then the corrected value a pass later) wiggled the faux lights
-        // and the icons that align to them by a pixel per toggle.
-        let framesChanged = !framesMatch(measurement.frames, lastPublishedFrames)
+        let framesChanged = measurement.frames != lastPublishedFrames
         guard framesChanged || needsImageRecapture else { return }
         lastPublishedFrames = measurement.frames
 
@@ -319,22 +290,6 @@ private final class NativeWindowControlsHost: NSView {
             images: coordinator.captureButtonImages(),
             centerOffsetY: measurement.centerOffsetY
         )
-    }
-
-    /// Within 1.5pt counts as unmoved: a measurement at a slide's settle
-    /// instant catches the host's frame pixel-rounding through the spring's
-    /// final sub-point tail, flapping the measured button frames by a whole
-    /// point back and forth. Republishing each flip wiggled the faux lights
-    /// (and re-rendered the icons aligned to them) a pixel per toggle. A
-    /// real titlebar relayout moves the buttons by several points.
-    private func framesMatch(_ a: [CGRect], _ b: [CGRect]?) -> Bool {
-        guard let b, a.count == b.count else { return false }
-        return zip(a, b).allSatisfy { lhs, rhs in
-            abs(lhs.minX - rhs.minX) < 1.5
-                && abs(lhs.minY - rhs.minY) < 1.5
-                && abs(lhs.width - rhs.width) < 1.5
-                && abs(lhs.height - rhs.height) < 1.5
-        }
     }
 
     private func scheduleSnapshotRetry() {
@@ -460,10 +415,8 @@ private final class NativeWindowControlsCoordinator {
             // Full screen bypasses suppression entirely: the buttons live in
             // the system's top-edge reveal strip there, and hiding them
             // leaves no way to exit with the green button.
-            // Exactly at rest only: the spring overshoots past 1 and settles
-            // back, and the faux snapshots carry that whole tail.
             let isFullScreen = window.styleMask.contains(.fullScreen)
-            let shouldShow = isFullScreen || abs(effectiveProgress - 1) < 0.0001
+            let shouldShow = isFullScreen || effectiveProgress >= 0.9999
 
             // Keep the native buttons participating in title-bar layout.
             // Transparency avoids AppKit's per-button hidden-state relayout
@@ -804,4 +757,3 @@ internal struct BrowserNavigationControls: View {
 
 /// Candoa's semantic color tokens. Native controls follow the person's macOS
 /// accent preference; explicit blue uses Apple's adaptable system blue.
-

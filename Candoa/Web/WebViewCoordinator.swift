@@ -92,19 +92,6 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
     /// `hostMiniPlayerWebView`), until the glide lands and the freeze frame
     /// for the strip-down is in.
     var miniPlayerSummon: MiniPlayerSummonHandoff?
-    /// Obscured-inset changes the web process is still committing, and the
-    /// latest value waiting behind each (see `applyObscuredContentInsets`).
-    var obscuredContentInsetsInFlight = Set<ObjectIdentifier>()
-    var pendingObscuredContentInsets: [ObjectIdentifier: NSEdgeInsets] = [:]
-    /// The last insets each page settled at, and how many times it has —
-    /// the toggle shield anchors its still to the settled layout (the one
-    /// the page is actually painted at) and discards a capture a settle
-    /// raced through, since the bitmap could then picture either side.
-    var settledObscuredContentInsets: [ObjectIdentifier: NSEdgeInsets] = [:]
-    var obscuredContentInsetsSettleCounts: [ObjectIdentifier: Int] = [:]
-    /// Eli's close waiting for the active page to have painted at full width
-    /// under the docked panel before the edge moves.
-    var trailingLaneWaiters: [LaneWaiter] = []
     var contentRuleList: WKContentRuleList?
     /// Whether the compiled rule list is currently attached to web views —
     /// diverges from the preference only until the observer reconciles.

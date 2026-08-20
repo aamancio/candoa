@@ -24,43 +24,20 @@ struct ContentView: View {
         WebsiteAppearance.automatic.rawValue
     @SceneStorage("candoa.windowAutosaveID") private var windowAutosaveID = UUID().uuidString
     @State private var isSidebarVisible = true
-    /// The sidebar lane: where the page card's leading edge is (`sidebarLane`,
-    /// animated through `BrowserLaneEffect` so the card follows the sidebar's
-    /// edge frame by frame) and the lane the page is laid out against
-    /// (`sidebarLayoutLane`): the same while opening, but a close lays the
-    /// page out at full width first, under the still-pinned edge, and the
-    /// page then rides the edge out as a translation.
-    @State private var sidebarLane: CGFloat = InterfaceStyle.sidebarWidth
-    @State private var sidebarLayoutLane: CGFloat = InterfaceStyle.sidebarWidth
-    @State private var sidebarToggleGeneration = 0
-    /// A still of the page shown over the live web view for the length of a
-    /// sidebar toggle (see `PageToggleShield`): the live page relayouts to
-    /// its final lanes once, invisibly, underneath, and the still rides the
-    /// moving edge at the compositor's frame rate — WebKit cannot reflow at
-    /// the edge's pace, and every scheme that let the mid-reflow layout show
-    /// put a strip of bare page background beside a sidebar and a jump after
-    /// it.
-    @State private var toggleShield: PageToggleShield?
     @State private var isSidebarHoverRevealed = false
     @State private var isSidebarRevealSuppressed = false
     @State private var isAISidebarVisible = false
     @State private var isAISidebarMounted = false
+    @State private var isAISidebarReservingWebLayout = false
     @State private var isHistoryPresented = false
-    /// Eli's lane: the panel's width once open and at rest, animated by the
-    /// toggle (the page card's edge slides across the docked panel and the
-    /// page lays out against the moving edge), 0 when closed. A close lays
-    /// the page out at full width first, under the still-docked panel
-    /// (`aiSidebarLayoutLane`), then slides the edge back across it.
-    @State private var aiSidebarLane: CGFloat = 0
-    @State private var aiSidebarLayoutLane: CGFloat = 0
-    /// The committed panel width the lane is laid out against between resize
-    /// drags; the lane follows the pointer only through the slide mask.
     @State private var reservedAISidebarInset: CGFloat = 0
     // Compositor-only trailing clip applied to the web surface while Eli
-    // covers it beyond the reserved web layout during a widening resize
-    // drag. It keeps the card's rounded trailing corner pinned to Eli's edge
-    // without ever touching the live web layout; it must be exactly 0
-    // whenever the reserved layout owns the trailing edge.
+    // covers it beyond the reserved web layout: during a widening resize
+    // drag, and during a close's paint-fence hold, where the page has
+    // already expanded under the still-mounted panel. It keeps the card's
+    // rounded trailing corner pinned to Eli's edge without ever touching the
+    // live WKWebView's frame; it must be exactly 0 whenever the reserved
+    // layout owns the trailing edge.
     @State private var aiSidebarSlideMaskInset: CGFloat = 0
     @State private var aiSidebarTransitionGeneration = 0
     @State private var aiSidebarUITestingState = ""
@@ -127,6 +104,9 @@ struct ContentView: View {
 
     var body: some View {
         let currentAISidebarWidth = clampedAISidebarWidth(CGFloat(aiSidebarWidth))
+        let currentAISidebarInset = isAISidebarMounted
+            ? currentAISidebarWidth
+            : 0
 
         ZStack(alignment: .leading) {
             if isFullWindowOnboardingPresented {
@@ -159,7 +139,7 @@ struct ContentView: View {
                             }
                         )
                         .id(store.activeSpaceID)
-                        .padding(.leading, sidebarLane)
+                        .padding(.leading, isSidebarVisible ? sidebarTotalWidth : 0)
                         .tint(AppColor.accent)
                         .onChange(of: store.historyDismissRequestID) { _, _ in
                             isHistoryPresented = false
@@ -173,32 +153,29 @@ struct ContentView: View {
                         // lanes are reserved inside WebViewContainer instead.
                         WebViewContainer(
                             store: store,
+                            visibleInterfaceInsets: BrowserInterfaceInsets(
+                                leading: isSidebarVisible ? sidebarTotalWidth : 0
+                            ),
+                            attachesToTrailingPanel: isAISidebarMounted,
                             onToggleSidebar: toggleSidebar,
-                            slideOverTrailingInset: aiSidebarSlideMaskInset,
-                            toggleShield: toggleShield
+                            slideOverTrailingInset: aiSidebarSlideMaskInset
                         )
-                        // Both lanes, per frame: the page card's edges and
-                        // the web layout follow the sidebars as they slide,
-                        // Dia's push. The trailing gutter closes as Eli's
-                        // edge comes in, so the card never jumps 8pt at
-                        // either end of the slide. Layout lanes ride their
-                        // own modifier so a shielded toggle can snap them
-                        // without snapping the visual edge's animation.
-                        .modifier(BrowserLayoutLaneEffect(
-                            leading: sidebarLayoutLane,
-                            trailing: aiSidebarLayoutLane
-                        ))
-                        .modifier(BrowserLaneEffect(
-                            visualLeading: sidebarLane,
-                            visualTrailing: aiSidebarLane,
-                            trailingGutter: isAISidebarMounted && currentAISidebarWidth > 0
-                                ? WebViewContainer.surfacePadding * (1 - min(1, aiSidebarLane / currentAISidebarWidth))
-                                : WebViewContainer.surfacePadding
-                        ))
+                        // Resize WebKit once, after Eli has finished sliding over
+                        // this lane. Keeping this out of the animation avoids
+                        // per-frame web layout while placing WebKit's own overlay
+                        // scroller at the visible page edge.
+                        .padding(
+                            .trailing,
+                            isAISidebarReservingWebLayout ? reservedAISidebarInset : 0
+                        )
 
                         if isAISidebarMounted {
                             aiSidebarLayout(width: currentAISidebarWidth)
-                                .transition(.identity)
+                                .transition(
+                                    reduceMotion
+                                        ? .identity
+                                        : .move(edge: .trailing)
+                                )
                                 .zIndex(1)
                         }
                     }
@@ -217,25 +194,13 @@ struct ContentView: View {
                     // One animatable progress value drives both the compositor
                     // translation and the embedded native traffic-light container.
                     // Separate SwiftUI/AppKit animations visibly drift apart.
-                    // Lane-driven, not `isSidebarVisible`-driven: a close
-                    // flips the logical state at once but slides only after
-                    // its still is up, and the chrome must stay parked with
-                    // the lane until then. The hover reveal has no lane and
-                    // keeps its flag. Deliberately UNCLAMPED: the spring's
-                    // overshoot must read as progress > 1, because the
-                    // window-controls host publishes icon-alignment geometry
-                    // only at exactly 1 — clamping made the overshoot look
-                    // settled and the header icons re-aligned against a
-                    // still-moving host, drifting a few points mid-toggle.
                     .modifier(SidebarRevealEffect(
-                        progress: isSidebarHoverRevealed
-                            ? 1
-                            : sidebarLane / max(sidebarTotalWidth, 1),
+                        progress: isSidebarPresented ? 1 : 0,
                         hiddenOffset: -sidebarTotalWidth
                     ))
-                    // The pinned toggle slides in `toggleSidebar`'s own
-                    // transaction, with the page card's edge and the web
-                    // layout; the overlay hover reveal eases here.
+                    // A pinned show/hide must snap with the one-time WKWebView
+                    // frame update above. Only the overlay hover reveal may slide;
+                    // otherwise the sidebar temporarily separates from content.
                     .animation(.easeOut(duration: 0.18), value: isSidebarHoverRevealed)
                     .zIndex(2)
             }
@@ -256,8 +221,8 @@ struct ContentView: View {
                 // lanes are inset and the title-bar safe area is ignored,
                 // matching where the web view actually is.
                 TabSwitcherOverlay(store: store)
-                    .padding(.leading, sidebarLane)
-                    .padding(.trailing, aiSidebarLane)
+                    .padding(.leading, isSidebarVisible ? sidebarTotalWidth : 0)
+                    .padding(.trailing, isAISidebarReservingWebLayout ? reservedAISidebarInset : 0)
                     .ignoresSafeArea(.container, edges: .top)
                     .zIndex(9)
             }
@@ -266,8 +231,8 @@ struct ContentView: View {
                !isFullWindowOnboardingPresented,
                !isHistoryPresented {
                 LinkHoverPreviewPill(urlString: hoveredLinkHref)
-                    .padding(.leading, sidebarLane + 10)
-                    .padding(.trailing, aiSidebarLane + 10)
+                    .padding(.leading, (isSidebarVisible ? sidebarTotalWidth : 0) + 10)
+                    .padding(.trailing, currentAISidebarInset + 10)
                     .padding(.bottom, 10)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
                     .allowsHitTesting(false)
@@ -278,8 +243,8 @@ struct ContentView: View {
             if let mediaTab = store.floatingMiniPlayerTab,
                let mediaState = store.floatingMiniPlayerState {
                 GeometryReader { proxy in
-                    let leadingInset = sidebarLane
-                    let trailingInset = aiSidebarLane
+                    let leadingInset = isSidebarVisible ? sidebarTotalWidth : 0
+                    let trailingInset = currentAISidebarInset
                     let availableSize = CGSize(
                         width: max(1, proxy.size.width - leadingInset - trailingInset),
                         height: proxy.size.height
@@ -589,9 +554,6 @@ struct ContentView: View {
         .onChange(of: store.aiSidebarToggleRequestID) { _, _ in
             toggleAISidebar()
         }
-        .onChange(of: store.sidebarToggleRequestID) { _, _ in
-            toggleSidebar()
-        }
         .onChange(of: store.activeSpaceID) { _, _ in
             // A Space is its tabs, and they live in the sidebar. Switching
             // from the menu or the keyboard with the sidebar hidden would
@@ -845,21 +807,15 @@ struct ContentView: View {
 
     private func aiSidebarLayout(width: CGFloat) -> some View {
         ZStack {
-            // The lane stays transparent even while the page's edge slides
-            // across Eli: the web surface is clipped at that edge by the
-            // lane, so the one shared window backdrop shows through here in
-            // every state and can never drift in color from the center or
-            // the docked lane.
+            // The lane stays transparent even while Eli slides over the page:
+            // the web surface is clipped at Eli's moving edge by
+            // slideOverTrailingInset, so the one shared window backdrop shows
+            // through here in every state and can never drift in color from
+            // the center or the docked lane.
             aiSidebarPanel(width: width)
         }
         .frame(width: width)
         .frame(maxHeight: .infinity)
-        // Dia's chat panel: docked in place from the first frame, uncovered
-        // as the page card's edge slides across it, covered again on close.
-        .mask(alignment: .trailing) {
-            Rectangle()
-                .frame(width: max(0, min(width, aiSidebarLane + aiSidebarSlideMaskInset)))
-        }
         .overlay(alignment: .leading) {
             AISidebarResizeHandle()
                 .frame(width: AISidebarLayout.resizeHandleHitWidth)
@@ -885,8 +841,6 @@ struct ContentView: View {
                             // Releasing the slide mask in the same update keeps
                             // the visible card edge exactly in place.
                             reservedAISidebarInset = clampedAISidebarWidth(CGFloat(aiSidebarWidth))
-                            aiSidebarLane = reservedAISidebarInset
-                            aiSidebarLayoutLane = reservedAISidebarInset
                             aiSidebarSlideMaskInset = 0
                         }
                 )
@@ -895,170 +849,19 @@ struct ContentView: View {
         .accessibilityHidden(!isAISidebarVisible)
     }
 
-    /// The slide, timed against Zen (ZenCompactMode.mjs animates its
-    /// sidebar with a 0.12s bounce-0 spring) and Dia's ~120-150ms push:
-    /// the whole toggle reads as one quick gesture, not a glide — the
-    /// earlier 0.30-response spring's motion-plus-settle ran two to three
-    /// times longer and felt sluggish. Damping 0.9, not lower: at 0.82 the
-    /// settle tail drained its last point and a half over ~300ms, and that
-    /// slow drift — icons and edge included — read as a wiggle at the end
-    /// of every toggle.
-    static let sidebarToggleAnimation = Animation.spring(response: 0.17, dampingFraction: 0.9)
-
+    // The pinned toggle deliberately snaps in a single frame: sidebar
+    // translation, mask lane, and WebKit obscured insets all switch in one
+    // commit, so the sidebar can never separate from the content beside it.
+    // Only the pointer-driven hover reveal slides, as a floating overlay.
     private func toggleSidebar() {
-        toggleSidebar(completion: nil)
-    }
-
-    private func toggleSidebar(completion: (() -> Void)?) {
-        let showing = !isSidebarVisible
-        let lane = sidebarTotalWidth
-        sidebarToggleGeneration += 1
-        let generation = sidebarToggleGeneration
-        isSidebarHoverRevealed = false
-        isSidebarRevealSuppressed = !showing
-        guard !reduceMotion else {
-            isSidebarVisible = showing
-            sidebarLane = showing ? lane : 0
-            sidebarLayoutLane = showing ? lane : 0
-            completion?()
-            return
-        }
-        isSidebarVisible = showing
-        let plan = pageToggleShieldPlan()
-        if showing {
-            // Opening: the slide starts THIS frame — Zen and Dia both move
-            // the chrome first and let the content story resolve behind it,
-            // and any wait here is the lag a person feels. The advancing
-            // sidebar only ever covers the page, so until the still lands
-            // (~15ms, one frame) the live page simply keeps its old layout
-            // under it; the still then mounts invisibly (identical pixels),
-            // the live page relayouts once beneath, and the crossfade waits
-            // for slide-end plus paint.
-            var slideDone = false
-            let armFade: @MainActor () -> Void = {
-                guard sidebarToggleGeneration == generation, slideDone, toggleShield != nil else { return }
-                fadeToggleShield(afterPaintedLeading: lane, trailing: nil)
-            }
-            withAnimation(Self.sidebarToggleAnimation, completionCriteria: .logicallyComplete) {
-                sidebarLane = lane
-                if plan == .bare { sidebarLayoutLane = lane }
-            } completion: {
-                slideDone = true
-                armFade()
-                completion?()
-            }
-            switch plan {
-            case .bare:
-                break
-            case .standingShield:
-                sidebarLayoutLane = lane
-            case .capture:
-                store.webCoordinator.captureToggleShield(timeout: 0.15) { capture in
-                    guard sidebarToggleGeneration == generation else { return }
-                    if let capture {
-                        toggleShield = capture
-                        sidebarLayoutLane = lane
-                        armFade()
-                    } else {
-                        // Nothing to hide behind: lay out against what is
-                        // left of the moving lane, live.
-                        toggleShield = nil
-                        withAnimation(Self.sidebarToggleAnimation) { sidebarLayoutLane = lane }
-                    }
-                }
-            }
-            return
-        }
-        // Closing uncovers the strip beside the sidebar, so the still must
-        // be up before the first moved frame — the capture is one frame,
-        // and its mount is a layer-contents handoff cheap enough to slide
-        // in the same update. The still rides the edge back out over the
-        // full-width relayout happening beneath; the fade at the end waits
-        // for that layout to have painted. A page that cannot picture
-        // itself inside the cap gets the bare live-reflow toggle instead of
-        // a late one.
-        let close: @MainActor (ShieldPlan) -> Void = { plan in
-            guard sidebarToggleGeneration == generation else { return }
-            if plan != .bare { sidebarLayoutLane = 0 }
-            withAnimation(Self.sidebarToggleAnimation, completionCriteria: .logicallyComplete) {
-                sidebarLane = 0
-                if plan == .bare { sidebarLayoutLane = 0 }
-            } completion: {
-                // Only at the end of the slide, and only if no newer toggle
-                // owns the shield: fading earlier would strand a reversal
-                // without its cover — a burst of toggles rides this one
-                // still to the last slide's end.
-                if sidebarToggleGeneration == generation {
-                    fadeToggleShield(afterPaintedLeading: 0, trailing: nil)
-                }
-                completion?()
-            }
-        }
-        switch plan {
-        case .bare:
-            close(.bare)
-        case .standingShield:
-            close(.standingShield)
-        case .capture:
-            store.webCoordinator.captureToggleShield(timeout: 0.08) { capture in
-                if let capture {
-                    toggleShield = capture
-                    close(.standingShield)
-                } else {
-                    toggleShield = nil
-                    close(.bare)
-                }
-            }
-        }
-    }
-
-    /// How a lane toggle covers the page: behind the still already standing
-    /// (a burst mid-flight), behind a fresh capture, or bare — splits,
-    /// SwiftUI pages, and history reflow at the edge's own frame rate and
-    /// need no still.
-    private enum ShieldPlan {
-        case bare
-        case standingShield
-        case capture
-    }
-
-    private func pageToggleShieldPlan() -> ShieldPlan {
-        guard store.displayedSplitTabs.count < 2,
-              !isHistoryPresented,
-              !store.isInitialSpaceSetupPresented,
-              !store.isCreateSpacePresented,
-              let tab = store.activeTab,
-              tab.url != nil,
-              !tab.isWelcomePage
-        else {
-            toggleShield = nil
-            return .bare
-        }
-        if let shield = toggleShield, shield.opacity == 1 {
-            return .standingShield
-        }
-        return .capture
-    }
-
-    /// Fades the shield once the page under it has painted the given lanes
-    /// (capped): the fade is the handover, so what it uncovers must already
-    /// be the layout the toggle promised.
-    private func fadeToggleShield(afterPaintedLeading leading: CGFloat?, trailing: CGFloat?) {
-        guard let shieldID = toggleShield?.id else { return }
-        store.webCoordinator.waitForPaintedLanes(leading: leading, trailing: trailing, timeout: 0.35) {
-            guard toggleShield?.id == shieldID else { return }
-            fadeToggleShield(over: 0.12)
-        }
-    }
-
-    private func fadeToggleShield(over duration: TimeInterval) {
-        guard let shieldID = toggleShield?.id, toggleShield?.opacity == 1 else { return }
-        withAnimation(.easeOut(duration: duration)) {
-            toggleShield?.opacity = 0
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + duration + 0.05) {
-            guard toggleShield?.id == shieldID, toggleShield?.opacity == 0 else { return }
-            toggleShield = nil
+        if isSidebarVisible {
+            isSidebarVisible = false
+            isSidebarHoverRevealed = false
+            isSidebarRevealSuppressed = true
+        } else {
+            isSidebarVisible = true
+            isSidebarHoverRevealed = false
+            isSidebarRevealSuppressed = false
         }
     }
 
@@ -1074,7 +877,9 @@ struct ContentView: View {
     /// alone when it already is.
     private func revealSidebar() {
         guard !isSidebarVisible else { return }
-        toggleSidebar()
+        isSidebarVisible = true
+        isSidebarHoverRevealed = false
+        isSidebarRevealSuppressed = false
     }
 
     private func showQuickTour() {
@@ -1099,9 +904,11 @@ struct ContentView: View {
         }
         guard isSidebarVisible else {
             // The popover anchors to the sidebar's Downloads button, so a
-            // hidden sidebar must be revealed first — and have landed, or
-            // the popover attaches to a button still on the move.
-            toggleSidebar { [weak store] in
+            // hidden sidebar must be revealed first. Presenting in the same
+            // transaction races the reveal commit and anchors nowhere
+            // (see the two-beat handoff pattern) — defer to its completion.
+            toggleSidebar()
+            CATransaction.setCompletionBlock { [weak store] in
                 store?.isDownloadsPopoverPresented = true
             }
             return
@@ -1116,8 +923,9 @@ struct ContentView: View {
         }
         guard isSidebarVisible else {
             // Anchored to the sidebar address pill, so a hidden sidebar must
-            // be revealed first and have landed — same as showDownloads.
-            toggleSidebar { [weak store] in
+            // be revealed first — same two-beat handoff as showDownloads.
+            toggleSidebar()
+            CATransaction.setCompletionBlock { [weak store] in
                 store?.isSiteInfoPopoverPresented = true
             }
             return
@@ -1133,85 +941,19 @@ struct ContentView: View {
         }
     }
 
-    /// Dia's chat panel: it is docked from the first frame and the page
-    /// card's edge slides across to uncover it, with a touch of spring at
-    /// the end; the page lays out against the moving edge frame by frame
-    /// (`BrowserLaneEffect`). Closing covers it again the same way.
     private func openAISidebar() {
         guard !isAISidebarVisible else { return }
         aiSidebarTransitionGeneration += 1
-        let generation = aiSidebarTransitionGeneration
-        let width = clampedAISidebarWidth(CGFloat(aiSidebarWidth))
 
-        reservedAISidebarInset = width
-        aiSidebarSlideMaskInset = 0
-        aiSidebarResizeStartWidth = nil
-        guard !reduceMotion else {
-            isAISidebarMounted = true
-            isAISidebarVisible = true
-            aiSidebarLane = width
-            aiSidebarLayoutLane = width
-            return
-        }
-        let slide = {
-            guard aiSidebarTransitionGeneration == generation else { return }
-            // The still stays pinned for a trailing toggle — Eli's edge
-            // slides across it, the reveal — while the live page relayouts
-            // to the docked lane once, underneath. The slide starts at
-            // once: the moving edge only ever covers the page, so until a
-            // fresh still lands the live page keeps its old layout under it.
-            let plan = pageToggleShieldPlan()
-            var slideDone = false
-            let armFade: @MainActor () -> Void = {
-                guard aiSidebarTransitionGeneration == generation, slideDone, toggleShield != nil else { return }
-                fadeToggleShield(afterPaintedLeading: nil, trailing: width)
-            }
-            withAnimation(Self.sidebarToggleAnimation, completionCriteria: .logicallyComplete) {
-                isAISidebarVisible = true
-                aiSidebarLane = width
-                if plan == .bare { aiSidebarLayoutLane = width }
-            } completion: {
-                slideDone = true
-                armFade()
-            }
-            switch plan {
-            case .bare:
-                break
-            case .standingShield:
-                aiSidebarLayoutLane = width
-            case .capture:
-                store.webCoordinator.captureToggleShield(timeout: 0.15) { capture in
-                    guard aiSidebarTransitionGeneration == generation else { return }
-                    if let capture {
-                        toggleShield = capture
-                        aiSidebarLayoutLane = width
-                        armFade()
-                    } else {
-                        toggleShield = nil
-                        withAnimation(Self.sidebarToggleAnimation) { aiSidebarLayoutLane = width }
-                    }
-                }
-            }
-        }
-        // A reopen over a panel a cancelled close left mounted must not run
-        // the mount step: zeroing the lane here teleported the edge shut
-        // before sliding it back out. The panel is already rendered — just
-        // retarget the slide from wherever the lane is.
-        guard !isAISidebarMounted else {
-            slide()
-            return
-        }
-        // Mount first, fully covered (a view inserted and animated in the
-        // same transaction starts at its final value, so the slide would
-        // never play); slide the edge across it once that has committed.
+        // Open snaps in one commit, matching the pinned left sidebar: the
+        // panel appears docked, the card ends at its edge with the rounded
+        // corner from its own clip shape, and the single native WKWebView
+        // resize happens in the same frame.
+        reservedAISidebarInset = clampedAISidebarWidth(CGFloat(aiSidebarWidth))
+        isAISidebarReservingWebLayout = true
         isAISidebarMounted = true
-        aiSidebarLane = 0
-        aiSidebarLayoutLane = 0
-        CATransaction.setCompletionBlock {
-            // One more turn: the panel's first render is the heaviest frame
-            // of the whole toggle, and the slide should not start on it.
-            DispatchQueue.main.async(execute: slide)
-        }
+        isAISidebarVisible = true
+        aiSidebarSlideMaskInset = 0
     }
 
     private func closeAISidebar() {
@@ -1220,66 +962,25 @@ struct ContentView: View {
         let generation = aiSidebarTransitionGeneration
 
         aiSidebarResizeStartWidth = nil
-        aiSidebarSlideMaskInset = 0
-        // Logically closed and inert at once.
+        // Close also snaps, but in two invisible beats: expand the page once
+        // while Eli still covers the changing edge — the slide mask takes
+        // over the exact visible card edge in the same unanimated update —
+        // then remove the panel only after WebKit has painted the widened
+        // layout, so the snap uncovers real content instead of the page's
+        // background fill. The panel lingers for the fence (typically a
+        // frame or two, capped at 250ms) but is logically closed and inert
+        // immediately.
         isAISidebarVisible = false
-        guard !reduceMotion else {
-            isAISidebarMounted = false
-            aiSidebarLane = 0
-            aiSidebarLayoutLane = 0
-            return
-        }
-        // Lay the page out at full width first, under the still-docked
-        // panel — invisible there — and slide the edge back across it only
-        // once the page reports it has painted that layout (capped), so the
-        // slide uncovers content that is already in place, never the page's
-        // margin catching up. The panel stays mounted for the slide, then
-        // goes.
-        // Closing uncovers page area at the card's trailing edge, so the
-        // still must be up before the first moved frame (one-frame capture,
-        // hard cap): it stretches out to the moving edge and covers the
-        // strip while the full-width relayout happens beneath. Only the
-        // end fade waits for that layout to paint. Bare closes (splits,
-        // no page, a missed capture) keep the paint-fence hold — there the
-        // uncovered strip really would show the page's bare margin.
-        let bareClose: @MainActor () -> Void = {
+        isAISidebarReservingWebLayout = false
+        aiSidebarSlideMaskInset = clampedAISidebarWidth(CGFloat(aiSidebarWidth))
+        // The CATransaction completion is guaranteed to run only after the
+        // handoff above has rendered; a main-queue async block is not.
+        CATransaction.setCompletionBlock {
             guard aiSidebarTransitionGeneration == generation else { return }
-            aiSidebarLayoutLane = 0
-            store.webCoordinator.waitForTrailingLane(0, timeout: 0.4) {
+            store.waitForWebContentPaint(at: .trailing, timeout: 0.25) {
                 guard aiSidebarTransitionGeneration == generation else { return }
-                withAnimation(Self.sidebarToggleAnimation, completionCriteria: .logicallyComplete) {
-                    aiSidebarLane = 0
-                } completion: {
-                    guard aiSidebarTransitionGeneration == generation else { return }
-                    isAISidebarMounted = false
-                }
-            }
-        }
-        let shieldedClose: @MainActor () -> Void = {
-            guard aiSidebarTransitionGeneration == generation else { return }
-            aiSidebarLayoutLane = 0
-            withAnimation(Self.sidebarToggleAnimation, completionCriteria: .logicallyComplete) {
-                aiSidebarLane = 0
-            } completion: {
-                guard aiSidebarTransitionGeneration == generation else { return }
-                fadeToggleShield(afterPaintedLeading: nil, trailing: 0)
                 isAISidebarMounted = false
-            }
-        }
-        switch pageToggleShieldPlan() {
-        case .bare:
-            bareClose()
-        case .standingShield:
-            shieldedClose()
-        case .capture:
-            store.webCoordinator.captureToggleShield(timeout: 0.08) { capture in
-                if let capture {
-                    toggleShield = capture
-                    shieldedClose()
-                } else {
-                    toggleShield = nil
-                    bareClose()
-                }
+                aiSidebarSlideMaskInset = 0
             }
         }
     }

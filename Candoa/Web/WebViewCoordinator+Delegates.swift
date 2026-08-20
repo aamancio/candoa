@@ -33,7 +33,6 @@ extension WebViewCoordinator {
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         updateStore(from: webView, isLoading: false)
-        adoptPageBackgroundColor(of: webView)
         if let tabID = tabID(for: webView) {
             probeReaderAvailabilityIfNeeded(for: tabID)
         }
