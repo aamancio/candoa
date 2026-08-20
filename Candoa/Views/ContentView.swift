@@ -987,12 +987,10 @@ struct ContentView: View {
     /// edge's own frame rate and runs the bare transition instead. A toggle
     /// that reverses mid-flight reuses the standing still: the live page has
     /// been covered since it was taken, so it is still the page the person
-    /// last saw — one still rides a whole burst of toggles.
-    ///
-    /// A freshly captured still runs `shielded` only one presentation cycle
-    /// after mounting: first drawing a window-sized bitmap costs enough of
-    /// the frame that a spring started in the same update visibly skips its
-    /// first hundred points.
+    /// last saw — one still rides a whole burst of toggles. Mounting the
+    /// still is a layer-contents handoff (`ShieldSurface`), cheap enough to
+    /// start the slide in the same update; the only latency before motion is
+    /// the snapshot itself (~15ms).
     private func withPageToggleShield(
         _ unshielded: @escaping () -> Void,
         shielded: @escaping () -> Void
@@ -1014,17 +1012,12 @@ struct ContentView: View {
             return
         }
         store.webCoordinator.captureToggleShield { capture in
-            guard let capture else {
+            if let capture {
+                toggleShield = capture
+                shielded()
+            } else {
                 toggleShield = nil
                 unshielded()
-                return
-            }
-            toggleShield = capture
-            CATransaction.setCompletionBlock {
-                DispatchQueue.main.async {
-                    guard toggleShield?.id == capture.id else { return }
-                    shielded()
-                }
             }
         }
     }
@@ -1224,16 +1217,17 @@ struct ContentView: View {
             }
         } shielded: {
             guard aiSidebarTransitionGeneration == generation else { return }
+            // No paint fence here: the still stretches out to the moving
+            // edge, so the strip the edge uncovers shows the pictured page,
+            // not the live one mid-reflow — the slide can start at once.
+            // Only the fade waits for the full-width layout to paint.
             aiSidebarLayoutLane = 0
-            store.webCoordinator.waitForTrailingLane(0, timeout: 0.4) {
+            withAnimation(Self.sidebarToggleAnimation, completionCriteria: .logicallyComplete) {
+                aiSidebarLane = 0
+            } completion: {
                 guard aiSidebarTransitionGeneration == generation else { return }
-                withAnimation(Self.sidebarToggleAnimation, completionCriteria: .logicallyComplete) {
-                    aiSidebarLane = 0
-                } completion: {
-                    guard aiSidebarTransitionGeneration == generation else { return }
-                    fadeToggleShield(over: 0.12)
-                    isAISidebarMounted = false
-                }
+                fadeToggleShield(afterPaintedLeading: nil, trailing: 0)
+                isAISidebarMounted = false
             }
         }
     }

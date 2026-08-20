@@ -51,14 +51,67 @@ internal struct PageToggleShieldView: View {
         GeometryReader { proxy in
             let leading = laneState.visual.leading
             let width = max(proxy.size.width - leading - laneState.visual.trailing, 1)
-            Image(nsImage: shield.image)
-                .resizable()
-                .frame(width: shield.size.width, height: shield.size.height)
-                .scaleEffect(x: width / shield.size.width, y: 1, anchor: .topLeading)
-                .offset(x: leading)
+            ShieldSurface(
+                image: shield.image,
+                frame: CGRect(x: leading, y: 0, width: width, height: shield.size.height)
+            )
         }
         .opacity(shield.opacity)
         .allowsHitTesting(false)
+    }
+}
+
+/// The shield's bitmap on a bare CALayer: `contents` takes the snapshot's
+/// CGImage as-is and `.resize` gravity does the stretch on the compositor.
+/// Drawing the same bitmap through SwiftUI's `Image` rasterized the whole
+/// window-sized still on the main thread at mount — one to two dropped
+/// frames exactly as a slide started or reversed, felt as a stutter on
+/// every toggle.
+private struct ShieldSurface: NSViewRepresentable {
+    let image: NSImage
+    let frame: CGRect
+
+    func makeNSView(context: Context) -> ShieldSurfaceView {
+        ShieldSurfaceView()
+    }
+
+    func updateNSView(_ view: ShieldSurfaceView, context: Context) {
+        view.apply(image: image, contentFrame: frame)
+    }
+}
+
+final class ShieldSurfaceView: NSView {
+    private let content = CALayer()
+    private var appliedImage: NSImage?
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        wantsLayer = true
+        // The stretched still runs past this view's trailing edge mid-slide;
+        // the page card's own mask is the clip that matters.
+        layer?.masksToBounds = false
+        content.anchorPoint = .zero
+        content.contentsGravity = .resize
+        layer?.addSublayer(content)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { nil }
+
+    override var isFlipped: Bool { true }
+
+    func apply(image: NSImage, contentFrame: CGRect) {
+        // Every assignment here lands exactly where the driving frame's
+        // values say — CALayer's implicit .25s animations would trail the
+        // spring otherwise.
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        if appliedImage !== image {
+            appliedImage = image
+            content.contents = image.cgImage(forProposedRect: nil, context: nil, hints: nil)
+        }
+        content.frame = contentFrame
+        CATransaction.commit()
     }
 }
 
