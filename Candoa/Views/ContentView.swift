@@ -219,13 +219,18 @@ struct ContentView: View {
                     // Separate SwiftUI/AppKit animations visibly drift apart.
                     // Lane-driven, not `isSidebarVisible`-driven: a close
                     // flips the logical state at once but slides only after
-                    // the page has laid out for it (the shield's paint gate),
-                    // and the chrome must stay parked with the lane until
-                    // then. The hover reveal has no lane and keeps its flag.
+                    // its still is up, and the chrome must stay parked with
+                    // the lane until then. The hover reveal has no lane and
+                    // keeps its flag. Deliberately UNCLAMPED: the spring's
+                    // overshoot must read as progress > 1, because the
+                    // window-controls host publishes icon-alignment geometry
+                    // only at exactly 1 — clamping made the overshoot look
+                    // settled and the header icons re-aligned against a
+                    // still-moving host, drifting a few points mid-toggle.
                     .modifier(SidebarRevealEffect(
                         progress: isSidebarHoverRevealed
                             ? 1
-                            : min(sidebarLane / max(sidebarTotalWidth, 1), 1),
+                            : sidebarLane / max(sidebarTotalWidth, 1),
                         hiddenOffset: -sidebarTotalWidth
                     ))
                     // The pinned toggle slides in `toggleSidebar`'s own
@@ -890,14 +895,13 @@ struct ContentView: View {
         .accessibilityHidden(!isAISidebarVisible)
     }
 
-    /// Dia's sidebar: it slides in and pushes the page over — the page
-    /// card's edge, its toolbar and its content move with the sidebar's
-    /// edge, with a touch of spring at the end — and closing pulls the page
-    /// back the same way. The page is laid out against the lane frame by
-    /// frame (`BrowserLaneEffect`); WebKit commits those inset changes for
-    /// typical pages within a frame, so the content keeps up with the edge.
-    /// It is a short burst of layout, not a steady cost.
-    static let sidebarToggleAnimation = Animation.spring(response: 0.30, dampingFraction: 0.76)
+    /// The slide, timed against Zen (ZenCompactMode.mjs animates its
+    /// sidebar with a 0.12s bounce-0 spring) and Dia's ~120-150ms push:
+    /// the whole toggle reads as one quick gesture, not a glide — the
+    /// earlier 0.30-response spring's motion-plus-settle ran two to three
+    /// times longer and felt sluggish. A whisper of underdamping keeps the
+    /// Dia softness at the end without a visible bounce tail.
+    static let sidebarToggleAnimation = Animation.spring(response: 0.17, dampingFraction: 0.82)
 
     private func toggleSidebar() {
         toggleSidebar(completion: nil)
@@ -918,56 +922,65 @@ struct ContentView: View {
             return
         }
         isSidebarVisible = showing
+        let plan = pageToggleShieldPlan()
         if showing {
-            // Opening: the sidebar slides in at once; the page rides it as a
-            // still (the shield), pushed with the edge, while the live page
-            // relayouts to the open lane exactly once underneath. The shield
-            // fades out — a beat of crossfade, old layout onto new — only
-            // once the slide has landed and the page reports the new layout
-            // painted. Without a shield (no web page, splits), the page lays
-            // out against the moving lane live, trailing under the edge.
-            withPageToggleShield {
-                guard sidebarToggleGeneration == generation else { return }
-                withAnimation(Self.sidebarToggleAnimation, completionCriteria: .logicallyComplete) {
-                    sidebarLane = lane
-                    sidebarLayoutLane = lane
-                } completion: {
-                    completion?()
-                }
-            } shielded: {
-                guard sidebarToggleGeneration == generation else { return }
+            // Opening: the slide starts THIS frame — Zen and Dia both move
+            // the chrome first and let the content story resolve behind it,
+            // and any wait here is the lag a person feels. The advancing
+            // sidebar only ever covers the page, so until the still lands
+            // (~15ms, one frame) the live page simply keeps its old layout
+            // under it; the still then mounts invisibly (identical pixels),
+            // the live page relayouts once beneath, and the crossfade waits
+            // for slide-end plus paint.
+            var slideDone = false
+            let armFade: @MainActor () -> Void = {
+                guard sidebarToggleGeneration == generation, slideDone, toggleShield != nil else { return }
+                fadeToggleShield(afterPaintedLeading: lane, trailing: nil)
+            }
+            withAnimation(Self.sidebarToggleAnimation, completionCriteria: .logicallyComplete) {
+                sidebarLane = lane
+                if plan == .bare { sidebarLayoutLane = lane }
+            } completion: {
+                slideDone = true
+                armFade()
+                completion?()
+            }
+            switch plan {
+            case .bare:
+                break
+            case .standingShield:
                 sidebarLayoutLane = lane
-                withAnimation(Self.sidebarToggleAnimation, completionCriteria: .logicallyComplete) {
-                    sidebarLane = lane
-                } completion: {
-                    if sidebarToggleGeneration == generation {
-                        fadeToggleShield(afterPaintedLeading: lane, trailing: nil)
+            case .capture:
+                store.webCoordinator.captureToggleShield(timeout: 0.15) { capture in
+                    guard sidebarToggleGeneration == generation else { return }
+                    if let capture {
+                        toggleShield = capture
+                        sidebarLayoutLane = lane
+                        armFade()
+                    } else {
+                        // Nothing to hide behind: lay out against what is
+                        // left of the moving lane, live.
+                        toggleShield = nil
+                        withAnimation(Self.sidebarToggleAnimation) { sidebarLayoutLane = lane }
                     }
-                    completion?()
                 }
             }
             return
         }
-        // Closing: same shape as opening — the still is glued to the moving
-        // edge, so the strip the sidebar uncovers shows the pictured page
-        // sliding back with it, never the live page's mid-reflow layout,
-        // and the slide starts at once (a paint-fence hold here starved
-        // rapid toggling: reversals arrived before any slow page painted,
-        // and no close ever moved). The live page relayouts to full width
-        // underneath at its own pace; the fade at the end waits for it.
-        withPageToggleShield {
+        // Closing uncovers the strip beside the sidebar, so the still must
+        // be up before the first moved frame — the capture is one frame,
+        // and its mount is a layer-contents handoff cheap enough to slide
+        // in the same update. The still rides the edge back out over the
+        // full-width relayout happening beneath; the fade at the end waits
+        // for that layout to have painted. A page that cannot picture
+        // itself inside the cap gets the bare live-reflow toggle instead of
+        // a late one.
+        let close: @MainActor (ShieldPlan) -> Void = { plan in
             guard sidebarToggleGeneration == generation else { return }
+            if plan != .bare { sidebarLayoutLane = 0 }
             withAnimation(Self.sidebarToggleAnimation, completionCriteria: .logicallyComplete) {
                 sidebarLane = 0
-                sidebarLayoutLane = 0
-            } completion: {
-                completion?()
-            }
-        } shielded: {
-            guard sidebarToggleGeneration == generation else { return }
-            sidebarLayoutLane = 0
-            withAnimation(Self.sidebarToggleAnimation, completionCriteria: .logicallyComplete) {
-                sidebarLane = 0
+                if plan == .bare { sidebarLayoutLane = 0 }
             } completion: {
                 // Only at the end of the slide, and only if no newer toggle
                 // owns the shield: fading earlier would strand a reversal
@@ -979,22 +992,35 @@ struct ContentView: View {
                 completion?()
             }
         }
+        switch plan {
+        case .bare:
+            close(.bare)
+        case .standingShield:
+            close(.standingShield)
+        case .capture:
+            store.webCoordinator.captureToggleShield(timeout: 0.08) { capture in
+                if let capture {
+                    toggleShield = capture
+                    close(.standingShield)
+                } else {
+                    toggleShield = nil
+                    close(.bare)
+                }
+            }
+        }
     }
 
-    /// Runs a lane toggle behind a still of the page (see
-    /// `PageToggleShield`) when there is a live web page to picture;
-    /// everything else — splits, SwiftUI pages, history — reflows at the
-    /// edge's own frame rate and runs the bare transition instead. A toggle
-    /// that reverses mid-flight reuses the standing still: the live page has
-    /// been covered since it was taken, so it is still the page the person
-    /// last saw — one still rides a whole burst of toggles. Mounting the
-    /// still is a layer-contents handoff (`ShieldSurface`), cheap enough to
-    /// start the slide in the same update; the only latency before motion is
-    /// the snapshot itself (~15ms).
-    private func withPageToggleShield(
-        _ unshielded: @escaping () -> Void,
-        shielded: @escaping () -> Void
-    ) {
+    /// How a lane toggle covers the page: behind the still already standing
+    /// (a burst mid-flight), behind a fresh capture, or bare — splits,
+    /// SwiftUI pages, and history reflow at the edge's own frame rate and
+    /// need no still.
+    private enum ShieldPlan {
+        case bare
+        case standingShield
+        case capture
+    }
+
+    private func pageToggleShieldPlan() -> ShieldPlan {
         guard store.displayedSplitTabs.count < 2,
               !isHistoryPresented,
               !store.isInitialSpaceSetupPresented,
@@ -1004,22 +1030,12 @@ struct ContentView: View {
               !tab.isWelcomePage
         else {
             toggleShield = nil
-            unshielded()
-            return
+            return .bare
         }
         if let shield = toggleShield, shield.opacity == 1 {
-            shielded()
-            return
+            return .standingShield
         }
-        store.webCoordinator.captureToggleShield { capture in
-            if let capture {
-                toggleShield = capture
-                shielded()
-            } else {
-                toggleShield = nil
-                unshielded()
-            }
-        }
+        return .capture
     }
 
     /// Fades the shield once the page under it has painted the given lanes
@@ -1138,24 +1154,40 @@ struct ContentView: View {
         let slide = {
             guard aiSidebarTransitionGeneration == generation else { return }
             // The still stays pinned for a trailing toggle — Eli's edge
-            // slides across it, the reveal — while the live page
-            // relayouts to the docked lane once, underneath.
-            withPageToggleShield {
-                guard aiSidebarTransitionGeneration == generation else { return }
-                withAnimation(Self.sidebarToggleAnimation) {
-                    isAISidebarVisible = true
-                    aiSidebarLane = width
-                    aiSidebarLayoutLane = width
-                }
-            } shielded: {
-                guard aiSidebarTransitionGeneration == generation else { return }
+            // slides across it, the reveal — while the live page relayouts
+            // to the docked lane once, underneath. The slide starts at
+            // once: the moving edge only ever covers the page, so until a
+            // fresh still lands the live page keeps its old layout under it.
+            let plan = pageToggleShieldPlan()
+            var slideDone = false
+            let armFade: @MainActor () -> Void = {
+                guard aiSidebarTransitionGeneration == generation, slideDone, toggleShield != nil else { return }
+                fadeToggleShield(afterPaintedLeading: nil, trailing: width)
+            }
+            withAnimation(Self.sidebarToggleAnimation, completionCriteria: .logicallyComplete) {
+                isAISidebarVisible = true
+                aiSidebarLane = width
+                if plan == .bare { aiSidebarLayoutLane = width }
+            } completion: {
+                slideDone = true
+                armFade()
+            }
+            switch plan {
+            case .bare:
+                break
+            case .standingShield:
                 aiSidebarLayoutLane = width
-                withAnimation(Self.sidebarToggleAnimation, completionCriteria: .logicallyComplete) {
-                    isAISidebarVisible = true
-                    aiSidebarLane = width
-                } completion: {
+            case .capture:
+                store.webCoordinator.captureToggleShield(timeout: 0.15) { capture in
                     guard aiSidebarTransitionGeneration == generation else { return }
-                    fadeToggleShield(afterPaintedLeading: nil, trailing: width)
+                    if let capture {
+                        toggleShield = capture
+                        aiSidebarLayoutLane = width
+                        armFade()
+                    } else {
+                        toggleShield = nil
+                        withAnimation(Self.sidebarToggleAnimation) { aiSidebarLayoutLane = width }
+                    }
                 }
             }
         }
@@ -1201,10 +1233,15 @@ struct ContentView: View {
         // slide uncovers content that is already in place, never the page's
         // margin catching up. The panel stays mounted for the slide, then
         // goes.
-        // The still covers the page through the full-width relayout and
-        // rides the handover: the edge slides only once the page has painted
-        // for it, and the still fades across the slide onto that layout.
-        withPageToggleShield {
+        // Closing uncovers page area at the card's trailing edge, so the
+        // still must be up before the first moved frame (one-frame capture,
+        // hard cap): it stretches out to the moving edge and covers the
+        // strip while the full-width relayout happens beneath. Only the
+        // end fade waits for that layout to paint. Bare closes (splits,
+        // no page, a missed capture) keep the paint-fence hold — there the
+        // uncovered strip really would show the page's bare margin.
+        let bareClose: @MainActor () -> Void = {
+            guard aiSidebarTransitionGeneration == generation else { return }
             aiSidebarLayoutLane = 0
             store.webCoordinator.waitForTrailingLane(0, timeout: 0.4) {
                 guard aiSidebarTransitionGeneration == generation else { return }
@@ -1215,12 +1252,9 @@ struct ContentView: View {
                     isAISidebarMounted = false
                 }
             }
-        } shielded: {
+        }
+        let shieldedClose: @MainActor () -> Void = {
             guard aiSidebarTransitionGeneration == generation else { return }
-            // No paint fence here: the still stretches out to the moving
-            // edge, so the strip the edge uncovers shows the pictured page,
-            // not the live one mid-reflow — the slide can start at once.
-            // Only the fade waits for the full-width layout to paint.
             aiSidebarLayoutLane = 0
             withAnimation(Self.sidebarToggleAnimation, completionCriteria: .logicallyComplete) {
                 aiSidebarLane = 0
@@ -1228,6 +1262,22 @@ struct ContentView: View {
                 guard aiSidebarTransitionGeneration == generation else { return }
                 fadeToggleShield(afterPaintedLeading: nil, trailing: 0)
                 isAISidebarMounted = false
+            }
+        }
+        switch pageToggleShieldPlan() {
+        case .bare:
+            bareClose()
+        case .standingShield:
+            shieldedClose()
+        case .capture:
+            store.webCoordinator.captureToggleShield(timeout: 0.08) { capture in
+                if let capture {
+                    toggleShield = capture
+                    shieldedClose()
+                } else {
+                    toggleShield = nil
+                    bareClose()
+                }
             }
         }
     }

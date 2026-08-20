@@ -250,6 +250,8 @@ extension WebViewCoordinator {
             settled = true
             guard let self else { return }
             self.obscuredContentInsetsInFlight.remove(key)
+            self.settledObscuredContentInsets[key] = insets
+            self.obscuredContentInsetsSettleCounts[key, default: 0] += 1
             guard let webView else { return }
             if let pending = self.pendingObscuredContentInsets.removeValue(forKey: key) {
                 self.applyObscuredContentInsets(pending, to: webView)
@@ -354,7 +356,10 @@ extension WebViewCoordinator {
     /// The still must picture the pre-toggle layout, so this runs before the
     /// new lanes are applied; a page that cannot paint in time (throttled,
     /// mid-navigation) hands back nil and the toggle runs bare.
-    func captureToggleShield(completion: @escaping @MainActor (PageToggleShield?) -> Void) {
+    func captureToggleShield(
+        timeout: TimeInterval,
+        completion: @escaping @MainActor (PageToggleShield?) -> Void
+    ) {
         guard #available(macOS 26.0, *),
               let tabID = hostedActiveTabID,
               let webView = webViews[tabID],
@@ -365,7 +370,13 @@ extension WebViewCoordinator {
             completion(nil)
             return
         }
-        let insets = webView.obscuredContentInsets
+        let key = ObjectIdentifier(webView)
+        // Anchor to the SETTLED lanes — the layout the page is actually
+        // painted at, which is what the bitmap will picture. The property
+        // itself holds the last *requested* value, which mid-burst can be
+        // a relayout still in flight.
+        let insets = settledObscuredContentInsets[key] ?? webView.obscuredContentInsets
+        let settleCount = obscuredContentInsetsSettleCounts[key, default: 0]
         // The snapshot pictures the layout viewport from its own origin —
         // the obscured lanes are not part of it — so ask for exactly that
         // and record which lanes it was laid out against.
@@ -374,10 +385,15 @@ extension WebViewCoordinator {
             height: max(webView.bounds.height - insets.top - insets.bottom, 1)
         )
         var delivered = false
-        let deliver: @MainActor (NSImage?) -> Void = { image in
+        let deliver: @MainActor (NSImage?) -> Void = { [weak self] image in
             guard !delivered else { return }
             delivered = true
-            guard let image else {
+            guard let image,
+                  // A relayout settled while the bitmap was being drawn:
+                  // it could picture either layout, and a shield anchored
+                  // to the wrong one is worse than none.
+                  self?.obscuredContentInsetsSettleCounts[key, default: 0] == settleCount
+            else {
                 completion(nil)
                 return
             }
@@ -396,7 +412,7 @@ extension WebViewCoordinator {
                 deliver(image)
             }
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + timeout) {
             deliver(nil)
         }
     }
