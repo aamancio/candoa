@@ -301,8 +301,8 @@ extension WebViewCoordinator {
         guard let webView else { return }
         guard let activeID = hostedActiveTabID, webViews[activeID] === webView else { return }
         let waiters = trailingLaneWaiters
-        trailingLaneWaiters = waiters.filter { $0.trailing != insets.right }
-        for waiter in waiters where waiter.trailing == insets.right {
+        trailingLaneWaiters = waiters.filter { !$0.matches(insets) }
+        for waiter in waiters where waiter.matches(insets) {
             waiter.completion()
         }
     }
@@ -312,6 +312,20 @@ extension WebViewCoordinator {
     /// full width under the still-docked panel first and slides only then,
     /// so the slide uncovers content rather than the page's margin.
     func waitForTrailingLane(_ trailing: CGFloat, timeout: TimeInterval, completion: @escaping @MainActor () -> Void) {
+        waitForPaintedLanes(leading: nil, trailing: trailing, timeout: timeout, completion: completion)
+    }
+
+    /// Calls back once the active page has painted against the given lanes
+    /// (a nil lane is not checked), or the timeout passes. The sidebar
+    /// toggles gate on this: a close slides only once the revealed strip
+    /// would show content laid out for it, and a shield fades only once the
+    /// page under it has the layout the fade hands over to.
+    func waitForPaintedLanes(
+        leading: CGFloat?,
+        trailing: CGFloat?,
+        timeout: TimeInterval,
+        completion: @escaping @MainActor () -> Void
+    ) {
         var done = false
         let once: @MainActor () -> Void = {
             guard !done else { return }
@@ -321,17 +335,70 @@ extension WebViewCoordinator {
         if #available(macOS 26.0, *),
            let activeID = hostedActiveTabID, let webView = webViews[activeID] {
             let key = ObjectIdentifier(webView)
-            if webView.obscuredContentInsets.right == trailing,
+            let waiter = LaneWaiter(leading: leading, trailing: trailing, completion: once)
+            if waiter.matches(webView.obscuredContentInsets),
                !obscuredContentInsetsInFlight.contains(key), pendingObscuredContentInsets[key] == nil {
                 once()
                 return
             }
+            trailingLaneWaiters.append(waiter)
         } else {
             once()
             return
         }
-        trailingLaneWaiters.append(LaneWaiter(trailing: trailing, completion: once))
         DispatchQueue.main.asyncAfter(deadline: .now() + timeout) { once() }
+    }
+
+    /// Takes a still of the active page for a lane toggle's shield (see
+    /// `PageToggleShield`), anchored to the lanes its layout was against.
+    /// The still must picture the pre-toggle layout, so this runs before the
+    /// new lanes are applied; a page that cannot paint in time (throttled,
+    /// mid-navigation) hands back nil and the toggle runs bare.
+    func captureToggleShield(completion: @escaping @MainActor (PageToggleShield?) -> Void) {
+        guard #available(macOS 26.0, *),
+              let tabID = hostedActiveTabID,
+              let webView = webViews[tabID],
+              !webView.bounds.isEmpty,
+              !webView.isHidden,
+              webView.window != nil
+        else {
+            completion(nil)
+            return
+        }
+        let insets = webView.obscuredContentInsets
+        // The snapshot pictures the layout viewport from its own origin —
+        // the obscured lanes are not part of it — so ask for exactly that
+        // and record which lanes it was laid out against.
+        let size = CGSize(
+            width: max(webView.bounds.width - insets.left - insets.right, 1),
+            height: max(webView.bounds.height - insets.top - insets.bottom, 1)
+        )
+        var delivered = false
+        let deliver: @MainActor (NSImage?) -> Void = { image in
+            guard !delivered else { return }
+            delivered = true
+            guard let image else {
+                completion(nil)
+                return
+            }
+            completion(PageToggleShield(
+                id: UUID(),
+                image: image,
+                size: size,
+                anchorLeading: insets.left,
+                anchorTrailing: insets.right
+            ))
+        }
+        let configuration = WKSnapshotConfiguration()
+        configuration.rect = CGRect(origin: .zero, size: size)
+        webView.takeSnapshot(with: configuration) { image, _ in
+            DispatchQueue.main.async {
+                deliver(image)
+            }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+            deliver(nil)
+        }
     }
 
     /// Points WebKit's attached Web Inspector at the host's lane-inset
@@ -588,8 +655,15 @@ struct MiniPlayerSummonHandoff {
     let pageFrame: CGRect
 }
 
-/// Someone waiting for the active page to have painted against a lane.
+/// Someone waiting for the active page to have painted against lanes; a nil
+/// lane is not checked.
 struct LaneWaiter {
-    let trailing: CGFloat
+    let leading: CGFloat?
+    let trailing: CGFloat?
     let completion: @MainActor () -> Void
+
+    func matches(_ insets: NSEdgeInsets) -> Bool {
+        (leading.map { abs($0 - insets.left) < 0.5 } ?? true)
+            && (trailing.map { abs($0 - insets.right) < 0.5 } ?? true)
+    }
 }

@@ -21,6 +21,10 @@ struct WebViewContainer: View {
     /// Mask-only: it never reaches the WKWebView's obscured content insets
     /// or frame.
     let slideOverTrailingInset: CGFloat
+    /// A still of the page ridden over the live web view while a sidebar
+    /// toggles, so the toggle shows real pixels at the moving edge instead
+    /// of WebKit's stale mid-reflow layout (see `PageToggleShield`).
+    var toggleShield: PageToggleShield? = nil
     @AppStorage(DeveloperModeConfiguration.storageKey) private var developerModeOverrides = ""
     @AppStorage(SettingsOption.addressBarPlacement)
     private var addressBarPlacement = AddressBarPlacement.default.rawValue
@@ -335,6 +339,11 @@ struct WebViewContainer: View {
                 )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(InterfaceStyle.surfaceFill.opacity(0.72))
+                    .overlay(alignment: .topLeading) {
+                        if let toggleShield {
+                            PageToggleShieldView(shield: toggleShield)
+                        }
+                    }
                     .overlay {
                         // Covers the pane, never replaces it: the web view
                         // stays mounted so retrying repaints underneath and
