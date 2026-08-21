@@ -408,6 +408,10 @@ final class SpaceMemoryTests: XCTestCase {
     func testGenericSuggestionsKeepTheOriginalChips() {
         let titles = EliSuggestionCatalog.suggestions(for: nil).map(\.title)
         XCTAssertEqual(titles, ["Summarize this page", "Explain the key points"])
+        // The context chip already names the page, so the generic pair never
+        // restates its subject.
+        XCTAssertTrue(EliSuggestionCatalog.suggestions(for: .generic).allSatisfy { $0.personalizedFormat == nil })
+        XCTAssertTrue(EliSuggestionCatalog.suggestions(for: .pdf).allSatisfy { $0.personalizedFormat == nil })
     }
 
     func testPersonalizationFillsOnlySlottedChips() {
