@@ -36804,6 +36804,46 @@
           }
         }
       }
+    },
+    "List the key points from this video's description" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die wichtigsten Punkte aus der Beschreibung dieses Videos auflisten"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enumera los puntos clave de la descripción de este video"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lister les points clés de la description de cette vidéo"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "この動画の説明から要点を一覧表示"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Listar os pontos principais da descrição deste vídeo"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "列出此视频简介中的要点"
+          }
+        }
+      }
     }
   },
   "version" : "1.2"

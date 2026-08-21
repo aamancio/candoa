@@ -1,5 +1,6 @@
 import AppKit
 import os
+import OSLog
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -413,27 +414,38 @@ struct EliSidebarView: View {
     /// Catalog chips land immediately from the URL alone; the on-device fill
     /// follows when it is available, debounced so SPA pages that rewrite
     /// their DOM on every keystroke do not keep the model busy (issue #467).
+    private static let suggestionLog = Logger(subsystem: "com.candoa.browser", category: "EliSuggestions")
+
     private func refreshSuggestions() {
         suggestionTask?.cancel()
         let tabID = store.activeTabID
         let url = store.activeTab?.url
         suggestions = EliSuggestionCatalog.suggestions(for: url)
 
-        guard messages.isEmpty,
-              EliSuggestionPersonalizer.shared.isAvailable,
-              suggestions.contains(where: { $0.personalizedFormat != nil }),
-              let tabID
-        else { return }
+        // A video page needs the page text to decide whether key moments are
+        // on offer; any page with a slot needs it for the on-device fill.
+        let readsForVideo = EliSuggestionCatalog.domain(for: url) == .video
+        let personalizes = EliSuggestionPersonalizer.shared.isAvailable
+            && suggestions.contains(where: { $0.personalizedFormat != nil })
+        guard messages.isEmpty, readsForVideo || personalizes, let tabID else { return }
 
-        EliSuggestionPersonalizer.shared.prewarm()
+        if personalizes { EliSuggestionPersonalizer.shared.prewarm() }
         suggestionTask = Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(600))
             guard !Task.isCancelled else { return }
-            let excerpt = await store.eliSuggestionExcerpt(for: tabID)
-            guard !Task.isCancelled else { return }
-            let cacheKey = "\(url?.absoluteString ?? "")#\(excerpt.hashValue)"
+            let read = await store.eliSuggestionPageRead(for: tabID, includingPlainText: readsForVideo)
+            guard !Task.isCancelled, store.activeTabID == tabID, messages.isEmpty else { return }
+            if readsForVideo {
+                let exposes = EliSuggestionCatalog.videoExposesKeyMoments(pageText: read.plainText)
+                Self.suggestionLog.info(
+                    "Video key moments \(exposes ? "offered" : "withheld", privacy: .public) from \(read.plainText?.count ?? 0) chars"
+                )
+                suggestions = EliSuggestionCatalog.suggestions(for: url, pageText: read.plainText)
+            }
+            guard personalizes else { return }
+            let cacheKey = "\(url?.absoluteString ?? "")#\(read.excerpt.hashValue)"
             guard let subject = await EliSuggestionPersonalizer.shared.subject(
-                forExcerpt: excerpt,
+                forExcerpt: read.excerpt,
                 host: url?.host,
                 cacheKey: cacheKey
             ) else { return }

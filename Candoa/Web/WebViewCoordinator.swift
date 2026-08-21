@@ -690,6 +690,23 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         webView.evaluateJavaScript("window.getSelection().removeAllRanges()")
     }
 
+    /// The page's full text-node content (see `plainPageTextScript`), used
+    /// for evidence checks that the readable extraction would miss.
+    func plainPageText(for tabID: UUID) async -> String? {
+        guard let webView = webViews[tabID] else { return nil }
+
+        return await withCheckedContinuation { continuation in
+            webView.evaluateJavaScript(WebPageScripts.plainPageTextScript) { value, error in
+                guard error == nil else {
+                    continuation.resume(returning: nil)
+                    return
+                }
+
+                continuation.resume(returning: value as? String)
+            }
+        }
+    }
+
     func readablePageText(for tabID: UUID) async -> String? {
         guard let webView = webViews[tabID] else { return nil }
 

@@ -244,6 +244,40 @@ enum WebPageScripts {
     })();
     """
 
+    /// Every text node in the body, scripts and styles excluded, collapsed
+    /// to single spaces. Unlike `readablePageTextScript` this keeps text that
+    /// sits outside block elements (YouTube's description is bare spans),
+    /// which is where chapter lists live. Bounded so a long page cannot pin
+    /// the main thread on the way back.
+    static let plainPageTextScript = """
+    (() => {
+      const limit = 200000;
+      const root = document.body;
+      if (!root) { return ""; }
+      const skip = new Set(["SCRIPT", "STYLE", "NOSCRIPT", "TEMPLATE", "SVG"]);
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+        acceptNode: (node) => {
+          let parent = node.parentElement;
+          while (parent) {
+            if (skip.has(parent.tagName.toUpperCase())) { return NodeFilter.FILTER_REJECT; }
+            parent = parent.parentElement;
+          }
+          return NodeFilter.FILTER_ACCEPT;
+        }
+      });
+      const parts = [];
+      let length = 0;
+      while (walker.nextNode()) {
+        const text = walker.currentNode.nodeValue.replace(/\\s+/g, " ").trim();
+        if (!text) { continue; }
+        parts.push(text);
+        length += text.length + 1;
+        if (length >= limit) { break; }
+      }
+      return parts.join(" ");
+    })();
+    """
+
     static let readablePageTextScript = """
     (() => {
       const limit = 30000;

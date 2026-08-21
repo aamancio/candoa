@@ -414,6 +414,34 @@ final class SpaceMemoryTests: XCTestCase {
         XCTAssertTrue(EliSuggestionCatalog.suggestions(for: .pdf).allSatisfy { $0.personalizedFormat == nil })
     }
 
+    func testVideoKeyMomentsChipNeedsChaptersOrTranscript() {
+        let video = URL(string: "https://www.youtube.com/watch?v=abc123")
+        XCTAssertEqual(EliSuggestionCatalog.suggestions(for: video).map(\.kind), [.summarize, .keyFacts])
+
+        // Sidebar thumbnail durations are not evidence.
+        let durationsOnly = "Player 0:00 / 53:16\nRelated\n53:16\nBREAKING\n10:47\nSABOTAGE\n2:39:52\nThriving"
+        XCTAssertFalse(EliSuggestionCatalog.videoExposesKeyMoments(pageText: durationsOnly))
+        XCTAssertEqual(EliSuggestionCatalog.suggestions(for: video, pageText: durationsOnly).map(\.kind),
+                       [.summarize, .keyFacts])
+
+        // The page read collapses a description block onto one line.
+        let chapters = "Description 0:00 Intro 2:15 The apartment 14:30 Verdict\n53:16"
+        XCTAssertTrue(EliSuggestionCatalog.videoExposesKeyMoments(pageText: chapters))
+        XCTAssertEqual(EliSuggestionCatalog.suggestions(for: video, pageText: chapters).map(\.kind),
+                       [.summarize, .keyMoments])
+
+        let longChapters = "topics covered: 00:00:00 Introduction 00:02:58 What is JavaScript?"
+        XCTAssertTrue(EliSuggestionCatalog.videoExposesKeyMoments(pageText: longChapters))
+
+        let transcript = "Transcript\n0:03 hey everyone\n0:09 today we are\n0:14 in Mactan"
+        XCTAssertTrue(EliSuggestionCatalog.videoExposesKeyMoments(pageText: transcript))
+
+        XCTAssertFalse(EliSuggestionCatalog.videoExposesKeyMoments(pageText: nil))
+        // The gate never touches other domains.
+        XCTAssertEqual(EliSuggestionCatalog.suggestions(for: nil, pageText: chapters).map(\.kind),
+                       EliSuggestionCatalog.suggestions(for: nil).map(\.kind))
+    }
+
     func testPersonalizationFillsOnlySlottedChips() {
         let email = EliSuggestionCatalog.suggestions(for: .email)
         let filled = email.map { $0.personalized(with: "the Q3 budget") }
