@@ -136,7 +136,9 @@ extension BrowserStore {
             title: tab.title.trimmingCharacters(in: .whitespacesAndNewlines),
             url: url.absoluteString,
             text: String(pageText.prefix(16_000)),
-            controls: snapshot.controls
+            controls: snapshot.controls,
+            tree: snapshot.tree,
+            viewport: snapshot.viewport
         )
     }
 
@@ -381,7 +383,8 @@ extension BrowserStore {
         )
     }
 
-    func waitForBrowserAgentPageSettled(in tabID: UUID, previousURL: String) async {
+    @discardableResult
+    func waitForBrowserAgentPageSettled(in tabID: UUID, previousURL: String) async -> Int? {
         await webCoordinator.waitForBrowserAgentPageSettled(for: tabID, previousURL: previousURL)
     }
 

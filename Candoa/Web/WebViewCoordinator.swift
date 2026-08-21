@@ -760,21 +760,35 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         }
     }
 
-    func waitForBrowserAgentPageSettled(for tabID: UUID, previousURL: String) async {
-        guard let webView = webViews[tabID] else { return }
+    /// Waits for the page to stop changing after an agent action and
+    /// returns how many DOM mutations it saw (nil when the page could not be
+    /// observed). Client-rendered pages change long after a click returns;
+    /// watching the DOM instead of sleeping a fixed beat lands the next
+    /// snapshot after the change, and a zero tells the model the click did
+    /// nothing.
+    func waitForBrowserAgentPageSettled(for tabID: UUID, previousURL: String) async -> Int? {
+        guard let webView = webViews[tabID] else { return nil }
 
-        // Client-rendered configurators often unlock the next choice without a
-        // WebKit navigation. Give that bounded transition time to commit before
-        // the agent observes the page again.
-        try? await Task.sleep(for: .milliseconds(650))
-        for _ in 0..<12 {
-            guard !Task.isCancelled else { return }
-            if !webView.isLoading {
-                try? await Task.sleep(for: .milliseconds(250))
-                if !webView.isLoading { return }
-            }
-            try? await Task.sleep(for: .milliseconds(200))
+        // A navigation tears the document down; a settle observer on the
+        // old document would resolve with nothing. Let the load finish first.
+        for _ in 0..<40 {
+            guard !Task.isCancelled else { return nil }
+            if !webView.isLoading { break }
+            try? await Task.sleep(for: .milliseconds(100))
         }
+        let report = await browserAgentDriver.waitForSettle(in: webView)
+        // The settle may have been the start of a navigation; wait that out too.
+        for _ in 0..<40 {
+            guard !Task.isCancelled else { return report?.mutations }
+            if !webView.isLoading { break }
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+        if webView.url?.absoluteString != previousURL {
+            // New document: give its scripts one settle window as well.
+            try? await Task.sleep(for: .milliseconds(150))
+            await browserAgentDriver.waitForSettle(in: webView, quiet: .milliseconds(300), timeout: .seconds(2))
+        }
+        return report?.mutations
     }
 
     func performAIPageAction(_ action: PageActionProposal, for tabID: UUID) async -> PageActionResult {
