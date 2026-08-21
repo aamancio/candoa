@@ -87,12 +87,12 @@ extension CandoaUITests {
         let picker = popUpButton(withValue: "Automatic", in: app)
         XCTAssertTrue(picker.waitForExistence(timeout: 5))
         picker.click()
-        XCTAssertTrue(app.menuItems["GPT-5.6 Sol (5 credits)"].waitForExistence(timeout: 5))
-        let lunaItem = app.menuItems["GPT-5.6 Luna (1 credit)"]
+        XCTAssertTrue(app.menuItems["GPT-5.6 Sol (5 credits per message)"].waitForExistence(timeout: 5))
+        let lunaItem = app.menuItems["GPT-5.6 Luna (1 credit per message)"]
         XCTAssertTrue(lunaItem.exists)
         lunaItem.click()
         XCTAssertTrue(
-            popUpButton(withValue: "GPT-5.6 Luna (1 credit)", in: app).waitForExistence(timeout: 5)
+            popUpButton(withValue: "GPT-5.6 Luna (1 credit per message)", in: app).waitForExistence(timeout: 5)
         )
     }
 

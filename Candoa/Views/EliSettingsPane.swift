@@ -93,11 +93,16 @@ internal struct EliSettingsPane: View {
     }
 
     /// Hosted options carry their server-priced credit cost so the tradeoff
-    /// is visible at the moment of choosing, not after the bill.
+    /// is visible at the moment of choosing, not after the bill. The price is
+    /// per message: a browser task runs several steps and settles at a higher
+    /// weight, which the picker's subtitle says plainly rather than guessing a
+    /// number the server owns.
     private static func hostedOptionTitle(for model: AIModel) -> String {
         guard let cost = model.creditCost else { return model.displayName }
-        let unit = cost == 1 ? "credit" : "credits"
-        return "\(model.displayName) (\(cost) \(unit))"
+        let price = cost == 1
+            ? String(localized: "1 credit per message")
+            : String(localized: "\(cost) credits per message")
+        return "\(model.displayName) (\(price))"
     }
 
     private var reasoningOptions: [SettingsPickerOption] {
@@ -131,7 +136,7 @@ internal struct EliSettingsPane: View {
                             title: String(localized: "Model"),
                             subtitle: userStore.hostedModels.isEmpty
                                 ? String(localized: "Automatic uses your plan's default model. Sign in to choose from your plan's models.")
-                                : String(localized: "Models available on your Candoa plan."),
+                                : String(localized: "Models available on your Candoa plan. A browser task costs more than a message, because Eli works through several steps."),
                             selection: hostedModelBinding,
                             options: hostedModelOptions
                         )
