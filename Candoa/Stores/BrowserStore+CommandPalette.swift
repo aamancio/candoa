@@ -156,6 +156,15 @@ extension BrowserStore {
         }
     }
 
+    /// A private window opens on its explainer card with nothing loaded, so
+    /// it starts the way Safari's does: command bar up, ready for the first
+    /// address. Only for the empty window it opened with — a private window
+    /// that already has tabs is left as the person left it.
+    func openPrivateWindowCommandBarIfNeeded() {
+        guard isPrivate, tabs.isEmpty, !isCommandPalettePresented else { return }
+        openNewTabCommandPalette()
+    }
+
     func openNewTabCommandPalette() {
         guard !isInitialOnboardingBlockingBrowsing else { return }
 
