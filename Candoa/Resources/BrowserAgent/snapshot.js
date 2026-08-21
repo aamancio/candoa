@@ -186,6 +186,9 @@ return (() => {
     }
 
     if (tag === "select" || tag === "textarea" || tag === "input" || tag === "svg" || tag === "canvas" || tag === "video" || tag === "audio" || tag === "object" || tag === "embed") return;
+    // A field's content is its value (shown on its own line, truncated);
+    // walking into a rich editor would print the whole document.
+    if (node !== parent && node.kind === "field") return;
     if (tag === "figcaption" && parent.name) return;
     walkChildren(el, node, frameOffset, depth + 1);
   }
