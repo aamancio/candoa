@@ -70,6 +70,16 @@ extension WebViewCoordinator {
                     guard let webView else { return }
                     self?.updateStore(from: webView, isLoading: webView.isLoading)
                 }
+            },
+            // Element full screen is WebKit's to drive; hosting only has to
+            // get out of its way and back in (see `isInElementFullscreen`).
+            // Observed without `.new`: the state is read off the web view, so
+            // there is no enum to decode out of the change dictionary.
+            webView.observe(\.fullscreenState, options: []) { [weak self, weak webView] _, _ in
+                Task { @MainActor in
+                    guard let webView else { return }
+                    self?.elementFullscreenStateDidChange(for: webView)
+                }
             }
         ]
     }

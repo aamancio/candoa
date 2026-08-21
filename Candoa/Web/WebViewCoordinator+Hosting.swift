@@ -16,6 +16,10 @@ extension WebViewCoordinator {
         pageAreaInsets: NSEdgeInsets
     ) {
         guard let activeWebView = webViews[tabID] else { return }
+        // A video blown up to full screen belongs to WebKit until it comes
+        // back (see `isInElementFullscreen`); hosting it now would pull the
+        // page out of the full-screen window mid-animation.
+        guard !isInElementFullscreen(activeWebView) else { return }
         syncHostBackground(in: container, with: activeWebView)
         applyObscuredContentInsets(pageAreaInsets, to: activeWebView)
         attachInspector(of: activeWebView, to: container)
@@ -137,6 +141,7 @@ extension WebViewCoordinator {
         pageAreaInsets: NSEdgeInsets
     ) {
         guard let webView = webViews[tabID] else { return }
+        guard !isInElementFullscreen(webView) else { return }
         syncHostBackground(in: container, with: webView)
         applyObscuredContentInsets(pageAreaInsets, to: webView)
         attachInspector(of: webView, to: container)
@@ -157,6 +162,50 @@ extension WebViewCoordinator {
         if restoringTabIDs.contains(tabID), let snapshot = wakeSnapshots[tabID] {
             presentRestoreOverlay(snapshot, for: tabID, in: container)
         }
+    }
+
+    // MARK: - Element full screen
+
+    /// True while WebKit owns this page's presentation because a video (or
+    /// any element) asked for full screen.
+    ///
+    /// WebKit does this by swapping the web view out of its host for a
+    /// placeholder and re-parenting it into its own full-screen window. Both
+    /// of Candoa's hosts re-assert their hosting from `layout()`, which runs
+    /// again while that swap is in flight — and re-hosting yanked the page
+    /// straight back into the browser window, leaving the full-screen window
+    /// black with nothing in it. So hosting stands down for the round trip;
+    /// `elementFullscreenStateDidChange` re-runs it when the page returns.
+    func isInElementFullscreen(_ webView: WKWebView) -> Bool {
+        webView.fullscreenState != .notInFullscreen
+    }
+
+    /// Follows a page in and out of element full screen.
+    ///
+    /// Going in, the reserved sidebar and Eli lanes do not exist on the
+    /// full-screen window, so the page's obscured content insets — which
+    /// describe those lanes — have to go with them, or the video is laid out
+    /// around chrome that is not on screen. Coming back, the host re-derives
+    /// them from its live lane geometry on the next layout pass.
+    func elementFullscreenStateDidChange(for webView: WKWebView) {
+        switch webView.fullscreenState {
+        case .enteringFullscreen, .inFullscreen:
+            applyObscuredContentInsets(NSEdgeInsets(), to: webView)
+        default:
+            // WebKit re-parents the web view as part of the same exit, and a
+            // host whose geometry never changed has no reason to lay out on
+            // its own — ask it, so the page is re-hosted and re-inset.
+            hostOfWebView(webView)?.needsLayout = true
+        }
+    }
+
+    private func hostOfWebView(_ webView: WKWebView) -> WebPaneHostView? {
+        var candidate: NSView? = webView.superview
+        while let view = candidate {
+            if let host = view as? WebPaneHostView { return host }
+            candidate = view.superview
+        }
+        return nil
     }
 
     /// Match the host to the page-derived under-page color so any transient
