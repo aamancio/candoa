@@ -1,5 +1,48 @@
 import Foundation
 
+/// A code a search engine issues so it can attribute searches to Candoa and
+/// pay the revenue share. DuckDuckGo reads it from `t`, Ecosia from `tt`; the
+/// name is the engine's choice, so it travels with the code.
+///
+/// `expiresAt` is not decoration. Search deals lapse — Vivaldi moved its
+/// default off Bing in some regions when that deal ended — and a code that
+/// outlives its deal is a parameter sent to a partner who is no longer paying
+/// for it. Codes are issued, rotated, and revoked on the engine's schedule,
+/// so they arrive as configuration rather than living in the binary.
+struct SearchPartnerCode: Equatable, Sendable {
+    let providerID: String
+    let queryItemName: String
+    let value: String
+    let expiresAt: Date?
+
+    func isValid(at date: Date) -> Bool {
+        guard let expiresAt else { return true }
+        return date < expiresAt
+    }
+}
+
+/// The partner codes in force. Empty until a deal exists, which is the state
+/// that ships today: with no code the search URL is byte-for-byte what it was.
+struct SearchPartnerCodes: Equatable, Sendable {
+    private let codesByProviderID: [String: SearchPartnerCode]
+
+    static let none = SearchPartnerCodes([])
+
+    init(_ codes: [SearchPartnerCode]) {
+        codesByProviderID = Dictionary(
+            codes.map { ($0.providerID, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+    }
+
+    func queryItem(for providerID: String, at date: Date = Date()) -> URLQueryItem? {
+        guard let code = codesByProviderID[providerID], code.isValid(at: date) else {
+            return nil
+        }
+        return URLQueryItem(name: code.queryItemName, value: code.value)
+    }
+}
+
 struct SearchProvider: Identifiable, Equatable {
     let id: String
     let name: String
@@ -30,13 +73,23 @@ struct SearchProvider: Identifiable, Equatable {
         self.forwardsQueryIntoWebApp = forwardsQueryIntoWebApp
     }
 
-    func searchURL(for rawQuery: String) -> URL? {
+    /// Partner codes are a required argument rather than an optional one: a
+    /// call site that forgets them still searches, so the mistake is invisible
+    /// and costs revenue silently. Make the compiler ask.
+    func searchURL(
+        for rawQuery: String,
+        partnerCodes: SearchPartnerCodes,
+        at date: Date = Date()
+    ) -> URL? {
         let query = rawQuery.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !query.isEmpty else { return nil }
 
         var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false)
         var queryItems = components?.queryItems ?? []
         queryItems.append(URLQueryItem(name: queryItemName, value: query))
+        if let partnerItem = partnerCodes.queryItem(for: id, at: date) {
+            queryItems.append(partnerItem)
+        }
         components?.queryItems = queryItems
         return components?.url
     }
@@ -67,6 +120,11 @@ struct SearchProvider: Identifiable, Equatable {
 
 struct NavigationService {
     static let shared = NavigationService()
+
+    /// Empty until a search deal exists. Populated from server configuration
+    /// rather than compiled in, so a code can be issued, rotated, or revoked
+    /// without an app release.
+    var partnerCodes: SearchPartnerCodes = .none
 
     static let searchProviders: [SearchProvider] = [
         SearchProvider(
@@ -317,7 +375,7 @@ struct NavigationService {
         }
 
         let provider = Self.defaultSearchProvider(for: defaultSearchProviderID)
-        return provider.searchURL(for: input)
+        return provider.searchURL(for: input, partnerCodes: partnerCodes)
     }
 
     /// Resolves only destinations the person or a trusted page link specified exactly.
@@ -351,7 +409,7 @@ struct NavigationService {
     }
 
     func searchURL(provider: SearchProvider, query: String) -> URL? {
-        provider.searchURL(for: query)
+        provider.searchURL(for: query, partnerCodes: partnerCodes)
     }
 
     func preferredLocaleURL(for url: URL) -> URL {

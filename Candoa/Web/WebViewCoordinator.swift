@@ -261,7 +261,11 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
     func searchInNewTab(_ query: String) {
         guard let store else { return }
         let provider = NavigationService.defaultSearchProvider(for: store.defaultSearchProviderID)
-        guard let url = provider.searchURL(for: query) else { return }
+        // Through the service so the search carries whatever partner code is
+        // in force, like every other search does.
+        guard let url = store.navigationService.searchURL(provider: provider, query: query) else {
+            return
+        }
         store.navigateNewTab(to: url)
     }
 
