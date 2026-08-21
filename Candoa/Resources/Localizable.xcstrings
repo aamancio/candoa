@@ -41,6 +41,46 @@
         }
       }
     },
+    "1 credit per message" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 Credit pro Nachricht"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 crédito por mensaje"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 crédit par message"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1メッセージあたり1クレジット"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 crédito por mensagem"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每条消息 1 积分"
+          }
+        }
+      }
+    },
     "— %@" : {
       "comment" : "Command palette row: em dash before a detail or source label.",
       "localizations" : {
@@ -489,6 +529,46 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@，%@，当前空间"
+          }
+        }
+      }
+    },
+    "%lld credits per message" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld Credits pro Nachricht"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld créditos por mensaje"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld crédits par message"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1メッセージあたり%lldクレジット"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld créditos por mensagem"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每条消息 %lld 积分"
           }
         }
       }
@@ -17438,42 +17518,42 @@
         }
       }
     },
-    "Models available on your Candoa plan." : {
+    "Models available on your Candoa plan. A browser task costs more than a message, because Eli works through several steps." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Modelle, die in Ihrem Candoa-Plan verfügbar sind."
+            "value" : "Modelle, die in Ihrem Candoa-Plan verfügbar sind. Eine Browser-Aufgabe kostet mehr als eine Nachricht, da Eli sie in mehreren Schritten ausführt."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Modelos disponibles en tu plan de Candoa."
+            "value" : "Modelos disponibles en tu plan de Candoa. Una tarea del navegador cuesta más que un mensaje, porque Eli la realiza en varios pasos."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Modèles disponibles avec votre forfait Candoa."
+            "value" : "Modèles disponibles avec votre forfait Candoa. Une tâche du navigateur coûte plus qu’un message, car Eli procède en plusieurs étapes."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "お使いのCandoaプランで利用できるモデル。"
+            "value" : "お使いのCandoaプランで利用できるモデル。ブラウザタスクはEliが複数のステップで実行するため、メッセージよりも多くのクレジットを使用します。"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Modelos disponíveis no seu plano do Candoa."
+            "value" : "Modelos disponíveis no seu plano do Candoa. Uma tarefa do navegador custa mais que uma mensagem, porque o Eli trabalha em várias etapas."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "你的Candoa方案可用的模型。"
+            "value" : "你的Candoa方案可用的模型。浏览器任务比一条消息消耗更多积分，因为 Eli 会分多个步骤完成。"
           }
         }
       }
