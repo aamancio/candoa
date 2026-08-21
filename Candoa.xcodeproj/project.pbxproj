@@ -11,6 +11,7 @@
 		CA76F499B99AC76B2B4EEC0D /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAD04797D6D34FF9826511EF /* AppDelegate.swift */; };
 		CAFD575F360E8589004DC60F /* DevelopMenuStyler.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA2AF3D9CCD4D72BC545D831 /* DevelopMenuStyler.swift */; };
 		CA63E9922D9485412624D82C /* MenuAlternateInstaller.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAFAA465A491152257AB4070 /* MenuAlternateInstaller.swift */; };
+		CAD0C4E3A1B2C3D4E5F60711 /* DockMenuBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAD0C4E3A1B2C3D4E5F60712 /* DockMenuBuilder.swift */; };
 		CA707FE182A25F8B71DC6124 /* BrowserCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = CADA316C62011C0193B77884 /* BrowserCommands.swift */; };
 		CA6FB3CB6C01320443DD3E01 /* BrowserCommandActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAA348F0E336BC80041CE635 /* BrowserCommandActions.swift */; };
 		010000000000000000000102 /* BrowserTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000002 /* BrowserTab.swift */; };
@@ -221,6 +222,7 @@
 		CAD04797D6D34FF9826511EF /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		CA2AF3D9CCD4D72BC545D831 /* DevelopMenuStyler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevelopMenuStyler.swift; sourceTree = "<group>"; };
 		CAFAA465A491152257AB4070 /* MenuAlternateInstaller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuAlternateInstaller.swift; sourceTree = "<group>"; };
+		CAD0C4E3A1B2C3D4E5F60712 /* DockMenuBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DockMenuBuilder.swift; sourceTree = "<group>"; };
 		CADA316C62011C0193B77884 /* BrowserCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserCommands.swift; sourceTree = "<group>"; };
 		CAA348F0E336BC80041CE635 /* BrowserCommandActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserCommandActions.swift; sourceTree = "<group>"; };
 		010000000000000000000002 /* BrowserTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserTab.swift; sourceTree = "<group>"; };
@@ -472,6 +474,7 @@
 				CAD04797D6D34FF9826511EF /* AppDelegate.swift */,
 				CA2AF3D9CCD4D72BC545D831 /* DevelopMenuStyler.swift */,
 				CAFAA465A491152257AB4070 /* MenuAlternateInstaller.swift */,
+				CAD0C4E3A1B2C3D4E5F60712 /* DockMenuBuilder.swift */,
 				CADA316C62011C0193B77884 /* BrowserCommands.swift */,
 				CAA348F0E336BC80041CE635 /* BrowserCommandActions.swift */,
 			);
@@ -919,6 +922,7 @@
 				CA76F499B99AC76B2B4EEC0D /* AppDelegate.swift in Sources */,
 				CAFD575F360E8589004DC60F /* DevelopMenuStyler.swift in Sources */,
 				CA63E9922D9485412624D82C /* MenuAlternateInstaller.swift in Sources */,
+				CAD0C4E3A1B2C3D4E5F60711 /* DockMenuBuilder.swift in Sources */,
 				CA707FE182A25F8B71DC6124 /* BrowserCommands.swift in Sources */,
 				CA6FB3CB6C01320443DD3E01 /* BrowserCommandActions.swift in Sources */,
 				010000000000000000000102 /* BrowserTab.swift in Sources */,

@@ -1700,3 +1700,30 @@ final class BrowserAgentPerceptionTests: XCTestCase {
         XCTAssertTrue(BrowserAgentPolicy.requiresNativeApproval(for: action, on: current))
     }
 }
+
+/// The Dock icon's custom menu (issue #234): two rows in Safari's order,
+/// each wired to the File menu row of the same name.
+@MainActor
+final class DockMenuBuilderTests: XCTestCase {
+    func testMenuListsNewWindowThenNewPrivateWindow() {
+        let menu = DockMenuBuilder.makeMenu()
+        XCTAssertEqual(
+            menu.items.map(\.title),
+            [DockMenuBuilder.newWindowTitle, DockMenuBuilder.newPrivateWindowTitle]
+        )
+        XCTAssertTrue(menu.items.allSatisfy { $0.keyEquivalent.isEmpty && $0.target != nil })
+    }
+
+    func testFindsFileMenuRowOneLevelDown() {
+        let mainMenu = NSMenu()
+        let file = NSMenuItem(title: "File", action: nil, keyEquivalent: "")
+        file.submenu = NSMenu()
+        let newWindow = NSMenuItem(title: DockMenuBuilder.newWindowTitle, action: nil, keyEquivalent: "")
+        file.submenu?.addItem(newWindow)
+        mainMenu.addItem(file)
+
+        XCTAssertTrue(DockMenuBuilder.mainMenuItem(titled: DockMenuBuilder.newWindowTitle, in: mainMenu) === newWindow)
+        XCTAssertNil(DockMenuBuilder.mainMenuItem(titled: DockMenuBuilder.newPrivateWindowTitle, in: mainMenu))
+        XCTAssertFalse(DockMenuBuilder.performMainMenuItem(titled: DockMenuBuilder.newPrivateWindowTitle, in: mainMenu))
+    }
+}

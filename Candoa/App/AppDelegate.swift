@@ -99,6 +99,12 @@ internal final class AppDelegate: NSObject, NSApplicationDelegate {
         browserPasskeyAuthorizationService.requestAuthorizationIfNeeded()
     }
 
+    /// Safari's Dock menu: New Window and New Private Window. The Dock adds
+    /// Options, Show All Windows, Hide and Quit underneath on its own.
+    func applicationDockMenu(_ sender: NSApplication) -> NSMenu? {
+        DockMenuBuilder.makeMenu()
+    }
+
     // URL opens are routed solely through .onOpenURL (Apple sign-in
     // callbacks first, every other URL into a browser tab). A delegate
     // application(_:open:) would deliver each URL a second time — and on
