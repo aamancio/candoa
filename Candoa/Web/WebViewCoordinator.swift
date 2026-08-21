@@ -44,6 +44,10 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         super.init()
     }
 
+    deinit {
+        stopMemoryPressureMonitoring()
+    }
+
     /// Owns a block-based NotificationCenter registration and unregisters it
     /// when released, so a MainActor class can drop the observation from its
     /// nonisolated deinit via plain ARC.
@@ -113,7 +117,11 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
     /// Tabs whose finished page has already answered the reader-availability
     /// probe, so switching back to a tab never re-runs it.
     var readerProbedTabIDs = Set<UUID>()
-    var hibernationScanTask: Task<Void, Never>?
+    /// Memory-pressure events are the only thing that hibernates a tab
+    /// (WebViewCoordinator+Hibernation). nonisolated(unsafe): cancelled from
+    /// the nonisolated deinit, where a main-actor property is unreachable.
+    nonisolated(unsafe) var memoryPressureSource: DispatchSourceMemoryPressure?
+    nonisolated(unsafe) var debugMemoryPressureObserver: (any NSObjectProtocol)?
     private var userDefaultsObserver: NotificationToken?
     var websiteAppearance = WebsiteAppearance.automatic
     var systemUsesDarkAppearance = false
@@ -153,15 +161,7 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
             self?.store?.warmUpTabSwitcherPreviewsIfNeeded()
         }
 
-        hibernationScanTask?.cancel()
-        hibernationScanTask = Task { @MainActor [weak self] in
-            while !Task.isCancelled {
-                try? await Task.sleep(
-                    nanoseconds: UInt64(TabHibernationConfiguration.scanInterval * 1_000_000_000)
-                )
-                self?.hibernateIdleWebViews()
-            }
-        }
+        startMemoryPressureMonitoring()
     }
 
     func webView(for tab: BrowserTab) -> WKWebView {
@@ -541,7 +541,7 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
     /// Called when a private window closes so nothing of the session
     /// outlives it beyond the deallocation of the data store itself.
     func purgeAllWebContent() {
-        hibernationScanTask?.cancel()
+        stopMemoryPressureMonitoring()
         for tabID in Array(webViews.keys) {
             removeWebView(for: tabID)
         }

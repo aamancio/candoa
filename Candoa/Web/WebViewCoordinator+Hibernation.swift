@@ -1,16 +1,91 @@
 import AppKit
 import Foundation
+import OSLog
 import WebKit
 
 extension WebViewCoordinator {
     // MARK: - Tab Hibernation
 
-    func hibernateIdleWebViews() {
-        guard let store else { return }
-        let cutoff = Date().addingTimeInterval(-TabHibernationConfiguration.idleInterval)
+    /// Safari keeps background tabs live and sheds them only when the Mac is
+    /// short on memory; so does Candoa. A warning sheds the tabs nobody has
+    /// looked at for `warningIdleInterval`, least recently used first, so
+    /// the tab someone just switched away from is the last to go. Critical
+    /// pressure sheds every eligible background tab.
+    ///
+    /// Sources fire on their queue even for an instance mid-teardown, so
+    /// the handler hops through a weak self; `purgeAllWebContent` and deinit
+    /// cancel the source outright.
+    func startMemoryPressureMonitoring() {
+        stopMemoryPressureMonitoring()
+        let source = DispatchSource.makeMemoryPressureSource(eventMask: [.warning, .critical], queue: .main)
+        source.setEventHandler { [weak self, weak source] in
+            guard let source, !source.isCancelled else { return }
+            let event = source.data
+            // The source's queue is main; the handler is not annotated.
+            MainActor.assumeIsolated {
+                self?.respondToMemoryPressure(critical: event.contains(.critical))
+            }
+        }
+        source.activate()
+        memoryPressureSource = source
+        installDebugMemoryPressureTrigger()
+    }
 
-        for tab in store.tabs where webViews[tab.id] != nil && isHibernatable(tab, idleBefore: cutoff) {
-            hibernateIfNoUnsavedInput(tab.id)
+    #if DEBUG
+    /// Real pressure can't be simulated without root (`memory_pressure -S`
+    /// is sysctl-gated), so Debug builds also answer a distributed
+    /// notification: `app.candoa.debug.memory-pressure`, with a "level" of
+    /// "warning" or "critical" in its userInfo.
+    ///
+    ///     notifyutil is no use here; post from Swift/Python:
+    ///     DistributedNotificationCenter.default().postNotificationName(
+    ///         .init("app.candoa.debug.memory-pressure"), object: nil,
+    ///         userInfo: ["level": "critical"], deliverImmediately: true)
+    private func installDebugMemoryPressureTrigger() {
+        debugMemoryPressureObserver = DistributedNotificationCenter.default().addObserver(
+            forName: Notification.Name("app.candoa.debug.memory-pressure"),
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            let critical = (notification.userInfo?["level"] as? String) == "critical"
+            MainActor.assumeIsolated {
+                self?.respondToMemoryPressure(critical: critical)
+            }
+        }
+    }
+    #else
+    private func installDebugMemoryPressureTrigger() {}
+    #endif
+
+    nonisolated func stopMemoryPressureMonitoring() {
+        memoryPressureSource?.cancel()
+        memoryPressureSource = nil
+        if let debugMemoryPressureObserver {
+            DistributedNotificationCenter.default().removeObserver(debugMemoryPressureObserver)
+            self.debugMemoryPressureObserver = nil
+        }
+    }
+
+    func respondToMemoryPressure(critical: Bool) {
+        Self.hibernationLogger.notice("Memory pressure \(critical ? "critical" : "warning", privacy: .public); shedding background tabs")
+        hibernateBackgroundWebViews(
+            idleFor: critical ? 0 : TabHibernationConfiguration.warningIdleInterval
+        )
+    }
+
+    static let hibernationLogger = Logger(subsystem: "app.candoa.browser", category: "TabHibernation")
+
+    /// Hibernates every eligible background tab idle for at least `idleInterval`,
+    /// least recently used first. Zero hibernates all of them.
+    func hibernateBackgroundWebViews(idleFor idleInterval: TimeInterval) {
+        guard let store else { return }
+        let cutoff = Date().addingTimeInterval(-idleInterval)
+
+        let candidates = store.tabs
+            .filter { webViews[$0.id] != nil && isHibernatable($0, idleBefore: cutoff) }
+            .sorted { $0.lastAccessedAt < $1.lastAccessedAt }
+        for tab in candidates {
+            hibernateIfNoUnsavedInput(tab.id, idleBefore: cutoff)
         }
     }
 
@@ -52,6 +127,7 @@ extension WebViewCoordinator {
         if let interactionState = webView.interactionState as? Data {
             hibernatedInteractionStates[tabID] = interactionState
         }
+        Self.hibernationLogger.notice("Hibernated tab \(tabID.uuidString, privacy: .public)")
         removeWebView(for: tabID, keepingHibernationData: true)
     }
 
