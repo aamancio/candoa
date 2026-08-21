@@ -347,6 +347,7 @@ extension CommandPaletteView {
         var commands = [
             PaletteCommand(title: BrowserCommandTitles.newTab, symbolName: "plus", action: .newTab),
             PaletteCommand(title: BrowserCommandTitles.closeCurrentTab, symbolName: "xmark", action: .closeCurrentTab),
+            PaletteCommand(title: BrowserCommandTitles.closeOtherTabs, symbolName: "xmark.square", action: .closeOtherTabs),
             PaletteCommand(title: BrowserCommandTitles.duplicateTab, symbolName: "square.on.square", action: .duplicateCurrentTab),
             PaletteCommand(title: BrowserCommandTitles.reloadTab, symbolName: "arrow.clockwise", action: .reloadTab),
             PaletteCommand(title: BrowserCommandTitles.toggleSplitView, symbolName: "rectangle.split.2x1", action: .toggleSplitView),
@@ -646,6 +647,8 @@ extension CommandPaletteView {
             store.openNewTab()
         case .closeCurrentTab:
             store.closeCurrentTabOrWindow()
+        case .closeOtherTabs:
+            store.closeOtherTabsForActiveTab()
         case .duplicateCurrentTab:
             store.duplicateCurrentTab()
         case .reloadTab:

@@ -47,6 +47,7 @@ enum BrowserCommandTitles {
     static let clearHistoryConfirmation = String(localized: "Clear History")
     static let pinOrUnpinTab = String(localized: "Pin or Unpin Tab")
     static let clearUnpinnedTabs = String(localized: "Clear Unpinned Tabs")
+    static let closeOtherTabs = String(localized: "Close Other Tabs")
     static let arrangeTabsBy = String(localized: "Arrange Tabs By")
     static let arrangeTabsByTitle = String(localized: "Title")
     static let arrangeTabsByWebsite = String(localized: "Website")

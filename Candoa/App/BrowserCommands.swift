@@ -102,6 +102,12 @@ internal struct BrowserCommands: Commands {
                 .keyboardShortcut(ShortcutDefinition.closeCurrentTab.currentKeyboardShortcut)
                 .disabled(actions == nil)
 
+                Button(BrowserCommandTitles.closeOtherTabs) {
+                    actions?.closeOtherTabs()
+                }
+                .keyboardShortcut(ShortcutDefinition.closeOtherTabs.currentKeyboardShortcut)
+                .disabled(actions?.canCloseOtherTabs != true)
+
                 Divider()
 
                 Button(BrowserCommandTitles.saveAs) {

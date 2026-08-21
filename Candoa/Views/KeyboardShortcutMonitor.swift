@@ -22,6 +22,7 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
     let onReloadFromOrigin: () -> Void
     let onStopLoading: () -> Bool
     let onClearUnpinnedTabs: () -> Void
+    let onCloseOtherTabs: () -> Void
     let onControlTab: () -> Void
     let onControlShiftTab: () -> Void
     let onControlReleased: () -> Void
@@ -83,6 +84,7 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
         coordinator.onReloadFromOrigin = onReloadFromOrigin
         coordinator.onStopLoading = onStopLoading
         coordinator.onClearUnpinnedTabs = onClearUnpinnedTabs
+        coordinator.onCloseOtherTabs = onCloseOtherTabs
         coordinator.onControlTab = onControlTab
         coordinator.onControlShiftTab = onControlShiftTab
         coordinator.onControlReleased = onControlReleased
@@ -128,6 +130,7 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
         var onReloadFromOrigin: () -> Void = {}
         var onStopLoading: () -> Bool = { false }
         var onClearUnpinnedTabs: () -> Void = {}
+        var onCloseOtherTabs: () -> Void = {}
         var onControlTab: () -> Void = {}
         var onControlShiftTab: () -> Void = {}
         var onControlReleased: () -> Void = {}
@@ -315,6 +318,11 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
 
             if Self.matchesConfiguredShortcut(.clearUnpinnedTabs, event) {
                 onClearUnpinnedTabs()
+                return nil
+            }
+
+            if Self.matchesConfiguredShortcut(.closeOtherTabs, event) {
+                onCloseOtherTabs()
                 return nil
             }
 

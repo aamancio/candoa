@@ -555,6 +555,7 @@ enum ShortcutDefinition: String, CaseIterable, Identifiable {
     case toggleSidebar
     case toggleAISidebar
     case clearUnpinnedTabs
+    case closeOtherTabs
     case goBack
     case goForward
     case nextRecentTab
@@ -600,6 +601,7 @@ enum ShortcutDefinition: String, CaseIterable, Identifiable {
         case .toggleSidebar: return BrowserCommandTitles.toggleSidebar
         case .toggleAISidebar: return BrowserCommandTitles.toggleAISidebar
         case .clearUnpinnedTabs: return BrowserCommandTitles.clearUnpinnedTabs
+        case .closeOtherTabs: return BrowserCommandTitles.closeOtherTabs
         case .goBack: return BrowserCommandTitles.back
         case .goForward: return BrowserCommandTitles.forward
         case .nextRecentTab: return String(localized: "Next Recent Tab")
@@ -674,6 +676,8 @@ enum ShortcutDefinition: String, CaseIterable, Identifiable {
         case .toggleSidebar: return "Command-S"
         case .toggleAISidebar: return "Command-E"
         case .clearUnpinnedTabs: return "Shift-Command-K"
+        // Safari assigns none; the row exists so it can be bound.
+        case .closeOtherTabs: return "None"
         case .goBack: return "Command-Left"
         case .goForward: return "Command-Right"
         case .nextRecentTab: return "Control-Tab"
@@ -747,6 +751,7 @@ enum ShortcutDefinition: String, CaseIterable, Identifiable {
         case .commandBar: return "command"
         case .newTab: return "plus"
         case .clearUnpinnedTabs: return "clear"
+        case .closeOtherTabs: return "xmark.square"
         case .goBack: return "chevron.left"
         case .goForward: return "chevron.right"
         case .nextRecentTab, .previousRecentTab: return "control"

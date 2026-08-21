@@ -426,6 +426,8 @@ struct ContentView: View {
                 store.stopLoadingActiveTabIfLoading()
             } onClearUnpinnedTabs: {
                 store.clearUnpinnedTabs()
+            } onCloseOtherTabs: {
+                store.closeOtherTabsForActiveTab()
             } onControlTab: {
                 store.switchToNextRecentTab(keepsPreviewOpen: true)
             } onControlShiftTab: {
@@ -704,6 +706,8 @@ struct ContentView: View {
             toggleFavoriteForActiveTab: store.toggleFavoriteForActiveTab,
             duplicateTab: store.duplicateCurrentTab,
             clearUnpinnedTabs: store.clearUnpinnedTabs,
+            closeOtherTabs: store.closeOtherTabsForActiveTab,
+            canCloseOtherTabs: store.canCloseOtherTabs,
             copyURL: { store.copyActiveTabURL() },
             copyURLAsMarkdown: { store.copyActiveTabURL(asMarkdown: true) },
             findInPage: showFind,

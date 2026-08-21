@@ -471,6 +471,28 @@ extension BrowserStore {
         regularTabsForActiveSpace.map(\.id).forEach(closeTab)
     }
 
+    /// Safari's File ▸ Close Other Tabs. Closes the other ordinary tabs in
+    /// the kept tab's Space; pinned tabs, favorites, and foldered tabs stay,
+    /// exactly as Clear Unpinned Tabs leaves them.
+    func closeOtherTabs(keeping keptTabID: UUID) {
+        guard let keptTab = tabs.first(where: { $0.id == keptTabID }) else { return }
+        otherClosableTabs(keeping: keptTab).map(\.id).forEach(closeTab)
+    }
+
+    func closeOtherTabsForActiveTab() {
+        guard let activeTabID else { return }
+        closeOtherTabs(keeping: activeTabID)
+    }
+
+    var canCloseOtherTabs: Bool {
+        guard let activeTab else { return false }
+        return !otherClosableTabs(keeping: activeTab).isEmpty
+    }
+
+    private func otherClosableTabs(keeping keptTab: BrowserTab) -> [BrowserTab] {
+        regularTabs(in: keptTab.spaceID).filter { $0.id != keptTab.id }
+    }
+
     func toggleFavoriteForActiveTab() {
         guard let activeTabID else { return }
         toggleFavorite(activeTabID)

@@ -736,6 +736,7 @@ final class PaletteShortcutTests: XCTestCase {
     func testBaseActionsMapToTheirShortcutDefinitions() {
         XCTAssertEqual(PaletteAction.newTab.shortcutDefinition, .newTab)
         XCTAssertEqual(PaletteAction.closeCurrentTab.shortcutDefinition, .closeCurrentTab)
+        XCTAssertEqual(PaletteAction.closeOtherTabs.shortcutDefinition, .closeOtherTabs)
         XCTAssertEqual(PaletteAction.reloadTab.shortcutDefinition, .reloadTab)
         XCTAssertEqual(PaletteAction.focusAddressBar.shortcutDefinition, .focusAddressBar)
         XCTAssertEqual(PaletteAction.toggleSplitView.shortcutDefinition, .toggleSplitView)
