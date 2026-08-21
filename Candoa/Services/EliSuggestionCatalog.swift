@@ -290,11 +290,7 @@ enum EliSuggestionCatalog {
                     symbolName: "play.rectangle",
                     personalizedFormat: String(localized: "Summarize the video about %@")
                 ),
-                EliSuggestion(
-                    kind: .keyMoments,
-                    title: String(localized: "List the key moments in this video"),
-                    symbolName: "timeline.selection"
-                ),
+                videoDescriptionSuggestion,
             ]
         case .chat:
             return [
@@ -410,6 +406,45 @@ enum EliSuggestionCatalog {
     /// The model input: title, host, and a short slice of the readable text.
     /// Bounded so a 30k-character page costs the same as a short one and fits
     /// the on-device context window with room to spare.
+    /// The second video chip when the page gives Eli nothing to time-stamp:
+    /// the description is always in the DOM, so this one is always answerable.
+    static let videoDescriptionSuggestion = EliSuggestion(
+        kind: .keyFacts,
+        title: String(localized: "List the key points from this video's description"),
+        symbolName: "text.alignleft"
+    )
+
+    /// Swapped in for `videoDescriptionSuggestion` once the page text shows
+    /// chapters or a transcript; before that the chip would promise moments
+    /// Eli cannot see (the transcript panel is closed by default).
+    static let videoKeyMomentsSuggestion = EliSuggestion(
+        kind: .keyMoments,
+        title: String(localized: "List the key moments in this video"),
+        symbolName: "timeline.selection"
+    )
+
+    /// Whether a video page's readable text carries timestamps Eli can turn
+    /// into key moments. Chapters always begin at zero and an opened
+    /// transcript's first cue lands in the first seconds, so the evidence is
+    /// a zero-ish timestamp (`0:00`, `00:00:03`) followed by a title word.
+    /// The page read collapses whitespace inside a block, so this scans
+    /// tokens rather than lines. The player's `0:00 / 12:34` readout is a
+    /// timestamp followed by a slash, and sidebar thumbnails never show a
+    /// zero duration, so neither counts.
+    static func videoExposesKeyMoments(pageText: String?) -> Bool {
+        guard let pageText, !pageText.isEmpty else { return false }
+        let evidence = /(?:^|\s)(?:0?0:)?0?0:0\d\s+[^\s\d\/]/
+        return pageText.firstMatch(of: evidence) != nil
+    }
+
+    /// The catalog chips for a URL, with the video pair upgraded when the
+    /// page text proves the key moments are readable.
+    static func suggestions(for url: URL?, pageText: String?) -> [EliSuggestion] {
+        let chips = suggestions(for: url)
+        guard domain(for: url) == .video, videoExposesKeyMoments(pageText: pageText) else { return chips }
+        return chips.map { $0.kind == videoDescriptionSuggestion.kind ? videoKeyMomentsSuggestion : $0 }
+    }
+
     static func excerpt(title: String?, url: URL?, pageText: String?, limit: Int = 600) -> String {
         var lines: [String] = []
         if let title = title?.trimmingCharacters(in: .whitespacesAndNewlines), !title.isEmpty {

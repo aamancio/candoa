@@ -392,13 +392,28 @@ extension BrowserStore {
     /// #467): readable text only, no OCR and no controls, cut to a few
     /// hundred characters before it reaches the on-device model.
     func eliSuggestionExcerpt(for tabID: UUID?) async -> String {
+        await eliSuggestionPageRead(for: tabID).excerpt
+    }
+
+    /// One settle wait serving both chip refinements: the bounded readable
+    /// excerpt for the personalizer and, when asked, the page's plain text
+    /// for the catalog's evidence checks (the video key-moments gate reads
+    /// chapter lists that the readable extraction drops).
+    func eliSuggestionPageRead(
+        for tabID: UUID?,
+        includingPlainText: Bool = false
+    ) async -> (excerpt: String, plainText: String?) {
         let tab = tabID.flatMap { id in tabs.first { $0.id == id } }
         var pageText: String?
+        var plainText: String?
         if let tabID = tab?.id {
             await webCoordinator.waitForAIPageContextSettled(for: tabID)
             pageText = await webCoordinator.readablePageText(for: tabID)
+            if includingPlainText {
+                plainText = await webCoordinator.plainPageText(for: tabID)
+            }
         }
-        return EliSuggestionCatalog.excerpt(title: tab?.title, url: tab?.url, pageText: pageText)
+        return (EliSuggestionCatalog.excerpt(title: tab?.title, url: tab?.url, pageText: pageText), plainText)
     }
 
     func activeAIPageContext() async -> AIPageContext {
