@@ -242,10 +242,17 @@ struct ContentView: View {
 
             if let mediaTab = store.floatingMiniPlayerTab,
                let mediaState = store.floatingMiniPlayerState {
+                // The player floats over the whole window — sidebar and Eli
+                // included, like a PiP window over the browser — so it roams
+                // the full content size; only the summon glide still needs to
+                // know where the page lane is, since its start rect is
+                // page-relative.
                 GeometryReader { proxy in
                     let leadingInset = isSidebarVisible ? sidebarTotalWidth : 0
                     let trailingInset = currentAISidebarInset
-                    let availableSize = CGSize(
+                    let pageLaneFrame = CGRect(
+                        x: leadingInset,
+                        y: 0,
                         width: max(1, proxy.size.width - leadingInset - trailingInset),
                         height: proxy.size.height
                     )
@@ -254,19 +261,21 @@ struct ContentView: View {
                         store: store,
                         tab: mediaTab,
                         state: mediaState,
-                        availableSize: availableSize,
+                        availableSize: proxy.size,
+                        pageLaneFrame: pageLaneFrame,
                         summon: store.pendingMiniPlayerSummon,
                         origin: $miniPlayerOrigin,
                         expandedSize: $miniPlayerExpandedSize
                     )
-                    .frame(width: availableSize.width, height: availableSize.height, alignment: .topLeading)
-                    .offset(x: leadingInset)
+                    .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
                 }
                 .ignoresSafeArea(.container, edges: .top)
                 // Leaving (back to its tab, or the media ending) is a plain
                 // fade over the page — the page itself is already in place.
                 .transition(.opacity)
-                .zIndex(1)
+                // Above both sidebars (2); only the modal overlays — link
+                // pill, tab switcher, command palette — still cover it.
+                .zIndex(7)
             }
         }
         .overlay {

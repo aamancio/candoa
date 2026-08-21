@@ -81,6 +81,10 @@ struct FloatingMiniPlayerContainer: View {
     let tab: BrowserTab
     let state: TabMediaState
     let availableSize: CGSize
+    /// Where the page lane sits within `availableSize`: the summon glide's
+    /// start rect comes from the page (lane-relative), while the player
+    /// itself roams the whole window.
+    let pageLaneFrame: CGRect
     @Binding var origin: CGPoint?
     @Binding var expandedSize: CGSize
 
@@ -103,6 +107,7 @@ struct FloatingMiniPlayerContainer: View {
         tab: BrowserTab,
         state: TabMediaState,
         availableSize: CGSize,
+        pageLaneFrame: CGRect? = nil,
         summon: MiniPlayerSummonContext?,
         origin: Binding<CGPoint?>,
         expandedSize: Binding<CGSize>
@@ -111,6 +116,7 @@ struct FloatingMiniPlayerContainer: View {
         self.tab = tab
         self.state = state
         self.availableSize = availableSize
+        self.pageLaneFrame = pageLaneFrame ?? CGRect(origin: .zero, size: availableSize)
         self._origin = origin
         self._expandedSize = expandedSize
         // The summon morph must render its first frame at the on-page video
@@ -271,11 +277,12 @@ struct FloatingMiniPlayerContainer: View {
     /// would streak offscreen, so fall back to a scale-fade at the corner.
     private func morphTarget(pageFrame: CGRect?, restingFrame: CGRect) -> MorphTarget {
         if let pageFrame {
-            let bounds = CGRect(origin: .zero, size: availableSize)
-            let visible = pageFrame.intersection(bounds)
+            // Page-relative rect into the player's (window) space.
+            let windowFrame = pageFrame.offsetBy(dx: pageLaneFrame.minX, dy: pageLaneFrame.minY)
+            let visible = windowFrame.intersection(pageLaneFrame)
             let pageArea = pageFrame.width * pageFrame.height
             if pageArea > 0, visible.width * visible.height >= pageArea * 0.5 {
-                return MorphTarget(frame: pageFrame, fades: false)
+                return MorphTarget(frame: windowFrame, fades: false)
             }
         }
 
