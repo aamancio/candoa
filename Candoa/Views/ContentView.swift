@@ -490,6 +490,13 @@ struct ContentView: View {
             store.applySplitPreviewFixtureIfNeeded()
             store.applySplitFixtureIfNeeded()
         }
+        // Deferred off the appearance pass on purpose: presenting the palette
+        // animates a published change, and making that change inside the
+        // scene's first update loses the window SwiftUI is still building —
+        // New Private Window opened nothing at all.
+        .task {
+            store.openPrivateWindowCommandBarIfNeeded()
+        }
         .task {
             await userStore.restoreSessionIfNeeded()
             store.reconcileAccountSetup(
