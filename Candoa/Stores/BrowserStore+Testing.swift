@@ -150,6 +150,31 @@ extension BrowserStore {
             }
     }
 
+    /// Drives the active window from a fixture runner without synthetic
+    /// input: `navigate:<url>` loads a page in the active tab and `eli:toggle`
+    /// opens or closes the Eli sidebar. Same rationale as the tab-switcher
+    /// seam — keyboard-free, so it works while the machine is in use.
+    static let uiTestingWindowCommandNotification =
+        Notification.Name("app.candoa.uitesting.window-command")
+
+    func configureUITestingWindowCommandTrigger() {
+        guard Self.isUITesting, !isPrivate else { return }
+
+        uiTestingWindowCommandCancellable = DistributedNotificationCenter.default()
+            .publisher(for: Self.uiTestingWindowCommandNotification)
+            .sink { [weak self] notification in
+                guard let command = notification.object as? String else { return }
+                Task { @MainActor [weak self] in
+                    guard let self else { return }
+                    if command.hasPrefix("navigate:") {
+                        self.navigateActiveTab(to: String(command.dropFirst("navigate:".count)))
+                    } else if command == "eli:toggle" {
+                        self.aiSidebarToggleRequestID = UUID()
+                    }
+                }
+            }
+    }
+
     static var uiTestingOnboardingStep: InitialOnboardingStep? {
         guard isUITesting else { return nil }
         return ProcessInfo.processInfo.environment["CANDOA_UI_TESTING_ONBOARDING_STEP"]

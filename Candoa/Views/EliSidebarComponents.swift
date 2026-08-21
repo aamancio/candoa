@@ -13,10 +13,14 @@ struct AISidebarExamplePromptButton: View {
         Button(action: action) {
             Label(title, systemImage: symbolName)
                 .font(.system(size: 12.5, weight: .medium))
+                .lineLimit(2)
+                .truncationMode(.tail)
+                .multilineTextAlignment(.leading)
                 .foregroundStyle(InterfaceStyle.sidebarText.opacity(isEnabled ? 1 : 0.5))
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 11)
-                .frame(height: 34)
+                .padding(.vertical, 7)
+                .frame(minHeight: 34)
                 .background {
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
                         .fill(

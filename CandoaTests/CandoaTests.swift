@@ -347,6 +347,115 @@ final class SpaceMemoryTests: XCTestCase {
         }
     }
 
+    // MARK: - Suggestion catalog (issue #467)
+
+    private func domain(_ string: String) -> EliSuggestionCatalog.Domain {
+        EliSuggestionCatalog.domain(for: URL(string: string))
+    }
+
+    func testSuggestionDomainDetectsCommonSites() {
+        XCTAssertEqual(domain("https://mail.google.com/mail/u/0/#inbox/FMfcgz"), .email)
+        XCTAssertEqual(domain("https://outlook.office.com/mail/inbox"), .email)
+        XCTAssertEqual(domain("https://docs.google.com/spreadsheets/d/abc/edit"), .spreadsheet)
+        XCTAssertEqual(domain("https://docs.google.com/document/d/abc/edit"), .document)
+        XCTAssertEqual(domain("https://www.notion.so/team/Roadmap-1234"), .document)
+        XCTAssertEqual(domain("https://acme.atlassian.net/wiki/spaces/ENG/pages/1"), .document)
+        XCTAssertEqual(domain("https://github.com/aamancio/candoa-browser/pull/467"), .codeReview)
+        XCTAssertEqual(domain("https://gitlab.com/group/sub/project/-/merge_requests/3"), .codeReview)
+        XCTAssertEqual(domain("https://github.com/aamancio/candoa-browser/issues/467"), .issue)
+        XCTAssertEqual(domain("https://acme.atlassian.net/browse/ENG-12"), .issue)
+        XCTAssertEqual(domain("https://github.com/aamancio/candoa-browser"), .repository)
+        XCTAssertEqual(domain("https://github.com/aamancio"), .generic)
+        XCTAssertEqual(domain("https://www.youtube.com/watch?v=abc"), .video)
+        XCTAssertEqual(domain("https://www.youtube.com/"), .generic)
+        XCTAssertEqual(domain("https://youtu.be/abc"), .video)
+        XCTAssertEqual(domain("https://app.slack.com/client/T1/C1"), .chat)
+        XCTAssertEqual(domain("https://www.amazon.com/dp/B000"), .shopping)
+        XCTAssertEqual(domain("https://www.google.com/search?q=swift"), .search)
+        XCTAssertEqual(domain("https://duckduckgo.com/?q=swift"), .search)
+        XCTAssertEqual(domain("https://duckduckgo.com/"), .generic)
+        XCTAssertEqual(domain("https://calendar.google.com/calendar/u/0/r"), .calendar)
+        XCTAssertEqual(domain("https://en.wikipedia.org/wiki/Swift"), .reference)
+        XCTAssertEqual(domain("https://example.com/report.PDF"), .pdf)
+        XCTAssertEqual(domain("https://example.com/article"), .generic)
+        XCTAssertEqual(domain("about:blank"), .generic)
+        XCTAssertEqual(domain("not a url"), .generic)
+        XCTAssertEqual(EliSuggestionCatalog.domain(for: nil), .generic)
+    }
+
+    func testSuggestionDomainDoesNotMatchLookalikeHosts() {
+        XCTAssertEqual(domain("https://github.com.evil.example/pull/1"), .generic)
+        XCTAssertEqual(domain("https://notgithub.com/a/b/pull/1"), .generic)
+        XCTAssertEqual(domain("https://mail.google.com.attacker.test/"), .generic)
+    }
+
+    func testEveryDomainOffersTwoDistinctSuggestions() {
+        for domain in EliSuggestionCatalog.Domain.allCases {
+            let suggestions = EliSuggestionCatalog.suggestions(for: domain)
+            XCTAssertEqual(suggestions.count, 2, "\(domain)")
+            XCTAssertEqual(Set(suggestions.map(\.id)).count, 2, "\(domain) repeats a kind")
+            XCTAssertFalse(suggestions.contains { $0.kind == .compare }, "\(domain) must leave compare to the view")
+            for suggestion in suggestions {
+                XCTAssertFalse(suggestion.title.isEmpty)
+                XCTAssertFalse(suggestion.isPersonalized)
+                if let format = suggestion.personalizedFormat {
+                    XCTAssertTrue(format.contains("%@"), "\(domain) \(suggestion.kind) slot is missing")
+                }
+            }
+        }
+    }
+
+    func testGenericSuggestionsKeepTheOriginalChips() {
+        let titles = EliSuggestionCatalog.suggestions(for: nil).map(\.title)
+        XCTAssertEqual(titles, ["Summarize this page", "Explain the key points"])
+    }
+
+    func testPersonalizationFillsOnlySlottedChips() {
+        let email = EliSuggestionCatalog.suggestions(for: .email)
+        let filled = email.map { $0.personalized(with: "the Q3 budget") }
+        XCTAssertEqual(filled[0].title, "Summarize the email thread about the Q3 budget")
+        XCTAssertEqual(filled[1].title, "Draft a reply about the Q3 budget")
+        XCTAssertTrue(filled.allSatisfy(\.isPersonalized))
+
+        let spreadsheet = EliSuggestionCatalog.suggestions(for: .spreadsheet)
+        let partiallyFilled = spreadsheet.map { $0.personalized(with: "sales by region") }
+        XCTAssertEqual(partiallyFilled[0].title, "Summarize the data about sales by region")
+        XCTAssertEqual(partiallyFilled[1], spreadsheet[1])
+        XCTAssertFalse(partiallyFilled[1].isPersonalized)
+    }
+
+    func testUsableSubjectRejectsNonAnswersAndLongOutput() {
+        XCTAssertTrue(EliSuggestionCatalog.isUsableSubject("the Q3 budget"))
+        XCTAssertTrue(EliSuggestionCatalog.isUsableSubject("\"Swift 6 migration\"."))
+        XCTAssertFalse(EliSuggestionCatalog.isUsableSubject(""))
+        XCTAssertFalse(EliSuggestionCatalog.isUsableSubject("   "))
+        XCTAssertFalse(EliSuggestionCatalog.isUsableSubject("This page"))
+        XCTAssertFalse(EliSuggestionCatalog.isUsableSubject("Unknown"))
+        XCTAssertTrue(EliSuggestionCatalog.isUsableSubject("the mini player floats above the sidebars"))
+        XCTAssertFalse(EliSuggestionCatalog.isUsableSubject("one two three four five six seven eight nine"))
+        XCTAssertFalse(EliSuggestionCatalog.isUsableSubject("a very long subject line that just keeps going on"))
+        XCTAssertFalse(EliSuggestionCatalog.isUsableSubject("line one\nline two"))
+        XCTAssertFalse(EliSuggestionCatalog.isUsableSubject("YouTube", host: "www.youtube.com"))
+        XCTAssertFalse(EliSuggestionCatalog.isUsableSubject("Git Hub", host: "github.com"))
+        XCTAssertTrue(EliSuggestionCatalog.isUsableSubject("YouTube ad revenue", host: "www.youtube.com"))
+        XCTAssertTrue(EliSuggestionCatalog.isUsableSubject("the Q3 budget", host: "mail.google.com"))
+    }
+
+    func testSuggestionExcerptIsBoundedAndCollapsed() {
+        let text = String(repeating: "word ", count: 500) + "\n\n   \n tail"
+        let excerpt = EliSuggestionCatalog.excerpt(
+            title: "  Q3 Budget  ",
+            url: URL(string: "https://mail.google.com/mail/u/0/"),
+            pageText: text
+        )
+        XCTAssertTrue(excerpt.hasPrefix("Title: Q3 Budget\nSite: mail.google.com\nText:\n"))
+        XCTAssertLessThanOrEqual(excerpt.count, "Title: Q3 Budget\nSite: mail.google.com\nText:\n".count + 600)
+        XCTAssertFalse(excerpt.contains("\n\n"))
+
+        XCTAssertEqual(EliSuggestionCatalog.excerpt(title: nil, url: nil, pageText: nil), "")
+        XCTAssertEqual(EliSuggestionCatalog.excerpt(title: "", url: nil, pageText: "  \n "), "")
+    }
+
     // MARK: - Context injection
 
     func testMemorySectionListsFactsAndIsNilWhenEmpty() {

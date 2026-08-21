@@ -48,6 +48,8 @@ struct EliSidebarView: View {
     @State private var attachmentPreviewData: [UUID: Data] = [:]
     @State private var presentedImagePreview: AISidebarImagePreview?
     @State private var isRefreshingEliAccess = true
+    @State private var suggestions: [EliSuggestion] = EliSuggestionCatalog.suggestions(for: nil)
+    @State private var suggestionTask: Task<Void, Never>?
     @FocusState private var isPromptFocused: Bool
 
     private var activePageTitle: String {
@@ -282,6 +284,7 @@ struct EliSidebarView: View {
         }
         .onAppear {
             uiTestingState = uiTestingAgentState
+            refreshSuggestions()
             removeSubscriptionGateIfActive()
             resumePendingSubscriptionSubmissionIfNeeded()
             if memoryWindow.spaceID == nil {
@@ -301,6 +304,7 @@ struct EliSidebarView: View {
         }
         .onDisappear {
             uiTestingState = ""
+            suggestionTask?.cancel()
             updateSpaceMemoryFromConversation()
             cancelStream()
             speechController.cancelListening()
@@ -327,10 +331,15 @@ struct EliSidebarView: View {
             includesCurrentPageContext = true
             excludedPaneTabIDs = []
             browserAgentFillConsent = nil
+            refreshSuggestions()
         }
         .onChange(of: store.activeTab?.url) {
             includesCurrentPageContext = true
             excludedPaneTabIDs = []
+            refreshSuggestions()
+        }
+        .onChange(of: messages.isEmpty) { _, isEmpty in
+            if isEmpty { refreshSuggestions() }
         }
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active,
@@ -401,6 +410,38 @@ struct EliSidebarView: View {
         .accessibilityIdentifier("agent-sidebar")
     }
 
+    /// Catalog chips land immediately from the URL alone; the on-device fill
+    /// follows when it is available, debounced so SPA pages that rewrite
+    /// their DOM on every keystroke do not keep the model busy (issue #467).
+    private func refreshSuggestions() {
+        suggestionTask?.cancel()
+        let tabID = store.activeTabID
+        let url = store.activeTab?.url
+        suggestions = EliSuggestionCatalog.suggestions(for: url)
+
+        guard messages.isEmpty,
+              EliSuggestionPersonalizer.shared.isAvailable,
+              suggestions.contains(where: { $0.personalizedFormat != nil }),
+              let tabID
+        else { return }
+
+        EliSuggestionPersonalizer.shared.prewarm()
+        suggestionTask = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(600))
+            guard !Task.isCancelled else { return }
+            let excerpt = await store.eliSuggestionExcerpt(for: tabID)
+            guard !Task.isCancelled else { return }
+            let cacheKey = "\(url?.absoluteString ?? "")#\(excerpt.hashValue)"
+            guard let subject = await EliSuggestionPersonalizer.shared.subject(
+                forExcerpt: excerpt,
+                host: url?.host,
+                cacheKey: cacheKey
+            ) else { return }
+            guard !Task.isCancelled, store.activeTabID == tabID, messages.isEmpty else { return }
+            suggestions = suggestions.map { $0.personalized(with: subject) }
+        }
+    }
+
     private func spacingAfterMessage(_ message: AISidebarMessage) -> CGFloat {
         guard let index = messages.firstIndex(where: { $0.id == message.id }) else { return 0 }
         let nextIndex = messages.index(after: index)
@@ -467,21 +508,16 @@ struct EliSidebarView: View {
                 .foregroundStyle(InterfaceStyle.sidebarTextSecondary)
 
             VStack(spacing: 6) {
-                AISidebarExamplePromptButton(
-                    title: String(localized: "Summarize this page"),
-                    symbolName: "text.alignleft"
-                ) {
-                    submitPrompt("Summarize this page")
+                ForEach(suggestions) { suggestion in
+                    AISidebarExamplePromptButton(
+                        title: suggestion.title,
+                        symbolName: suggestion.symbolName
+                    ) {
+                        submitPrompt(suggestion.title)
+                    }
+                    .help(suggestion.title)
+                    .accessibilityIdentifier("agent-example-\(suggestion.kind.rawValue)")
                 }
-                .accessibilityIdentifier("agent-example-summarize")
-
-                AISidebarExamplePromptButton(
-                    title: String(localized: "Explain the key points"),
-                    symbolName: "list.bullet"
-                ) {
-                    submitPrompt("Explain the key points")
-                }
-                .accessibilityIdentifier("agent-example-explain")
 
                 AISidebarExamplePromptButton(
                     title: String(localized: "Compare with another tab"),
@@ -489,8 +525,10 @@ struct EliSidebarView: View {
                 ) {
                     beginComparisonPrompt()
                 }
+                .help(String(localized: "Compare with another tab"))
                 .accessibilityIdentifier("agent-example-compare")
             }
+            .animation(.easeOut(duration: 0.18), value: suggestions)
             .frame(maxWidth: 260)
             .padding(.top, 8)
             .disabled(isRefreshingEliAccess)

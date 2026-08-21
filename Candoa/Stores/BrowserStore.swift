@@ -367,6 +367,8 @@ final class BrowserStore: ObservableObject {
     var downloadsChangeCancellable: AnyCancellable?
     var uiTestingDownloadFixtureCancellable: AnyCancellable?
     var uiTestingTabSwitcherCancellable: AnyCancellable?
+
+    var uiTestingWindowCommandCancellable: AnyCancellable?
     var tabSwitcherHideWorkItem: DispatchWorkItem?
     var tabSwitcherShowWorkItem: DispatchWorkItem?
     var copiedURLToastHideWorkItem: DispatchWorkItem?
@@ -580,6 +582,7 @@ final class BrowserStore: ObservableObject {
             .sink { [weak self] _ in self?.objectWillChange.send() }
         configureUITestingDownloadFixtureTrigger()
         configureUITestingTabSwitcherTrigger()
+        configureUITestingWindowCommandTrigger()
         seedUITestingSpaceMemoryIfNeeded()
     }
 
