@@ -6,6 +6,14 @@ enum PageActionKind: String, Codable, Sendable {
     case select
     case fill
     case scroll
+    /// A key press in a focused control — Enter to submit a search or a
+    /// form the way a person would, Escape to dismiss what a click opened.
+    case press
+
+    /// Keys `press` may send. Anything else is rejected at grounding.
+    static let pressableKeys: Set<String> = [
+        "Enter", "Escape", "Tab", "ArrowDown", "ArrowUp", "ArrowLeft", "ArrowRight", "Backspace", "Space",
+    ]
 }
 
 struct BrowserAgentControl: Codable, Sendable {
@@ -24,6 +32,9 @@ struct BrowserAgentControl: Codable, Sendable {
     let selected: Bool
     let sensitive: Bool
     let options: [String]
+    /// The ARIA role the snapshot printed for this control (`link`,
+    /// `combobox`, `clickable`…); finer than `kind`, informational only.
+    let role: String?
 
     init(
         ref: String,
@@ -33,7 +44,8 @@ struct BrowserAgentControl: Codable, Sendable {
         disabled: Bool,
         selected: Bool = false,
         sensitive: Bool = false,
-        options: [String] = []
+        options: [String] = [],
+        role: String? = nil
     ) {
         self.ref = ref
         self.kind = kind
@@ -43,10 +55,11 @@ struct BrowserAgentControl: Codable, Sendable {
         self.selected = selected
         self.sensitive = sensitive
         self.options = options
+        self.role = role
     }
 
     private enum CodingKeys: String, CodingKey {
-        case ref, kind, label, url, disabled, selected, sensitive, options
+        case ref, kind, label, url, disabled, selected, sensitive, options, role
     }
 
     init(from decoder: Decoder) throws {
@@ -59,7 +72,20 @@ struct BrowserAgentControl: Codable, Sendable {
         selected = try container.decodeIfPresent(Bool.self, forKey: .selected) ?? false
         sensitive = try container.decodeIfPresent(Bool.self, forKey: .sensitive) ?? false
         options = try container.decodeIfPresent([String].self, forKey: .options) ?? []
+        role = try container.decodeIfPresent(String.self, forKey: .role)
     }
+}
+
+/// Where the viewport sits on the page at snapshot time, so the model can
+/// tell a short page from one it has only seen the top of.
+struct BrowserAgentViewport: Codable, Sendable, Equatable {
+    let width: Int
+    let height: Int
+    let scrollTop: Int
+    let scrollHeight: Int
+    let linesAbove: Int
+    let linesBelow: Int
+    let modal: Bool
 }
 
 struct BrowserAgentPage: Codable, Sendable {
@@ -68,11 +94,94 @@ struct BrowserAgentPage: Codable, Sendable {
     let url: String
     let text: String
     let controls: [BrowserAgentControl]
+    /// The accessibility-tree snapshot (Resources/BrowserAgent/snapshot.js):
+    /// what the model actually reads. `controls` is the same walk flattened
+    /// for grounding, and `text` is the readable-text fallback older servers
+    /// render.
+    let tree: String?
+    let viewport: BrowserAgentViewport?
+
+    init(
+        snapshotID: UUID,
+        title: String?,
+        url: String,
+        text: String,
+        controls: [BrowserAgentControl],
+        tree: String? = nil,
+        viewport: BrowserAgentViewport? = nil
+    ) {
+        self.snapshotID = snapshotID
+        self.title = title
+        self.url = url
+        self.text = text
+        self.controls = controls
+        self.tree = tree
+        self.viewport = viewport
+    }
 }
 
 struct BrowserAgentSnapshot: Sendable {
     let id: UUID
+    let tree: String
     let controls: [BrowserAgentControl]
+    let viewport: BrowserAgentViewport
+}
+
+/// What changed between the page an action was chosen on and the page it
+/// left behind. Appended to the outcome the model reads, so "Clicked
+/// Continue" comes with "the URL changed" or "nothing visible changed" —
+/// the verification the model would otherwise have to infer from a second
+/// snapshot, or skip.
+enum BrowserAgentPageDiff {
+    static let maximumListedControls = 4
+
+    static func summary(before: BrowserAgentPage, after: BrowserAgentPage, mutations: Int?) -> String {
+        var parts: [String] = []
+        if before.url != after.url {
+            parts.append("The URL changed to \(after.url).")
+        }
+        if let beforeTitle = before.title, let afterTitle = after.title, beforeTitle != afterTitle, !afterTitle.isEmpty {
+            parts.append("The title is now \"\(afterTitle)\".")
+        }
+        if before.viewport?.modal == false, after.viewport?.modal == true {
+            parts.append("A dialog opened.")
+        } else if before.viewport?.modal == true, after.viewport?.modal == false {
+            parts.append("The dialog closed.")
+        }
+
+        let beforeLabels = Set(before.controls.map(\.label))
+        let afterLabels = Set(after.controls.map(\.label))
+        let appeared = after.controls.map(\.label).filter { !beforeLabels.contains($0) }.uniqued()
+        let disappeared = before.controls.map(\.label).filter { !afterLabels.contains($0) }.uniqued()
+        if !appeared.isEmpty {
+            parts.append("New controls: \(list(appeared)).")
+        }
+        if !disappeared.isEmpty {
+            parts.append("Gone: \(list(disappeared)).")
+        }
+
+        if parts.isEmpty {
+            if let mutations, mutations > 0 {
+                parts.append("The page updated but its controls did not change.")
+            } else if before.url == after.url {
+                parts.append("Nothing visible changed.")
+            }
+        }
+        return parts.joined(separator: " ")
+    }
+
+    private static func list(_ labels: [String]) -> String {
+        let shown = labels.prefix(maximumListedControls).map { "\"\($0.count > 60 ? String($0.prefix(59)) + "…" : $0)\"" }
+        let remainder = labels.count - shown.count
+        return shown.joined(separator: ", ") + (remainder > 0 ? " and \(remainder) more" : "")
+    }
+}
+
+private extension Array where Element: Hashable {
+    func uniqued() -> [Element] {
+        var seen = Set<Element>()
+        return filter { seen.insert($0).inserted }
+    }
 }
 
 struct BrowserAgentActionOutcome: Codable, Sendable {
@@ -129,6 +238,20 @@ struct BrowserAgentAction: Codable, Sendable {
     func validatedAction(on page: BrowserAgentPage) -> PageActionProposal? {
         guard page.snapshotID == snapshotID else { return nil }
         if kind == .scroll {
+            if let control = page.controls.first(where: { $0.ref == target }) {
+                // Scroll a control into view; the label check keeps it to
+                // the control the snapshot showed.
+                guard control.label == label else { return nil }
+                return PageActionProposal(
+                    kind: .scroll,
+                    target: control.label,
+                    value: nil,
+                    browserAgentReference: control.ref,
+                    browserAgentSnapshotID: snapshotID,
+                    browserAgentPageURL: page.url,
+                    browserAgentControlKind: control.kind
+                )
+            }
             guard ["up", "down"].contains(target) else { return nil }
             return PageActionProposal(
                 kind: .scroll,
@@ -157,6 +280,8 @@ struct BrowserAgentAction: Codable, Sendable {
             }
         case .fill:
             guard control.kind == .field, !value.isEmpty else { return nil }
+        case .press:
+            guard PageActionKind.pressableKeys.contains(value) else { return nil }
         case .navigate, .scroll:
             break
         }
@@ -340,6 +465,8 @@ enum BrowserAgentPolicy {
             return String(localized: "Eli is ready to enter information in \"\(action.target)\". Fill This Page lets Eli complete the other fields here without asking again; sending the form still needs your approval.")
         case .navigate:
             return String(localized: "Eli is ready to open \"\(action.target)\". Review the destination before continuing.")
+        case .press:
+            return String(localized: "Eli is ready to press \(action.value ?? "Enter") in \"\(action.target)\". This may send the form.")
         case .scroll:
             return String(localized: "Eli is ready to continue this task.")
         }

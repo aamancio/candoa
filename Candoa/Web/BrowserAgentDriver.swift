@@ -1,12 +1,21 @@
 import Foundation
 import WebKit
 
+/// Runs Eli's page scripts (Resources/BrowserAgent) inside a tab's web view.
+///
+/// Every script is handed to WebKit with `shared.js` prepended, so the
+/// snapshot that assigns a ref and the action that consumes it use the same
+/// accessible-name and visibility code. The scripts run in Candoa's isolated
+/// content world: the page cannot see the ref registry, and the registry
+/// cannot be confused by page globals.
 @MainActor
 struct BrowserAgentDriver {
     private enum Script: String {
+        case shared
         case snapshot
         case scroll
         case performReferencedAction
+        case waitForSettle
     }
 
     enum DriverError: Error {
@@ -14,6 +23,11 @@ struct BrowserAgentDriver {
         case invalidStringResult
         case actionNotGrounded
     }
+
+    /// Characters of accessibility tree sent per step. Playwright MCP and
+    /// Claude in Chrome land in the same range; the model reads the viewport
+    /// in full and the rest of the page as budget allows.
+    static let treeBudget = 24_000
 
     private let bundle: Bundle
     private let contentWorld: WKContentWorld
@@ -32,16 +46,22 @@ struct BrowserAgentDriver {
     ) async throws -> BrowserAgentSnapshot {
         let value = try await execute(
             .snapshot,
-            arguments: ["snapshotID": snapshotID.uuidString.lowercased()],
-            in: webView,
-            contentWorld: contentWorld
+            arguments: [
+                "snapshotID": snapshotID.uuidString.lowercased(),
+                "budget": Self.treeBudget,
+            ],
+            in: webView
         )
-        let json = try stringResult(from: value)
-        let controls = try JSONDecoder().decode(
-            [BrowserAgentControl].self,
-            from: Data(json.utf8)
+        let payload = try JSONDecoder().decode(
+            SnapshotPayload.self,
+            from: Data(stringResult(from: value).utf8)
         )
-        return BrowserAgentSnapshot(id: snapshotID, controls: controls)
+        return BrowserAgentSnapshot(
+            id: snapshotID,
+            tree: payload.tree,
+            controls: payload.controls,
+            viewport: payload.viewport
+        )
     }
 
     func performAction(
@@ -56,10 +76,10 @@ struct BrowserAgentDriver {
                 .scroll,
                 arguments: [
                     "snapshotID": snapshotID.uuidString.lowercased(),
-                    "direction": action.target,
+                    // "up", "down", or a control ref to bring into view.
+                    "direction": action.browserAgentReference ?? action.target,
                 ],
-                in: webView,
-                contentWorld: contentWorld
+                in: webView
             )
             return try actionResult(from: value)
         }
@@ -80,20 +100,57 @@ struct BrowserAgentDriver {
                 "kind": action.kind.rawValue,
                 "value": action.value ?? "",
             ],
-            in: webView,
-            contentWorld: contentWorld
+            in: webView
         )
         return try actionResult(from: value)
     }
 
+    /// Waits for the page to stop changing after an action: no structural
+    /// DOM mutation for `quiet`, or `timeout` at most. Returns how many
+    /// mutations were seen, which is itself a signal of whether the action
+    /// did anything.
+    @discardableResult
+    func waitForSettle(
+        in webView: WKWebView,
+        quiet: Duration = .milliseconds(400),
+        timeout: Duration = .seconds(3)
+    ) async -> SettleReport? {
+        let value = try? await execute(
+            .waitForSettle,
+            prependingShared: false,
+            arguments: [
+                "quietMilliseconds": Int(quiet.components.seconds * 1000) + Int(quiet.components.attoseconds / 1_000_000_000_000_000),
+                "timeoutMilliseconds": Int(timeout.components.seconds * 1000) + Int(timeout.components.attoseconds / 1_000_000_000_000_000),
+            ],
+            in: webView
+        )
+        guard let json = value as? String else { return nil }
+        return try? JSONDecoder().decode(SettleReport.self, from: Data(json.utf8))
+    }
+
+    struct SettleReport: Decodable, Sendable {
+        let mutations: Int
+        let settled: Bool
+        let elapsed: Int
+    }
+
+    private struct SnapshotPayload: Decodable {
+        let tree: String
+        let controls: [BrowserAgentControl]
+        let viewport: BrowserAgentViewport
+    }
+
     private func execute(
         _ script: Script,
+        prependingShared: Bool = true,
         arguments: [String: Any],
-        in webView: WKWebView,
-        contentWorld: WKContentWorld
+        in webView: WKWebView
     ) async throws -> Any? {
-        try await webView.callAsyncJavaScript(
-            try source(for: script),
+        let body = prependingShared
+            ? try source(for: .shared) + "\n" + source(for: script)
+            : try source(for: script)
+        return try await webView.callAsyncJavaScript(
+            body,
             arguments: arguments,
             in: nil,
             contentWorld: contentWorld

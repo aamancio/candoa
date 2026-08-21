@@ -1052,6 +1052,7 @@ struct EliSidebarView: View {
                     finishBrowserAgent(state, message: String(localized: "That browser tab is no longer available."))
                     return
                 }
+                BrowserAgentTrace.record(step: "start", target: state.goal, result: "", page: page)
                 // The saved profile joins the run only when this page asks for
                 // personal details, and never from a private window: a run
                 // that never touches a form has no reason to carry the user's
@@ -1144,33 +1145,45 @@ struct EliSidebarView: View {
                 pendingSensitiveAgentAction = PendingSensitiveAgentAction(
                     action: action,
                     state: state,
-                    previousURL: page.url
+                    previousURL: page.url,
+                    previousPage: page
                 )
                 browserAgentTask = nil
                 return
             }
-            try await executeBrowserAgentAction(action, previousURL: page.url, state: state)
+            try await executeBrowserAgentAction(action, previousURL: page.url, previousPage: page, state: state)
         }
     }
 
     private func executeBrowserAgentAction(
         _ action: PageActionProposal,
         previousURL: String,
+        previousPage: BrowserAgentPage? = nil,
         state: BrowserAgentRunState
     ) async throws {
         let result = await store.performAIPageAction(action, in: state.tabID)
         updateBrowserAgentStatus(state, text: String(localized: "Checking the result…"))
-        await store.waitForBrowserAgentPageSettled(in: state.tabID, previousURL: previousURL)
+        let mutations = await store.waitForBrowserAgentPageSettled(in: state.tabID, previousURL: previousURL)
         guard let page = await store.browserAgentPage(for: state.tabID) else {
             finishBrowserAgent(state, message: String(localized: "That browser tab is no longer available."))
             return
         }
+        // The model reads what the action did, not just that it ran: the
+        // page before and after are compared and the difference rides along
+        // with the script's own report.
+        var resultText = result.message
+        if result.status == .executed, let previousPage {
+            let change = BrowserAgentPageDiff.summary(before: previousPage, after: page, mutations: mutations)
+            if !change.isEmpty { resultText = "\(result.message) \(change)" }
+        }
+        Self.eliLogger.info("Browser agent step: \(action.kind.rawValue, privacy: .public) \"\(action.target, privacy: .private)\" → \(resultText, privacy: .private); tree \(page.tree?.count ?? 0, privacy: .public) chars, \(page.controls.count, privacy: .public) refs")
+        BrowserAgentTrace.record(step: action.kind.rawValue, target: action.target, result: resultText, page: page)
         let response = try await store.resumeBrowserAgentRun(
             runID: state.runID,
             goal: state.goal,
             outcome: BrowserAgentActionOutcome(
                 status: result.status == .executed ? .executed : .failed,
-                result: result.message,
+                result: String(resultText.prefix(1_000)),
                 page: page
             )
         )
@@ -1194,6 +1207,7 @@ struct EliSidebarView: View {
                 try await executeBrowserAgentAction(
                     pending.action,
                     previousURL: pending.previousURL,
+                    previousPage: pending.previousPage,
                     state: pending.state
                 )
             } catch is CancellationError {
@@ -1343,6 +1357,8 @@ struct EliSidebarView: View {
                 : String(localized: "Selecting \(choice)…")
         case .fill:
             return String(localized: "Entering information in \(action.label)…")
+        case .press:
+            return String(localized: "Pressing \(action.value) in \(action.label)…")
         case .scroll:
             return String(localized: "Scrolling the page…")
         }

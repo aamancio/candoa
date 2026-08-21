@@ -1,147 +1,177 @@
-return (() => {
+// Performs one action on a control addressed by ref from the last snapshot.
+//
+// Arguments: snapshotID, ref, expectedLabel, expectedKind, kind, value.
+// kind ∈ click | select | fill | press. Reports `{ ok, message }` — the
+// message is what the model reads as the step's result, so it says what
+// happened in plain terms.
+return (async () => {
+  const A = CandoaAgent;
   const executed = (message) => JSON.stringify({ ok: true, message });
   const failed = (message) => JSON.stringify({ ok: false, message });
-  if (window.__candoaAgentSnapshotID !== snapshotID) {
-    return failed("Candoa stopped because the page changed after it was inspected.");
+
+  const found = A.lookup(snapshotID, ref);
+  if (found.error) return failed(found.error);
+  const { element, label, kind: controlKind, role } = found.entry;
+
+  // The page may have relabeled the control since the snapshot (a button
+  // that became "Adding…"); the action was chosen by the old label, so stop
+  // and let a fresh snapshot show what is there now.
+  const currentLabel = A.accessibleName(element, role) || `[unlabeled ${role}]`;
+  if (currentLabel !== expectedLabel || controlKind !== expectedKind) {
+    return failed(`Candoa stopped because the referenced control changed (it now reads "${currentLabel}").`);
   }
-  const selectors = [
-    "a[href]", "button", "label[for]", "input:not([type='hidden'])", "textarea", "select",
-    "[contenteditable='true']", "[role='button']", "[role='link']",
-    "[role='searchbox']", "[role='textbox']", "[role='combobox']",
-    "[role='radio']", "[role='option']", "[role='checkbox']"
-  ].join(",");
-  const clean = (value) => String(value || "").replace(/[\s\n\r\t]+/g, " ").trim();
-  const visibleInDocument = (element) => {
-    if (!(element instanceof HTMLElement) || element.closest("[aria-hidden='true'],[hidden]")) return false;
-    const rect = element.getBoundingClientRect();
-    const style = getComputedStyle(element);
-    return rect.width > 2 && rect.height > 2 && style.display !== "none"
-      && style.visibility !== "hidden" && Number(style.opacity || "1") > 0.05;
-  };
-  const labelFor = (element) => {
-    const labelledBy = clean(element.getAttribute("aria-labelledby"))
-      .split(" ")
-      .map((id) => clean(document.getElementById(id)?.innerText || document.getElementById(id)?.textContent))
-      .filter(Boolean)
-      .join(" ");
-    const explicitLabel = element.id
-      ? clean(document.querySelector(`label[for="${CSS.escape(element.id)}"]`)?.innerText)
-      : "";
-    const imageText = Array.from(element.querySelectorAll("img"))
-      .map((image) => clean(image.alt || image.title || image.getAttribute("aria-label")))
-      .filter(Boolean)
-      .join(" ");
-    return clean([
-      element.getAttribute("aria-label"), labelledBy, explicitLabel,
-      element.closest("label")?.innerText, element.placeholder, element.title,
-      element.alt, imageText, element.innerText, element.textContent, element.value
-    ].find((candidate) => clean(candidate)));
-  };
-  const kindFor = (element) => {
-    if (element instanceof HTMLLabelElement && element.control?.matches("input[type='radio'],input[type='checkbox']")) return "choice";
-    if (element.matches("select,input[type='radio'],input[type='checkbox'],[role='radio'],[role='option'],[role='checkbox']")) return "choice";
-    if (element.matches("input,textarea,[contenteditable='true'],[role='searchbox'],[role='textbox'],[role='combobox']")) return "field";
-    if (element.matches("a[href],[role='link']")) return "link";
-    return "button";
-  };
-  const credentialField = (element) => {
-    const autocomplete = clean(element.getAttribute("autocomplete")).toLocaleLowerCase();
-    return element.matches("input[type='password']")
-      || /(^|\s)(cc-number|cc-csc|cc-exp|cc-exp-month|cc-exp-year|current-password|new-password|one-time-code)(\s|$)/.test(autocomplete);
-  };
-  const canonicalFor = (element) => (
-    element instanceof HTMLLabelElement
-      && element.control?.matches("input[type='radio'],input[type='checkbox']")
-  ) ? element.control : element;
-  const seenElements = new Set();
-  const seenLinks = new Set();
-  const controls = Array.from(document.querySelectorAll(selectors))
-    .filter(visibleInDocument)
-    .map((element) => {
-      if (credentialField(element)) return null;
-      const label = labelFor(element);
-      const controlKind = kindFor(element);
-      const url = controlKind === "link" ? clean(element.href || element.getAttribute("href")) : "";
-      if (!label) return null;
-      const canonical = canonicalFor(element);
-      if (seenElements.has(canonical)) return null;
-      seenElements.add(canonical);
-      if (controlKind === "link") {
-        const key = `${label.toLocaleLowerCase()}|${url}`;
-        if (seenLinks.has(key)) return null;
-        seenLinks.add(key);
-      }
-      return { element, label: label.slice(0, 240), kind: controlKind };
-    })
-    .filter(Boolean)
-    .slice(0, 200);
-  const index = Number(String(ref).slice(1));
-  const control = /^e\d{1,3}$/.test(ref) ? controls[index] : null;
-  if (!control || control.label !== expectedLabel || control.kind !== expectedKind) {
-    return failed("Candoa stopped because the referenced control changed.");
+  if (A.isDisabled(element)) return failed(`"${label}" is disabled.`);
+  if (A.isHiddenByAttributes(element) || !A.isRendered(element)) {
+    return failed(`"${label}" is no longer visible.`);
   }
-  const element = control.element;
-  element.scrollIntoView({
-    block: "center",
-    inline: "nearest",
-    behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth"
-  });
-  const choiceInput = element instanceof HTMLLabelElement
-    ? element.control
-    : element instanceof HTMLInputElement
-      && (element.type === "radio" || element.type === "checkbox")
-      ? element
-      : null;
+
+  const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  element.scrollIntoView({ block: "center", inline: "nearest", behavior: reducedMotion ? "auto" : "smooth" });
+
+  const describe = (message) => message;
+
+  // MARK: - Choice controls
+
+  const choiceInput = element instanceof HTMLInputElement && (element.type === "radio" || element.type === "checkbox")
+    ? element
+    : null;
+
   const activateChoice = () => {
-    const activationElement = choiceInput?.id
-      ? document.querySelector(`label[for="${CSS.escape(choiceInput.id)}"]`) || element
+    const wasSelected = A.isSelected(element);
+    const target = choiceInput?.id
+      ? (element.getRootNode().querySelector?.(`label[for="${CSS.escape(choiceInput.id)}"]`) || element)
       : element;
-    activationElement.click();
-    if (choiceInput && !choiceInput.checked) {
-      return failed(`Candoa could not confirm that "${control.label}" was selected.`);
+    target.click();
+    if (choiceInput && choiceInput.checked === wasSelected && choiceInput.type === "radio") {
+      return failed(`Candoa could not confirm that "${label}" was selected.`);
     }
-    return executed(`Selected "${control.label}".`);
+    const nowSelected = A.isSelected(element);
+    if (choiceInput?.type === "checkbox" || role === "switch" || role === "checkbox") {
+      return executed(`${nowSelected ? "Checked" : "Unchecked"} "${label}".`);
+    }
+    return executed(`Selected "${label}".`);
   };
+
+  // MARK: - Click
+
   if (kind === "click") {
-    if (control.kind === "choice") return activateChoice();
+    if (controlKind === "choice" && element.localName !== "select") return activateChoice();
+    if (element instanceof HTMLSelectElement) {
+      element.focus();
+      return executed(`Focused "${label}"; choose an option with select.`);
+    }
+    // A link that would open a new tab opens here instead: the run lives in
+    // this tab, and a page that appears elsewhere is a page Eli cannot see.
+    let restoreTarget = null;
+    if (element instanceof HTMLAnchorElement && element.target && element.target !== "_self") {
+      restoreTarget = element.target;
+      element.target = "_self";
+    }
+    const before = location.href;
     element.click();
-    return executed(`Clicked "${control.label}".`);
+    if (restoreTarget !== null) {
+      // Restore after the click has been dispatched; the navigation, if any,
+      // already read the target.
+      setTimeout(() => { element.target = restoreTarget; }, 0);
+    }
+    // What the click did is reported from the settled page afterwards (the
+    // outcome's before/after summary), not read back here: frameworks apply
+    // the change after the event returns.
+    if (location.href !== before) return executed(`Clicked "${label}"; the page is navigating.`);
+    return executed(describe(`Clicked "${label}".`));
   }
+
+  // MARK: - Select
+
   if (kind === "select") {
     if (element instanceof HTMLSelectElement) {
-      const requested = clean(value).toLocaleLowerCase();
+      const requested = A.clean(value).toLocaleLowerCase();
       const option = Array.from(element.options).find((candidate) =>
-        clean(candidate.label).toLocaleLowerCase() === requested
-          || clean(candidate.value).toLocaleLowerCase() === requested
+        A.clean(candidate.label).toLocaleLowerCase() === requested
+          || A.clean(candidate.value).toLocaleLowerCase() === requested
+          || A.clean(candidate.textContent).toLocaleLowerCase() === requested
       );
-      if (!option) return failed(`Candoa could not find the requested option in "${control.label}".`);
+      if (!option) return failed(`Candoa could not find "${value}" among the options of "${label}".`);
+      if (option.disabled) return failed(`"${A.clean(option.label)}" is not available in "${label}".`);
       element.focus();
-      element.value = option.value;
-      element.dispatchEvent(new Event("input", { bubbles: true }));
-      element.dispatchEvent(new Event("change", { bubbles: true }));
-      return executed(`Selected "${clean(option.label)}" in "${control.label}".`);
+      A.setNativeValue(element, option.value);
+      A.fire(element, "input");
+      A.fire(element, "change");
+      return executed(`Selected "${A.clean(option.label)}" in "${label}".`);
     }
     return activateChoice();
   }
+
+  // MARK: - Fill
+
   if (kind === "fill") {
-    if (element instanceof HTMLInputElement && element.type === "password") {
-      return failed("Candoa does not enter credentials.");
-    }
+    if (A.isCredentialField(element)) return failed("Candoa does not enter credentials.");
+    if (element.readOnly) return failed(`"${label}" is read-only.`);
+    element.focus();
     if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) {
-      element.focus();
-      element.value = value;
-      element.dispatchEvent(new Event("input", { bubbles: true }));
-      element.dispatchEvent(new Event("change", { bubbles: true }));
-    } else {
-      element.focus();
-      element.textContent = value;
-      element.dispatchEvent(new InputEvent("input", {
-        bubbles: true,
-        inputType: "insertText",
-        data: value
-      }));
+      // Select-all then the new value, the way typing over a field does, so
+      // frameworks that watch keystrokes see a change they recognize.
+      A.fire(element, "keydown", A.keyInit("a"));
+      A.setNativeValue(element, "");
+      A.fire(element, "input", { inputType: "deleteContentBackward" });
+      A.setNativeValue(element, value);
+      A.fire(element, "input", { inputType: "insertText", data: value });
+      A.fire(element, "change");
+      A.fire(element, "keyup", A.keyInit("a"));
+      if (A.clean(element.value) !== A.clean(value)) {
+        return executed(`Typed into "${label}"; the field now reads "${A.truncate(A.clean(element.value), 80)}".`);
+      }
+      return executed(`Typed "${A.truncate(A.clean(value), 80)}" into "${label}".`);
     }
-    return executed(`Filled "${control.label}".`);
+    // contenteditable: insertText goes through the editing pipeline the
+    // page's editor listens to; fall back to replacing the text.
+    const selection = element.ownerDocument.getSelection();
+    const range = element.ownerDocument.createRange();
+    range.selectNodeContents(element);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    let inserted = false;
+    try { inserted = element.ownerDocument.execCommand("insertText", false, value); } catch { inserted = false; }
+    if (!inserted) {
+      element.textContent = value;
+      A.fire(element, "input", { inputType: "insertText", data: value });
+    }
+    return executed(`Typed "${A.truncate(A.clean(value), 80)}" into "${label}".`);
   }
+
+  // MARK: - Press
+
+  if (kind === "press") {
+    const key = String(value || "Enter");
+    if (!["Enter", "Escape", "Tab", "ArrowDown", "ArrowUp", "ArrowLeft", "ArrowRight", "Backspace", "Space"].includes(key)) {
+      return failed(`Candoa does not press "${key}".`);
+    }
+    element.focus();
+    const init = A.keyInit(key);
+    const before = location.href;
+    const keydownAllowed = A.fire(element, "keydown", init);
+    if (keydownAllowed && key === "Enter") {
+      // Implicit submission, as the browser would do it for a real Enter.
+      const form = A.formOf(element);
+      if (element instanceof HTMLInputElement && form) {
+        A.fire(element, "keypress", init);
+        if (typeof form.requestSubmit === "function") {
+          const submitter = form.querySelector("button[type='submit'],input[type='submit'],button:not([type])");
+          try { form.requestSubmit(submitter || undefined); } catch { form.requestSubmit(); }
+        } else {
+          form.submit();
+        }
+      } else if (element.localName !== "textarea" && (element instanceof HTMLAnchorElement || element instanceof HTMLButtonElement || role === "button" || role === "link" || role === "option" || role === "menuitem")) {
+        element.click();
+      }
+    }
+    if (keydownAllowed && key === "Space" && (element instanceof HTMLButtonElement || role === "button" || role === "checkbox" || role === "switch")) {
+      element.click();
+    }
+    A.fire(element, "keyup", init);
+    if (location.href !== before) return executed(`Pressed ${key} in "${label}"; the page is navigating.`);
+    return executed(`Pressed ${key} in "${label}".`);
+  }
+
   return failed("Candoa rejected an unsupported referenced action.");
 })();

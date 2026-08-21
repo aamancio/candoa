@@ -81,6 +81,86 @@
         }
       }
     },
+    "Eli is ready to press %@ in \"%@\". This may send the form." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eli ist bereit, %1$@ in „%2$@“ zu drücken. Dadurch wird das Formular möglicherweise abgeschickt."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eli está a punto de pulsar %1$@ en \"%2$@\". Esto puede enviar el formulario."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eli est prêt à appuyer sur %1$@ dans « %2$@ ». Cela peut envoyer le formulaire."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eliは「%2$@」で%1$@を押す準備ができています。フォームが送信される可能性があります。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eli está pronto para pressionar %1$@ em \"%2$@\". Isso pode enviar o formulário."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eli 准备在“%2$@”中按下 %1$@。这可能会提交表单。"
+          }
+        }
+      }
+    },
+    "Pressing %@ in %@…" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Drücke %1$@ in %2$@ …"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pulsando %1$@ en %2$@…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Appui sur %1$@ dans %2$@…"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%2$@で%1$@を押しています…"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pressionando %1$@ em %2$@…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在 %2$@ 中按下 %1$@…"
+          }
+        }
+      }
+    },
     "— %@" : {
       "comment" : "Command palette row: em dash before a detail or source label.",
       "localizations" : {

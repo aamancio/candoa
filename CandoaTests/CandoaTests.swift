@@ -1502,3 +1502,88 @@ final class CommandBarSelectionMemoryTests: XCTestCase {
         XCTAssertEqual(CommandBarSelectionMemory(defaults: defaults).selections(matching: "sl"), [])
     }
 }
+
+/// The before/after summary a step's outcome carries, and the grounding of
+/// the press and scroll-to-control actions.
+final class BrowserAgentPerceptionTests: XCTestCase {
+    private let snapshotID = UUID()
+
+    private func page(
+        url: String = "https://example.com/account",
+        title: String = "Account",
+        controls: [BrowserAgentControl],
+        modal: Bool = false
+    ) -> BrowserAgentPage {
+        BrowserAgentPage(
+            snapshotID: snapshotID,
+            title: title,
+            url: url,
+            text: "",
+            controls: controls,
+            tree: "- main",
+            viewport: BrowserAgentViewport(width: 1280, height: 800, scrollTop: 0, scrollHeight: 800, linesAbove: 0, linesBelow: 0, modal: modal)
+        )
+    }
+
+    private func control(_ ref: String, _ label: String, kind: BrowserAgentControl.Kind = .button) -> BrowserAgentControl {
+        BrowserAgentControl(ref: ref, kind: kind, label: label, url: nil, disabled: false)
+    }
+
+    func testDiffReportsNavigationAndNewControls() {
+        let before = page(controls: [control("e0", "Manage membership")])
+        let after = page(url: "https://example.com/membership", title: "Membership", controls: [control("e0", "Cancel membership"), control("e1", "Change plan")])
+        let summary = BrowserAgentPageDiff.summary(before: before, after: after, mutations: 12)
+        XCTAssertTrue(summary.contains("URL changed to https://example.com/membership"), summary)
+        XCTAssertTrue(summary.contains("title is now \"Membership\""), summary)
+        XCTAssertTrue(summary.contains("New controls: \"Cancel membership\", \"Change plan\""), summary)
+        XCTAssertTrue(summary.contains("Gone: \"Manage membership\""), summary)
+    }
+
+    func testDiffSaysWhenNothingChanged() {
+        let before = page(controls: [control("e0", "Next")])
+        XCTAssertEqual(BrowserAgentPageDiff.summary(before: before, after: before, mutations: 0), "Nothing visible changed.")
+        XCTAssertEqual(
+            BrowserAgentPageDiff.summary(before: before, after: before, mutations: 3),
+            "The page updated but its controls did not change."
+        )
+    }
+
+    func testDiffNoticesDialogsAndCapsTheList() {
+        let before = page(controls: [])
+        let opened = page(controls: (0..<7).map { control("e\($0)", "Option \($0)") }, modal: true)
+        let summary = BrowserAgentPageDiff.summary(before: before, after: opened, mutations: nil)
+        XCTAssertTrue(summary.hasPrefix("A dialog opened."), summary)
+        XCTAssertTrue(summary.contains("and 3 more"), summary)
+    }
+
+    func testPressIsGroundedOnAListedControlWithAnAllowedKey() {
+        let current = page(controls: [control("e0", "Search", kind: .field)])
+        let press = { (value: String) in
+            BrowserAgentAction(snapshotID: self.snapshotID, kind: .press, target: "e0", value: value, label: "Search", url: nil, requiresApproval: false, message: "")
+        }
+        let proposal = press("Enter").validatedAction(on: current)
+        XCTAssertEqual(proposal?.kind, .press)
+        XCTAssertEqual(proposal?.value, "Enter")
+        XCTAssertEqual(proposal?.browserAgentReference, "e0")
+        XCTAssertNil(press("F5").validatedAction(on: current), "only the listed keys are pressable")
+    }
+
+    func testScrollAcceptsADirectionOrAControlToReveal() {
+        let current = page(controls: [control("e0", "Reviews", kind: .link)])
+        let scroll = { (target: String, label: String) in
+            BrowserAgentAction(snapshotID: self.snapshotID, kind: .scroll, target: target, value: "", label: label, url: nil, requiresApproval: false, message: "")
+        }
+        XCTAssertEqual(scroll("down", "Scroll down").validatedAction(on: current)?.target, "down")
+        let toControl = scroll("e0", "Reviews").validatedAction(on: current)
+        XCTAssertEqual(toControl?.browserAgentReference, "e0")
+        XCTAssertEqual(toControl?.target, "Reviews")
+        XCTAssertNil(scroll("e0", "Other").validatedAction(on: current), "the label has to match the snapshot")
+        XCTAssertNil(scroll("sideways", "Scroll sideways").validatedAction(on: current))
+    }
+
+    func testPressOnASensitiveControlStillNeedsApproval() {
+        let current = page(controls: [BrowserAgentControl(ref: "e0", kind: .field, label: "Email", url: nil, disabled: false, sensitive: true)])
+        let action = BrowserAgentAction(snapshotID: snapshotID, kind: .press, target: "e0", value: "Enter", label: "Email", url: nil, requiresApproval: false, message: "")
+        XCTAssertTrue(BrowserAgentPolicy.requiresNativeApproval(for: action, on: current))
+    }
+}

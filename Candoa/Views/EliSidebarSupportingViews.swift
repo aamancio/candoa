@@ -13,6 +13,9 @@ struct PendingSensitiveAgentAction: Identifiable, Sendable {
     let action: PageActionProposal
     let state: BrowserAgentRunState
     let previousURL: String
+    /// The page the action was chosen on, for the before/after summary the
+    /// outcome carries once the person approves.
+    var previousPage: BrowserAgentPage? = nil
 }
 
 struct AISidebarImagePreview: Identifiable {
