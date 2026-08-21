@@ -233,6 +233,43 @@ extension BrowserStore {
         return tab
     }
 
+    /// Safari's last-tab rule: ⌘W closes the tab, and when the Space has no
+    /// other tab to fall back to it closes the window rather than leaving an
+    /// empty one behind.
+    ///
+    /// "No other tab" means no other *closable* tab. Pinned tabs and
+    /// favorites answer ⌘W by resetting to their saved page
+    /// (`performPinnedCloseShortcutIfNeeded`), so a Space down to its last
+    /// ordinary tab beside them has nothing left for a second ⌘W to act on —
+    /// the window would sit there, uncloseable by the very shortcut asked to
+    /// close it. An active pinned tab or favorite keeps its own meaning: it
+    /// resets, and the window stays.
+    func closeCurrentTabOrWindow() {
+        guard let activeTabID, let activeTab = tabs.first(where: { $0.id == activeTabID }) else {
+            closeKeyWindow()
+            return
+        }
+
+        guard !activeTab.isPinned, !activeTab.isFavorite else {
+            closeCurrentTab()
+            return
+        }
+
+        let otherClosableTabRemains = visibleTabsForActiveSpace.contains {
+            $0.id != activeTabID && !$0.isPinned && !$0.isFavorite
+        }
+
+        if otherClosableTabRemains {
+            closeCurrentTab()
+        } else {
+            closeKeyWindow()
+        }
+    }
+
+    private func closeKeyWindow() {
+        NSApp.keyWindow?.performClose(nil)
+    }
+
     func closeCurrentTab() {
         guard let activeTabID else { return }
         if performPinnedCloseShortcutIfNeeded(activeTabID) {
