@@ -190,14 +190,12 @@ enum EliSuggestionCatalog {
                 EliSuggestion(
                     kind: .summarize,
                     title: String(localized: "Summarize this page"),
-                    symbolName: "text.alignleft",
-                    personalizedFormat: String(localized: "Summarize the page about %@")
+                    symbolName: "text.alignleft"
                 ),
                 EliSuggestion(
                     kind: .explain,
                     title: String(localized: "Explain the key points"),
-                    symbolName: "list.bullet",
-                    personalizedFormat: String(localized: "Explain the key points about %@")
+                    symbolName: "list.bullet"
                 ),
             ]
         case .email:
@@ -331,14 +329,12 @@ enum EliSuggestionCatalog {
                 EliSuggestion(
                     kind: .summarize,
                     title: String(localized: "Summarize this PDF"),
-                    symbolName: "doc.richtext",
-                    personalizedFormat: String(localized: "Summarize the document about %@")
+                    symbolName: "doc.richtext"
                 ),
                 EliSuggestion(
                     kind: .explain,
                     title: String(localized: "Explain the key points"),
-                    symbolName: "list.bullet",
-                    personalizedFormat: String(localized: "Explain the key points about %@")
+                    symbolName: "list.bullet"
                 ),
             ]
         case .search:
