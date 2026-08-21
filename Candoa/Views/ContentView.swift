@@ -1004,11 +1004,7 @@ struct ContentView: View {
             return
         }
 
-        if store.visibleTabsForActiveSpace.count > 1 {
-            store.closeCurrentTab()
-        } else {
-            NSApp.keyWindow?.performClose(nil)
-        }
+        store.closeCurrentTabOrWindow()
     }
 }
 

@@ -645,7 +645,7 @@ extension CommandPaletteView {
         case .newTab:
             store.openNewTab()
         case .closeCurrentTab:
-            store.closeCurrentTab()
+            store.closeCurrentTabOrWindow()
         case .duplicateCurrentTab:
             store.duplicateCurrentTab()
         case .reloadTab:
