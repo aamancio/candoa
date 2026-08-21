@@ -54,6 +54,8 @@
 		010000000000000000000140 /* ContentBlockerService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000040 /* ContentBlockerService.swift */; };
 		010000000000000000000141 /* CopiedURLToastView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000041 /* CopiedURLToastView.swift */; };
 		010000000000000000000142 /* EliService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000042 /* EliService.swift */; };
+		010000000000000000000513 /* EliSuggestionCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000413 /* EliSuggestionCatalog.swift */; };
+		010000000000000000000514 /* EliSuggestionPersonalizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000414 /* EliSuggestionPersonalizer.swift */; };
 		010000000000000000000143 /* EliPromptPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000043 /* EliPromptPolicy.swift */; };
 		010000000000000000000144 /* EliContextSections.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000044 /* EliContextSections.swift */; };
 		010000000000000000000145 /* EliSidebarResizeHandle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010000000000000000000045 /* EliSidebarResizeHandle.swift */; };
@@ -265,6 +267,8 @@
 		010000000000000000000040 /* ContentBlockerService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentBlockerService.swift; sourceTree = "<group>"; };
 		010000000000000000000041 /* CopiedURLToastView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CopiedURLToastView.swift; sourceTree = "<group>"; };
 		010000000000000000000042 /* EliService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EliService.swift; sourceTree = "<group>"; };
+		010000000000000000000413 /* EliSuggestionCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EliSuggestionCatalog.swift; sourceTree = "<group>"; };
+		010000000000000000000414 /* EliSuggestionPersonalizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EliSuggestionPersonalizer.swift; sourceTree = "<group>"; };
 		010000000000000000000043 /* EliPromptPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EliPromptPolicy.swift; sourceTree = "<group>"; };
 		010000000000000000000044 /* EliContextSections.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EliContextSections.swift; sourceTree = "<group>"; };
 		010000000000000000000045 /* EliSidebarResizeHandle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EliSidebarResizeHandle.swift; sourceTree = "<group>"; };
@@ -606,6 +610,8 @@
 				AB7700000000000000000001 /* WebAuthenticationSessionHostService.swift */,
 				010000000000000000000068 /* BrowserImportService.swift */,
 				BB0000000000000000000001 /* BrowserPasskeyAuthorizationService.swift */,
+				010000000000000000000413 /* EliSuggestionCatalog.swift */,
+				010000000000000000000414 /* EliSuggestionPersonalizer.swift */,
 				010000000000000000000043 /* EliPromptPolicy.swift */,
 				010000000000000000000044 /* EliContextSections.swift */,
 				010000000000000000000048 /* EliContextCompactor.swift */,
@@ -1059,6 +1065,8 @@
 				CA2FD9F554C2ECB4DF65A93E /* OnboardingSurface.swift in Sources */,
 				010000000000000000000178 /* BrowserImportService.swift in Sources */,
 				BB0000000000000000000101 /* BrowserPasskeyAuthorizationService.swift in Sources */,
+				010000000000000000000513 /* EliSuggestionCatalog.swift in Sources */,
+				010000000000000000000514 /* EliSuggestionPersonalizer.swift in Sources */,
 				010000000000000000000143 /* EliPromptPolicy.swift in Sources */,
 				010000000000000000000144 /* EliContextSections.swift in Sources */,
 				010000000000000000000145 /* EliSidebarResizeHandle.swift in Sources */,

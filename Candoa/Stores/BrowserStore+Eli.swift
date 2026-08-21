@@ -388,6 +388,19 @@ extension BrowserStore {
         await webCoordinator.waitForBrowserAgentPageSettled(for: tabID, previousURL: previousURL)
     }
 
+    /// The bounded slice of the page Eli's chip personalizer reads (issue
+    /// #467): readable text only, no OCR and no controls, cut to a few
+    /// hundred characters before it reaches the on-device model.
+    func eliSuggestionExcerpt(for tabID: UUID?) async -> String {
+        let tab = tabID.flatMap { id in tabs.first { $0.id == id } }
+        var pageText: String?
+        if let tabID = tab?.id {
+            await webCoordinator.waitForAIPageContextSettled(for: tabID)
+            pageText = await webCoordinator.readablePageText(for: tabID)
+        }
+        return EliSuggestionCatalog.excerpt(title: tab?.title, url: tab?.url, pageText: pageText)
+    }
+
     func activeAIPageContext() async -> AIPageContext {
         await aiPageContext(for: activeTabID)
     }
