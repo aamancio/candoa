@@ -10,6 +10,10 @@ struct BrowserInterfaceInsets: Equatable {
 struct WebViewContainer: View {
     @ObservedObject var store: BrowserStore
     let visibleInterfaceInsets: BrowserInterfaceInsets
+    /// Lane a pinned sidebar just vacated, still unpainted by WebKit. The
+    /// card covers it with the page's own color for those few frames (see
+    /// `ContentView.holdUncoveredSidebarLane`).
+    var uncoveredLeadingLane: CGFloat = 0
     let attachesToTrailingPanel: Bool
     /// The strip above the page takes over the sidebar's toggle while the
     /// sidebar is away, so it needs the same action the sidebar header uses.
@@ -59,6 +63,9 @@ struct WebViewContainer: View {
                 } else {
                     browserSurface(drawsBorder: false) {
                         singleTabContent(for: tab)
+                            .overlay(alignment: .leading) {
+                                uncoveredLaneFill(for: tab)
+                            }
                     }
                     .padding(containedSurfaceInsets)
                 }
@@ -155,6 +162,17 @@ struct WebViewContainer: View {
                 }
                 .animation(.easeOut(duration: 0.12), value: store.splitDropPreview)
             }
+        }
+    }
+
+    /// The page's own color over the strip WebKit has not painted yet.
+    @ViewBuilder
+    private func uncoveredLaneFill(for tab: BrowserTab) -> some View {
+        if uncoveredLeadingLane > 0, let color = store.pageBackgroundColors[tab.id] {
+            color
+                .frame(width: uncoveredLeadingLane)
+                .frame(maxHeight: .infinity)
+                .allowsHitTesting(false)
         }
     }
 
