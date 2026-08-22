@@ -253,7 +253,10 @@ internal struct PaletteIconView: View {
     }
 
     private var faviconImage: NSImage? {
-        (faviconData ?? loadedFaviconData).flatMap(NSImage.init(data:))
+        // A favicon the service already resolved paints on the first frame,
+        // so a rebuilt row never blinks back to the placeholder glyph.
+        (faviconData ?? loadedFaviconData ?? FaviconService.shared.cachedFaviconData(for: faviconPageURL))
+            .flatMap(NSImage.init(data:))
     }
 
     @ViewBuilder

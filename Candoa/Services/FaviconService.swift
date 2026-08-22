@@ -6,6 +6,11 @@ final class FaviconService {
     static let shared = FaviconService()
 
     private let cache = NSCache<NSURL, NSData>()
+    /// Resolved favicon per page origin (scheme + host + port). A miss is
+    /// remembered too (`NSNull`), so a site with no icon doesn't cost a
+    /// fresh HTML discovery fetch every time a row for it is built.
+    private let resolvedByOrigin = NSCache<NSURL, AnyObject>()
+    private var inFlightByOrigin: [URL: Task<Data?, Never>] = [:]
     private let session: URLSession
 
     init(session: URLSession = .shared) {
@@ -33,7 +38,49 @@ final class FaviconService {
         return "globe"
     }
 
+    /// The already-resolved favicon for the page's origin, if any. Lets a
+    /// view paint the icon on its first frame instead of after a task.
+    func cachedFaviconData(for pageURL: URL?) -> Data? {
+        guard let origin = origin(of: pageURL) else { return nil }
+        return resolvedByOrigin.object(forKey: origin as NSURL) as? NSData as Data?
+    }
+
     func faviconData(for pageURL: URL?, candidateURL: URL?) async -> Data? {
+        guard candidateURL == nil, let origin = origin(of: pageURL) else {
+            return await resolveFaviconData(for: pageURL, candidateURL: candidateURL)
+        }
+
+        if let resolved = resolvedByOrigin.object(forKey: origin as NSURL) {
+            return resolved as? NSData as Data?
+        }
+
+        if let inFlight = inFlightByOrigin[origin] {
+            return await inFlight.value
+        }
+
+        let task = Task { [weak self] in
+            await self?.resolveFaviconData(for: pageURL, candidateURL: nil)
+        }
+        inFlightByOrigin[origin] = task
+        let data = await task.value
+        inFlightByOrigin[origin] = nil
+        resolvedByOrigin.setObject(data.map { $0 as NSData } ?? NSNull(), forKey: origin as NSURL)
+        return data
+    }
+
+    private func origin(of pageURL: URL?) -> URL? {
+        guard let pageURL, let scheme = pageURL.scheme, let host = pageURL.host(percentEncoded: false) else {
+            return nil
+        }
+        var components = URLComponents()
+        components.scheme = scheme
+        components.host = host
+        components.port = pageURL.port
+        components.path = "/"
+        return components.url
+    }
+
+    private func resolveFaviconData(for pageURL: URL?, candidateURL: URL?) async -> Data? {
         var candidates = faviconCandidates(pageURL: pageURL, candidateURL: candidateURL)
         if candidateURL == nil, let pageURL {
             candidates.append(contentsOf: await discoverIconCandidates(from: pageURL))
