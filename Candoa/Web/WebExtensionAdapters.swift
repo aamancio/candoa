@@ -191,7 +191,8 @@ extension WebExtensionTabAdapter: WKWebExtensionTab {
     }
 
     func setZoomFactor(_ zoomFactor: Double, for context: WKWebExtensionContext) async throws {
-        liveWebView?.pageZoom = zoomFactor
+        guard let store else { return }
+        store.webCoordinator.setZoom(CGFloat(zoomFactor), tabID: tabID)
     }
 
     func loadURL(_ url: URL, for context: WKWebExtensionContext) async throws {

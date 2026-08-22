@@ -219,6 +219,45 @@ final class CandoaTests: XCTestCase {
             .allow
         )
     }
+
+    // MARK: - Remembered page zoom (issue #171)
+
+    func testSiteZoomLevelsParseFromStoredLevels() {
+        let stored = #"{"https://example.com:443":1.25,"http://example.com:80":0.8}"#
+
+        XCTAssertEqual(
+            SiteZoomConfiguration.level(for: URL(string: "https://Example.com/deep/page")!, storedLevels: stored),
+            1.25
+        )
+        // Scheme is part of the origin: http and https remember separately.
+        XCTAssertEqual(
+            SiteZoomConfiguration.level(for: URL(string: "http://example.com/")!, storedLevels: stored),
+            0.8
+        )
+        XCTAssertNil(SiteZoomConfiguration.level(for: URL(string: "https://other.com/")!, storedLevels: stored))
+        XCTAssertNil(SiteZoomConfiguration.level(for: URL(string: "file:///tmp/x")!, storedLevels: stored))
+        XCTAssertNil(SiteZoomConfiguration.level(for: URL(string: "https://example.com/")!, storedLevels: "not json"))
+    }
+
+    func testSiteZoomDefaultLevelIsNotStored() {
+        let defaults = UserDefaults.standard
+        let previous = defaults.string(forKey: SiteZoomConfiguration.storageKey)
+        defer { defaults.set(previous, forKey: SiteZoomConfiguration.storageKey) }
+        defaults.removeObject(forKey: SiteZoomConfiguration.storageKey)
+
+        let url = URL(string: "https://example.com/")!
+        SiteZoomConfiguration.setLevel(1.5, for: url)
+        XCTAssertEqual(SiteZoomConfiguration.level(for: url), 1.5)
+
+        // Back at 100% the entry disappears instead of lingering as "1".
+        SiteZoomConfiguration.setLevel(1, for: url)
+        XCTAssertNil(SiteZoomConfiguration.level(for: url))
+        XCTAssertEqual(defaults.string(forKey: SiteZoomConfiguration.storageKey), "{}")
+
+        SiteZoomConfiguration.setLevel(0.9, for: url)
+        SiteZoomConfiguration.reset(for: url)
+        XCTAssertNil(SiteZoomConfiguration.level(for: url))
+    }
 }
 
 /// Unit coverage for Eli's per-Space memory (issue #292): the sanitization

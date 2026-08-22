@@ -111,6 +111,10 @@ extension BrowserStore {
         SitePermissionConfiguration.resetDecisions(for: url)
     }
 
+    func resetSiteZoom(for url: URL) {
+        webCoordinator.resetStoredZoom(for: url)
+    }
+
     func siteSecuritySummary(for tabID: UUID?) -> SiteSecuritySummary? {
         guard let tabID else { return nil }
         return webCoordinator.siteSecuritySummary(forTabID: tabID)

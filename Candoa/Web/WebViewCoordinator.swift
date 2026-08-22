@@ -849,7 +849,7 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
     }
 
     func resetZoom(tabID: UUID) {
-        webViews[tabID]?.pageZoom = 1
+        setZoom(1, tabID: tabID)
     }
 
     func adjustZoom(tabID: UUID, direction: Int) {
@@ -859,7 +859,47 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
             abs($0.element - webView.pageZoom) < abs($1.element - webView.pageZoom)
         }?.offset ?? levels.firstIndex(of: 1) ?? 0
         let nextIndex = min(max(currentIndex + direction, 0), levels.count - 1)
-        webView.pageZoom = levels[nextIndex]
+        setZoom(levels[nextIndex], tabID: tabID)
+    }
+
+    /// Every zoom change lands here so the level is remembered for the site
+    /// (Safari behavior) and every other open tab on that origin follows.
+    func setZoom(_ level: CGFloat, tabID: UUID) {
+        guard let webView = webViews[tabID] else { return }
+        webView.pageZoom = level
+        guard let url = webView.url else { return }
+        SiteZoomConfiguration.setLevel(level, for: url)
+        applyStoredZoom(forOriginOf: url, except: tabID)
+    }
+
+    /// Forgets the site's remembered level and returns its open tabs to 100%.
+    func resetStoredZoom(for url: URL) {
+        SiteZoomConfiguration.reset(for: url)
+        applyStoredZoom(forOriginOf: url, except: nil)
+    }
+
+    /// The remembered level for the page a web view is showing, or 100% when
+    /// the site has none — so a site zoomed in one tab never leaks its level
+    /// into the next site loaded in the same tab.
+    func applyStoredZoom(to webView: WKWebView) {
+        guard let url = webView.url else { return }
+        let level = SiteZoomConfiguration.level(for: url) ?? 1
+        if abs(webView.pageZoom - level) > 0.001 {
+            webView.pageZoom = level
+        }
+    }
+
+    private func applyStoredZoom(forOriginOf url: URL, except tabID: UUID?) {
+        guard let origin = SitePermissionConfiguration.originKey(for: url) else { return }
+        for (otherID, other) in webViews where otherID != tabID {
+            guard
+                let otherURL = other.url,
+                SitePermissionConfiguration.originKey(for: otherURL) == origin
+            else {
+                continue
+            }
+            applyStoredZoom(to: other)
+        }
     }
 
     // MARK: - Content Blocking

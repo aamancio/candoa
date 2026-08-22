@@ -16,6 +16,9 @@ struct SiteInfoPopoverView: View {
     @AppStorage(SettingsOption.strictTrackingProtection)
     private var strictTrackingProtection = true
 
+    @AppStorage(SiteZoomConfiguration.storageKey)
+    private var siteZoomLevels = ""
+
     // Captured once when the popover opens — a deliberate snapshot, not an
     // observation, so showing Site Info never adds steady-state work.
     @State private var securitySummary: SiteSecuritySummary?
@@ -34,6 +37,10 @@ struct SiteInfoPopoverView: View {
             trackingProtectionSection
 
             if originKey != nil {
+                if let storedZoomLevel {
+                    Divider()
+                    zoomSection(level: storedZoomLevel)
+                }
                 Divider()
                 permissionsSection
             } else {
@@ -242,6 +249,37 @@ struct SiteInfoPopoverView: View {
                 .font(.caption)
                 .padding(.leading, 26)
                 .accessibilityIdentifier("site-info-privacy-report")
+        }
+    }
+
+    // MARK: - Zoom
+
+    /// The level remembered for this site, nil at 100% — the row only appears
+    /// when there is something to reset, so Site Info stays quiet by default.
+    private var storedZoomLevel: CGFloat? {
+        SiteZoomConfiguration.level(for: url, storedLevels: siteZoomLevels)
+    }
+
+    private func zoomSection(level: CGFloat) -> some View {
+        let percent = Double(level).formatted(.percent.precision(.fractionLength(0)))
+        return HStack(spacing: 8) {
+            Label {
+                Text("Zoom: \(percent)")
+                    .font(.system(size: 12, weight: .medium))
+            } icon: {
+                Image(systemName: "plus.magnifyingglass")
+                    .font(.system(size: 13, weight: .medium))
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("site-info-zoom")
+
+            Spacer(minLength: 12)
+
+            Button(BrowserCommandTitles.resetZoom) {
+                store.resetSiteZoom(for: url)
+            }
+            .font(.caption)
+            .accessibilityIdentifier("site-info-reset-zoom")
         }
     }
 

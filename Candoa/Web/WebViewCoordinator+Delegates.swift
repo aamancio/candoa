@@ -15,6 +15,8 @@ extension WebViewCoordinator {
 
     func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
         finishRestoreIfNeeded(for: webView)
+        // The committed URL is the one the remembered level belongs to.
+        applyStoredZoom(to: webView)
         // A committing page is the last beat of the open-a-tab flow, after the
         // command palette has unmounted and released the window's focus — the
         // earlier attempt during hosting gets clobbered by that unmount.
