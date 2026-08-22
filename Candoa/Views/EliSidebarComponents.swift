@@ -11,11 +11,16 @@ struct AISidebarExamplePromptButton: View {
 
     var body: some View {
         Button(action: action) {
-            Label(title, systemImage: symbolName)
-                .font(.system(size: 12.5, weight: .medium))
-                .lineLimit(2)
-                .truncationMode(.tail)
-                .multilineTextAlignment(.leading)
+            HStack(alignment: .center, spacing: 8) {
+                Image(systemName: symbolName)
+                    .font(.system(size: 12.5, weight: .medium))
+                    .frame(width: 18, alignment: .center)
+                Text(title)
+                    .font(.system(size: 12.5, weight: .medium))
+                    .lineLimit(2)
+                    .truncationMode(.tail)
+                    .multilineTextAlignment(.leading)
+            }
                 .foregroundStyle(InterfaceStyle.sidebarText.opacity(isEnabled ? 1 : 0.5))
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 11)
