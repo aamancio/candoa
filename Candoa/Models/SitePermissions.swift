@@ -161,6 +161,59 @@ enum SitePermissionConfiguration {
     }
 }
 
+/// Per-site page zoom, remembered the way Safari does it: a level set on a
+/// site comes back on every later visit to that origin instead of dying with
+/// the tab. Same origin keys and storage shape as the permission overrides,
+/// readable through `@AppStorage` so Site Info follows each change.
+enum SiteZoomConfiguration {
+    static let storageKey = "Candoa.SiteZoomLevels"
+
+    /// The remembered level for the URL's origin, nil when the site is at
+    /// the default (1.0 is never stored) or has no origin to remember by.
+    static func level(for url: URL, storedLevels: String? = nil) -> CGFloat? {
+        guard let origin = SitePermissionConfiguration.originKey(for: url) else { return nil }
+        return levels(from: storedLevels)[origin].map { CGFloat($0) }
+    }
+
+    /// Records the level for the URL's origin; the default level clears the
+    /// entry so the map only ever lists sites that differ from 100%.
+    static func setLevel(_ level: CGFloat, for url: URL) {
+        guard let origin = SitePermissionConfiguration.originKey(for: url) else { return }
+        var all = levels(from: nil)
+        if abs(level - 1) < 0.001 {
+            all.removeValue(forKey: origin)
+        } else {
+            all[origin] = Double(level)
+        }
+        UserDefaults.standard.set(encoded(all), forKey: storageKey)
+    }
+
+    static func reset(for url: URL) {
+        setLevel(1, for: url)
+    }
+
+    private static func levels(from storedValue: String?) -> [String: Double] {
+        let value = storedValue ?? UserDefaults.standard.string(forKey: storageKey) ?? ""
+        guard
+            let data = value.data(using: .utf8),
+            let decoded = try? JSONDecoder().decode([String: Double].self, from: data)
+        else {
+            return [:]
+        }
+        return decoded
+    }
+
+    private static func encoded(_ levels: [String: Double]) -> String {
+        guard
+            let data = try? JSONEncoder().encode(levels),
+            let value = String(data: data, encoding: .utf8)
+        else {
+            return ""
+        }
+        return value
+    }
+}
+
 /// What Site Info can truthfully say about the displayed page, derived only
 /// from WKWebView's public security surface (`hasOnlySecureContent` and
 /// `serverTrust`) — never more than WebKit exposes.

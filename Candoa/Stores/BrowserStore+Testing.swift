@@ -151,9 +151,11 @@ extension BrowserStore {
     }
 
     /// Drives the active window from a fixture runner without synthetic
-    /// input: `navigate:<url>` loads a page in the active tab and `eli:toggle`
-    /// opens or closes the Eli sidebar. Same rationale as the tab-switcher
-    /// seam — keyboard-free, so it works while the machine is in use.
+    /// input: `navigate:<url>` loads a page in the active tab, `eli:toggle`
+    /// opens or closes the Eli sidebar, `zoom:in` / `zoom:out` / `zoom:reset`
+    /// step the page zoom, and `siteinfo:toggle` flips the Site Info popover.
+    /// Same rationale as the tab-switcher seam — keyboard-free, so it works
+    /// while the machine is in use.
     static let uiTestingWindowCommandNotification =
         Notification.Name("app.candoa.uitesting.window-command")
 
@@ -170,6 +172,14 @@ extension BrowserStore {
                         self.navigateActiveTab(to: String(command.dropFirst("navigate:".count)))
                     } else if command == "eli:toggle" {
                         self.aiSidebarToggleRequestID = UUID()
+                    } else if command == "zoom:in" {
+                        self.zoomInActiveTab()
+                    } else if command == "zoom:out" {
+                        self.zoomOutActiveTab()
+                    } else if command == "zoom:reset" {
+                        self.resetZoomForActiveTab()
+                    } else if command == "siteinfo:toggle" {
+                        self.isSiteInfoPopoverPresented.toggle()
                     }
                 }
             }
