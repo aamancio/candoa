@@ -219,6 +219,57 @@ final class CandoaTests: XCTestCase {
             .allow
         )
     }
+
+    // MARK: - External app links (issue #180)
+
+    func testExternalAppLinkClassificationLeavesWebSchemesAlone() {
+        for web in ["https://example.com", "HTTP://example.com", "about:blank",
+                    "file:///tmp/x", "data:text/plain,hi", "blob:https://example.com/x",
+                    "javascript:void(0)"] {
+            XCTAssertFalse(
+                ExternalAppLinkConfiguration.isExternalAppLink(URL(string: web)!),
+                web
+            )
+        }
+        for external in ["zoom://join?id=1", "spotify:track:1", "mailto:a@b.c",
+                         "facetime://user", "x-custom-app://x"] {
+            XCTAssertTrue(
+                ExternalAppLinkConfiguration.isExternalAppLink(URL(string: external)!),
+                external
+            )
+        }
+    }
+
+    func testExternalSchemeAllowancesParseFromStoredOverrides() {
+        let stored = #"{"https://example.com:443":{"zoom":"allow","spotify":"allow"}}"#
+        let page = URL(string: "https://example.com/meeting")!
+
+        XCTAssertTrue(
+            ExternalAppLinkConfiguration.isAllowed(scheme: "ZOOM", pageURL: page, storedOverrides: stored)
+        )
+        XCTAssertEqual(
+            ExternalAppLinkConfiguration.allowedSchemes(for: page, storedOverrides: stored),
+            ["spotify", "zoom"]
+        )
+        // Other origins, unstored schemes, pageless contexts, and garbage
+        // payloads all stay at "ask".
+        XCTAssertFalse(
+            ExternalAppLinkConfiguration.isAllowed(
+                scheme: "zoom",
+                pageURL: URL(string: "https://other.example/")!,
+                storedOverrides: stored
+            )
+        )
+        XCTAssertFalse(
+            ExternalAppLinkConfiguration.isAllowed(scheme: "slack", pageURL: page, storedOverrides: stored)
+        )
+        XCTAssertFalse(
+            ExternalAppLinkConfiguration.isAllowed(scheme: "zoom", pageURL: nil, storedOverrides: stored)
+        )
+        XCTAssertFalse(
+            ExternalAppLinkConfiguration.isAllowed(scheme: "zoom", pageURL: page, storedOverrides: "not json")
+        )
+    }
 }
 
 /// Unit coverage for Eli's per-Space memory (issue #292): the sanitization

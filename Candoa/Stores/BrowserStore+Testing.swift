@@ -485,7 +485,8 @@ extension BrowserStore {
             "command=\(uiTestingLastCommandDescription)",
             "pageScheme=\(uiTestingWebsiteAppearanceDescription)",
             "popupDiag=\(uiTestingPopupDiagnostics.joined(separator: "|"))",
-            "webAuth=\(uiTestingWebAuthEvents.joined(separator: "|"))"
+            "webAuth=\(uiTestingWebAuthEvents.joined(separator: "|"))",
+            "externalApp=\(uiTestingExternalAppDiagnostics.joined(separator: "|"))"
         ].joined(separator: ";")
     }
 

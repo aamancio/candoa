@@ -157,7 +157,20 @@ extension WebViewCoordinator {
         _ webView: WKWebView,
         decidePolicyFor navigationAction: WKNavigationAction
     ) async -> WKNavigationActionPolicy {
-        navigationAction.shouldPerformDownload ? .download : .allow
+        // zoom:, spotify:, mailto: and friends — WebKit cannot render these,
+        // so the navigation is really a request to open another app. Cancel
+        // it and route through the consent flow (mailto and remembered site
+        // allowances open silently; everything else asks).
+        if let url = navigationAction.request.url, ExternalAppLinkService.isExternalAppLink(url) {
+            ExternalAppLinkService.handle(
+                url,
+                pageURL: webView.url,
+                window: webView.window,
+                store: store
+            )
+            return .cancel
+        }
+        return navigationAction.shouldPerformDownload ? .download : .allow
     }
 
     func webView(
@@ -186,6 +199,19 @@ extension WebViewCoordinator {
         windowFeatures: WKWindowFeatures
     ) -> WKWebView? {
         guard let store else { return nil }
+
+        // target=_blank external-scheme links arrive here instead of the
+        // navigation delegate. A popup tab for them would only dead-end, so
+        // they get the same consent flow and no web view.
+        if let url = navigationAction.request.url, ExternalAppLinkService.isExternalAppLink(url) {
+            ExternalAppLinkService.handle(
+                url,
+                pageURL: webView.url,
+                window: webView.window,
+                store: store
+            )
+            return nil
+        }
 
         // A Site Info "Block" decision for the source page's origin stops the
         // pop-up before any tab or web view exists. Returning nil is the
