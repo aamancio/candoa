@@ -178,6 +178,7 @@ struct SidebarView: View {
             .overlay { scrollEdgeRules }
             .overlay(alignment: .top) {
                 SidebarChromeHost { topChrome }
+                    .frame(height: topChromeHeight)
             }
             .overlay(alignment: .top) {
                 // Private tabs never join the workspace, so the shared
@@ -442,6 +443,16 @@ struct SidebarView: View {
     /// the sidebar then closes the gap it would have occupied.
     private var showsAddressPill: Bool {
         addressBarPlacement != AddressBarPlacement.top.rawValue
+    }
+
+    /// The fixed chrome's height from its layout constants, which sizes its
+    /// hosting view: a measured height fed back through that host never
+    /// settled, and the host's own fitting size depended on when the window
+    /// asked.
+    private var topChromeHeight: CGFloat {
+        sidebarTopPadding +
+            sidebarHeaderHeight +
+            (showsAddressPill ? sidebarVerticalSpacing + sidebarAddressHeight : 0)
     }
 
     private var spaceSwipeTopInset: CGFloat {
