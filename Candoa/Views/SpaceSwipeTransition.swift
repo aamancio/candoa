@@ -229,6 +229,12 @@ struct SidebarChromeHost<Content: View>: NSViewRepresentable {
 
     func makeNSView(context: Context) -> SidebarSwipeHostingView<Content> {
         let view = SidebarSwipeHostingView(rootView: content)
+        // The band sits inside the window's title-bar safe area. A hosting
+        // view applies that inset to its own content by default, so the
+        // chrome laid out taller than the frame it was given and drew
+        // 16pt above the traffic lights; the sidebar already ignores the
+        // safe area and places the chrome itself.
+        view.safeAreaRegions = []
         view.wantsLayer = true
         view.layer?.masksToBounds = false
         return view
@@ -236,6 +242,7 @@ struct SidebarChromeHost<Content: View>: NSViewRepresentable {
 
     func updateNSView(_ nsView: SidebarSwipeHostingView<Content>, context: Context) {
         nsView.rootView = content
+        nsView.safeAreaRegions = []
     }
 
     /// Full proposed width, own content height: a band, not a fill, so the
