@@ -103,7 +103,9 @@ enum EliSuggestionCatalog {
         if hostMatches(host, ["mail.google.com", "outlook.live.com", "outlook.office.com",
                               "outlook.office365.com", "mail.proton.me", "mail.yahoo.com",
                               "app.hey.com", "app.fastmail.com", "mail.aol.com", "mail.zoho.com"]) {
-            return .email
+            // Thread-scoped chips only make sense with a message open. A mailbox
+            // list (Gmail `#inbox`, Outlook `/mail/inbox`) has nothing to reply to.
+            return mailURLOpensMessage(url) ? .email : .generic
         }
 
         if host == "docs.google.com" {
@@ -464,6 +466,31 @@ enum EliSuggestionCatalog {
             }
         }
         return lines.joined(separator: "\n")
+    }
+
+    /// Whether a webmail URL points at an open message rather than a folder
+    /// list. Providers differ, but an open message always carries an opaque
+    /// id segment (Gmail `#inbox/FMfcgz…`, Outlook `/mail/inbox/id/AAMk…`,
+    /// HEY `/topics/123456789`) that a folder or search view never does.
+    static func mailURLOpensMessage(_ url: URL) -> Bool {
+        let components = (url.path + "/" + (url.fragment ?? ""))
+            .split(separator: "/")
+            .map(String.init)
+        let idParents: Set<String> = ["id", "messages", "topics", "message", "thread", "conversation"]
+        let listParents: Set<String> = ["search", "label", "u", "mail", "folders", "category", "advanced-search"]
+        let idCharacters = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_=%."))
+
+        for (index, component) in components.enumerated() {
+            let parent = index > 0 ? components[index - 1].lowercased() : ""
+            if idParents.contains(parent), !component.isEmpty { return true }
+            guard component.count >= 16,
+                  !listParents.contains(parent),
+                  component.unicodeScalars.allSatisfy(idCharacters.contains),
+                  component.contains(where: \.isNumber) || component.contains(where: \.isUppercase)
+            else { continue }
+            return true
+        }
+        return false
     }
 
     private static func hostMatches(_ host: String, _ candidates: [String]) -> Bool {
