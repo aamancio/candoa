@@ -212,6 +212,45 @@ final class SidebarDragAutoScroll {
     }
 }
 
+/// Hosts the sidebar's fixed top chrome — window controls, navigation, the
+/// address pill — in its own hosting view. Those controls sit in the window's
+/// title-bar band, and a SwiftUI control placed there by the window's root
+/// hosting view never receives a press: AppKit hands the click to the root
+/// view, whose hit test finds nothing in the band (#388 hoisted the chrome out
+/// of the swipe pages and every header icon went dead to the pointer while
+/// accessibility presses kept working). A nested hosting view hit-tests its own
+/// tree, the way the pages and the Space label already do.
+struct SidebarChromeHost<Content: View>: NSViewRepresentable {
+    private let content: Content
+
+    init(@ViewBuilder content: () -> Content) {
+        self.content = content()
+    }
+
+    func makeNSView(context: Context) -> SidebarSwipeHostingView<Content> {
+        let view = SidebarSwipeHostingView(rootView: content)
+        view.wantsLayer = true
+        view.layer?.masksToBounds = false
+        return view
+    }
+
+    func updateNSView(_ nsView: SidebarSwipeHostingView<Content>, context: Context) {
+        nsView.rootView = content
+    }
+
+    /// Full proposed width, own content height: a band, not a fill, so the
+    /// list beneath it keeps its hit-testing.
+    func sizeThatFits(
+        _ proposal: ProposedViewSize,
+        nsView: SidebarSwipeHostingView<Content>,
+        context: Context
+    ) -> CGSize? {
+        let width = proposal.width ?? nsView.fittingSize.width
+        nsView.frame.size.width = width
+        return CGSize(width: width, height: nsView.fittingSize.height)
+    }
+}
+
 /// Hosts SwiftUI content that follows the swipe carousel's translation.
 /// The content is laid out like the pages — three Space-wide slots offset by
 /// one width — so it slides in lockstep with them.
@@ -339,7 +378,7 @@ struct SpaceSwipeCompanionView<Content: View>: NSViewRepresentable {
 /// hit view permits window-moving into a window drag. The sidebar's own
 /// controls live in that strip, so its hosting view must claim those clicks.
 @MainActor
-private final class SidebarSwipeHostingView<Content: View>: NSHostingView<Content> {
+final class SidebarSwipeHostingView<Content: View>: NSHostingView<Content> {
     override var mouseDownCanMoveWindow: Bool { false }
 }
 

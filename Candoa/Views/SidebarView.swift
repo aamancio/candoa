@@ -177,7 +177,7 @@ struct SidebarView: View {
             .mask { scrollClipMask }
             .overlay { scrollEdgeRules }
             .overlay(alignment: .top) {
-                topChrome
+                SidebarChromeHost { topChrome }
             }
             .overlay(alignment: .top) {
                 // Private tabs never join the workspace, so the shared
