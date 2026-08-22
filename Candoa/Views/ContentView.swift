@@ -25,16 +25,6 @@ struct ContentView: View {
     @SceneStorage("candoa.windowAutosaveID") private var windowAutosaveID = UUID().uuidString
     @State private var isSidebarVisible = true
     @State private var isSidebarHoverRevealed = false
-    /// Keeps the sidebar painted over the lane it is giving up until the page
-    /// beside it has relaid out. WebKit lays the page out in another process,
-    /// so the strip would otherwise sit empty for the few frames that takes.
-    @State private var holdsSidebarPaint = false
-    /// Width of the lane a pinned sidebar just vacated. WebKit repaints the
-    /// page at its new width a few frames after the sidebar goes, and the
-    /// strip in between is WebKit's own unpainted backdrop — a grey slab
-    /// beside the page. The page card fills that strip with the page's color
-    /// until WebKit catches up.
-    @State private var uncoveredSidebarLane: CGFloat = 0
     @State private var isSidebarRevealSuppressed = false
     @State private var isAISidebarVisible = false
     @State private var isAISidebarMounted = false
@@ -101,7 +91,7 @@ struct ContentView: View {
     }
 
     private var isSidebarPresented: Bool {
-        isSidebarVisible || isSidebarHoverRevealed || holdsSidebarPaint
+        isSidebarVisible || isSidebarHoverRevealed
     }
 
     private var isSidebarOverlaying: Bool {
@@ -166,7 +156,6 @@ struct ContentView: View {
                             visibleInterfaceInsets: BrowserInterfaceInsets(
                                 leading: isSidebarVisible ? sidebarTotalWidth : 0
                             ),
-                            uncoveredLeadingLane: isSidebarVisible ? 0 : uncoveredSidebarLane,
                             attachesToTrailingPanel: isAISidebarMounted,
                             onToggleSidebar: toggleSidebar,
                             slideOverTrailingInset: aiSidebarSlideMaskInset
@@ -882,50 +871,13 @@ struct ContentView: View {
     // Only the pointer-driven hover reveal slides, as a floating overlay.
     private func toggleSidebar() {
         if isSidebarVisible {
-            holdUncoveredSidebarLane()
-            // The web lane widens first, behind the sidebar that still covers
-            // it, and the sidebar goes once the page has painted there.
             isSidebarVisible = false
             isSidebarHoverRevealed = false
             isSidebarRevealSuppressed = true
-            holdSidebarPaintUntilPageMoves()
         } else {
             isSidebarVisible = true
             isSidebarHoverRevealed = false
             isSidebarRevealSuppressed = false
-        }
-    }
-
-    /// Holds the sidebar in place for the beat WebKit needs to lay the page
-    /// out at its new width, so the two move as one. Without a page to wait
-    /// for, the sidebar goes immediately — there is nothing to uncover.
-    private func holdSidebarPaintUntilPageMoves() {
-        let waiting = store.webCoordinator.whenActivePagePresents {
-            holdsSidebarPaint = false
-        }
-        guard waiting else {
-            holdsSidebarPaint = false
-            return
-        }
-        holdsSidebarPaint = true
-        // A page that never presents (a crashed or suspended WebContent
-        // process) must not strand the sidebar.
-        Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(320))
-            holdsSidebarPaint = false
-        }
-    }
-
-    /// Fills the vacated lane with the page's color for long enough to cover
-    /// WebKit's inset commit, which lands within a few frames. The fill is
-    /// the page's own color, so an early or late release is invisible.
-    private func holdUncoveredSidebarLane() {
-        let lane = sidebarTotalWidth
-        uncoveredSidebarLane = lane
-        Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(220))
-            guard uncoveredSidebarLane == lane else { return }
-            uncoveredSidebarLane = 0
         }
     }
 

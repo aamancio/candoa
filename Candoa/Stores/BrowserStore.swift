@@ -290,11 +290,6 @@ final class BrowserStore: ObservableObject {
     /// remains. Never runs during normal browsing.
     var offlineRecoveryMonitor: NWPathMonitor?
     var offlineMonitorSawUnsatisfiedPath = false
-    /// Each page's own background color, as WebKit reports it. The page card
-    /// fills with it, so the strip a closing sidebar uncovers reads as page
-    /// for the few frames before WebKit repaints at the new width instead of
-    /// flashing the chrome's grey surface.
-    @Published var pageBackgroundColors: [UUID: Color] = [:]
     @Published var mediaStates: [UUID: TabMediaState] = [:]
     @Published var mediaControllerTabID: UUID?
     @Published var dismissedMiniPlayerTabID: UUID?

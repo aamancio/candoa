@@ -33,8 +33,6 @@ extension WebViewCoordinator {
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         updateStore(from: webView, isLoading: false)
-        // The color WebKit derives from the page settles with the load.
-        publishPageBackgroundColor(of: webView)
         if let tabID = tabID(for: webView) {
             probeReaderAvailabilityIfNeeded(for: tabID)
         }
