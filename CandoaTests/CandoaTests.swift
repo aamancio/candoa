@@ -354,8 +354,8 @@ final class SpaceMemoryTests: XCTestCase {
     }
 
     func testSuggestionDomainDetectsCommonSites() {
-        XCTAssertEqual(domain("https://mail.google.com/mail/u/0/#inbox/FMfcgz"), .email)
-        XCTAssertEqual(domain("https://outlook.office.com/mail/inbox"), .email)
+        XCTAssertEqual(domain("https://mail.google.com/mail/u/0/#inbox/FMfcgzQbfcdVSCPbQzTwlPqJdKhTvLWb"), .email)
+        XCTAssertEqual(domain("https://outlook.office.com/mail/inbox/id/AAMkAGI2NGVhZTVlLTI5Y2E"), .email)
         XCTAssertEqual(domain("https://docs.google.com/spreadsheets/d/abc/edit"), .spreadsheet)
         XCTAssertEqual(domain("https://docs.google.com/document/d/abc/edit"), .document)
         XCTAssertEqual(domain("https://www.notion.so/team/Roadmap-1234"), .document)
@@ -381,6 +381,28 @@ final class SpaceMemoryTests: XCTestCase {
         XCTAssertEqual(domain("about:blank"), .generic)
         XCTAssertEqual(domain("not a url"), .generic)
         XCTAssertEqual(EliSuggestionCatalog.domain(for: nil), .generic)
+    }
+
+    func testMailListViewsGetGenericChips() {
+        // Issue #474: the inbox list offered "Draft a reply to this email".
+        XCTAssertEqual(domain("https://mail.google.com/mail/u/0/#inbox"), .generic)
+        XCTAssertEqual(domain("https://mail.google.com/mail/u/0/#starred"), .generic)
+        XCTAssertEqual(domain("https://mail.google.com/mail/u/0/#label/Lancaster%20Bicycle"), .generic)
+        XCTAssertEqual(domain("https://mail.google.com/mail/u/0/#search/lancasterbicycleclubrides"), .generic)
+        XCTAssertEqual(domain("https://mail.google.com/mail/u/0/#advanced-search/from=a%40b.com"), .generic)
+        XCTAssertEqual(domain("https://outlook.office.com/mail/inbox"), .generic)
+        XCTAssertEqual(domain("https://outlook.live.com/mail/0/"), .generic)
+        XCTAssertEqual(domain("https://mail.proton.me/u/0/inbox"), .generic)
+        XCTAssertEqual(domain("https://app.hey.com/imbox"), .generic)
+        XCTAssertEqual(domain("https://app.fastmail.com/mail/Inbox/?u=abc"), .generic)
+
+        XCTAssertEqual(domain("https://mail.google.com/mail/u/0/#inbox/FMfcgzQbfcdVSCPbQzTwlPqJdKhTvLWb"), .email)
+        XCTAssertEqual(domain("https://mail.google.com/mail/u/0/#search/ride/FMfcgzQbfcdVSCPbQzTwlPqJdKhTvLWb"), .email)
+        XCTAssertEqual(domain("https://mail.google.com/mail/u/0/#label/Club/FMfcgzQbfcdVSCPbQzTwlPqJdKhTvLWb"), .email)
+        XCTAssertEqual(domain("https://outlook.live.com/mail/0/inbox/id/AQMkADAwATY3ZmYAZS0xYjE4"), .email)
+        XCTAssertEqual(domain("https://mail.proton.me/u/0/inbox/x7Qn3KpL9vT2mR8sW1yB4cD6eF0gH5jK"), .email)
+        XCTAssertEqual(domain("https://app.hey.com/topics/1234567890"), .email)
+        XCTAssertEqual(domain("https://mail.yahoo.com/d/folders/1/messages/AKx9bQ"), .email)
     }
 
     func testSuggestionDomainDoesNotMatchLookalikeHosts() {
