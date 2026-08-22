@@ -25,6 +25,12 @@ struct ContentView: View {
     @SceneStorage("candoa.windowAutosaveID") private var windowAutosaveID = UUID().uuidString
     @State private var isSidebarVisible = true
     @State private var isSidebarHoverRevealed = false
+    /// Width of the lane a pinned sidebar just vacated. WebKit repaints the
+    /// page at its new width a few frames after the sidebar goes, and the
+    /// strip in between is WebKit's own unpainted backdrop — a grey slab
+    /// beside the page. The page card fills that strip with the page's color
+    /// until WebKit catches up.
+    @State private var uncoveredSidebarLane: CGFloat = 0
     @State private var isSidebarRevealSuppressed = false
     @State private var isAISidebarVisible = false
     @State private var isAISidebarMounted = false
@@ -156,6 +162,7 @@ struct ContentView: View {
                             visibleInterfaceInsets: BrowserInterfaceInsets(
                                 leading: isSidebarVisible ? sidebarTotalWidth : 0
                             ),
+                            uncoveredLeadingLane: isSidebarVisible ? 0 : uncoveredSidebarLane,
                             attachesToTrailingPanel: isAISidebarMounted,
                             onToggleSidebar: toggleSidebar,
                             slideOverTrailingInset: aiSidebarSlideMaskInset
@@ -871,6 +878,7 @@ struct ContentView: View {
     // Only the pointer-driven hover reveal slides, as a floating overlay.
     private func toggleSidebar() {
         if isSidebarVisible {
+            holdUncoveredSidebarLane()
             isSidebarVisible = false
             isSidebarHoverRevealed = false
             isSidebarRevealSuppressed = true
@@ -878,6 +886,19 @@ struct ContentView: View {
             isSidebarVisible = true
             isSidebarHoverRevealed = false
             isSidebarRevealSuppressed = false
+        }
+    }
+
+    /// Fills the vacated lane with the page's color for long enough to cover
+    /// WebKit's inset commit, which lands within a few frames. The fill is
+    /// the page's own color, so an early or late release is invisible.
+    private func holdUncoveredSidebarLane() {
+        let lane = sidebarTotalWidth
+        uncoveredSidebarLane = lane
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(220))
+            guard uncoveredSidebarLane == lane else { return }
+            uncoveredSidebarLane = 0
         }
     }
 

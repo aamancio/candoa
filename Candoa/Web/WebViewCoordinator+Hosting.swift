@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import SwiftUI
 import WebKit
 
 extension WebViewCoordinator {
@@ -214,6 +215,17 @@ extension WebViewCoordinator {
     func syncHostBackground(in container: NSView, with webView: WKWebView) {
         container.wantsLayer = true
         container.layer?.backgroundColor = webView.underPageBackgroundColor.cgColor
+        publishPageBackgroundColor(of: webView)
+    }
+
+    /// Hands the page's own color to the card that frames it, which fills the
+    /// strip a closing sidebar uncovers with it until WebKit has painted
+    /// there (see `BrowserStore.pageBackgroundColors`).
+    func publishPageBackgroundColor(of webView: WKWebView) {
+        guard let tabID = tabID(for: webView) else { return }
+        let color = Color(nsColor: webView.underPageBackgroundColor)
+        guard store?.pageBackgroundColors[tabID] != color else { return }
+        store?.pageBackgroundColors[tabID] = color
     }
 
     func applyObscuredContentInsets(_ insets: NSEdgeInsets, to webView: WKWebView) {
