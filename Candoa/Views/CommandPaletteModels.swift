@@ -13,7 +13,15 @@ internal func commandPaletteAccessibilitySlug(_ value: String) -> String {
 }
 
 internal struct PaletteCommand: Identifiable {
-    let id = UUID()
+    /// Identity follows what the row *is* (title, address, action), not
+    /// the moment it was built. The list is rebuilt on every keystroke;
+    /// a per-build UUID made each rebuild a brand-new row, which reset
+    /// the icon's loaded favicon and refetched it — the favicon visibly
+    /// blinked on every character typed.
+    var id: String {
+        "\(action.identityKey)|\(title)|\(detail ?? "")|\(sourceLabel ?? "")"
+    }
+
     let title: String
     var detail: String?
     let symbolName: String
@@ -98,6 +106,32 @@ internal enum PaletteAction {
 }
 
 internal extension PaletteAction {
+    /// A stable description of the action for row identity.
+    var identityKey: String {
+        switch self {
+        case .newTab: return "newTab"
+        case .closeCurrentTab: return "closeCurrentTab"
+        case .duplicateCurrentTab: return "duplicateCurrentTab"
+        case .reloadTab: return "reloadTab"
+        case .toggleSplitView: return "toggleSplitView"
+        case .toggleSplitPaneZoom: return "toggleSplitPaneZoom"
+        case .focusSplitPane(let step): return "focusSplitPane:\(step)"
+        case .unsplitPane: return "unsplitPane"
+        case .createSpace: return "createSpace"
+        case .focusAddressBar: return "focusAddressBar"
+        case .copyURL: return "copyURL"
+        case .copyURLAsMarkdown: return "copyURLAsMarkdown"
+        case .setDeveloperMode(let on): return "setDeveloperMode:\(on)"
+        case .togglePinTab: return "togglePinTab"
+        case .navigate(let target): return "navigate:\(target)"
+        case .searchProvider(let provider, let query): return "search:\(provider.id):\(query)"
+        case .switchTab(let id): return "switchTab:\(id.uuidString)"
+        case .splitWithTab(let id): return "splitWithTab:\(id.uuidString)"
+        case .splitWithNavigate(let target): return "splitWithNavigate:\(target)"
+        case .switchSpace(let id): return "switchSpace:\(id.uuidString)"
+        }
+    }
+
     /// The rebindable shortcut that fires the same action outside the
     /// palette, so rows can teach it. Actions that only exist inside the
     /// palette (tab/space switching, searches, developer mode) have none.

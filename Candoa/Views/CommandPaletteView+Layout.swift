@@ -50,7 +50,9 @@ extension CommandPaletteView {
 
             ScrollView(.vertical, showsIndicators: false) {
                 LazyVStack(spacing: 7) {
-                    ForEach(Array(visibleCommands.enumerated()), id: \.element.id) { index, command in
+                    ForEach(identifiedVisibleCommands, id: \.id) { entry in
+                        let index = entry.index
+                        let command = entry.command
                         Button {
                             run(command)
                         } label: {
@@ -79,6 +81,17 @@ extension CommandPaletteView {
                 .strokeBorder(InterfaceStyle.popoverBorder, lineWidth: 1)
         }
         .shadow(color: Color(nsColor: .shadowColor).opacity(0.24), radius: 46, y: 24)
+    }
+
+    /// Rows keyed by their content-derived identity, with a suffix on the
+    /// rare collision so ForEach never sees two rows with one key.
+    internal var identifiedVisibleCommands: [(id: String, index: Int, command: PaletteCommand)] {
+        var seen: [String: Int] = [:]
+        return visibleCommands.enumerated().map { index, command in
+            let count = seen[command.id, default: 0]
+            seen[command.id] = count + 1
+            return (id: count == 0 ? command.id : "\(command.id)#\(count)", index: index, command: command)
+        }
     }
 
     internal var visibleCommands: [PaletteCommand] {
