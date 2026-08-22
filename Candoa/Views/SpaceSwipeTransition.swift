@@ -220,6 +220,12 @@ final class SidebarDragAutoScroll {
 /// of the swipe pages and every header icon went dead to the pointer while
 /// accessibility presses kept working). A nested hosting view hit-tests its own
 /// tree, the way the pages and the Space label already do.
+///
+/// The host is exactly the chrome's band: the caller measures the chrome's
+/// laid-out height and sizes the host with it. Measuring here with
+/// `fittingSize` instead depended on when the window asked, and a short host
+/// centred the chrome 17pt above the traffic lights; a host spanning the
+/// lane kept the header level but swallowed every click on the list beneath.
 struct SidebarChromeHost<Content: View>: NSViewRepresentable {
     private let content: Content
 
@@ -227,34 +233,38 @@ struct SidebarChromeHost<Content: View>: NSViewRepresentable {
         self.content = content()
     }
 
-    func makeNSView(context: Context) -> SidebarSwipeHostingView<Content> {
-        let view = SidebarSwipeHostingView(rootView: content)
-        // The band sits inside the window's title-bar safe area. A hosting
-        // view applies that inset to its own content by default, so the
-        // chrome laid out taller than the frame it was given and drew
-        // 16pt above the traffic lights; the sidebar already ignores the
-        // safe area and places the chrome itself.
+    func makeNSView(context: Context) -> SidebarSwipeHostingView<TopAligned<Content>> {
+        let view = SidebarSwipeHostingView(rootView: TopAligned(content: content))
+        // The band lies inside the window's title-bar safe area, which the
+        // sidebar already ignores; the host must not inset for it again.
         view.safeAreaRegions = []
         view.wantsLayer = true
         view.layer?.masksToBounds = false
         return view
     }
 
-    func updateNSView(_ nsView: SidebarSwipeHostingView<Content>, context: Context) {
-        nsView.rootView = content
+    func updateNSView(_ nsView: SidebarSwipeHostingView<TopAligned<Content>>, context: Context) {
+        nsView.rootView = TopAligned(content: content)
         nsView.safeAreaRegions = []
     }
 
-    /// Full proposed width, own content height: a band, not a fill, so the
-    /// list beneath it keeps its hit-testing.
     func sizeThatFits(
         _ proposal: ProposedViewSize,
-        nsView: SidebarSwipeHostingView<Content>,
+        nsView: SidebarSwipeHostingView<TopAligned<Content>>,
         context: Context
     ) -> CGSize? {
-        let width = proposal.width ?? nsView.fittingSize.width
-        nsView.frame.size.width = width
-        return CGSize(width: width, height: nsView.fittingSize.height)
+        CGSize(width: proposal.width ?? 0, height: proposal.height ?? 0)
+    }
+
+    /// Pinned to the host's top edge, so a host still waiting for its
+    /// measured height draws the chrome in place rather than centred.
+    struct TopAligned<Inner: View>: View {
+        let content: Inner
+
+        var body: some View {
+            content
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        }
     }
 }
 
