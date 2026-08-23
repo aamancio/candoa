@@ -33,6 +33,9 @@ struct ContentView: View {
     /// The gap the page card leaves between itself and the sidebar
     /// (`WebViewContainer.surfacePadding`).
     private static let pageCardGutter: CGFloat = 8
+    /// How long a closing sidebar will wait for the page before going anyway.
+    /// Ordinary pages report in ~100ms and never reach this.
+    private static let closingSidebarLaneCap = 150
     @State private var isSidebarRevealSuppressed = false
     @State private var isAISidebarVisible = false
     @State private var isAISidebarMounted = false
@@ -910,9 +913,11 @@ struct ContentView: View {
         }
     }
 
-    /// Holds the lane until the page reports it laid out at the new width,
-    /// and no longer than the coordinator's own cap for a page that never
-    /// answers.
+    /// Holds the lane until the page reports it laid out at the new width —
+    /// but never longer than `closingSidebarLaneCap`. A heavy page can take
+    /// ~200ms to reflow, and waiting that long for it makes the toggle feel
+    /// slow; past the cap the sidebar goes and the page catches up on its
+    /// own, the way it did before the cover.
     private func coverClosingSidebarLane() {
         guard store.activeTab != nil else {
             coversClosingSidebarLane = false
@@ -922,7 +927,7 @@ struct ContentView: View {
         closingSidebarLaneToken = token
         coversClosingSidebarLane = true
         Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(450))
+            try? await Task.sleep(for: .milliseconds(Self.closingSidebarLaneCap))
             guard closingSidebarLaneToken == token else { return }
             coversClosingSidebarLane = false
         }
