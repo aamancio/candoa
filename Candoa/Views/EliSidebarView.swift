@@ -203,7 +203,17 @@ struct EliSidebarView: View {
             )
         }
 
-        return currentChips + mentionedContext.map { chip(for: $0) }
+        // Quoted selections are deliberately absent: they render above the
+        // composer as their own block, because they scope the question rather
+        // than attaching a page Eli did not already have.
+        return currentChips + mentionedContext.compactMap { chip(for: $0) }
+    }
+
+    private var quotedSelections: [AISidebarSelectionContext] {
+        mentionedContext.compactMap { mention in
+            guard case .selection(let selectionContext) = mention else { return nil }
+            return selectionContext
+        }
     }
 
     private static let paneChipIDPrefix = "split-pane-"
@@ -1720,7 +1730,9 @@ struct EliSidebarView: View {
         )
     }
 
-    private func chip(for mention: AISidebarContextMention) -> AISidebarContextChip {
+    /// Nil for a quoted selection, which the composer draws as a block of its
+    /// own rather than a chip.
+    private func chip(for mention: AISidebarContextMention) -> AISidebarContextChip? {
         switch mention {
         case .tab(let id):
             let tab = store.tabs.first { $0.id == id }

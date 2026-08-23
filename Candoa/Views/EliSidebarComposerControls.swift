@@ -164,6 +164,97 @@ struct AISidebarMentionButton: View {
     }
 }
 
+/// A passage quoted from the page, sitting above the composer as the subject
+/// of the question rather than beside the context chips. The distinction is
+/// the point: a chip attaches a page Eli did not have, while this only says
+/// which part of a page it already has the question is about.
+struct AISidebarQuotedSelectionView: View {
+    let selection: AISidebarSelectionContext
+    let onRemove: () -> Void
+
+    @State private var isHovered = false
+    @State private var isRemoveHovered = false
+
+    /// Enough to recognize the passage without the quote taking the composer
+    /// over; the whole selection still travels with the question.
+    private static let visibleLineLimit = 3
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 8) {
+            RoundedRectangle(cornerRadius: 1.5, style: .continuous)
+                .fill(InterfaceStyle.sidebarTextSecondary.opacity(0.45))
+                .frame(width: 3)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(selection.text)
+                    .font(.system(size: 12))
+                    .italic()
+                    .foregroundStyle(InterfaceStyle.sidebarText)
+                    .lineLimit(Self.visibleLineLimit)
+                    .truncationMode(.tail)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                if let source = sourceLabel {
+                    Text(source)
+                        .font(.system(size: 11))
+                        .foregroundStyle(InterfaceStyle.sidebarTextSecondary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            // Holds its slot whether or not it is showing, so revealing it on
+            // hover cannot reflow the quote under the pointer.
+            Button(action: onRemove) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(
+                        isRemoveHovered
+                            ? InterfaceStyle.sidebarText
+                            : InterfaceStyle.sidebarTextSecondary
+                    )
+                    .frame(width: 18, height: 18)
+                    .background(
+                        Circle().fill(Color.primary.opacity(isRemoveHovered ? 0.14 : 0))
+                    )
+            }
+            .buttonTreatment(.chrome)
+            .help("Remove Quote")
+            .accessibilityLabel("Remove quoted selection")
+            .accessibilityIdentifier("agent-quote-remove")
+            .opacity(isHovered ? 1 : 0)
+            .allowsHitTesting(isHovered)
+            .onHover { hovering in
+                withAnimation(.easeOut(duration: 0.10)) {
+                    isRemoveHovered = hovering
+                }
+            }
+        }
+        .padding(.vertical, 7)
+        .padding(.horizontal, 9)
+        .background(Color.primary.opacity(0.05))
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("agent-quoted-selection")
+        .onHover { hovering in
+            withAnimation(.easeOut(duration: 0.12)) {
+                isHovered = hovering
+                if !hovering {
+                    isRemoveHovered = false
+                }
+            }
+        }
+    }
+
+    /// The page the passage came from, named the way the person would name it
+    /// — its title when it has one, its host otherwise.
+    private var sourceLabel: String? {
+        if let pageTitle = selection.pageTitle { return pageTitle }
+        return selection.pageURL?.host(percentEncoded: false)
+    }
+}
+
 struct AISidebarContextChipView: View {
     let chip: AISidebarContextChip
     let onPreview: (() -> Void)?
