@@ -290,6 +290,10 @@ final class BrowserStore: ObservableObject {
     /// remains. Never runs during normal browsing.
     var offlineRecoveryMonitor: NWPathMonitor?
     var offlineMonitorSawUnsatisfiedPath = false
+    /// Rises when the page has laid itself out against new interface lanes.
+    /// A sidebar giving up its lane keeps covering it until then, so the page
+    /// is never seen half-moved (see `ContentView.toggleSidebar`).
+    @Published var pageLaneSettledTick = 0
     @Published var mediaStates: [UUID: TabMediaState] = [:]
     @Published var mediaControllerTabID: UUID?
     @Published var dismissedMiniPlayerTabID: UUID?

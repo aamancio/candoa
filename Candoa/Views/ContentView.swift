@@ -25,6 +25,14 @@ struct ContentView: View {
     @SceneStorage("candoa.windowAutosaveID") private var windowAutosaveID = UUID().uuidString
     @State private var isSidebarVisible = true
     @State private var isSidebarHoverRevealed = false
+    /// A closing sidebar keeps covering its lane until the page has laid out
+    /// against it. WebKit reflows in another process, so the lane would
+    /// otherwise stand empty beside a page still drawn at its old width.
+    @State private var coversClosingSidebarLane = false
+    @State private var closingSidebarLaneToken: UUID?
+    /// The gap the page card leaves between itself and the sidebar
+    /// (`WebViewContainer.surfacePadding`).
+    private static let pageCardGutter: CGFloat = 8
     @State private var isSidebarRevealSuppressed = false
     @State private var isAISidebarVisible = false
     @State private var isAISidebarMounted = false
@@ -91,11 +99,19 @@ struct ContentView: View {
     }
 
     private var isSidebarPresented: Bool {
-        isSidebarVisible || isSidebarHoverRevealed
+        isSidebarVisible || isSidebarHoverRevealed || coversClosingSidebarLane
     }
 
     private var isSidebarOverlaying: Bool {
         isSidebarHoverRevealed && !isSidebarVisible
+    }
+
+    /// Docked, the lane is transparent and the shared window backdrop shows
+    /// through it. While the sidebar covers a lane it has already given up,
+    /// the page beneath has widened into it, so the sidebar needs its own
+    /// copy of that backdrop — the same one the hover overlay uses.
+    private var paintsOwnSidebarBackdrop: Bool {
+        isSidebarOverlaying || coversClosingSidebarLane
     }
 
     private var isFullWindowOnboardingPresented: Bool {
@@ -567,6 +583,9 @@ struct ContentView: View {
                 await userStore.reconcilePendingSubscriptionIfNeeded(for: url)
             }
         }
+        .onChange(of: store.pageLaneSettledTick) { _, _ in
+            uncoverClosingSidebarLane()
+        }
         .onChange(of: store.aiSidebarToggleRequestID) { _, _ in
             toggleAISidebar()
         }
@@ -791,12 +810,19 @@ struct ContentView: View {
         }
         .frame(width: sidebarTotalWidth, alignment: .leading)
         .frame(maxHeight: .infinity)
-        .background {
+        .background(alignment: .leading) {
             // Docked, the lane stays transparent so the shared window backdrop
             // shows through and the sidebar matches the center exactly. Only
             // the hover overlay needs its own opaque copy over the page.
-            if isSidebarOverlaying {
+            if paintsOwnSidebarBackdrop {
                 SidebarBackdrop(store: store)
+                    // Covering a lane it has given up means covering the
+                    // gutter beside it too: the page card has already widened
+                    // across both, and WebKit has not painted either yet.
+                    .frame(
+                        width: sidebarTotalWidth
+                            + (coversClosingSidebarLane ? Self.pageCardGutter : 0)
+                    )
                     .ignoresSafeArea(.container, edges: .top)
             }
         }
@@ -871,14 +897,42 @@ struct ContentView: View {
     // Only the pointer-driven hover reveal slides, as a floating overlay.
     private func toggleSidebar() {
         if isSidebarVisible {
+            // The page widens first, under a sidebar that keeps covering the
+            // lane, and the sidebar leaves once the page has laid out there.
             isSidebarVisible = false
             isSidebarHoverRevealed = false
             isSidebarRevealSuppressed = true
+            coverClosingSidebarLane()
         } else {
             isSidebarVisible = true
             isSidebarHoverRevealed = false
             isSidebarRevealSuppressed = false
         }
+    }
+
+    /// Holds the lane until the page reports it laid out at the new width,
+    /// and no longer than the coordinator's own cap for a page that never
+    /// answers.
+    private func coverClosingSidebarLane() {
+        guard store.activeTab != nil else {
+            coversClosingSidebarLane = false
+            return
+        }
+        let token = UUID()
+        closingSidebarLaneToken = token
+        coversClosingSidebarLane = true
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(450))
+            guard closingSidebarLaneToken == token else { return }
+            coversClosingSidebarLane = false
+        }
+    }
+
+    /// The page has laid out against the new lane; the sidebar can go.
+    private func uncoverClosingSidebarLane() {
+        guard coversClosingSidebarLane else { return }
+        closingSidebarLaneToken = nil
+        coversClosingSidebarLane = false
     }
 
     private func toggleAISidebar() {

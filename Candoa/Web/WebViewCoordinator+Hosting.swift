@@ -227,6 +227,51 @@ extension WebViewCoordinator {
             return
         }
         webView.obscuredContentInsets = insets
+        reportWhenPageLaidOut(at: insets, of: webView)
+    }
+
+    /// Tells the store when the page has finished laying out against new
+    /// lanes. WebKit does that in the WebContent process, a rendering update
+    /// or two after the message, so the app cannot know from its own frame:
+    /// the page's own `innerWidth` is the honest signal (a presentation
+    /// update is not — on a page that paints every frame it answers with a
+    /// frame from before the change).
+    private func reportWhenPageLaidOut(at insets: NSEdgeInsets, of webView: WKWebView) {
+        let zoom = max(webView.pageZoom, 0.01)
+        let targetWidth = (webView.bounds.width - insets.left - insets.right) / zoom
+        var reported = false
+        let report: @MainActor () -> Void = { [weak self] in
+            guard !reported else { return }
+            reported = true
+            self?.store?.pageLaneSettledTick += 1
+        }
+        webView.callAsyncJavaScript(
+            """
+            await new Promise((resolve) => {
+              let tries = 0;
+              const check = () => {
+                if (Math.abs(window.innerWidth - target) < 1.5 || tries > 40) {
+                  requestAnimationFrame(() => requestAnimationFrame(resolve));
+                } else {
+                  tries += 1;
+                  requestAnimationFrame(check);
+                }
+              };
+              check();
+            });
+            """,
+            arguments: ["target": Double(targetWidth)],
+            in: nil,
+            in: .page
+        ) { _ in
+            Task { @MainActor in report() }
+        }
+        // A page that never answers — throttled, mid-navigation, a PDF, or
+        // one that runs no scripts — must not hold the lane.
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(400))
+            report()
+        }
     }
 
     /// Points WebKit's attached Web Inspector at the host's lane-inset
