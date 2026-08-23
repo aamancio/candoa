@@ -128,18 +128,26 @@ extension CommandPaletteView {
     }
 
     internal var headerIconSearchProvider: SearchProvider? {
+        // A chosen site already names itself in the chip beside the field, so
+        // the icon stays the plain magnifier of a search box (Arc does the
+        // same) rather than repeating the site's mark.
+        guard selectedSearchProvider == nil else { return nil }
         // Once the typed address resolves to a known provider, its icon must
         // describe the destination rather than the tab that happened to be
         // active when editing began.
-        headerSearchProvider ?? (isAddressEditingPalette ? provider(for: store.activeTab?.url) : nil)
+        return headerSearchProvider ?? (isAddressEditingPalette ? provider(for: store.activeTab?.url) : nil)
     }
 
     internal var headerFaviconData: Data? {
-        headerSearchProvider == nil && isAddressEditingPalette ? store.activeTab?.faviconData : nil
+        guard selectedSearchProvider == nil else { return nil }
+        return headerSearchProvider == nil && isAddressEditingPalette ? store.activeTab?.faviconData : nil
     }
 
     internal var usesCircularHeaderFavicon: Bool {
-        headerSearchProvider == nil && isAddressEditingPalette && !isSidebarAddressPalette
+        selectedSearchProvider == nil
+            && headerSearchProvider == nil
+            && isAddressEditingPalette
+            && !isSidebarAddressPalette
     }
 
     /// Exact height of the visible rows (46pt rows, 7pt spacing, 11pt
