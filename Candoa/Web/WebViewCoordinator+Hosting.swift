@@ -1,6 +1,5 @@
 import AppKit
 import Foundation
-import SwiftUI
 import WebKit
 
 extension WebViewCoordinator {
@@ -215,43 +214,6 @@ extension WebViewCoordinator {
     func syncHostBackground(in container: NSView, with webView: WKWebView) {
         container.wantsLayer = true
         container.layer?.backgroundColor = webView.underPageBackgroundColor.cgColor
-        publishPageBackgroundColor(of: webView)
-    }
-
-    /// Hands the page's own color to the card that frames it, which fills the
-    /// strip a closing sidebar uncovers with it until WebKit has painted
-    /// there (see `BrowserStore.pageBackgroundColors`).
-    func publishPageBackgroundColor(of webView: WKWebView) {
-        guard let tabID = tabID(for: webView) else { return }
-        let color = Color(nsColor: webView.underPageBackgroundColor)
-        guard store?.pageBackgroundColors[tabID] != color else { return }
-        store?.pageBackgroundColors[tabID] = color
-    }
-
-    /// Calls back once WebKit has put a frame for the active page on screen.
-    /// An obscured-inset change is laid out and painted by the WebContent
-    /// process, so it lands a few frames after the app asks for it; anything
-    /// that must not run before the page has moved waits on this. Returns
-    /// false when there is no page to wait for, or when the SDK has dropped
-    /// the call — the caller then proceeds without waiting.
-    ///
-    /// Private API (`-[WKWebView _doAfterNextPresentationUpdate:]`), probed
-    /// first like the inspector bridging above.
-    @discardableResult
-    func whenActivePagePresents(_ completion: @escaping @MainActor () -> Void) -> Bool {
-        guard
-            let tabID = hostedActiveTabID,
-            let webView = webViews[tabID]
-        else {
-            return false
-        }
-        let selector = NSSelectorFromString("_doAfterNextPresentationUpdate:")
-        guard webView.responds(to: selector) else { return false }
-        let block: @convention(block) () -> Void = {
-            MainActor.assumeIsolated { completion() }
-        }
-        webView.perform(selector, with: block)
-        return true
     }
 
     func applyObscuredContentInsets(_ insets: NSEdgeInsets, to webView: WKWebView) {
@@ -265,6 +227,51 @@ extension WebViewCoordinator {
             return
         }
         webView.obscuredContentInsets = insets
+        reportWhenPageLaidOut(at: insets, of: webView)
+    }
+
+    /// Tells the store when the page has finished laying out against new
+    /// lanes. WebKit does that in the WebContent process, a rendering update
+    /// or two after the message, so the app cannot know from its own frame:
+    /// the page's own `innerWidth` is the honest signal (a presentation
+    /// update is not — on a page that paints every frame it answers with a
+    /// frame from before the change).
+    private func reportWhenPageLaidOut(at insets: NSEdgeInsets, of webView: WKWebView) {
+        let zoom = max(webView.pageZoom, 0.01)
+        let targetWidth = (webView.bounds.width - insets.left - insets.right) / zoom
+        var reported = false
+        let report: @MainActor () -> Void = { [weak self] in
+            guard !reported else { return }
+            reported = true
+            self?.store?.pageLaneSettledTick += 1
+        }
+        webView.callAsyncJavaScript(
+            """
+            await new Promise((resolve) => {
+              let tries = 0;
+              const check = () => {
+                if (Math.abs(window.innerWidth - target) < 1.5 || tries > 40) {
+                  requestAnimationFrame(() => requestAnimationFrame(resolve));
+                } else {
+                  tries += 1;
+                  requestAnimationFrame(check);
+                }
+              };
+              check();
+            });
+            """,
+            arguments: ["target": Double(targetWidth)],
+            in: nil,
+            in: .page
+        ) { _ in
+            Task { @MainActor in report() }
+        }
+        // A page that never answers — throttled, mid-navigation, a PDF, or
+        // one that runs no scripts — must not hold the lane.
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(400))
+            report()
+        }
     }
 
     /// Points WebKit's attached Web Inspector at the host's lane-inset
