@@ -375,7 +375,12 @@ extension BrowserStore {
     /// off-screen once so its card fills in (and stays filled next run).
     private func loadFallbackTabSwitcherSnapshot(for tab: BrowserTab) {
         if let wakeSnapshot = webCoordinator.wakeSnapshots[tab.id] {
-            tabSwitcherSnapshots[tab.id] = wakeSnapshot
+            // Take a card-sized copy rather than sharing the bitmap:
+            // `wakeSnapshots` stays full-resolution because the restore
+            // overlay paints it over the whole pane while a tab wakes, and
+            // shrinking that would put a blurry frame on every wake.
+            tabSwitcherSnapshots[tab.id] = TabSnapshotStore
+                .thumbnail(from: wakeSnapshot, maxWidth: TabSwitcherConfiguration.snapshotWidth) ?? wakeSnapshot
             return
         }
 
@@ -397,9 +402,16 @@ extension BrowserStore {
     /// outside private windows, its on-disk thumbnail for the next run.
     func didCaptureTabSnapshot(_ image: NSImage, for tabID: UUID) {
         guard let tab = tabs.first(where: { $0.id == tabID }) else { return }
-        tabSwitcherSnapshots[tabID] = image
+        // These arrive at page width — up to `snapshotMaxWidth` — while the
+        // card that shows them is `snapshotWidth` wide. Caching the full-size
+        // bitmap left roughly 10 MB alive per tab switched away from, which
+        // dominated the app's own memory once a session had a few tabs in it.
+        // Scale first: the disk thumbnail wants exactly this size too, so the
+        // re-encode that used to happen inside `persist` now happens once.
+        let card = TabSnapshotStore.thumbnail(from: image, maxWidth: TabSwitcherConfiguration.snapshotWidth) ?? image
+        tabSwitcherSnapshots[tabID] = card
         guard !isPrivate else { return }
-        TabSnapshotStore.shared.persist(image, for: tabID, url: tab.url)
+        TabSnapshotStore.shared.persist(card, for: tabID, url: tab.url)
     }
 
     /// Launch pass: the active space's switcher candidates that have no live

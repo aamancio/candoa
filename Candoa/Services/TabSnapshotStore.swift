@@ -93,6 +93,16 @@ final class TabSnapshotStore {
         }.value
     }
 
+    /// `thumbnailBitmap` as an image, for callers holding the result in memory
+    /// rather than writing it out. Returns nil only when the re-encode fails,
+    /// so callers can fall back to the original rather than lose the preview.
+    nonisolated static func thumbnail(from image: NSImage, maxWidth: CGFloat) -> NSImage? {
+        guard let bitmap = thumbnailBitmap(from: image, maxWidth: maxWidth) else { return nil }
+        let thumbnail = NSImage(size: bitmap.size)
+        thumbnail.addRepresentation(bitmap)
+        return thumbnail
+    }
+
     /// Re-encodes `image` as an sRGB bitmap no wider than `maxWidth`,
     /// preserving aspect ratio. Images already within the limit are returned
     /// at their native pixel size.

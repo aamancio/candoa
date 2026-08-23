@@ -235,6 +235,9 @@ extension BrowserStore {
         tabs.remove(at: index)
         webCoordinator.removeWebView(for: id)
         clearLoadFailure(tabID: id)
+        // The switcher only prunes its cache when it opens, so without this a
+        // closed tab's preview outlived the tab itself for the rest of the run.
+        tabSwitcherSnapshots[id] = nil
         mediaStates[id] = nil
         if mediaControllerTabID == id {
             mediaControllerTabID = nil
