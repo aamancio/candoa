@@ -1750,3 +1750,54 @@ final class BrowserAgentPerceptionTests: XCTestCase {
         XCTAssertTrue(BrowserAgentPolicy.requiresNativeApproval(for: action, on: current))
     }
 }
+
+/// The floating mini player's shape and size math: portrait shorts, the
+/// long-edge size it carries across a change of clip, and the resize drag.
+final class MiniPlayerLayoutTests: XCTestCase {
+    private let window = CGSize(width: 1440, height: 900)
+
+    func testPlayerTakesTheVideoShapeForPortraitClips() {
+        let short = MiniPlayerLayout.clampedSize(longEdge: 430, aspectRatio: 9.0 / 16.0, in: window)
+        XCTAssertEqual(short.height, 430, accuracy: 0.5, "the long edge is the height for a portrait clip")
+        XCTAssertEqual(short.width, 430 * 9 / 16, accuracy: 0.5)
+
+        let wide = MiniPlayerLayout.clampedSize(longEdge: 430, aspectRatio: 16.0 / 9.0, in: window)
+        XCTAssertEqual(wide.width, 430, accuracy: 0.5)
+        XCTAssertEqual(wide.height, 430 * 9 / 16, accuracy: 0.5)
+    }
+
+    func testPlayerFallsBackToWidescreenWithoutAReportedShape() {
+        XCTAssertEqual(MiniPlayerLayout.normalizedAspectRatio(nil), 16.0 / 9.0)
+        XCTAssertEqual(MiniPlayerLayout.normalizedAspectRatio(0), 16.0 / 9.0)
+        XCTAssertEqual(MiniPlayerLayout.normalizedAspectRatio(.nan), 16.0 / 9.0)
+    }
+
+    func testPlayerShapeStaysWithinItsLimits() {
+        let sliver = MiniPlayerLayout.normalizedAspectRatio(40)
+        XCTAssertEqual(sliver, MiniPlayerLayout.aspectRatioLimits.upperBound)
+        let tower = MiniPlayerLayout.normalizedAspectRatio(0.05)
+        XCTAssertEqual(tower, MiniPlayerLayout.aspectRatioLimits.lowerBound)
+    }
+
+    func testPortraitPlayerFitsAShortWindow() {
+        let shortWindow = CGSize(width: 1440, height: 420)
+        let size = MiniPlayerLayout.clampedSize(longEdge: 430, aspectRatio: 9.0 / 16.0, in: shortWindow)
+        XCTAssertLessThanOrEqual(size.height, shortWindow.height - MiniPlayerLayout.margin * 2)
+        XCTAssertEqual(size.width / size.height, 9.0 / 16.0, accuracy: 0.01, "clamping keeps the video's shape")
+    }
+
+    func testResizeDragFollowsTheShapeItIsGiven() {
+        let drag = CGSize(width: 0, height: 80)
+        let wide = MiniPlayerResizeEdge.bottom.widthDelta(for: drag, aspectRatio: 16.0 / 9.0)
+        XCTAssertEqual(wide, 80 * 16 / 9, accuracy: 0.5)
+        let tall = MiniPlayerResizeEdge.bottom.widthDelta(for: drag, aspectRatio: 9.0 / 16.0)
+        XCTAssertEqual(tall, 80 * 9 / 16, accuracy: 0.5, "a portrait player widens by less than it grows")
+    }
+
+    func testLongEdgeSurvivesAShapeChange() {
+        let wide = MiniPlayerLayout.clampedSize(longEdge: 520, aspectRatio: 16.0 / 9.0, in: window)
+        let carried = MiniPlayerLayout.longEdge(of: wide)
+        let tall = MiniPlayerLayout.clampedSize(longEdge: carried, aspectRatio: 9.0 / 16.0, in: window)
+        XCTAssertEqual(tall.height, 520, accuracy: 0.5, "the player keeps its stature across a swipe to a short")
+    }
+}

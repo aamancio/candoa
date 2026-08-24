@@ -44,6 +44,11 @@ extension BrowserStore {
         if state.hasMedia, state.pageVideoFrame == nil {
             state.pageVideoFrame = mediaStates[tabID]?.pageVideoFrame
         }
+        // Metadata-less reports (a report between clips) must not snap the
+        // floating player back to the default shape and out again.
+        if state.hasMedia, state.videoAspectRatio == nil {
+            state.videoAspectRatio = mediaStates[tabID]?.videoAspectRatio
+        }
         mediaStates[tabID] = state.hasMedia ? state : nil
 
         if state.isPlaying, state.isMiniPlayerEligible {

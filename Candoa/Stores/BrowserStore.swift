@@ -15,6 +15,9 @@ struct TabMediaState: Equatable {
     /// captured while the page still has its real layout. Lets the floating
     /// mini player morph out from the video's actual on-page position.
     var pageVideoFrame: CGRect?
+    /// The video stream's own width ÷ height. The floating player takes its
+    /// shape from this, so a portrait short gets a portrait player.
+    var videoAspectRatio: CGFloat?
 }
 
 /// Snapshot taken at the moment the user switches away from the playing tab,

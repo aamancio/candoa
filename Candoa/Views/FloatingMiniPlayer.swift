@@ -6,19 +6,43 @@ enum MiniPlayerLayout {
     static let topMargin: CGFloat = margin
     static let resizeHitThickness: CGFloat = 10
     static let resizeCornerLength: CGFloat = 18
-    static let aspectRatio: CGFloat = 16.0 / 9.0
-    static let defaultExpandedSize = CGSize(width: 430, height: 242)
-    static let minimumExpandedWidth: CGFloat = 360
-    static let maximumExpandedWidth: CGFloat = 760
+    static let defaultAspectRatio: CGFloat = 16.0 / 9.0
+    /// Shorts and TikTok clips are 9:16, cinema trailers run past 2.4:1;
+    /// past those a report is more likely garbage than a video worth a
+    /// two-storey (or letterbox-slit) player.
+    static let aspectRatioLimits: ClosedRange<CGFloat> = 0.4...3.0
+    /// The player is sized along its long edge, so a portrait video gets a
+    /// portrait player of the same stature instead of a frame the same
+    /// width — 430pt wide at 9:16 would stand 764pt tall.
+    static let defaultLongEdge: CGFloat = 430
+    static let minimumLongEdge: CGFloat = 360
+    static let maximumLongEdge: CGFloat = 760
 
-    static func clampedExpandedSize(_ proposed: CGSize, in availableSize: CGSize) -> CGSize {
+    static func normalizedAspectRatio(_ proposed: CGFloat?) -> CGFloat {
+        guard let proposed, proposed.isFinite, proposed > 0 else { return defaultAspectRatio }
+        return min(max(proposed, aspectRatioLimits.lowerBound), aspectRatioLimits.upperBound)
+    }
+
+    /// A size's long edge — width for a landscape player, height for a
+    /// portrait one: the one number the player's size is kept in.
+    static func longEdge(of size: CGSize) -> CGFloat {
+        max(size.width, size.height)
+    }
+
+    static func clampedSize(longEdge: CGFloat, aspectRatio: CGFloat, in availableSize: CGSize) -> CGSize {
+        let aspect = normalizedAspectRatio(aspectRatio)
         let availableWidth = max(120, availableSize.width - margin * 2)
         let availableHeight = max(80, availableSize.height - margin * 2)
-        let maximumWidth = min(maximumExpandedWidth, availableWidth, availableHeight * aspectRatio)
-        let minimumWidth = min(minimumExpandedWidth, maximumWidth)
-        let width = min(max(proposed.width, minimumWidth), maximumWidth)
+        // Both edges have to fit, so both bound the long one.
+        let widthLimit = aspect >= 1 ? availableWidth : availableWidth / aspect
+        let heightLimit = aspect >= 1 ? availableHeight * aspect : availableHeight
+        let maximum = min(maximumLongEdge, widthLimit, heightLimit)
+        let minimum = min(minimumLongEdge, maximum)
+        let clamped = min(max(longEdge, minimum), maximum)
 
-        return CGSize(width: width, height: width / aspectRatio)
+        return aspect >= 1
+            ? CGSize(width: clamped, height: clamped / aspect)
+            : CGSize(width: clamped * aspect, height: clamped)
     }
 
     static func defaultOrigin(for size: CGSize, in availableSize: CGSize) -> CGPoint {
@@ -39,14 +63,18 @@ enum MiniPlayerLayout {
     }
 }
 
-/// The floating player keeps its dragged position and resized width across
-/// appearances and launches. Height is derived from width (fixed aspect), and
-/// a stale off-window origin self-heals through the container's clamping.
+/// The floating player keeps its dragged position and resized size across
+/// appearances and launches. The size is one number — the long edge — since
+/// the other follows from the video's shape, and a stale off-window origin
+/// self-heals through the container's clamping.
 @MainActor
 enum MiniPlayerPersistence {
     private static let originXKey = "miniPlayerOriginX"
     private static let originYKey = "miniPlayerOriginY"
-    private static let widthKey = "miniPlayerExpandedWidth"
+    private static let longEdgeKey = "miniPlayerExpandedLongEdge"
+    /// Pre-portrait installs stored a width, which for the 16:9 players of
+    /// that era is the same measurement.
+    private static let legacyWidthKey = "miniPlayerExpandedWidth"
 
     static func loadOrigin() -> CGPoint? {
         let defaults = UserDefaults.standard
@@ -59,20 +87,22 @@ enum MiniPlayerPersistence {
         return CGPoint(x: defaults.double(forKey: originXKey), y: defaults.double(forKey: originYKey))
     }
 
-    static func loadExpandedSize() -> CGSize {
-        let width = UserDefaults.standard.double(forKey: widthKey)
-        guard width > 0 else { return MiniPlayerLayout.defaultExpandedSize }
-        return CGSize(width: width, height: width / MiniPlayerLayout.aspectRatio)
+    static func loadLongEdge() -> CGFloat {
+        let defaults = UserDefaults.standard
+        let stored = defaults.double(forKey: longEdgeKey)
+        if stored > 0 { return stored }
+        let legacy = defaults.double(forKey: legacyWidthKey)
+        return legacy > 0 ? legacy : MiniPlayerLayout.defaultLongEdge
     }
 
-    static func save(origin: CGPoint?, expandedSize: CGSize) {
+    static func save(origin: CGPoint?, longEdge: CGFloat) {
         guard !BrowserStore.isUITesting else { return }
         let defaults = UserDefaults.standard
         if let origin {
             defaults.set(Double(origin.x), forKey: originXKey)
             defaults.set(Double(origin.y), forKey: originYKey)
         }
-        defaults.set(Double(expandedSize.width), forKey: widthKey)
+        defaults.set(Double(longEdge), forKey: longEdgeKey)
     }
 }
 
@@ -86,7 +116,10 @@ struct FloatingMiniPlayerContainer: View {
     /// itself roams the whole window.
     let pageLaneFrame: CGRect
     @Binding var origin: CGPoint?
-    @Binding var expandedSize: CGSize
+    /// The player's size, kept as its long edge: the short one follows from
+    /// the video's shape, which changes under the player as the page moves
+    /// from a landscape clip to a portrait short.
+    @Binding var expandedLongEdge: CGFloat
 
     @State private var dragStartOrigin: CGPoint?
     @State private var resizeStartOrigin: CGPoint?
@@ -110,7 +143,7 @@ struct FloatingMiniPlayerContainer: View {
         pageLaneFrame: CGRect? = nil,
         summon: MiniPlayerSummonContext?,
         origin: Binding<CGPoint?>,
-        expandedSize: Binding<CGSize>
+        expandedLongEdge: Binding<CGFloat>
     ) {
         self.store = store
         self.tab = tab
@@ -118,7 +151,7 @@ struct FloatingMiniPlayerContainer: View {
         self.availableSize = availableSize
         self.pageLaneFrame = pageLaneFrame ?? CGRect(origin: .zero, size: availableSize)
         self._origin = origin
-        self._expandedSize = expandedSize
+        self._expandedLongEdge = expandedLongEdge
         // The summon morph must render its first frame at the on-page video
         // rect, so the flag has to be true before the initial body pass —
         // starting it from onAppear would commit the corner frame first.
@@ -126,8 +159,18 @@ struct FloatingMiniPlayerContainer: View {
         self._isSummoning = State(initialValue: summon != nil)
     }
 
+    /// The player's shape: the video's own, so a portrait short gets a
+    /// portrait player rather than pillarboxed bands inside a 16:9 frame.
+    private var aspectRatio: CGFloat {
+        MiniPlayerLayout.normalizedAspectRatio(state.videoAspectRatio)
+    }
+
     private var currentSize: CGSize {
-        MiniPlayerLayout.clampedExpandedSize(expandedSize, in: availableSize)
+        MiniPlayerLayout.clampedSize(
+            longEdge: expandedLongEdge,
+            aspectRatio: aspectRatio,
+            in: availableSize
+        )
     }
 
     private var currentOrigin: CGPoint {
@@ -189,6 +232,12 @@ struct FloatingMiniPlayerContainer: View {
         .onChange(of: availableSize) { _, _ in
             clampLayout()
         }
+        // A clip of a different shape took over (a feed swiped from a short
+        // to a landscape video): the player reshapes around its own centre,
+        // so it stays where the eye left it.
+        .onChange(of: aspectRatio) { previousAspect, _ in
+            reshape(from: previousAspect)
+        }
     }
 
     private func dragGesture(in availableSize: CGSize) -> some Gesture {
@@ -232,8 +281,14 @@ struct FloatingMiniPlayerContainer: View {
 
                 let startSize = resizeStartSize ?? currentSize
                 let startOrigin = resizeStartOrigin ?? currentOrigin
-                let nextSize = MiniPlayerLayout.clampedExpandedSize(
-                    CGSize(width: startSize.width + edge.widthDelta(for: value.translation), height: 0),
+                let aspect = aspectRatio
+                let nextWidth = startSize.width + edge.widthDelta(
+                    for: value.translation,
+                    aspectRatio: aspect
+                )
+                let nextSize = MiniPlayerLayout.clampedSize(
+                    longEdge: aspect >= 1 ? nextWidth : nextWidth / aspect,
+                    aspectRatio: aspect,
                     in: availableSize
                 )
                 let rightEdge = startOrigin.x + startSize.width
@@ -243,7 +298,7 @@ struct FloatingMiniPlayerContainer: View {
                     y: edge.anchorsBottom ? bottomEdge - nextSize.height : startOrigin.y
                 )
 
-                expandedSize = nextSize
+                expandedLongEdge = MiniPlayerLayout.longEdge(of: nextSize)
                 origin = MiniPlayerLayout.clampedOrigin(
                     nextOrigin,
                     size: nextSize,
@@ -259,9 +314,35 @@ struct FloatingMiniPlayerContainer: View {
 
     private func clampLayout() {
         let size = currentSize
-        expandedSize = MiniPlayerLayout.clampedExpandedSize(expandedSize, in: availableSize)
+        expandedLongEdge = MiniPlayerLayout.longEdge(of: size)
         origin = MiniPlayerLayout.clampedOrigin(currentOrigin, size: size, in: availableSize)
-        MiniPlayerPersistence.save(origin: origin, expandedSize: expandedSize)
+        MiniPlayerPersistence.save(origin: origin, longEdge: expandedLongEdge)
+    }
+
+    /// Keeps the player's centre put across a shape change — growing it from
+    /// its top-left would send a portrait player marching down the window.
+    private func reshape(from previousAspect: CGFloat) {
+        let previousSize = MiniPlayerLayout.clampedSize(
+            longEdge: expandedLongEdge,
+            aspectRatio: previousAspect,
+            in: availableSize
+        )
+        let previousOrigin = MiniPlayerLayout.clampedOrigin(
+            origin ?? MiniPlayerLayout.defaultOrigin(for: previousSize, in: availableSize),
+            size: previousSize,
+            in: availableSize
+        )
+        let center = CGPoint(
+            x: previousOrigin.x + previousSize.width / 2,
+            y: previousOrigin.y + previousSize.height / 2
+        )
+        let size = currentSize
+        origin = MiniPlayerLayout.clampedOrigin(
+            CGPoint(x: center.x - size.width / 2, y: center.y - size.height / 2),
+            size: size,
+            in: availableSize
+        )
+        MiniPlayerPersistence.save(origin: origin, longEdge: expandedLongEdge)
     }
 
     private struct MorphTarget {
@@ -339,6 +420,10 @@ private struct FloatingMiniPlayerView: View {
 
     @State private var isHovering = false
 
+    private var showsControls: Bool {
+        (isHovering || BrowserStore.uiTestingForcesMiniPlayerControls) && !hidesControls
+    }
+
     var body: some View {
         ZStack {
             MiniPlayerWebViewHost(tabID: tab.id, summonPageFrame: summonPageFrame, store: store)
@@ -348,9 +433,9 @@ private struct FloatingMiniPlayerView: View {
             // frame reads as the page's own video, not a floating panel.
             LinearGradient(
                 colors: [
-                    Color.black.opacity(isHovering ? 0.20 : 0.04),
-                    Color.black.opacity(isHovering ? 0.05 : 0.02),
-                    Color.black.opacity(isHovering ? 0.18 : 0.06)
+                    Color.black.opacity(showsControls ? 0.20 : 0.04),
+                    Color.black.opacity(showsControls ? 0.05 : 0.02),
+                    Color.black.opacity(showsControls ? 0.18 : 0.06)
                 ],
                 startPoint: .top,
                 endPoint: .bottom
@@ -358,7 +443,7 @@ private struct FloatingMiniPlayerView: View {
             .opacity(hidesControls ? 0 : 1)
 
             expandedControls
-                .opacity(isHovering && !hidesControls ? 1 : 0)
+                .opacity(showsControls ? 1 : 0)
         }
         .frame(width: size.width, height: size.height)
         .background(Color.black)
@@ -375,38 +460,63 @@ private struct FloatingMiniPlayerView: View {
         .animation(.easeOut(duration: 0.20), value: isHovering)
     }
 
+    /// A portrait player is barely wider than the transport row, so below
+    /// this the controls lose their labels and come down a size rather than
+    /// spilling over the edges.
+    private var isCompact: Bool { size.width < 320 }
+
     private var expandedControls: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 10) {
-                MiniPlayerControlButton(title: "Back to Tab", systemImage: "arrow.up.left") {
+            HStack(spacing: isCompact ? 6 : 10) {
+                MiniPlayerControlButton(
+                    title: "Back to Tab",
+                    systemImage: "arrow.up.left",
+                    showsTitle: !isCompact
+                ) {
                     store.focusMediaTab()
                 }
 
                 Spacer(minLength: 8)
 
-                MiniPlayerControlButton(title: "Minimize", systemImage: "minus") {
+                MiniPlayerControlButton(
+                    title: "Minimize",
+                    systemImage: "minus",
+                    showsTitle: !isCompact
+                ) {
                     store.minimizeMiniPlayer()
                 }
 
-                MiniPlayerControlButton(title: "Close", systemImage: "xmark") {
+                MiniPlayerControlButton(
+                    title: "Close",
+                    systemImage: "xmark",
+                    showsTitle: !isCompact
+                ) {
                     store.dismissMiniPlayer()
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 12)
+            .padding(.horizontal, isCompact ? 10 : 16)
+            .padding(.top, isCompact ? 10 : 12)
 
             Spacer()
 
-            HStack(spacing: 18) {
-                MiniPlayerSeekButton(systemImage: "gobackward.15", help: "Back 15 Seconds") {
+            HStack(spacing: isCompact ? 10 : 18) {
+                MiniPlayerSeekButton(
+                    systemImage: "gobackward.15",
+                    help: "Back 15 Seconds",
+                    isCompact: isCompact
+                ) {
                     store.seekMedia(by: -15)
                 }
 
-                MiniPlayerPlayPauseButton(isPlaying: state.isPlaying) {
+                MiniPlayerPlayPauseButton(isPlaying: state.isPlaying, isCompact: isCompact) {
                     store.toggleMiniPlayerPlayback()
                 }
 
-                MiniPlayerSeekButton(systemImage: "goforward.15", help: "Forward 15 Seconds") {
+                MiniPlayerSeekButton(
+                    systemImage: "goforward.15",
+                    help: "Forward 15 Seconds",
+                    isCompact: isCompact
+                ) {
                     store.seekMedia(by: 15)
                 }
             }
@@ -419,7 +529,7 @@ private struct FloatingMiniPlayerView: View {
                 onSeek: store.seekMedia(to:),
                 onScrubbingChanged: { isProgressScrubbing = $0 }
             )
-                .padding(.horizontal, 14)
+                .padding(.horizontal, isCompact ? 10 : 14)
                 .padding(.bottom, 10)
         }
     }

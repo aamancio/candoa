@@ -28,7 +28,8 @@ extension WebViewCoordinator {
                 isMiniPlayerEligible: body["isMiniPlayerEligible"] as? Bool ?? false,
                 currentTime: body["currentTime"] as? Double ?? 0,
                 duration: body["duration"] as? Double ?? 0,
-                pageVideoFrame: Self.videoFrame(from: body["videoRect"])
+                pageVideoFrame: Self.videoFrame(from: body["videoRect"]),
+                videoAspectRatio: Self.aspectRatio(from: body["videoAspect"])
             )
             store?.updateMediaState(tabID: tabID, state: state)
 
@@ -79,6 +80,11 @@ extension WebViewCoordinator {
         }
 
         return CGRect(x: x, y: y, width: width, height: height)
+    }
+
+    static func aspectRatio(from value: Any?) -> CGFloat? {
+        guard let aspect = value as? Double, aspect.isFinite, aspect > 0 else { return nil }
+        return CGFloat(aspect)
     }
 
     /// Styles the page down to its video, pinned at player size at the

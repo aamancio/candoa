@@ -58,7 +58,7 @@ struct ContentView: View {
     @State private var isSignOutConfirmationPresented = false
     @State private var aiSidebarResizeStartWidth: CGFloat?
     @State private var miniPlayerOrigin: CGPoint? = MiniPlayerPersistence.loadOrigin()
-    @State private var miniPlayerExpandedSize = MiniPlayerPersistence.loadExpandedSize()
+    @State private var miniPlayerExpandedLongEdge = MiniPlayerPersistence.loadLongEdge()
     @SceneStorage("candoa.aiSidebarWidth.diaLayout") private var aiSidebarWidth = 540.0
     private let sidebarWidth = InterfaceStyle.sidebarWidth
     private let sidebarDividerWidth: CGFloat = 0
@@ -284,7 +284,7 @@ struct ContentView: View {
                         pageLaneFrame: pageLaneFrame,
                         summon: store.pendingMiniPlayerSummon,
                         origin: $miniPlayerOrigin,
-                        expandedSize: $miniPlayerExpandedSize
+                        expandedLongEdge: $miniPlayerExpandedLongEdge
                     )
                     .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
                 }

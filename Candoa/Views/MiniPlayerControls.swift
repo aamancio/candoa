@@ -4,6 +4,9 @@ import SwiftUI
 internal struct MiniPlayerControlButton: View {
     let title: String
     let systemImage: String
+    /// A portrait player is too narrow for three labelled buttons, so it
+    /// keeps the icons and leaves the words to the tooltip.
+    var showsTitle = true
     let action: () -> Void
 
     @State private var isHovering = false
@@ -14,14 +17,16 @@ internal struct MiniPlayerControlButton: View {
                 Image(systemName: systemImage)
                     .font(.system(size: 10.5, weight: .bold))
 
-                Text(title)
-                    .font(.system(size: 12, weight: .semibold))
-                    .lineLimit(1)
+                if showsTitle {
+                    Text(title)
+                        .font(.system(size: 12, weight: .semibold))
+                        .lineLimit(1)
+                }
             }
             .foregroundStyle(Color.white.opacity(isHovering ? 1 : 0.92))
             .shadow(color: .black.opacity(0.5), radius: 3, y: 1)
-            .padding(.horizontal, 10)
-            .frame(height: 28)
+            .padding(.horizontal, showsTitle ? 10 : 8)
+            .frame(minWidth: showsTitle ? 0 : 28, minHeight: 28)
             .background(Color.white.opacity(isHovering ? 0.06 : 0.025))
             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
             .contentShape(Rectangle())
@@ -35,6 +40,7 @@ internal struct MiniPlayerControlButton: View {
 internal struct MiniPlayerSeekButton: View {
     let systemImage: String
     let help: String
+    var isCompact = false
     let action: () -> Void
 
     @State private var isHovering = false
@@ -42,10 +48,10 @@ internal struct MiniPlayerSeekButton: View {
     var body: some View {
         Button(action: action) {
             Image(systemName: systemImage)
-                .font(.system(size: 32, weight: .regular))
+                .font(.system(size: isCompact ? 22 : 32, weight: .regular))
                 .foregroundStyle(Color.white.opacity(isHovering ? 1 : 0.92))
                 .shadow(color: .black.opacity(0.4), radius: 4, y: 1)
-                .frame(width: 52, height: 64)
+                .frame(width: isCompact ? 38 : 52, height: isCompact ? 46 : 64)
                 .contentShape(Rectangle())
         }
         .buttonTreatment(.content)
@@ -56,6 +62,7 @@ internal struct MiniPlayerSeekButton: View {
 
 internal struct MiniPlayerPlayPauseButton: View {
     let isPlaying: Bool
+    var isCompact = false
     let action: () -> Void
 
     @State private var isHovering = false
@@ -63,23 +70,23 @@ internal struct MiniPlayerPlayPauseButton: View {
     var body: some View {
         Button(action: action) {
             ZStack {
-                HStack(spacing: 13) {
+                HStack(spacing: isCompact ? 9 : 13) {
                     Capsule(style: .continuous)
-                        .frame(width: 10, height: 58)
+                        .frame(width: isCompact ? 7 : 10, height: isCompact ? 40 : 58)
                     Capsule(style: .continuous)
-                        .frame(width: 10, height: 58)
+                        .frame(width: isCompact ? 7 : 10, height: isCompact ? 40 : 58)
                 }
                 .opacity(isPlaying ? 1 : 0)
                 .scaleEffect(isPlaying ? 1 : 0.72)
 
                 Image(systemName: "play.fill")
-                    .font(.system(size: 48, weight: .regular))
+                    .font(.system(size: isCompact ? 34 : 48, weight: .regular))
                     .opacity(isPlaying ? 0 : 1)
                     .scaleEffect(isPlaying ? 0.72 : 1)
             }
             .foregroundStyle(Color.white.opacity(isHovering ? 1 : 0.94))
             .shadow(color: .black.opacity(0.4), radius: 5, y: 1)
-            .frame(width: 64, height: 64)
+            .frame(width: isCompact ? 46 : 64, height: isCompact ? 46 : 64)
             .contentShape(Rectangle())
             .animation(.spring(response: 0.30, dampingFraction: 0.78), value: isPlaying)
         }
