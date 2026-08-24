@@ -84,6 +84,46 @@ extension CandoaUITests {
         )
     }
 
+    /// A sign-in redirect that lands, renders nothing, and stays there leaves
+    /// the tab blank with no way out — and the spent URL is persisted, so
+    /// every relaunch restores the same empty page. The recovery cover names
+    /// what happened and offers the way back.
+    func testStrandedSignInRedirectShowsRecovery() {
+        let app = launchApp(fixture: "signin-dead-end")
+
+        openNewTabPalette(in: app)
+        submitCommandPaletteText("https://fixture.candoa.test/redirect#code=FAKE&state=abc", in: app)
+
+        XCTAssertTrue(
+            element("tab-recovery-view", in: app).waitForExistence(timeout: 15),
+            currentState(in: app)
+        )
+        XCTAssertTrue(
+            app.staticTexts["Sign-In Didn't Finish"].waitForExistence(timeout: 5),
+            currentState(in: app)
+        )
+    }
+
+    /// The same URL shape, on a page that actually rendered: a site that
+    /// finished signing someone in must never be covered by the recovery UI.
+    func testCompletedSignInRedirectKeepsItsPage() {
+        let app = launchApp(fixture: "signin-landed")
+
+        openNewTabPalette(in: app)
+        submitCommandPaletteText("https://fixture.candoa.test/redirect#code=FAKE&state=abc", in: app)
+
+        XCTAssertTrue(
+            app.webViews.firstMatch.waitForExistence(timeout: 10),
+            currentState(in: app)
+        )
+        // Well past the dead-end grace period the page keeps itself.
+        Thread.sleep(forTimeInterval: 8)
+        XCTAssertFalse(
+            element("tab-recovery-view", in: app).exists,
+            currentState(in: app)
+        )
+    }
+
     /// The address pill's leading icon opens Site Info: the popover names the
     /// effective origin, and its Pop-up Windows control persists a Block
     /// decision that the create-web-view delegate then enforces.

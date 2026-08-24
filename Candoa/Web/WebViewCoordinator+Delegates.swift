@@ -9,6 +9,9 @@ extension WebViewCoordinator {
         if let tabID = tabID(for: webView) {
             store?.updateHoveredLink(tabID: tabID, href: nil)
             clearReaderState(for: tabID)
+            // This tab is moving; whatever the last finished page was, it is
+            // no longer parked anywhere.
+            signInRedirectCheckTokens[tabID] = nil
         }
         updateStore(from: webView, isLoading: true)
     }
@@ -37,10 +40,75 @@ extension WebViewCoordinator {
             probeReaderAvailabilityIfNeeded(for: tabID)
         }
         recordHistoryVisit(for: webView)
+        checkForEmptySignInRedirect(in: webView)
         refreshFavicon(for: webView)
         forwardWebAppPromptIfNeeded(for: webView)
         reportWebsiteAppearanceForUITesting(from: webView)
         dockWebInspectorForUITestingIfNeeded(from: webView)
+    }
+
+    // MARK: - Stranded Sign-In Redirects
+
+    /// A sign-in redirect page's whole job is to read the response in its URL,
+    /// finish the handshake, and send the person back where they started. When
+    /// that fails — the handshake state is gone, its opener has closed, the
+    /// code is already spent — the page has no content of its own and the tab
+    /// is left showing nothing, with the dead URL persisted so every relaunch
+    /// restores the same blank page. Nothing on screen says what happened or
+    /// offers a way out, so this puts the recovery cover over it.
+    func checkForEmptySignInRedirect(in webView: WKWebView) {
+        guard
+            let tabID = tabID(for: webView),
+            let url = webView.url,
+            TabLoadFailure.carriesSignInResponse(url)
+        else {
+            return
+        }
+
+        let token = UUID()
+        signInRedirectCheckTokens[tabID] = token
+        DispatchQueue.main.asyncAfter(deadline: .now() + SignInRedirectConfiguration.deadEndGrace) {
+            [weak self, weak webView] in
+            guard
+                let self,
+                let webView,
+                self.signInRedirectCheckTokens[tabID] == token
+            else {
+                return
+            }
+            self.reportSignInRedirectIfStranded(tabID: tabID, url: url, webView: webView, token: token)
+        }
+    }
+
+    private func reportSignInRedirectIfStranded(
+        tabID: UUID,
+        url: URL,
+        webView: WKWebView,
+        token: UUID
+    ) {
+        // Still sitting on the very same response URL, done loading. A page
+        // that completed its handshake has navigated away by now.
+        guard webView.url == url, !webView.isLoading else { return }
+
+        webView.evaluateJavaScript("document.body ? document.body.innerText.trim().length : 0") {
+            [weak self] value, error in
+            Task { @MainActor in
+                guard
+                    let self,
+                    error == nil,
+                    let renderedCharacters = value as? Int,
+                    renderedCharacters == 0,
+                    // Nothing raced past us while the page answered.
+                    self.signInRedirectCheckTokens[tabID] == token,
+                    self.webViews[tabID] === webView,
+                    webView.url == url
+                else {
+                    return
+                }
+                self.signInRedirectCheckTokens[tabID] = nil
+                self.store?.reportStrandedSignInRedirect(tabID: tabID, url: url)
+            }
+        }
     }
 
     /// Puts a UI test in the docked-inspector state. WebKit only docks from

@@ -3564,6 +3564,47 @@
         }
       }
     },
+    "Back to the Site" : {
+      "comment" : "Button on the sign-in recovery cover: returns to the page the sign-in started from.",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zurück zur Website"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Volver al sitio"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retour au site"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "サイトに戻る"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Voltar ao site"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "返回网站"
+          }
+        }
+      }
+    },
     "Back, forward, reload, and the address stay above the page, like a classic browser." : {
       "localizations" : {
         "de" : {
@@ -27659,6 +27700,47 @@
         }
       }
     },
+    "Sign-In Didn't Finish" : {
+      "comment" : "Title of the recovery cover shown over a sign-in redirect that came back empty.",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anmeldung nicht abgeschlossen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El inicio de sesión no se completó"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connexion non terminée"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "サインインが完了しませんでした"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O login não foi concluído"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "登录未完成"
+          }
+        }
+      }
+    },
     "Signed in with Apple" : {
       "localizations" : {
         "de" : {
@@ -31002,6 +31084,47 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "重置日期暂不可用。"
+          }
+        }
+      }
+    },
+    "The site sent you back from signing in, but the page it landed on is empty." : {
+      "comment" : "Guidance under the sign-in recovery title.",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Website hat Sie von der Anmeldung zurückgeschickt, aber die Seite, auf der Sie gelandet sind, ist leer."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El sitio te devolvió tras iniciar sesión, pero la página a la que llegaste está vacía."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le site vous a renvoyé après la connexion, mais la page sur laquelle vous êtes arrivé est vide."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "サインインからサイトに戻されましたが、表示されたページは空です。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O site trouxe você de volta do login, mas a página que abriu está vazia."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "网站已将你从登录页面送回，但打开的页面是空白的。"
           }
         }
       }
