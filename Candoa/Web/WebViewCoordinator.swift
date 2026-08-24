@@ -85,6 +85,10 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
     /// (a mistyped host spun at ~20 loads a second). Cleared when a page
     /// commits in the tab and by any explicit load, so retry still works.
     var failedProvisionalURLs: [UUID: URL] = [:]
+    /// Per-tab token for the pending empty-sign-in-redirect check, so only
+    /// the newest finished navigation can report one (see
+    /// `WebViewCoordinator+Delegates`).
+    var signInRedirectCheckTokens: [UUID: UUID] = [:]
     var hostedActiveTabID: UUID?
     /// Last docked-inspector placement published to the UI-testing state, so
     /// WebKit's own re-splits (which no store change accompanies) refresh it

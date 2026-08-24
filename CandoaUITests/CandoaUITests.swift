@@ -133,6 +133,23 @@ final class CandoaUITests: XCTestCase {
           </body>
         </html>
         """,
+        // A sign-in redirect whose script never finishes the handshake: the
+        // page has an OAuth response in its URL and nothing to show.
+        "signin-dead-end": """
+        <!doctype html>
+        <html>
+          <head><meta charset="utf-8"></head>
+          <body></body>
+        </html>
+        """,
+        // The same shape of URL, but the site did land somewhere real.
+        "signin-landed": """
+        <!doctype html>
+        <html>
+          <head><meta charset="utf-8"><title>Signed In</title></head>
+          <body><h1>You are signed in</h1></body>
+        </html>
+        """,
         "reader-article": """
         <!doctype html>
         <html>

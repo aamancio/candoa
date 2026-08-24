@@ -167,6 +167,16 @@ enum TabHibernationConfiguration {
     static let snapshotCacheLimit = 16
 }
 
+enum SignInRedirectConfiguration {
+    /// How long a page carrying an OAuth response gets to finish its
+    /// handshake and move on before Candoa calls it a dead end. Generous on
+    /// purpose: these pages routinely spend a beat talking to their opener
+    /// or exchanging a code before they navigate.
+    static var deadEndGrace: TimeInterval {
+        ProcessInfo.processInfo.environment["CANDOA_UI_TESTING"] == "1" ? 2 : 8
+    }
+}
+
 enum WebInspectorConfiguration {
     #if DEBUG
     static let isEnabled = true

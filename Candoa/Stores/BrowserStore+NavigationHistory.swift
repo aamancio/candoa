@@ -21,6 +21,19 @@ extension BrowserStore {
         )
     }
 
+    /// A sign-in redirect that landed, rendered nothing, and stayed put.
+    /// Reported by the coordinator once the page has had its grace period.
+    func reportStrandedSignInRedirect(tabID: UUID, url: URL) {
+        guard tabs.contains(where: { $0.id == tabID }) else { return }
+        // Never paper over a failure the page itself reported.
+        guard tabLoadFailures[tabID] == nil else { return }
+        tabLoadFailures[tabID] = TabLoadFailure(
+            kind: .emptySignInRedirect,
+            failedURL: url,
+            message: ""
+        )
+    }
+
     func clearLoadFailure(tabID: UUID) {
         guard tabLoadFailures[tabID] != nil else { return }
         tabLoadFailures[tabID] = nil
@@ -32,6 +45,18 @@ extension BrowserStore {
         switch failure.kind {
         case .processTerminated:
             webCoordinator.reload(tabID: tabID)
+        case .emptySignInRedirect:
+            // The page that started the sign-in is the one entry back — go
+            // there. A tab restored from a previous run has no back list, so
+            // fall back to the site's own front door, which is where a fresh
+            // sign-in begins anyway.
+            if webCoordinator.navigationState(for: tabID).canGoBack {
+                webCoordinator.goBack(tabID: tabID)
+            } else if let home = failure.failedURL.flatMap(Self.siteHomeURL(for:)) {
+                webCoordinator.load(home, in: tabID)
+            } else {
+                webCoordinator.reload(tabID: tabID)
+            }
         default:
             // A failed provisional navigation leaves the web view on its old
             // URL (or none), so reload would revisit the wrong page — load
@@ -42,6 +67,16 @@ extension BrowserStore {
                 webCoordinator.reload(tabID: tabID)
             }
         }
+    }
+
+    /// The origin's front page: what is left of a redirect URL once the
+    /// spent authorization response and its path are dropped.
+    static func siteHomeURL(for url: URL) -> URL? {
+        var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+        components?.path = "/"
+        components?.query = nil
+        components?.fragment = nil
+        return components?.url
     }
 
     /// The path monitor is strictly scoped to visible offline failures:

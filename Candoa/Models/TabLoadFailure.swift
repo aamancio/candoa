@@ -9,6 +9,11 @@ struct TabLoadFailure: Equatable {
         case connectionFailure
         case processTerminated
         case generic
+        /// A sign-in redirect that came back and then did nothing: the page
+        /// carries an OAuth response but renders no content and never moves
+        /// on. Its own script was meant to finish the handshake and send the
+        /// person home; when that fails there is nothing on screen to act on.
+        case emptySignInRedirect
     }
 
     let kind: Kind
@@ -57,6 +62,26 @@ struct TabLoadFailure: Equatable {
         return TabLoadFailure(kind: .generic, failedURL: failedURL, message: error.localizedDescription)
     }
 
+    /// Whether a URL is an OAuth/OpenID provider handing an answer back to
+    /// the site. Both halves are required — a response parameter *and* the
+    /// `state` every such flow round-trips — so an ordinary page carrying a
+    /// `code` query (a promo code, a country code) is never mistaken for one.
+    static func carriesSignInResponse(_ url: URL) -> Bool {
+        guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return false }
+
+        var names = Set((components.queryItems ?? []).map(\.name))
+        // Implicit and hybrid flows answer in the fragment, which URLComponents
+        // hands back as one opaque string.
+        if let fragment = components.fragment {
+            var fragmentComponents = URLComponents()
+            fragmentComponents.query = fragment
+            names.formUnion((fragmentComponents.queryItems ?? []).map(\.name))
+        }
+
+        let answers: Set<String> = ["code", "id_token", "access_token", "error"]
+        return names.contains("state") && !names.isDisjoint(with: answers)
+    }
+
     var symbolName: String {
         switch kind {
         case .offline: return "wifi.slash"
@@ -64,6 +89,7 @@ struct TabLoadFailure: Equatable {
         case .connectionFailure: return "exclamationmark.triangle"
         case .processTerminated: return "arrow.clockwise.circle"
         case .generic: return "exclamationmark.triangle"
+        case .emptySignInRedirect: return "arrow.uturn.backward.circle"
         }
     }
 
@@ -79,6 +105,8 @@ struct TabLoadFailure: Equatable {
             return String(localized: "This Page Had a Problem")
         case .generic:
             return String(localized: "Page Failed to Load")
+        case .emptySignInRedirect:
+            return String(localized: "Sign-In Didn't Finish")
         }
     }
 
@@ -90,12 +118,23 @@ struct TabLoadFailure: Equatable {
             return message
         case .processTerminated:
             return String(localized: "Something went wrong showing this page. Your tab is still here.")
+        case .emptySignInRedirect:
+            return String(
+                localized: "The site sent you back from signing in, but the page it landed on is empty."
+            )
         }
     }
 
     var retryTitle: String {
-        kind == .processTerminated
-            ? String(localized: "Reload Page")
-            : String(localized: "Try Again")
+        switch kind {
+        case .processTerminated:
+            return String(localized: "Reload Page")
+        case .emptySignInRedirect:
+            // Reloading is the one thing that cannot work: the authorization
+            // code in this URL is spent, so every reload lands here again.
+            return String(localized: "Back to the Site")
+        default:
+            return String(localized: "Try Again")
+        }
     }
 }
