@@ -593,8 +593,10 @@ extension CandoaUITests {
         let row = element("tab-row-private-fixture", in: privateWindow)
         XCTAssertTrue(row.waitForExistence(timeout: 5), currentState(in: privateWindow))
         row.rightClick()
-        let closeItem = app.menuItems["Close Tab"]
-        XCTAssertTrue(closeItem.waitForExistence(timeout: 5))
+        // Scoped to the private window: File carries an identically titled
+        // command, and the menu bar materializes in snapshots.
+        let closeItem = privateWindow.menuItems["Close Tab"]
+        XCTAssertTrue(closeItem.waitForExistence(timeout: 5), currentState(in: privateWindow))
         closeItem.click()
 
         let privateWindowClosed = XCTNSPredicateExpectation(
