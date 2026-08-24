@@ -50,6 +50,13 @@ final class BrowserMenuController: NSObject, NSMenuDelegate {
         stores.removeValue(forKey: ObjectIdentifier(window))
     }
 
+    /// The window a store belongs to. Window-scoped actions that a store
+    /// starts itself — closing a private window once its last tab is gone —
+    /// need their own window, not whichever one happens to be key.
+    func window(for store: BrowserStore) -> NSWindow? {
+        stores.values.first { $0.store === store }?.window
+    }
+
     /// SwiftUI rebuilds its command menus as focused values change, which drops
     /// any delegate set on them, so the delegate is re-attached each time the
     /// menu bar starts tracking — before the History submenu can open.

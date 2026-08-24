@@ -246,7 +246,7 @@ extension BrowserStore {
     /// resets, and the window stays.
     func closeCurrentTabOrWindow() {
         guard let activeTabID, let activeTab = tabs.first(where: { $0.id == activeTabID }) else {
-            closeKeyWindow()
+            closeHostWindow()
             return
         }
 
@@ -262,12 +262,15 @@ extension BrowserStore {
         if otherClosableTabRemains {
             closeCurrentTab()
         } else {
-            closeKeyWindow()
+            closeHostWindow()
         }
     }
 
-    private func closeKeyWindow() {
-        NSApp.keyWindow?.performClose(nil)
+    /// This store's own window, falling back to the key window for a store
+    /// that has not registered one yet (an early command, a UI-test host).
+    private func closeHostWindow() {
+        let window = BrowserMenuController.shared.window(for: self) ?? NSApp.keyWindow
+        window?.performClose(nil)
     }
 
     func closeCurrentTab() {
@@ -315,6 +318,21 @@ extension BrowserStore {
 
         if closesWelcomeDuringTour {
             completeInitialTour()
+        }
+
+        closeEmptyPrivateWindowIfNeeded()
+    }
+
+    /// A private window holds nothing but its tabs — no spaces, no
+    /// favorites, nothing restored — so the last tab closing ends the
+    /// session, and the window goes with it the way Safari's does. Deferred
+    /// by a beat: the window tears down its views, and this runs inside the
+    /// state change that removed the tab.
+    private func closeEmptyPrivateWindowIfNeeded() {
+        guard isPrivate, tabs.isEmpty else { return }
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.isPrivate, self.tabs.isEmpty else { return }
+            self.closeHostWindow()
         }
     }
 
