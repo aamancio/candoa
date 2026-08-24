@@ -102,6 +102,16 @@ extension CandoaUITests {
             app.staticTexts["Sign-In Didn't Finish"].waitForExistence(timeout: 5),
             currentState(in: app)
         )
+
+        // The cover's whole point: one click leaves the dead URL behind.
+        element("tab-recovery-retry", in: app).click()
+
+        var leftTheDeadEnd = false
+        for _ in 0..<20 where !leftTheDeadEnd {
+            leftTheDeadEnd = stateValue("url", in: app)?.contains("code=FAKE") != true
+            if !leftTheDeadEnd { Thread.sleep(forTimeInterval: 0.5) }
+        }
+        XCTAssertTrue(leftTheDeadEnd, currentState(in: app))
     }
 
     /// The same URL shape, on a page that actually rendered: a site that
