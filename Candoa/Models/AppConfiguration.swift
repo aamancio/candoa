@@ -152,13 +152,12 @@ enum SidebarRevealConfiguration {
 }
 
 enum TabHibernationConfiguration {
-    /// Background tabs untouched for this long are hibernated: their
-    /// interaction state is captured and the WKWebView (and its WebContent
-    /// process) is torn down until the tab is activated again.
-    static let idleInterval: TimeInterval = 15 * 60
-
-    /// How often the coordinator scans for hibernation candidates.
-    static let scanInterval: TimeInterval = 60
+    /// Background tabs are never torn down on a timer. Like Safari, Candoa
+    /// keeps them live and only hibernates — captures the interaction state
+    /// and releases the WKWebView and its WebContent process — when the
+    /// system reports memory pressure. A warning releases the tabs nobody has
+    /// looked at for a while; critical pressure releases every eligible one.
+    static let warningIdleInterval: TimeInterval = 5 * 60
 
     /// Wake-up snapshots are captured at most this wide (points); they only
     /// bridge the moment between activating a hibernated tab and first paint.

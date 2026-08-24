@@ -14976,43 +14976,42 @@
         }
       }
     },
-    "Idle background tabs release their web view after %lld minutes." : {
-      "comment" : "Placeholder is the number of minutes.",
+    "Background tabs stay loaded. When your Mac runs low on memory, the ones you haven't used in a while are put to sleep until you return." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Inaktive Hintergrund-Tabs geben ihre Webansicht nach %lld Minuten frei."
+            "value" : "Hintergrund-Tabs bleiben geladen. Wird der Arbeitsspeicher des Mac knapp, werden länger nicht benutzte Tabs in den Ruhezustand versetzt, bis du zurückkehrst."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Las pestañas en segundo plano inactivas liberan su vista web tras %lld minutos."
+            "value" : "Las pestañas en segundo plano permanecen cargadas. Cuando el Mac se queda sin memoria, las que llevas tiempo sin usar se ponen en reposo hasta que vuelvas."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Les onglets inactifs en arrière-plan libèrent leur vue web après %lld minutes."
+            "value" : "Les onglets en arrière-plan restent chargés. Quand le Mac manque de mémoire, ceux que vous n'avez pas utilisés depuis un moment sont mis en veille jusqu'à votre retour."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "操作のないバックグラウンドタブは、%lld分後にWebビューを解放します。"
+            "value" : "バックグラウンドタブは読み込まれたままになります。Macのメモリが不足すると、しばらく使っていないタブは戻るまでスリープします。"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Abas ociosas em segundo plano liberam sua visualização web após %lld minutos."
+            "value" : "As abas em segundo plano continuam carregadas. Quando o Mac fica com pouca memória, as que você não usa há algum tempo são colocadas para dormir até você voltar."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "空闲的后台标签页会在 %lld 分钟后释放其网页视图。"
+            "value" : "后台标签页保持加载状态。当 Mac 内存不足时，较久未使用的标签页会进入休眠，直到你再次打开。"
           }
         }
       }

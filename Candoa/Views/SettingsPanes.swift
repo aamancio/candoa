@@ -456,9 +456,9 @@ internal struct AdvancedSettingsPane: View {
                     SettingsRow(
                         systemImage: "snowflake",
                         title: String(localized: "Tab Hibernation"),
-                        subtitle: String(localized: "Idle background tabs release their web view after \(Int(TabHibernationConfiguration.idleInterval / 60)) minutes.")
+                        subtitle: String(localized: "Background tabs stay loaded. When your Mac runs low on memory, the ones you haven't used in a while are put to sleep until you return.")
                     ) {
-                        SettingsStatusPill(text: String(localized: "On"))
+                        SettingsStatusPill(text: String(localized: "Automatic"))
                     }
 
                     SettingsDivider()
