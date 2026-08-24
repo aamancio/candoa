@@ -561,6 +561,51 @@ extension CandoaUITests {
         )
     }
 
+    /// A private window is only its tabs — no spaces, no favorites, nothing
+    /// restored — so closing the last one has to take the window with it
+    /// rather than leaving an empty shell that reads as an ordinary window.
+    func testClosingTheLastPrivateTabClosesTheWindow() throws {
+        let app = launchApp(extraLaunchEnvironment: [
+            "CANDOA_UI_TESTING_PAGE_HTML":
+                "<!doctype html><html><head><title>Private Fixture</title></head><body>fixture</body></html>"
+        ])
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
+
+        app.typeKey("n", modifierFlags: [.command, .shift])
+        let privateWindow = app.windows["Private Browsing"]
+        XCTAssertTrue(privateWindow.waitForExistence(timeout: 10))
+        XCTAssertTrue(
+            waitForState(in: privateWindow, containing: "private=true"),
+            currentState(in: privateWindow)
+        )
+
+        // The window opens on its command bar; the first address gives it
+        // the one tab this test then closes.
+        if !waitForState(in: privateWindow, containing: "newTabPalette=true", timeout: 5) {
+            openNewTabPalette(in: privateWindow, of: app)
+        }
+        submitCommandPaletteText("https://fixture.candoa.test/private", in: privateWindow)
+        XCTAssertTrue(
+            waitForState(in: privateWindow, containing: "tabs=Private Fixture", timeout: 10),
+            currentState(in: privateWindow)
+        )
+
+        let row = element("tab-row-private-fixture", in: privateWindow)
+        XCTAssertTrue(row.waitForExistence(timeout: 5), currentState(in: privateWindow))
+        row.rightClick()
+        let closeItem = app.menuItems["Close Tab"]
+        XCTAssertTrue(closeItem.waitForExistence(timeout: 5))
+        closeItem.click()
+
+        let privateWindowClosed = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "exists == false"),
+            object: privateWindow
+        )
+        XCTAssertEqual(XCTWaiter.wait(for: [privateWindowClosed], timeout: 10), .completed)
+        // The ordinary window is untouched by the private one closing.
+        XCTAssertTrue(waitForState(in: app, containing: "private=false", timeout: 5), currentState(in: app))
+    }
+
     func testSkippingBrowserMigrationAdvancesToSpaceSetup() throws {
         let app = launchApp(onboardingStep: "importData")
         let importStep = element("initial-onboarding-importData", in: app)
