@@ -103,14 +103,17 @@ internal enum MiniPlayerResizeEdge: String, CaseIterable, Identifiable {
         }
     }
 
-    func widthDelta(for translation: CGSize) -> CGFloat {
+    /// The width change a drag on this edge asks for. Vertical drags come
+    /// through the player's current shape, so a portrait player follows the
+    /// pointer as closely as a landscape one.
+    func widthDelta(for translation: CGSize, aspectRatio: CGFloat) -> CGFloat {
         let candidates: [CGFloat]
 
         switch self {
         case .top:
-            candidates = [-translation.height * MiniPlayerLayout.aspectRatio]
+            candidates = [-translation.height * aspectRatio]
         case .bottom:
-            candidates = [translation.height * MiniPlayerLayout.aspectRatio]
+            candidates = [translation.height * aspectRatio]
         case .leading:
             candidates = [-translation.width]
         case .trailing:
@@ -118,22 +121,22 @@ internal enum MiniPlayerResizeEdge: String, CaseIterable, Identifiable {
         case .topLeading:
             candidates = [
                 -translation.width,
-                -translation.height * MiniPlayerLayout.aspectRatio
+                -translation.height * aspectRatio
             ]
         case .topTrailing:
             candidates = [
                 translation.width,
-                -translation.height * MiniPlayerLayout.aspectRatio
+                -translation.height * aspectRatio
             ]
         case .bottomLeading:
             candidates = [
                 -translation.width,
-                translation.height * MiniPlayerLayout.aspectRatio
+                translation.height * aspectRatio
             ]
         case .bottomTrailing:
             candidates = [
                 translation.width,
-                translation.height * MiniPlayerLayout.aspectRatio
+                translation.height * aspectRatio
             ]
         }
 

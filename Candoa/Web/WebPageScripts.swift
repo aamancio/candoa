@@ -1304,6 +1304,12 @@ enum WebPageScripts {
         // video fills the (tiny) viewport and the rect would be garbage.
         const presentationActive = document.documentElement.classList.contains(miniPlayerClass);
         const pageRect = current && !presentationActive ? current.getBoundingClientRect() : null;
+        // The stream's own shape, not the element's box: a short played in
+        // a letterboxed 16:9 embed is still a 9:16 video, and the floating
+        // player takes its shape from this.
+        const intrinsicAspect = current && current.videoWidth > 0 && current.videoHeight > 0
+          ? current.videoWidth / current.videoHeight
+          : null;
         handler.postMessage({
           hasMedia: Boolean(current),
           isPlaying: Boolean(playing),
@@ -1313,7 +1319,8 @@ enum WebPageScripts {
           duration: current ? finiteDuration(current) : 0,
           videoRect: pageRect
             ? { x: pageRect.x, y: pageRect.y, width: pageRect.width, height: pageRect.height }
-            : null
+            : null,
+          videoAspect: intrinsicAspect
         });
       };
       window.__candoaReportMediaState = report;
@@ -1331,7 +1338,10 @@ enum WebPageScripts {
       // Event-driven with a coalescing timeout. The only steady timer is the
       // 1 Hz progress ticker, and it exists solely while media is playing —
       // an idle page costs nothing.
-      ["play", "playing", "pause", "ended", "emptied", "seeked", "volumechange", "loadedmetadata", "loadeddata"].forEach((eventName) => {
+      // "resize" fires when a video's intrinsic dimensions change — a feed
+      // swiping from a portrait short to a landscape clip — so the player
+      // reshapes with it. It does not bubble, hence the capture listener.
+      ["play", "playing", "pause", "ended", "emptied", "seeked", "volumechange", "loadedmetadata", "loadeddata", "resize"].forEach((eventName) => {
         document.addEventListener(eventName, queueReport, true);
       });
       document.addEventListener("visibilitychange", queueReport);

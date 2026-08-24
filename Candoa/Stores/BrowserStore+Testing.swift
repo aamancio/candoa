@@ -151,9 +151,11 @@ extension BrowserStore {
     }
 
     /// Drives the active window from a fixture runner without synthetic
-    /// input: `navigate:<url>` loads a page in the active tab and `eli:toggle`
-    /// opens or closes the Eli sidebar. Same rationale as the tab-switcher
-    /// seam — keyboard-free, so it works while the machine is in use.
+    /// input: `navigate:<url>` loads a page in the active tab, `tab:new:<url>`
+    /// opens one in a new tab (which backgrounds the page that was playing,
+    /// the way into the floating mini player), and `eli:toggle` opens or
+    /// closes the Eli sidebar. Same rationale as the tab-switcher seam —
+    /// keyboard-free, so it works while the machine is in use.
     static let uiTestingWindowCommandNotification =
         Notification.Name("app.candoa.uitesting.window-command")
 
@@ -168,11 +170,21 @@ extension BrowserStore {
                     guard let self else { return }
                     if command.hasPrefix("navigate:") {
                         self.navigateActiveTab(to: String(command.dropFirst("navigate:".count)))
+                    } else if command.hasPrefix("tab:new:") {
+                        self.navigateNewTab(to: String(command.dropFirst("tab:new:".count)))
                     } else if command == "eli:toggle" {
                         self.aiSidebarToggleRequestID = UUID()
                     }
                 }
             }
+    }
+
+    /// The floating player's controls only appear under the pointer, and a
+    /// fixture runner has none: this pins them on so their layout — which
+    /// goes compact in a portrait player — can be measured on screen.
+    static var uiTestingForcesMiniPlayerControls: Bool {
+        isUITesting
+            && ProcessInfo.processInfo.environment["CANDOA_UI_TESTING_MINI_PLAYER_CONTROLS"] == "1"
     }
 
     static var uiTestingOnboardingStep: InitialOnboardingStep? {
