@@ -493,19 +493,25 @@ extension BrowserStore {
     /// rather than the most recent one.
     func reopenClosedTab(at url: URL) {
         guard let index = recentlyClosedTabs.lastIndex(where: { $0.url == url }) else { return }
-        let snapshot = recentlyClosedTabs.remove(at: index)
-        let targetSpaceID = spaces.contains(where: { $0.id == snapshot.spaceID })
-            ? snapshot.spaceID
-            : activeSpaceID
-        _ = newTab(url: snapshot.url, favorite: snapshot.isFavorite, pinned: snapshot.isPinned, in: targetSpaceID)
+        reopen(recentlyClosedTabs.remove(at: index))
     }
 
     func reopenLastClosedTab() {
         guard let snapshot = recentlyClosedTabs.popLast() else { return }
+        reopen(snapshot)
+    }
+
+    private func reopen(_ snapshot: ClosedTabSnapshot) {
         let targetSpaceID = spaces.contains(where: { $0.id == snapshot.spaceID })
             ? snapshot.spaceID
             : activeSpaceID
-        _ = newTab(url: snapshot.url, favorite: snapshot.isFavorite, pinned: snapshot.isPinned, in: targetSpaceID)
+        let tab = newTab(url: snapshot.url, favorite: snapshot.isFavorite, pinned: snapshot.isPinned, in: targetSpaceID)
+        // Hand the reopened tab the icon it closed with, so the sidebar row
+        // doesn't sit on a placeholder until the page reloads.
+        if let faviconData = snapshot.faviconData,
+           let index = tabs.firstIndex(where: { $0.id == tab.id }) {
+            tabs[index].faviconData = faviconData
+        }
     }
 
     func clearUnpinnedTabs() {

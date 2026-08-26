@@ -139,6 +139,9 @@ final class BrowserStore: ObservableObject {
         /// Kept so the History menu can name the tab the way it was titled,
         /// rather than falling back to its host.
         let title: String
+        /// The icon the tab was showing when it closed, so the Recently
+        /// Closed rows keep their favicons after the tab itself is gone.
+        let faviconData: Data?
         let isFavorite: Bool
         let isPinned: Bool
         let spaceID: UUID

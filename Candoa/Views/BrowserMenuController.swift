@@ -261,7 +261,8 @@ final class BrowserMenuController: NSObject, NSMenuDelegate {
             )
             item.target = self
             item.representedObject = snapshot.url
-            item.image = Self.icon(for: snapshot.url, icons: icons)
+            item.image = Self.sized(snapshot.faviconData)
+                ?? Self.icon(for: snapshot.url, icons: icons, service: store.faviconService)
             submenu.addItem(item)
         }
 
@@ -286,6 +287,7 @@ final class BrowserMenuController: NSObject, NSMenuDelegate {
         guard !visits.isEmpty else { return }
 
         let icons = Self.cachedIcons(from: store)
+        let service = store.faviconService
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
         var byDay: [Date: [HistoryVisit]] = [:]
@@ -303,7 +305,7 @@ final class BrowserMenuController: NSObject, NSMenuDelegate {
             guard let dayVisits = byDay[day] else { continue }
             let submenu = NSMenu()
             for visit in Self.deduplicated(dayVisits).prefix(Self.visitsPerDayLimit) {
-                submenu.addItem(menuItem(for: visit, icons: icons))
+                submenu.addItem(menuItem(for: visit, icons: icons, service: service))
             }
             let parent = NSMenuItem(title: Self.dayTitle(for: day), action: nil, keyEquivalent: "")
             parent.submenu = submenu
@@ -319,7 +321,7 @@ final class BrowserMenuController: NSObject, NSMenuDelegate {
                 menu.insertItem(separator, at: insertion)
             }
             for visit in Self.deduplicated(todaysVisits).prefix(Self.recentVisitLimit).reversed() {
-                menu.insertItem(menuItem(for: visit, icons: icons), at: insertion)
+                menu.insertItem(menuItem(for: visit, icons: icons, service: service), at: insertion)
             }
             inserted = true
         }
@@ -331,7 +333,7 @@ final class BrowserMenuController: NSObject, NSMenuDelegate {
         }
     }
 
-    private func menuItem(for visit: HistoryVisit, icons: [String: Data]) -> NSMenuItem {
+    private func menuItem(for visit: HistoryVisit, icons: [String: Data], service: FaviconService) -> NSMenuItem {
         let item = NSMenuItem(
             title: Self.title(for: visit.url, fallback: visit.title),
             action: #selector(openVisit(_:)),
@@ -341,28 +343,34 @@ final class BrowserMenuController: NSObject, NSMenuDelegate {
         item.representedObject = visit.url
         item.tag = Self.dynamicItemTag
         item.toolTip = visit.url.absoluteString
-        item.image = Self.icon(for: visit.url, icons: icons)
+        item.image = Self.icon(for: visit.url, icons: icons, service: service)
         return item
     }
 
     /// Safari shows a favicon on every row. Fetching one per row would mean
-    /// network requests every time the menu opens, so this uses only icons the
-    /// app already holds for open tabs and falls back to the same placeholder
-    /// symbol the sidebar uses.
-    private static func icon(for url: URL, icons: [String: Data]) -> NSImage? {
-        let size = NSSize(width: 16, height: 16)
-
-        if let host = url.host(percentEncoded: false),
-           let data = icons[host],
-           let image = NSImage(data: data) {
-            image.size = size
+    /// network requests every time the menu opens, so this uses icons the app
+    /// already holds — the open tabs', then whatever the window's favicon
+    /// service resolved this session (the same fallback the ⌘T palette rows
+    /// use) — before the placeholder symbol the sidebar uses.
+    private static func icon(for url: URL, icons: [String: Data], service: FaviconService) -> NSImage? {
+        if let host = url.host(percentEncoded: false), let image = sized(icons[host]) {
             return image
         }
 
-        let symbol = FaviconService.shared.placeholderSymbol(for: url)
+        if let image = sized(service.cachedFaviconData(for: url)) {
+            return image
+        }
+
+        let symbol = service.placeholderSymbol(for: url)
         let image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
-        image?.size = size
+        image?.size = NSSize(width: 16, height: 16)
         image?.isTemplate = true
+        return image
+    }
+
+    private static func sized(_ faviconData: Data?) -> NSImage? {
+        guard let faviconData, let image = NSImage(data: faviconData) else { return nil }
+        image.size = NSSize(width: 16, height: 16)
         return image
     }
 
