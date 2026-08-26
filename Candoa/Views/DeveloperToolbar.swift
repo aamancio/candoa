@@ -18,6 +18,11 @@ internal struct DeveloperToolbar: View {
     /// same leading controls the address strip does, so a local-development
     /// page is not the one page in that mode without a Back button.
     let leadingControls: TopToolbarLeadingControls?
+    /// The routed Share command's token (BrowserStore.sharePickerPresentationID).
+    /// The bar answers it only under the "Above the Page" placement — exactly
+    /// when it carries the leading controls — because under the sidebar
+    /// placement the address pill owns the visible share anchor.
+    let sharePresentationID: UUID
     let onSubmitURL: (String) -> Void
     let onToggleChat: () -> Void
 
@@ -108,6 +113,10 @@ internal struct DeveloperToolbar: View {
             Rectangle()
                 .fill(InterfaceStyle.sidebarSeparator)
                 .frame(height: 1)
+        }
+        .onChange(of: sharePresentationID) { _, _ in
+            guard leadingControls != nil else { return }
+            perform(.share)
         }
     }
 
@@ -202,12 +211,14 @@ private enum DeveloperToolbarControlKind: String, CaseIterable, Identifiable {
     }
 
     var shortcutText: String {
+        let caps = ShortcutKeyCaps.current(for: shortcutDefinition).joined()
+        return caps.isEmpty ? String(localized: "Set in Settings > Shortcuts") : caps
+    }
+
+    private var shortcutDefinition: ShortcutDefinition {
         switch self {
-        case .share:
-            return String(localized: "Set in Settings > Shortcuts")
-        case .chat:
-            let caps = ShortcutKeyCaps.current(for: .toggleAISidebar).joined()
-            return caps.isEmpty ? String(localized: "Set in Settings > Shortcuts") : caps
+        case .share: return .sharePage
+        case .chat: return .toggleAISidebar
         }
     }
 

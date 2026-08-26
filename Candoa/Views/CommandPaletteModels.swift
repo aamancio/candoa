@@ -95,6 +95,7 @@ internal enum PaletteAction {
     case focusAddressBar
     case copyURL
     case copyURLAsMarkdown
+    case sharePage
     case setDeveloperMode(Bool)
     case togglePinTab
     case navigate(String)
@@ -147,6 +148,7 @@ internal extension PaletteAction {
         case .focusAddressBar: return .focusAddressBar
         case .copyURL: return .copyURL
         case .copyURLAsMarkdown: return .copyURLAsMarkdown
+        case .sharePage: return .sharePage
         case .togglePinTab: return .pinOrUnpinTab
         case .duplicateCurrentTab, .createSpace, .setDeveloperMode, .navigate, .searchProvider,
              .switchTab, .splitWithTab, .splitWithNavigate, .switchSpace:

@@ -22,6 +22,8 @@ struct ContentView: View {
     @EnvironmentObject private var userStore: UserStore
     @AppStorage(SettingsOption.websiteAppearance) private var websiteAppearanceValue =
         WebsiteAppearance.automatic.rawValue
+    @AppStorage(SettingsOption.addressBarPlacement)
+    private var addressBarPlacement = AddressBarPlacement.default.rawValue
     @SceneStorage("candoa.windowAutosaveID") private var windowAutosaveID = UUID().uuidString
     @State private var isSidebarVisible = true
     @State private var isSidebarHoverRevealed = false
@@ -415,6 +417,8 @@ struct ContentView: View {
                 store.copyActiveTabURL()
             } onCopyURLAsMarkdown: {
                 store.copyActiveTabURL(asMarkdown: true)
+            } onSharePage: {
+                showSharePicker()
             } onCaptureFullPage: {
                 store.captureActiveTabPage()
             } onPinOrUnpinTab: {
@@ -592,6 +596,9 @@ struct ContentView: View {
         .onChange(of: store.aiSidebarToggleRequestID) { _, _ in
             toggleAISidebar()
         }
+        .onChange(of: store.sharePickerRequestID) { _, _ in
+            showSharePicker()
+        }
         .onChange(of: store.activeSpaceID) { _, _ in
             // A Space is its tabs, and they live in the sidebar. Switching
             // from the menu or the keyboard with the sidebar hidden would
@@ -707,6 +714,8 @@ struct ContentView: View {
             canPrintActiveTab: store.canPrintActiveTab,
             openLocalFile: store.openLocalFileViaPanel,
             saveActiveTabAs: store.saveActiveTabAsWebArchive,
+            sharePage: showSharePicker,
+            canSharePage: store.activeTab?.url != nil,
             exportActiveTabAsPDF: store.exportActiveTabAsPDF,
             canSaveActiveTab: store.canPrintActiveTab,
             stopLoading: store.stopLoadingActiveTab,
@@ -1006,6 +1015,25 @@ struct ContentView: View {
             return
         }
         store.isSiteInfoPopoverPresented = true
+    }
+
+    /// Menu, shortcut, and palette all land here. The picker needs an AppKit
+    /// anchor, and the visible one depends on layout: the sidebar pill under
+    /// the default placement, the address strip or developer bar under "Above
+    /// the Page" (those are always on screen, sidebar or not).
+    private func showSharePicker() {
+        guard store.activeTab?.url != nil else { return }
+        let pillIsAnchor = addressBarPlacement != AddressBarPlacement.top.rawValue
+        guard pillIsAnchor, !isSidebarVisible else {
+            store.presentSharePickerAtAddressSurface()
+            return
+        }
+        // Anchored to the sidebar address pill, so a hidden sidebar must be
+        // revealed first — same two-beat handoff as showSiteInfo.
+        toggleSidebar()
+        CATransaction.setCompletionBlock { [weak store] in
+            store?.presentSharePickerAtAddressSurface()
+        }
     }
 
     private func showFind() {

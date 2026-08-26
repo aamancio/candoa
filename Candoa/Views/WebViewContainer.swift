@@ -279,6 +279,7 @@ struct WebViewContainer: View {
                     faviconData: tab.faviconData,
                     contentInsets: webContentInsets,
                     leadingControls: usesTopToolbarPlacement ? topToolbarLeadingControls : nil,
+                    sharePresentationID: store.sharePickerPresentationID,
                     onSubmitURL: { store.navigateActiveTab(to: $0) },
                     onToggleChat: { store.requestAISidebarToggle() }
                 )

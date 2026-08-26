@@ -88,6 +88,7 @@ enum BrowserCommandTitles {
     static let printPage = String(localized: "Print…")
     static let openFile = String(localized: "Open File…")
     static let saveAs = String(localized: "Save As…")
+    static let share = String(localized: "Share…")
     static let exportAsPDF = String(localized: "Export as PDF…")
     /// Titles of the two Safari-style submenus that keep the Edit and View
     /// menus short.

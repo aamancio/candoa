@@ -550,6 +550,7 @@ enum ShortcutDefinition: String, CaseIterable, Identifiable {
     case commandBar
     case copyURL
     case copyURLAsMarkdown
+    case sharePage
     case captureFullPage
     case pinOrUnpinTab
     case toggleSidebar
@@ -595,6 +596,7 @@ enum ShortcutDefinition: String, CaseIterable, Identifiable {
         case .commandBar: return BrowserCommandTitles.commandBar
         case .copyURL: return BrowserCommandTitles.copyURL
         case .copyURLAsMarkdown: return BrowserCommandTitles.copyURLAsMarkdown
+        case .sharePage: return BrowserCommandTitles.share
         case .captureFullPage: return String(localized: "Capture Page")
         case .pinOrUnpinTab: return BrowserCommandTitles.pinOrUnpinTab
         case .toggleSidebar: return BrowserCommandTitles.toggleSidebar
@@ -663,6 +665,9 @@ enum ShortcutDefinition: String, CaseIterable, Identifiable {
         case .commandBar: return "Option-Command-K"
         case .copyURL: return "Shift-Command-C"
         case .copyURLAsMarkdown: return "Option-Shift-Command-C"
+        // Safari ships Share with no shortcut either; the row exists so
+        // anyone who shares often can bind one.
+        case .sharePage: return "None"
         case .captureFullPage: return "None"
         // Safari gives its own report command no shortcut either; the row
         // exists so anyone who reports often can bind one.
@@ -736,6 +741,7 @@ enum ShortcutDefinition: String, CaseIterable, Identifiable {
         case .unsplitPane: return "rectangle.portrait.and.arrow.right"
         case .splitWithTab: return "rectangle.split.2x1.fill"
         case .copyURL, .copyURLAsMarkdown: return "link"
+        case .sharePage: return "square.and.arrow.up"
         case .findInPage, .findNext, .findPrevious: return "magnifyingglass"
         case .reloadTab: return "arrow.clockwise"
         case .reloadTabFromOrigin: return "arrow.clockwise.circle"

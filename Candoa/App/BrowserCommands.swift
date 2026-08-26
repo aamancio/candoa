@@ -112,6 +112,16 @@ internal struct BrowserCommands: Commands {
                 .keyboardShortcut("s", modifiers: [.command, .shift])
                 .disabled(actions?.canSaveActiveTab != true)
 
+                // Safari's slot for it: between Save As… and Export as PDF….
+                // The item opens the same picker the address pill's hover
+                // button anchors; the shortcut is dispatched by
+                // KeyboardShortcutMonitor and only drawn here.
+                Button(BrowserCommandTitles.share) {
+                    actions?.sharePage()
+                }
+                .keyboardShortcut(ShortcutDefinition.sharePage.currentKeyboardShortcut)
+                .disabled(actions?.canSharePage != true)
+
                 Button(BrowserCommandTitles.exportAsPDF) {
                     actions?.exportActiveTabAsPDF()
                 }
