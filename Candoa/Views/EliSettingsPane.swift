@@ -198,15 +198,16 @@ internal struct EliSettingsPane: View {
         }
     }
 
-    /// What Eli may type into a form. Everything here is entered by hand —
-    /// nothing arrives from a conversation — and a blank field stays blank on
-    /// the page rather than being guessed at.
+    /// What Eli may type into a form. Values arrive two ways — learned from
+    /// Ask conversations the way memory is, or typed here — and typing a
+    /// field claims it for the user: extraction never overwrites a hand-typed
+    /// value. A blank field stays blank on the page rather than guessed at.
     private var profileSection: some View {
         Group {
             SettingsSectionTitle("Your Details")
 
             SettingsCard {
-                Text("Eli fills these into forms you ask it to complete, and leaves anything you haven't filled in blank. Passwords, payment details, and government IDs are never stored here.")
+                Text("Eli learns these from your conversations and fills them into forms you ask it to complete. You can correct or clear anything here, and blank fields stay blank on the page. Passwords, payment details, and government IDs are never stored.")
                     .font(.system(size: 11.5))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -230,10 +231,17 @@ internal struct EliSettingsPane: View {
             }
             .accessibilityIdentifier("eli-profile-card")
         }
-        .onChange(of: profile) { _, updated in
+        .onChange(of: profile) { previous, updated in
             // UI-test launches share the real defaults domain, so the pane
             // never writes a test's typing into the person's own profile.
             guard !Self.isUITesting else { return }
+            // An edited field becomes the user's: extraction stops updating it.
+            let edited = UserProfile.Field.allCases.filter { previous[$0] != updated[$0] }
+            if !edited.isEmpty {
+                UserProfileStore.saveLearnedFields(
+                    UserProfileStore.loadLearnedFields().subtracting(edited)
+                )
+            }
             UserProfileStore.save(updated)
         }
     }
