@@ -332,6 +332,44 @@ extension CandoaUITests {
         app.typeKey(.escape, modifierFlags: [])
     }
 
+    /// SwiftUI rebuilds the History menu whenever the window's command state
+    /// re-publishes — a page retitling itself is enough — and a rebuild while
+    /// the menu was open used to wipe the delegate-inserted rows in front of
+    /// the person. The menu controller heals the wipe, so the rows have to
+    /// survive several retitle ticks with the menu held open.
+    func testHistoryMenuRowsSurviveMidOpenRebuild() {
+        let app = launchApp(fixture: "history-menu-churn")
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
+
+        // The page's churn timer flips the title away from the path, so wait
+        // on the URL alone rather than openFixtureTab's title check.
+        openNewTabPalette(in: app)
+        submitCommandPaletteText("https://fixture.candoa.test/history-menu-churn", in: app)
+        XCTAssertTrue(
+            waitForState(in: app, containing: "url=https://fixture.candoa.test/history-menu-churn", timeout: 10),
+            currentState(in: app)
+        )
+
+        let historyMenu = app.menuBarItems["History"]
+        XCTAssertTrue(historyMenu.waitForExistence(timeout: 5))
+        historyMenu.click()
+
+        let recentlyClosed = app.menuBars.menuItems["Recently Closed"]
+        XCTAssertTrue(
+            recentlyClosed.waitForExistence(timeout: 5),
+            "History menu opened without its dynamic rows"
+        )
+
+        // Hold the menu open across several retitle ticks — the wipe this
+        // guards against showed up within a second.
+        sleep(3)
+        XCTAssertTrue(
+            recentlyClosed.exists,
+            "History menu lost its dynamic rows to a mid-open rebuild"
+        )
+        app.typeKey(.escape, modifierFlags: [])
+    }
+
     func testOpenLocalFileCommandOpensChosenFile() throws {
         // NSOpenPanel runs out of process, so the app's UI-testing seam
         // writes a fixture file itself and opens it when the command fires.

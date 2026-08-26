@@ -117,6 +117,24 @@ final class CandoaUITests: XCTestCase {
            download="candoa-e2e-download.bin"
            style="position:fixed;inset:0;font-size:40px">Download</a>
         """,
+        // Retitles itself on a timer: each new title re-publishes the
+        // window's command state, which makes SwiftUI rebuild the menu bar —
+        // the churn that used to wipe the History menu's rows mid-open.
+        "history-menu-churn": """
+        <!doctype html>
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <script>document.title = location.pathname.slice(1)</script>
+          </head>
+          <body>
+            <script>
+              let tick = 0;
+              setInterval(() => { document.title = "churn-" + (++tick); }, 400);
+            </script>
+          </body>
+        </html>
+        """,
         "popup-open": """
         <!doctype html>
         <html>
