@@ -281,6 +281,11 @@ final class BrowserStore: ObservableObject {
     /// developer bar's Chat button. Sidebar visibility itself lives in the
     /// view that owns the layout.
     @Published var aiSidebarToggleRequestID = UUID()
+    /// Bumped when something outside the window chrome asks for the sidebar
+    /// toggle — today only the fixture window-command seam, which needs a
+    /// keyboard-free path to the layout-owning view for the same reason
+    /// Eli's does.
+    @Published var sidebarToggleRequestID = UUID()
     /// Position of the current match among all of them, or nil when there is
     /// nothing to count yet — an empty query, or a page the in-page find
     /// engine could not tally.

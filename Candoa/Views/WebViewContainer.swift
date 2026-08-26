@@ -10,6 +10,14 @@ struct BrowserInterfaceInsets: Equatable {
 struct WebViewContainer: View {
     @ObservedObject var store: BrowserStore
     let visibleInterfaceInsets: BrowserInterfaceInsets
+    /// The lanes the native bars above the page lay out against. Unlike
+    /// `visibleInterfaceInsets` — which must switch the moment a sidebar
+    /// toggle commits, so WebKit reflows the page behind the covering
+    /// sidebar — these keep a closing sidebar's lane reserved until it has
+    /// actually left. The bars re-lay out in a single frame, so following
+    /// the live insets slid the URL text under the still-covering sidebar,
+    /// its tail peeking past the sidebar's edge for the length of the cover.
+    let barInterfaceInsets: BrowserInterfaceInsets
     let attachesToTrailingPanel: Bool
     /// The strip above the page takes over the sidebar's toggle while the
     /// sidebar is away, so it needs the same action the sidebar header uses.
@@ -265,8 +273,8 @@ struct WebViewContainer: View {
             if tab.isWelcomePage {
                 WelcomeToCandoaPage(store: store)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .padding(.leading, visibleInterfaceInsets.leading)
-                    .padding(.trailing, visibleInterfaceInsets.trailing)
+                    .padding(.leading, barInterfaceInsets.leading)
+                    .padding(.trailing, barInterfaceInsets.trailing)
             } else if let url = tab.url,
                DeveloperModeConfiguration.isEnabled(
                    for: url,
@@ -277,7 +285,7 @@ struct WebViewContainer: View {
                     urlText: url.localDevelopmentDisplayText,
                     pageTitle: tab.title,
                     faviconData: tab.faviconData,
-                    contentInsets: webContentInsets,
+                    contentInsets: barInterfaceInsets,
                     leadingControls: usesTopToolbarPlacement ? topToolbarLeadingControls : nil,
                     onSubmitURL: { store.navigateActiveTab(to: $0) },
                     onToggleChat: { store.requestAISidebarToggle() }
@@ -290,7 +298,7 @@ struct WebViewContainer: View {
                 TopAddressBar(
                     store: store,
                     url: tab.url,
-                    contentInsets: webContentInsets,
+                    contentInsets: barInterfaceInsets,
                     isSidebarVisible: isSidebarVisible,
                     onToggleSidebar: onToggleSidebar
                 )
