@@ -450,6 +450,29 @@ extension BrowserStore {
         )
     }
 
+    /// Safari's ⌘-click: the link loads in a new tab while the clicked page
+    /// keeps the screen; ⌘⇧-click (`activate`) switches to the new tab.
+    @discardableResult
+    func openLinkInNewTab(url: URL, from sourceTabID: UUID?, activate: Bool) -> BrowserTab {
+        let spaceID = sourceTabID.flatMap { source in tabs.first { $0.id == source }?.spaceID }
+            ?? activeSpaceID
+        let tab = BrowserTab(
+            title: title(for: url),
+            url: url,
+            faviconSymbol: faviconService.placeholderSymbol(for: url),
+            spaceID: spaceID,
+            sortOrder: nextSortOrder(spaceID: spaceID, isFavorite: false, isPinned: false, folderID: nil)
+        )
+
+        tabs.insert(tab, at: 0)
+        unsyncedLocalTabIDs.insert(tab.id)
+        if activate {
+            switchTab(to: tab.id)
+        }
+        webCoordinator.load(url, in: tab.id)
+        return tab
+    }
+
     @discardableResult
     func createPopupTab(url: URL?, in spaceID: UUID) -> BrowserTab {
         let tab = BrowserTab(

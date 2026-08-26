@@ -133,6 +133,21 @@ final class CandoaUITests: XCTestCase {
           </body>
         </html>
         """,
+        // A viewport-filling real anchor, so a modifier-held coordinate click
+        // anywhere in the web area activates an actual link navigation.
+        "link-click": """
+        <!doctype html>
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <script>document.title = location.pathname.slice(1)</script>
+          </head>
+          <body>
+            <a href="https://fixture.candoa.test/link-target"
+               style="position:fixed;inset:0;font-size:40px">Open</a>
+          </body>
+        </html>
+        """,
         // A sign-in redirect whose script never finishes the handshake: the
         // page has an OAuth response in its URL and nothing to show.
         "signin-dead-end": """

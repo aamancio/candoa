@@ -552,4 +552,34 @@ extension CandoaUITests {
             currentState(in: app)
         )
     }
+
+    /// Safari's ⌘-click: the link opens in a new tab that loads in the
+    /// background while the clicked page keeps the screen. Before the
+    /// coordinator checked modifier flags, a ⌘-click navigated the current
+    /// tab away like a plain click.
+    func testCommandClickOpensLinkInBackgroundTab() throws {
+        let app = launchApp(fixture: "link-click")
+        openFixtureTab(path: "link-page", in: app)
+
+        let webView = app.webViews.firstMatch
+        XCTAssertTrue(webView.waitForExistence(timeout: 10), currentState(in: app))
+        XCUIElement.perform(withKeyModifiers: .command) {
+            webView.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).click()
+        }
+
+        // The destination tab appears (its fixture page titles itself after
+        // its path once loaded) while the clicked page stays active.
+        XCTAssertTrue(waitForState(in: app, containing: "link-target", timeout: 10), currentState(in: app))
+        XCTAssertEqual(stateValue("active", in: app), "link-page", currentState(in: app))
+        XCTAssertEqual(stateValue("url", in: app), "https://fixture.candoa.test/link-page", currentState(in: app))
+
+        // ⇧ added makes the new tab active instead.
+        XCUIElement.perform(withKeyModifiers: [.command, .shift]) {
+            webView.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).click()
+        }
+        XCTAssertTrue(
+            waitForState(in: app, containing: "url=https://fixture.candoa.test/link-target", timeout: 10),
+            currentState(in: app)
+        )
+    }
 }

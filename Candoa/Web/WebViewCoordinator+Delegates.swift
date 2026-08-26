@@ -225,7 +225,28 @@ extension WebViewCoordinator {
         _ webView: WKWebView,
         decidePolicyFor navigationAction: WKNavigationAction
     ) async -> WKNavigationActionPolicy {
-        navigationAction.shouldPerformDownload ? .download : .allow
+        if navigationAction.shouldPerformDownload { return .download }
+
+        // Safari's ⌘-click: the link opens in a new background tab and the
+        // current page keeps the screen; ⇧ added makes the new tab active.
+        // Intercepting here (not createWebViewWith) also catches modified
+        // clicks on target=_blank links, which would otherwise become
+        // foreground popups. Non-web schemes (mailto:, javascript:) keep
+        // their plain-click meaning — a new tab could not load them.
+        if navigationAction.navigationType == .linkActivated,
+           navigationAction.modifierFlags.contains(.command),
+           let url = navigationAction.request.url,
+           url.scheme == "http" || url.scheme == "https",
+           let store {
+            store.openLinkInNewTab(
+                url: url,
+                from: tabID(for: webView),
+                activate: navigationAction.modifierFlags.contains(.shift)
+            )
+            return .cancel
+        }
+
+        return .allow
     }
 
     func webView(
