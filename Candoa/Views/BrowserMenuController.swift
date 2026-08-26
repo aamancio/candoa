@@ -28,7 +28,16 @@ final class BrowserMenuController: NSObject, NSMenuDelegate {
     private static let favoriteLimit = 30
 
     private var stores: [ObjectIdentifier: WeakStore] = [:]
-    private var observer: (any NSObjectProtocol)?
+    private var observers: [any NSObjectProtocol] = []
+
+    /// True between `menuWillOpen` and `menuDidClose` for the History menu.
+    /// SwiftUI can rebuild the menu while it is on screen — a media tick or
+    /// page progress change is enough — which wipes the delegate's rows in
+    /// front of the person. While the menu is open, any item churn schedules
+    /// a heal that puts the rows back.
+    private var isHistoryMenuOpen = false
+    private var isPopulating = false
+    private var isHealScheduled = false
 
     private struct WeakStore {
         weak var window: NSWindow?
@@ -61,15 +70,58 @@ final class BrowserMenuController: NSObject, NSMenuDelegate {
     /// any delegate set on them, so the delegate is re-attached each time the
     /// menu bar starts tracking — before the History submenu can open.
     private func startObservingMenuTracking() {
-        guard observer == nil else { return }
+        guard observers.isEmpty else { return }
 
-        observer = NotificationCenter.default.addObserver(
+        observers.append(NotificationCenter.default.addObserver(
             forName: NSMenu.didBeginTrackingNotification,
             object: nil,
             queue: .main
         ) { [weak self] _ in
             MainActor.assumeIsolated { self?.attachToHistoryMenu() }
+        })
+
+        // A rebuild mid-open also drops the delegate, so `menuDidClose` may
+        // never arrive; the end of the tracking session is the backstop.
+        observers.append(NotificationCenter.default.addObserver(
+            forName: NSMenu.didEndTrackingNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.isHistoryMenuOpen = false }
+        })
+
+        // SwiftUI rebuilding a menu shows up as a burst of item adds and
+        // removes. While the History menu is open, that burst means its rows
+        // were just wiped on screen — heal once the burst settles.
+        for name in [NSMenu.didAddItemNotification, NSMenu.didRemoveItemNotification] {
+            observers.append(NotificationCenter.default.addObserver(
+                forName: name,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                MainActor.assumeIsolated { self?.scheduleHealIfNeeded() }
+            })
         }
+    }
+
+    private func scheduleHealIfNeeded() {
+        guard isHistoryMenuOpen, !isPopulating, !isHealScheduled else { return }
+        isHealScheduled = true
+        DispatchQueue.main.async { [weak self] in
+            self?.healHistoryMenuIfWiped()
+        }
+    }
+
+    private func healHistoryMenuIfWiped() {
+        isHealScheduled = false
+        guard isHistoryMenuOpen, let menu = historyMenu else { return }
+        if menu.delegate !== self {
+            menu.delegate = self
+        }
+        // A populated menu always carries at least the Recently Closed row,
+        // so no tagged item left means SwiftUI replaced the items.
+        guard !menu.items.contains(where: { $0.tag == Self.dynamicItemTag }) else { return }
+        populate(menu)
     }
 
     private func attachToHistoryMenu(retries: Int = 0) {
@@ -119,6 +171,21 @@ final class BrowserMenuController: NSObject, NSMenuDelegate {
     // MARK: - NSMenuDelegate
 
     func menuNeedsUpdate(_ menu: NSMenu) {
+        populate(menu)
+    }
+
+    func menuWillOpen(_ menu: NSMenu) {
+        isHistoryMenuOpen = true
+    }
+
+    func menuDidClose(_ menu: NSMenu) {
+        isHistoryMenuOpen = false
+    }
+
+    private func populate(_ menu: NSMenu) {
+        isPopulating = true
+        defer { isPopulating = false }
+
         // SwiftUI sets each command's enabled state itself; leaving AppKit's
         // automatic enabling on lets it override those values with whatever
         // the responder chain reports, which goes stale.
