@@ -80,12 +80,17 @@ final class BrowserMenuController: NSObject, NSMenuDelegate {
             MainActor.assumeIsolated { self?.attachToHistoryMenu() }
         })
 
+        // The remaining observers deliver synchronously (queue nil): menu
+        // tracking keeps the run loop out of the modes the main queue drains
+        // in, so queue-based delivery would wait until the menu closes —
+        // exactly too late to heal it. AppKit posts these on the main thread.
+
         // A rebuild mid-open also drops the delegate, so `menuDidClose` may
         // never arrive; the end of the tracking session is the backstop.
         observers.append(NotificationCenter.default.addObserver(
             forName: NSMenu.didEndTrackingNotification,
             object: nil,
-            queue: .main
+            queue: nil
         ) { [weak self] _ in
             MainActor.assumeIsolated { self?.isHistoryMenuOpen = false }
         })
@@ -97,7 +102,7 @@ final class BrowserMenuController: NSObject, NSMenuDelegate {
             observers.append(NotificationCenter.default.addObserver(
                 forName: name,
                 object: nil,
-                queue: .main
+                queue: nil
             ) { [weak self] _ in
                 MainActor.assumeIsolated { self?.scheduleHealIfNeeded() }
             })
@@ -107,9 +112,12 @@ final class BrowserMenuController: NSObject, NSMenuDelegate {
     private func scheduleHealIfNeeded() {
         guard isHistoryMenuOpen, !isPopulating, !isHealScheduled else { return }
         isHealScheduled = true
-        DispatchQueue.main.async { [weak self] in
-            self?.healHistoryMenuIfWiped()
+        // A common-modes timer, not a dispatch to main: the main queue does
+        // not drain while the menu tracks, but common-modes timers fire.
+        let timer = Timer(timeInterval: 0.05, repeats: false) { [weak self] _ in
+            MainActor.assumeIsolated { self?.healHistoryMenuIfWiped() }
         }
+        RunLoop.main.add(timer, forMode: .common)
     }
 
     private func healHistoryMenuIfWiped() {
