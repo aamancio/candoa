@@ -216,6 +216,7 @@ extension BrowserStore {
         recentlyClosedTabs.append(ClosedTabSnapshot(
             url: url,
             title: tab.title,
+            faviconData: tab.isFavorite ? tab.favoriteDisplayFaviconData : tab.faviconData,
             isFavorite: tab.isFavorite,
             isPinned: tab.isPinned,
             spaceID: tab.spaceID
