@@ -105,6 +105,20 @@ struct ContentView: View {
         isSidebarVisible || isSidebarHoverRevealed || coversClosingSidebarLane
     }
 
+    private var webVisibleInterfaceInsets: BrowserInterfaceInsets {
+        BrowserInterfaceInsets(leading: isSidebarVisible ? sidebarTotalWidth : 0)
+    }
+
+    /// The native bars hold a closing sidebar's lane until the cover lifts:
+    /// they re-lay out in a single frame, so tracking the live insets slid
+    /// their URL text under the still-covering sidebar, its tail peeking
+    /// past the sidebar's edge for the length of the cover.
+    private var barInterfaceInsets: BrowserInterfaceInsets {
+        BrowserInterfaceInsets(
+            leading: isSidebarVisible || coversClosingSidebarLane ? sidebarTotalWidth : 0
+        )
+    }
+
     private var isSidebarOverlaying: Bool {
         isSidebarHoverRevealed && !isSidebarVisible
     }
@@ -172,9 +186,8 @@ struct ContentView: View {
                         // lanes are reserved inside WebViewContainer instead.
                         WebViewContainer(
                             store: store,
-                            visibleInterfaceInsets: BrowserInterfaceInsets(
-                                leading: isSidebarVisible ? sidebarTotalWidth : 0
-                            ),
+                            visibleInterfaceInsets: webVisibleInterfaceInsets,
+                            barInterfaceInsets: barInterfaceInsets,
                             attachesToTrailingPanel: isAISidebarMounted,
                             onToggleSidebar: toggleSidebar,
                             slideOverTrailingInset: aiSidebarSlideMaskInset
@@ -835,6 +848,11 @@ struct ContentView: View {
             x: 3,
             y: 0
         )
+        // Hangs here, not on the body's root chain, which is already at the
+        // type-checker's expression budget.
+        .onChange(of: store.sidebarToggleRequestID) { _, _ in
+            toggleSidebar()
+        }
     }
 
     private func aiSidebarPanel(width: CGFloat) -> some View {

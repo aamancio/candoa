@@ -153,9 +153,10 @@ extension BrowserStore {
     /// Drives the active window from a fixture runner without synthetic
     /// input: `navigate:<url>` loads a page in the active tab, `tab:new:<url>`
     /// opens one in a new tab (which backgrounds the page that was playing,
-    /// the way into the floating mini player), and `eli:toggle` opens or
-    /// closes the Eli sidebar. Same rationale as the tab-switcher seam —
-    /// keyboard-free, so it works while the machine is in use.
+    /// the way into the floating mini player), `eli:toggle` opens or
+    /// closes the Eli sidebar, and `sidebar:toggle` pins the sidebar open or
+    /// away. Same rationale as the tab-switcher seam — keyboard-free, so it
+    /// works while the machine is in use.
     static let uiTestingWindowCommandNotification =
         Notification.Name("app.candoa.uitesting.window-command")
 
@@ -174,6 +175,8 @@ extension BrowserStore {
                         self.navigateNewTab(to: String(command.dropFirst("tab:new:".count)))
                     } else if command == "eli:toggle" {
                         self.aiSidebarToggleRequestID = UUID()
+                    } else if command == "sidebar:toggle" {
+                        self.sidebarToggleRequestID = UUID()
                     }
                 }
             }
