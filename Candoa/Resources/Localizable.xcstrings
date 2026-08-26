@@ -41,6 +41,86 @@
         }
       }
     },
+    "Add Detail" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Angabe hinzufügen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Añadir dato"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajouter une information"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "情報を追加"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adicionar informação"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添加信息"
+          }
+        }
+      }
+    },
+    "Eli hasn't learned any details yet — things you share in conversations show up here." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eli hat noch keine Angaben gelernt — was du in Unterhaltungen teilst, erscheint hier."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eli aún no ha aprendido ningún dato: lo que compartas en tus conversaciones aparecerá aquí."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eli n’a encore rien appris — ce que vous partagez dans vos conversations apparaîtra ici."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eli はまだ何も学習していません。会話で共有した情報がここに表示されます。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O Eli ainda não aprendeu nenhum dado — o que você compartilhar nas conversas aparece aqui."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eli 尚未学习任何信息——你在对话中分享的内容会显示在这里。"
+          }
+        }
+      }
+    },
     "— %@" : {
       "comment" : "Command palette row: em dash before a detail or source label.",
       "localizations" : {
