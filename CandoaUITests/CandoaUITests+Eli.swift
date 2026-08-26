@@ -13,7 +13,7 @@ extension CandoaUITests {
         // predicate rather than a literal identifier.
         XCTAssertTrue(
             app.staticTexts.matching(
-                NSPredicate(format: "value CONTAINS %@", "government IDs are never stored here")
+                NSPredicate(format: "value CONTAINS %@", "Eli learns these from your conversations")
             ).firstMatch.exists,
             app.debugDescription
         )

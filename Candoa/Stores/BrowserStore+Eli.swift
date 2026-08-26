@@ -35,6 +35,9 @@ extension BrowserStore {
     /// selection: switching Spaces mid-conversation must distill what was said
     /// before the switch into the Space it was said in, not into the new one.
     func updateSpaceMemory(fromConversation transcript: [AIConversationTurn], in spaceID: UUID? = nil) {
+        // The profile-learning twin rides every trigger memory has; it
+        // applies its own gate, so most calls cost nothing.
+        updateUserProfile(fromConversation: transcript, in: spaceID)
         guard !isPrivate else { return }
         guard transcript.contains(where: { $0.role == .user }) else { return }
         let spaceID = spaceID ?? activeSpaceID
@@ -80,6 +83,9 @@ extension BrowserStore {
     ) {
         guard !isPrivate else { return }
         let spaceID = spaceID ?? activeSpaceID
+        // Profile details ("my email is …") do not always read as durable
+        // facts, so the profile pass gets its own look at the fresh turns.
+        updateUserProfile(fromConversation: transcript, in: spaceID)
         let alreadySeen = eliMemoryLastExtractedTurnCounts[spaceID] ?? 0
         let fresh = transcript.dropFirst(alreadySeen).filter { $0.role == .user }
         guard fresh.contains(where: { SpaceMemoryPolicy.suggestsDurableFact(in: $0.text) }) else { return }
@@ -92,6 +98,57 @@ extension BrowserStore {
     /// has to reset them or its early turns look already-extracted.
     func resetSpaceMemoryExtractionWindow(for spaceID: UUID) {
         eliMemoryLastExtractedTurnCounts[spaceID] = 0
+        eliProfileLastExtractedTurnCounts[spaceID] = 0
+    }
+
+    // MARK: - Learned profile
+
+    /// The profile-learning pass. Same lifecycle as memory extraction but
+    /// global in scope: a person has one name and address no matter which
+    /// Space the conversation happened in. The gate runs first — extraction
+    /// costs a request, and most conversations never mention a form-fill
+    /// detail.
+    func updateUserProfile(fromConversation transcript: [AIConversationTurn], in spaceID: UUID? = nil) {
+        guard !isPrivate else { return }
+        // The Settings pane suppresses profile writes under UI testing
+        // because launches share the real defaults domain; extraction must
+        // not sneak one in either.
+        guard !Self.isUITesting else { return }
+        let spaceID = spaceID ?? activeSpaceID
+        let alreadySeen = eliProfileLastExtractedTurnCounts[spaceID] ?? 0
+        let fresh = transcript.dropFirst(alreadySeen).filter { $0.role == .user }
+        guard fresh.contains(where: { UserProfileExtractor.suggestsPersonalDetail(in: $0.text) }) else { return }
+        guard eliProfileExtractionTask == nil else { return }
+
+        eliProfileLastExtractedTurnCounts[spaceID] = transcript.count
+        let existing = UserProfileStore.load()
+        eliProfileExtractionTask = Task { [weak self] in
+            let values = try? await UserProfileExtractor.extractedValues(
+                existing: existing,
+                transcript: transcript
+            )
+            if let values {
+                self?.persistUserProfileUpdate(extracted: values)
+            }
+            self?.eliProfileExtractionTask = nil
+        }
+    }
+
+    /// Merges onto the profile as persisted *now*, not the snapshot the
+    /// prompt saw: a field the user typed while extraction was in flight is
+    /// already user-owned by the time the reply lands, so it stays untouched.
+    private func persistUserProfileUpdate(extracted: [String: String]) {
+        let current = UserProfileStore.load()
+        let learned = UserProfileStore.loadLearnedFields()
+        let merged = UserProfileExtractor.mergedProfile(
+            extracted: extracted,
+            into: current,
+            learnedFields: learned
+        )
+        guard merged.profile != current || merged.learnedFields != learned else { return }
+        UserProfileStore.save(merged.profile)
+        UserProfileStore.saveLearnedFields(merged.learnedFields)
+        objectWillChange.send()
     }
 
     private func persistSpaceMemoryUpdate(

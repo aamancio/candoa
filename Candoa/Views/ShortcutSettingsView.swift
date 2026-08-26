@@ -140,6 +140,10 @@ enum SettingsOption {
     /// JSON `UserProfile`: the details Eli may type into a form. Local to this
     /// Mac and global to the app.
     static let userProfile = prefix + "UserProfile"
+    /// JSON array of `UserProfile.Field` raw values: the fields whose value
+    /// Eli learned from a conversation rather than the user typing it.
+    /// Editing a field in Settings removes it from this set.
+    static let userProfileLearnedFields = prefix + "UserProfileLearnedFields"
 
     static let websiteAppearance = prefix + "WebsiteAppearance"
     static let addressBarPlacement = prefix + "AddressBarPlacement"

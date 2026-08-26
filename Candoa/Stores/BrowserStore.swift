@@ -404,6 +404,12 @@ final class BrowserStore: ObservableObject {
     /// Transcript length at the last extraction per Space, so reopening and
     /// re-closing an unchanged conversation never re-extracts it.
     var eliMemoryLastExtractedTurnCounts: [UUID: Int] = [:]
+    /// One in-flight profile-learning extraction; the profile is global, so
+    /// a second conversation ending while one runs is skipped, not queued.
+    var eliProfileExtractionTask: Task<Void, Never>?
+    /// Transcript length at the last profile extraction, keyed like the
+    /// memory counts: by the Space whose conversation window is being read.
+    var eliProfileLastExtractedTurnCounts: [UUID: Int] = [:]
     let spaceSymbols = [
         "circle.grid.2x2",
         "sparkle",

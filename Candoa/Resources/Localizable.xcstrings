@@ -11019,42 +11019,42 @@
         }
       }
     },
-    "Eli fills these into forms you ask it to complete, and leaves anything you haven't filled in blank. Passwords, payment details, and government IDs are never stored here." : {
+    "Eli learns these from your conversations and fills them into forms you ask it to complete. You can correct or clear anything here, and blank fields stay blank on the page. Passwords, payment details, and government IDs are never stored." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Eli trägt diese Angaben in Formulare ein, die du ausfüllen lässt, und lässt alles frei, was du nicht angegeben hast. Passwörter, Zahlungsdaten und Ausweisnummern werden hier nie gespeichert."
+            "value" : "Eli lernt diese Angaben aus deinen Unterhaltungen und trägt sie in Formulare ein, die du ausfüllen lässt. Du kannst hier alles korrigieren oder löschen; leere Felder bleiben im Formular leer. Passwörter, Zahlungsdaten und Ausweisnummern werden nie gespeichert."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Eli rellena estos datos en los formularios que le pidas completar y deja en blanco lo que no hayas indicado. Aquí nunca se guardan contraseñas, datos de pago ni documentos de identidad."
+            "value" : "Eli aprende estos datos de tus conversaciones y los rellena en los formularios que le pidas completar. Aquí puedes corregir o borrar lo que quieras, y los campos vacíos se quedan en blanco en la página. Nunca se guardan contraseñas, datos de pago ni documentos de identidad."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Eli saisit ces informations dans les formulaires que vous lui demandez de remplir et laisse vide tout ce que vous n’avez pas renseigné. Les mots de passe, les moyens de paiement et les pièces d’identité ne sont jamais enregistrés ici."
+            "value" : "Eli apprend ces informations au fil de vos conversations et les saisit dans les formulaires que vous lui demandez de remplir. Vous pouvez tout corriger ou effacer ici, et les champs vides restent vides sur la page. Les mots de passe, les moyens de paiement et les pièces d’identité ne sont jamais enregistrés."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Eli は入力を依頼されたフォームにこれらの情報を記入し、未入力の項目は空欄のままにします。パスワード、支払い情報、公的な身分証番号がここに保存されることはありません。"
+            "value" : "Eli は会話からこれらの情報を学習し、入力を依頼されたフォームに記入します。ここで修正や削除ができ、未入力の項目はページ上でも空欄のままです。パスワード、支払い情報、公的な身分証番号が保存されることはありません。"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "O Eli preenche esses dados nos formulários que você pedir para completar e deixa em branco o que você não preencheu. Senhas, dados de pagamento e documentos de identidade nunca são guardados aqui."
+            "value" : "O Eli aprende esses dados nas suas conversas e os preenche nos formulários que você pedir para completar. Você pode corrigir ou apagar qualquer coisa aqui, e campos vazios ficam em branco na página. Senhas, dados de pagamento e documentos de identidade nunca são guardados."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "当你让 Eli 填写表单时，它会使用这些信息，并将你未填写的项目留空。此处绝不会保存密码、支付信息或政府身份证件号码。"
+            "value" : "Eli 会从你的对话中学习这些信息，并在你让它填写表单时填入。你可以在此更正或清除任何内容；未填写的项目在页面上保持留空。密码、支付信息和政府身份证件号码绝不会被保存。"
           }
         }
       }
