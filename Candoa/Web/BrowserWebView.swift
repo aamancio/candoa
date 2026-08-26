@@ -14,6 +14,25 @@ final class BrowserWebView: WKWebView {
     /// (opening tabs) out of the view layer.
     weak var coordinator: WebViewCoordinator?
 
+    /// Key downs the page has seen once already. WebKit sends every keystroke
+    /// to the page first and, when the page leaves it unhandled, re-dispatches
+    /// the same NSEvent instance through the window. That second pass lands
+    /// here again and would otherwise climb the responder chain to NSWindow's
+    /// default keyDown — an NSBeep for every Escape or Return a page ignores.
+    /// Safari and Chrome end the bounce silently; match them. Handled events
+    /// never come back, so the weak table lets them fall out on their own.
+    private let keyDownsSentToPage = NSHashTable<NSEvent>.weakObjects()
+
+    override func keyDown(with event: NSEvent) {
+        if keyDownsSentToPage.contains(event) {
+            keyDownsSentToPage.remove(event)
+            return
+        }
+
+        keyDownsSentToPage.add(event)
+        super.keyDown(with: event)
+    }
+
     override func willOpenMenu(_ menu: NSMenu, with event: NSEvent) {
         super.willOpenMenu(menu, with: event)
 
