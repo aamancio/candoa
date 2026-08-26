@@ -18,11 +18,32 @@ extension CandoaUITests {
             app.debugDescription
         )
 
+        // The pane starts from an empty profile under UI testing, so it
+        // reads as what Eli knows — nothing yet — rather than a form.
+        XCTAssertTrue(
+            app.staticTexts.matching(
+                NSPredicate(format: "value CONTAINS %@", "hasn't learned any details yet")
+            ).firstMatch.exists,
+            app.debugDescription
+        )
+        XCTAssertFalse(app.textFields["Given name"].exists, "empty fields stay out of sight")
+
         // Payment and identity fields are deliberately absent, not merely
         // unused: the profile must not become a place to keep them.
         for absent in ["Card number", "Date of birth", "Social Security number", "Password"] {
             XCTAssertFalse(app.staticTexts[absent].exists, "\(absent) must not be a profile field")
         }
+
+        // Adding a detail by hand is still possible; the row appears only
+        // once asked for. SwiftUI's Menu surfaces as a pop-up button.
+        let addDetail = app.popUpButtons["Add Detail"].firstMatch.exists
+            ? app.popUpButtons["Add Detail"].firstMatch
+            : app.menuButtons["Add Detail"].firstMatch
+        XCTAssertTrue(addDetail.waitForExistence(timeout: 5), app.debugDescription)
+        addDetail.click()
+        let givenNameItem = app.menuItems["Given name"].firstMatch
+        XCTAssertTrue(givenNameItem.waitForExistence(timeout: 5), app.debugDescription)
+        givenNameItem.click()
 
         let givenName = app.textFields["Given name"].firstMatch
         XCTAssertTrue(givenName.waitForExistence(timeout: 5), app.debugDescription)

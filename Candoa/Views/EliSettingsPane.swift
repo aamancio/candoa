@@ -14,7 +14,15 @@ internal struct EliSettingsPane: View {
     /// Per-provider model lists fetched from the provider's own API with the
     /// available credential; absent entries fall back to the curated catalog.
     @State private var dynamicDirectModels: [AIProvider: [AIModel]] = [:]
-    @State private var profile = UserProfileStore.load()
+    // UI-test launches share the real defaults domain, so the pane starts
+    // from an empty profile there: tests stay deterministic and the person's
+    // own details never appear in a test's screenshots.
+    @State private var profile = EliSettingsPane.isUITesting ? UserProfile() : UserProfileStore.load()
+    /// The profile rows on screen: fields that held a value when the pane
+    /// appeared, plus any the user added by hand this visit. Learned details
+    /// simply show up filled; everything else stays out of sight — the pane
+    /// reads as what Eli knows, not as a form to complete.
+    @State private var visibleProfileFields: [UserProfile.Field] = []
     @EnvironmentObject private var userStore: UserStore
 
     /// UI-test launches share the real defaults domain, so persistence is
@@ -216,20 +224,43 @@ internal struct EliSettingsPane: View {
                     .padding(.top, 11)
                     .padding(.bottom, 4)
 
-                SettingsTextFieldRow(title: String(localized: "Given name"), text: $profile.givenName)
-                SettingsTextFieldRow(title: String(localized: "Family name"), text: $profile.familyName)
-                SettingsTextFieldRow(title: String(localized: "Email"), text: $profile.email)
-                SettingsTextFieldRow(title: String(localized: "Phone"), text: $profile.phone)
-                SettingsTextFieldRow(title: String(localized: "Street address"), text: $profile.streetAddress)
-                SettingsTextFieldRow(title: String(localized: "City"), text: $profile.city)
-                SettingsTextFieldRow(title: String(localized: "State or province"), text: $profile.region)
-                SettingsTextFieldRow(title: String(localized: "Postal code"), text: $profile.postalCode)
-                SettingsTextFieldRow(title: String(localized: "Country"), text: $profile.country)
-                SettingsTextFieldRow(title: String(localized: "Organization"), text: $profile.organization)
-                SettingsTextFieldRow(title: String(localized: "Website"), text: $profile.website)
-                    .padding(.bottom, 6)
+                if visibleProfileFields.isEmpty {
+                    Text("Eli hasn't learned any details yet — things you share in conversations show up here.")
+                        .font(.system(size: 11.5))
+                        .foregroundStyle(.tertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                } else {
+                    ForEach(visibleProfileFields, id: \.self) { field in
+                        SettingsTextFieldRow(title: profileFieldTitle(field), text: profileFieldBinding(field))
+                    }
+                }
+
+                if !hiddenProfileFields.isEmpty {
+                    HStack {
+                        Menu(String(localized: "Add Detail")) {
+                            ForEach(hiddenProfileFields, id: \.self) { field in
+                                Button(profileFieldTitle(field)) {
+                                    visibleProfileFields.append(field)
+                                }
+                            }
+                        }
+                        .fixedSize()
+                        Spacer()
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.top, 4)
+                    .padding(.bottom, 10)
+                }
             }
             .accessibilityIdentifier("eli-profile-card")
+        }
+        .onAppear {
+            visibleProfileFields = UserProfile.Field.allCases.filter { field in
+                !profile[field].trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            }
         }
         .onChange(of: profile) { previous, updated in
             // UI-test launches share the real defaults domain, so the pane
@@ -243,6 +274,35 @@ internal struct EliSettingsPane: View {
                 )
             }
             UserProfileStore.save(updated)
+        }
+    }
+
+    /// Fields with nothing to show and not yet added by hand — the Add
+    /// Detail menu's contents.
+    private var hiddenProfileFields: [UserProfile.Field] {
+        UserProfile.Field.allCases.filter { !visibleProfileFields.contains($0) }
+    }
+
+    private func profileFieldBinding(_ field: UserProfile.Field) -> Binding<String> {
+        Binding(
+            get: { profile[field] },
+            set: { profile[field] = $0 }
+        )
+    }
+
+    private func profileFieldTitle(_ field: UserProfile.Field) -> String {
+        switch field {
+        case .givenName: String(localized: "Given name")
+        case .familyName: String(localized: "Family name")
+        case .email: String(localized: "Email")
+        case .phone: String(localized: "Phone")
+        case .streetAddress: String(localized: "Street address")
+        case .city: String(localized: "City")
+        case .region: String(localized: "State or province")
+        case .postalCode: String(localized: "Postal code")
+        case .country: String(localized: "Country")
+        case .organization: String(localized: "Organization")
+        case .website: String(localized: "Website")
         }
     }
 
