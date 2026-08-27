@@ -312,9 +312,18 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         contentController.add(self, name: WebPageScripts.unsavedInputMessageName)
         contentController.removeScriptMessageHandler(forName: WebPageScripts.webNotificationMessageName)
         contentController.add(self, name: WebPageScripts.webNotificationMessageName)
+        contentController.removeScriptMessageHandler(forName: WebPageScripts.pageColorMessageName)
+        contentController.add(self, name: WebPageScripts.pageColorMessageName)
         addUserScriptOnce(
             WebPageScripts.mediaObserverScript,
             to: contentController,
+            forMainFrameOnly: true
+        )
+        addUserScriptOnce(
+            WebPageScripts.pageColorObserverScript,
+            to: contentController,
+            // Main frame only: the bar wears the page in the address bar,
+            // not an embed's colors.
             forMainFrameOnly: true
         )
         addUserScriptOnce(
@@ -624,6 +633,9 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         )
         webView.configuration.userContentController.removeScriptMessageHandler(
             forName: WebPageScripts.webNotificationMessageName
+        )
+        webView.configuration.userContentController.removeScriptMessageHandler(
+            forName: WebPageScripts.pageColorMessageName
         )
         userEditedTabIDs.remove(tabID)
         WebNotificationService.shared.forgetTab(tabID)

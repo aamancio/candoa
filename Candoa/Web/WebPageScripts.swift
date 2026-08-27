@@ -5,6 +5,116 @@ enum WebPageScripts {
     static let webStoreInstallMessageName = "candoaWebStoreInstall"
     static let unsavedInputMessageName = "candoaUnsavedInput"
     static let webNotificationMessageName = "candoaWebNotification"
+    static let pageColorMessageName = "candoaPageColor"
+
+    /// Reads the color the page paints along its top edge — what the top bar
+    /// wears (`PageChromeTint`) — and reports it when it changes, so the bar
+    /// follows in-page repaints (a navigation drawer sliding open, a site
+    /// switching its own theme) that no navigation beat would catch.
+    ///
+    /// Battery rules: everything is event-driven. Listeners are passive; the
+    /// settle timer exists only after an event and coalesces bursts; a
+    /// recompute is ~5 `elementFromPoint` walks; a message crosses processes
+    /// only when the verdict actually changed. Transition and animation ends
+    /// are filtered to elements touching the top band. Translucent layers
+    /// (a drawer's scrim, an rgba header) are composited over the first
+    /// opaque background so overlays read as the color they show, not the
+    /// color they cover.
+    static let pageColorObserverScript = """
+    (() => {
+      if (window.__candoaPageColorInstalled) { return; }
+      window.__candoaPageColorInstalled = true;
+
+      const parse = (value) => {
+        const match = /^rgba?\\(([\\d.]+),\\s*([\\d.]+),\\s*([\\d.]+)(?:,\\s*([\\d.]+))?\\)/.exec(value || "");
+        if (!match) { return null; }
+        const alpha = match[4] === undefined ? 1 : parseFloat(match[4]);
+        return { r: +match[1], g: +match[2], b: +match[3], a: alpha };
+      };
+      const over = (top, base) => ({
+        r: top.r * top.a + base.r * (1 - top.a),
+        g: top.g * top.a + base.g * (1 - top.a),
+        b: top.b * top.a + base.b * (1 - top.a),
+        a: 1
+      });
+      const colorAt = (x) => {
+        const overlays = [];
+        let base = null;
+        let element = document.elementFromPoint(x, 2);
+        while (element && element !== document.documentElement) {
+          const color = parse(getComputedStyle(element).backgroundColor);
+          if (color && color.a >= 0.98) { base = color; break; }
+          if (color && color.a > 0.02) { overlays.push(color); }
+          element = element.parentElement;
+        }
+        if (!base) {
+          for (const candidate of [document.body, document.documentElement]) {
+            if (!candidate) { continue; }
+            const color = parse(getComputedStyle(candidate).backgroundColor);
+            if (color && color.a >= 0.98) { base = color; break; }
+          }
+        }
+        let out = base || { r: 255, g: 255, b: 255, a: 1 };
+        for (let i = overlays.length - 1; i >= 0; i--) { out = over(overlays[i], out); }
+        return out;
+      };
+      const verdict = () => {
+        const width = window.innerWidth;
+        if (!width || !document.documentElement) { return ""; }
+        const votes = new Map();
+        for (const fraction of [0.08, 0.3, 0.5, 0.7, 0.92]) {
+          const x = Math.max(1, Math.min(width - 2, Math.round(width * fraction)));
+          const color = colorAt(x);
+          const key = Math.round(color.r) + "," + Math.round(color.g) + "," + Math.round(color.b);
+          votes.set(key, (votes.get(key) || 0) + 1);
+        }
+        let best = "";
+        let bestCount = 0;
+        votes.forEach((count, key) => {
+          if (count > bestCount) { best = key; bestCount = count; }
+        });
+        return bestCount >= 3 ? best : "";
+      };
+
+      let lastReported = null;
+      const report = () => {
+        const value = verdict();
+        if (value === lastReported) { return; }
+        lastReported = value;
+        window.webkit?.messageHandlers?.\(pageColorMessageName)?.postMessage({ color: value });
+      };
+      // The app's navigation beats call this to force a report even when the
+      // verdict matches the last one (a fresh document starts from nothing).
+      window.__candoaPageColorReport = () => {
+        lastReported = null;
+        report();
+      };
+
+      let settle = 0;
+      const requestCheck = () => {
+        if (settle) { clearTimeout(settle); }
+        settle = setTimeout(() => { settle = 0; report(); }, 260);
+      };
+      const touchesTopBand = (target) => {
+        if (!(target instanceof Element)) { return true; }
+        const rect = target.getBoundingClientRect();
+        return rect.top < 64;
+      };
+      addEventListener("transitionend", (event) => {
+        if (touchesTopBand(event.target)) { requestCheck(); }
+      }, { capture: true, passive: true });
+      addEventListener("animationend", (event) => {
+        if (touchesTopBand(event.target)) { requestCheck(); }
+      }, { capture: true, passive: true });
+      // Class toggles with no animation still repaint; a click is the only
+      // gesture that drives them, so it schedules one settle check.
+      addEventListener("click", () => requestCheck(), { capture: true, passive: true });
+      addEventListener("pageshow", () => {
+        lastReported = null;
+        requestCheck();
+      }, { passive: true });
+    })();
+    """
 
     /// UI-testing only: reports each page's opener linkage so tests can see
     /// inside cross-origin popups (e.g. OAuth flows) that XCUITest can't reach.
