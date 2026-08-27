@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 import WebKit
+import os
 
 extension WebViewCoordinator {
     func tabID(for webView: WKWebView) -> UUID? {
@@ -158,14 +159,16 @@ extension WebViewCoordinator {
     /// to wear (Settings ▸ General). A page can declare it — WebKit surfaces
     /// `<meta name="theme-color">` as `themeColor` — or simply paint its own
     /// header, which the sampling script reads off the page's top edge the
-    /// way Dia does. The declared color always wins over a sample.
+    /// way Dia does. A wearable declared color always wins over a sample —
+    /// but only a wearable one: apps commonly declare `#ffffff` boilerplate
+    /// while painting a saturated header, and Dia still wears the header.
     func refreshPageThemeColor(for webView: WKWebView) {
         guard let tabID = tabID(for: webView) else { return }
         pageThemeColorRefreshWork.removeValue(forKey: tabID)?.cancel()
         let host = webView.url?.host
 
-        if let declared = webView.themeColor, let hex = PageChromeTint.hex(from: declared) {
-            publishPageThemeColor(hex: hex, host: host, tabID: tabID)
+        if let declared = declaredChromeworthyHex(of: webView) {
+            publishPageThemeColor(hex: declared, host: host, tabID: tabID)
             return
         }
 
@@ -212,9 +215,9 @@ extension WebViewCoordinator {
         webView.evaluateJavaScript(script, in: nil, in: .defaultClient) { [weak self, weak webView] result in
             Task { @MainActor in
                 guard let self, let webView, self.tabID(for: webView) == tabID else { return }
-                // A declared color that arrived while the sample ran wins,
-                // and its own KVO beat has already published it.
-                guard webView.themeColor == nil else { return }
+                // A wearable declared color that arrived while the sample
+                // ran wins, and its own KVO beat has already published it.
+                guard self.declaredChromeworthyHex(of: webView) == nil else { return }
                 let verdict = ((try? result.get()) as? String) ?? ""
                 self.publishPageThemeColor(
                     hex: PageChromeTint.hex(fromRGBString: verdict),
@@ -248,7 +251,7 @@ extension WebViewCoordinator {
     func clearCrossOriginPageThemeColor(for webView: WKWebView) {
         guard
             let tabID = tabID(for: webView),
-            webView.themeColor == nil,
+            declaredChromeworthyHex(of: webView) == nil,
             let stored = store?.pageThemeColorsByTab[tabID],
             stored.host != webView.url?.host
         else {
@@ -257,11 +260,36 @@ extension WebViewCoordinator {
         store?.updatePageThemeColor(tabID: tabID, color: nil)
     }
 
+    /// The page's declared theme color, but only when it is one the chrome
+    /// would actually wear. Near-white boilerplate declarations don't count
+    /// as a claim — the painted header gets sampled instead.
+    private func declaredChromeworthyHex(of webView: WKWebView) -> String? {
+        guard
+            let declared = webView.themeColor,
+            let hex = PageChromeTint.hex(from: declared),
+            PageChromeTint.isChromeworthy(hex: hex)
+        else {
+            return nil
+        }
+        return hex
+    }
+
+    private static let pageThemeColorLogger = Logger(
+        subsystem: "app.candoa.browser",
+        category: "PageThemeColor"
+    )
+
     private func publishPageThemeColor(hex: String?, host: String?, tabID: UUID) {
         guard let hex, PageChromeTint.isChromeworthy(hex: hex) else {
+            Self.pageThemeColorLogger.info(
+                "no wearable color for \(host ?? "-", privacy: .public)"
+            )
             store?.updatePageThemeColor(tabID: tabID, color: nil)
             return
         }
+        Self.pageThemeColorLogger.info(
+            "wearing \(hex, privacy: .public) for \(host ?? "-", privacy: .public)"
+        )
         store?.updatePageThemeColor(tabID: tabID, color: PageThemeColor(hex: hex, host: host))
     }
 
