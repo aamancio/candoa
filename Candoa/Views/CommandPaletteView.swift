@@ -25,6 +25,9 @@ struct CommandPaletteView: View {
     internal static let addressPaletteTopInset: CGFloat = 44
     internal static let addressPaletteHeight: CGFloat = 333
     internal static let addressPaletteMaxWidth: CGFloat = 440
+    /// The "Above the Page" strip spans the window, so its dropdown gets
+    /// Zen's floating-urlbar cap instead of the sidebar pill's width.
+    internal static let topAddressPaletteMaxWidth: CGFloat = 750
 
     internal var activeTint: Color {
         return selectedSearchProvider?.paletteColor ?? Self.paletteTint
