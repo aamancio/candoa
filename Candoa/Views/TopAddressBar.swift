@@ -67,9 +67,33 @@ struct TopAddressBar: View {
     /// with air around them rather than filling it edge to edge.
     static let height: CGFloat = 38
 
-    private var addressText: String {
-        guard let url else { return BrowserDefaults.addressPlaceholder }
-        return url.displayDomainText
+    /// Dia's address hierarchy: the domain reads clear, everything around it
+    /// stays passive — an insecure scheme dimmed before it, and the page's
+    /// title dimmed after a " / " — so the one word that says where you are
+    /// is the one word that pops. Verbatim segments: URLs and titles are
+    /// data, not catalog strings.
+    private var addressDisplay: Text {
+        guard let url else {
+            return Text(BrowserDefaults.addressPlaceholder)
+                .foregroundColor(InterfaceStyle.sidebarTextSecondary)
+        }
+
+        let passive = InterfaceStyle.sidebarTextSecondary.opacity(0.8)
+        var display = Text(verbatim: "")
+        if url.scheme?.lowercased() == "http" {
+            display = display + Text(verbatim: "http://").foregroundColor(passive)
+        }
+        display = display + Text(verbatim: url.displayDomainText)
+            .font(.system(size: 13, weight: .medium))
+            .foregroundColor(InterfaceStyle.sidebarText)
+
+        let title = store.activeTab?.title.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if !title.isEmpty, title.localizedCaseInsensitiveCompare(url.displayDomainText) != .orderedSame {
+            display = display
+                + Text(verbatim: " / ").foregroundColor(passive)
+                + Text(verbatim: title).foregroundColor(passive)
+        }
+        return display
     }
 
     private var siteInfoSymbol: String {
@@ -153,9 +177,8 @@ struct TopAddressBar: View {
                     // Lighter than the sidebar pill's semibold: on the strip
                     // the address is a label beside the controls, not the
                     // one thing in a lane, and Dia's reads the same way.
-                    Text(addressText)
+                    addressDisplay
                         .font(.system(size: 13))
-                        .foregroundStyle(InterfaceStyle.sidebarTextSecondary)
                         .lineLimit(1)
                         .truncationMode(.tail)
                 }
