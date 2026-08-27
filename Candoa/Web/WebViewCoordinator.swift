@@ -302,6 +302,8 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         contentController.add(self, name: WebPageScripts.webStoreInstallMessageName)
         contentController.removeScriptMessageHandler(forName: WebPageScripts.unsavedInputMessageName)
         contentController.add(self, name: WebPageScripts.unsavedInputMessageName)
+        contentController.removeScriptMessageHandler(forName: WebPageScripts.webNotificationMessageName)
+        contentController.add(self, name: WebPageScripts.webNotificationMessageName)
         addUserScriptOnce(
             WebPageScripts.mediaObserverScript,
             to: contentController,
@@ -318,6 +320,13 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
             to: contentController,
             // Every frame: a draft in an embedded composer is still a draft.
             forMainFrameOnly: false
+        )
+        addUserScriptOnce(
+            WebPageScripts.notificationShimScript,
+            to: contentController,
+            // Main frame only: the notifying site is the one in the address
+            // bar, and its Site Info decision is the one that gates.
+            forMainFrameOnly: true
         )
         addUserScriptOnce(
             WebPageScripts.youtubeMiniplayerGuardScript,
@@ -603,7 +612,11 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         webView.configuration.userContentController.removeScriptMessageHandler(
             forName: WebPageScripts.unsavedInputMessageName
         )
+        webView.configuration.userContentController.removeScriptMessageHandler(
+            forName: WebPageScripts.webNotificationMessageName
+        )
         userEditedTabIDs.remove(tabID)
+        WebNotificationService.shared.forgetTab(tabID)
         webView.loadHTMLString("", baseURL: nil)
         webView.removeFromSuperview()
         tabIDsByWebView.removeObject(forKey: webView)

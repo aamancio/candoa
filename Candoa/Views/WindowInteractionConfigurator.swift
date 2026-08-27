@@ -50,6 +50,7 @@ struct WindowInteractionConfigurator: NSViewRepresentable {
         if #available(macOS 15.4, *) {
             WebExtensionManager.shared.register(window: window, store: store)
         }
+        WebNotificationService.shared.register(window: window, store: store)
     }
 
     private final class WindowAttachmentView: NSView {

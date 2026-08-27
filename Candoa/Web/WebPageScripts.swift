@@ -4,6 +4,7 @@ enum WebPageScripts {
     static let popupDiagnosticsMessageName = "candoaPopupDiagnostics"
     static let webStoreInstallMessageName = "candoaWebStoreInstall"
     static let unsavedInputMessageName = "candoaUnsavedInput"
+    static let webNotificationMessageName = "candoaWebNotification"
 
     /// UI-testing only: reports each page's opener linkage so tests can see
     /// inside cross-origin popups (e.g. OAuth flows) that XCUITest can't reach.
@@ -303,6 +304,149 @@ enum WebPageScripts {
       };
       window.addEventListener("input", report, { capture: true, passive: true });
       window.addEventListener("change", report, { capture: true, passive: true });
+    })();
+    """
+
+    /// The Notification API, which WKWebView does not provide to pages at
+    /// all: `window.Notification` is implemented here and bridged to the
+    /// native side, where notifications become real Notification Center
+    /// deliveries (`WebNotificationService`) gated by the per-site decision
+    /// in Site Info. Main frame only — the notifying site is the one in the
+    /// address bar.
+    ///
+    /// Permission state lives natively; the shim's copy starts at "default"
+    /// and is corrected by `__candoaNotificationPermissionUpdate`, posted
+    /// back in answer to the load-time "query" and again on every commit.
+    /// `requestPermission` prompts only from a user gesture — without one it
+    /// reports the current state, so a page can't spam the sheet on load.
+    static let notificationShimScript = """
+    (() => {
+      if (window.__candoaNotificationShimInstalled) { return; }
+      window.__candoaNotificationShimInstalled = true;
+
+      let permission = "default";
+      let counter = 0;
+      const instances = new Map();
+      const pendingRequests = new Map();
+
+      const post = (payload) => {
+        window.webkit?.messageHandlers?.\(webNotificationMessageName)?.postMessage(payload);
+      };
+
+      const dispatchTo = (notification, type) => {
+        const event = new Event(type);
+        try { notification.dispatchEvent(event); } catch {}
+        const handler = notification["on" + type];
+        if (typeof handler === "function") {
+          try { handler.call(notification, event); } catch {}
+        }
+      };
+
+      class CandoaNotification extends EventTarget {
+        constructor(title, options = {}) {
+          super();
+          if (arguments.length === 0) {
+            throw new TypeError("Not enough arguments to Notification's constructor");
+          }
+          this.title = String(title);
+          this.body = options.body === undefined ? "" : String(options.body);
+          this.tag = options.tag === undefined ? "" : String(options.tag);
+          this.icon = options.icon === undefined ? "" : String(options.icon);
+          this.data = options.data === undefined ? null : options.data;
+          this.dir = "auto";
+          this.lang = "";
+          this.silent = options.silent === true;
+          this.onclick = null;
+          this.onshow = null;
+          this.onclose = null;
+          this.onerror = null;
+          Object.defineProperty(this, "__candoaID", { value: String(++counter) });
+          instances.set(this.__candoaID, this);
+          if (permission === "granted") {
+            post({
+              action: "show",
+              id: this.__candoaID,
+              title: this.title,
+              body: this.body,
+              tag: this.tag
+            });
+            queueMicrotask(() => dispatchTo(this, "show"));
+          } else {
+            queueMicrotask(() => dispatchTo(this, "error"));
+          }
+        }
+
+        close() {
+          if (!instances.has(this.__candoaID)) { return; }
+          instances.delete(this.__candoaID);
+          post({ action: "close", id: this.__candoaID });
+          dispatchTo(this, "close");
+        }
+
+        static get permission() { return permission; }
+        static get maxActions() { return 0; }
+
+        static requestPermission(deprecatedCallback) {
+          const settle = (value) => {
+            if (typeof deprecatedCallback === "function") {
+              try { deprecatedCallback(value); } catch {}
+            }
+            return value;
+          };
+          if (permission !== "default") {
+            return Promise.resolve(settle(permission));
+          }
+          if (navigator.userActivation && !navigator.userActivation.isActive) {
+            return Promise.resolve(settle(permission));
+          }
+          return new Promise((resolve) => {
+            const requestID = String(++counter);
+            pendingRequests.set(requestID, (value) => resolve(settle(value)));
+            post({ action: "requestPermission", requestID });
+          });
+        }
+      }
+
+      window.__candoaNotificationPermissionUpdate = (value) => {
+        if (value === "granted" || value === "denied" || value === "default") {
+          permission = value;
+        }
+      };
+      window.__candoaNotificationPermissionResult = (requestID, value) => {
+        window.__candoaNotificationPermissionUpdate(value);
+        const resolve = pendingRequests.get(requestID);
+        pendingRequests.delete(requestID);
+        if (resolve) { resolve(permission); }
+      };
+      window.__candoaNotificationActivated = (id) => {
+        const notification = instances.get(id);
+        if (notification) { dispatchTo(notification, "click"); }
+      };
+
+      Object.defineProperty(window, "Notification", {
+        value: CandoaNotification,
+        writable: true,
+        configurable: true
+      });
+
+      // navigator.permissions reports the same state Notification does.
+      if (navigator.permissions && navigator.permissions.query) {
+        const nativeQuery = navigator.permissions.query.bind(navigator.permissions);
+        navigator.permissions.query = (descriptor) => {
+          if (descriptor && descriptor.name === "notifications") {
+            return Promise.resolve({
+              name: "notifications",
+              state: permission === "default" ? "prompt" : permission,
+              onchange: null,
+              addEventListener() {},
+              removeEventListener() {}
+            });
+          }
+          return nativeQuery(descriptor);
+        };
+      }
+
+      post({ action: "query" });
     })();
     """
 
