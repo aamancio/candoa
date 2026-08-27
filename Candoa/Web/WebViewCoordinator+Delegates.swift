@@ -26,6 +26,9 @@ extension WebViewCoordinator {
         // at load start, so the error stays readable through a failed retry.
         if let tabID = tabID(for: webView) {
             store?.clearLoadFailure(tabID: tabID)
+            // The old page's frames are gone, and any draft they held with
+            // them; the hibernation pin does not outlive the document.
+            userEditedTabIDs.remove(tabID)
             // A committed page ends the download-conversion quarantine.
             downloadConvertedTabIDs.remove(tabID)
             // …and the failed-destination one: this tab is loading again.

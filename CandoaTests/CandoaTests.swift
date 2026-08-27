@@ -1,4 +1,5 @@
 import AppKit
+import WebKit
 import XCTest
 @testable import Candoa
 
@@ -1956,5 +1957,135 @@ final class MiniPlayerLayoutTests: XCTestCase {
         let carried = MiniPlayerLayout.longEdge(of: wide)
         let tall = MiniPlayerLayout.clampedSize(longEdge: carried, aspectRatio: 9.0 / 16.0, in: window)
         XCTAssertEqual(tall.height, 520, accuracy: 0.5, "the player keeps its stature across a swipe to a short")
+    }
+}
+
+// MARK: - Hibernation unsaved-input guard (issue #485)
+
+/// Runs `WebPageScripts.unsavedInputCheckScript` against real pages in an
+/// off-screen WKWebView: the guard's whole job is DOM semantics — shadow
+/// roots, frames, `contenteditable` variants — so only a real WebKit DOM
+/// can vouch for it. Everything loads from strings; no network.
+@MainActor
+final class UnsavedInputGuardTests: XCTestCase {
+    private func checkUnsavedInput(
+        in html: String,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) async throws -> Bool {
+        let webView = WKWebView(frame: CGRect(x: 0, y: 0, width: 320, height: 240))
+        webView.loadHTMLString(
+            "<!doctype html><html><body data-candoa-fixture='1'>\(html)</body></html>", baseURL: nil
+        )
+
+        // Wait for the fixture — subframes included — to finish loading. The
+        // marker attribute keeps the initial about:blank document, which is
+        // already "complete" before the HTML string commits, from answering.
+        var loaded = false
+        for _ in 0..<400 {
+            let ready = try? await webView.evaluateJavaScript(
+                "document.body?.dataset?.candoaFixture === '1' && document.readyState === 'complete' && Array.from(document.querySelectorAll('iframe')).every(f => { try { return f.contentDocument?.readyState === 'complete' && f.contentDocument.body !== null; } catch { return true; } })"
+            )
+            if (ready as? Bool) == true {
+                loaded = true
+                break
+            }
+            try await Task.sleep(nanoseconds: 25_000_000)
+        }
+        XCTAssertTrue(loaded, "fixture page must finish loading", file: file, line: line)
+
+        let verdict = try await webView.evaluateJavaScript(WebPageScripts.unsavedInputCheckScript)
+        let result = try XCTUnwrap(verdict as? Bool, "guard script must return a Bool", file: file, line: line)
+        return result
+    }
+
+    func testCleanPageHibernates() async throws {
+        let dirty = try await checkUnsavedInput(in: "<p>article text</p><input type='text' value=''>")
+        XCTAssertFalse(dirty)
+    }
+
+    func testDirtyPlainFieldKeepsPageAlive() async throws {
+        let dirty = try await checkUnsavedInput(in: """
+        <input type='text'><script>document.querySelector('input').value = 'draft';</script>
+        """)
+        XCTAssertTrue(dirty)
+    }
+
+    func testExplicitContentEditableWithTextKeepsPageAlive() async throws {
+        let dirty = try await checkUnsavedInput(in: "<div contenteditable='true'>a reply</div>")
+        XCTAssertTrue(dirty)
+    }
+
+    func testBareContentEditableAttributeCounts() async throws {
+        let dirty = try await checkUnsavedInput(in: "<div contenteditable>a reply</div>")
+        XCTAssertTrue(dirty)
+    }
+
+    func testUppercaseAndPlaintextOnlyVariantsCount() async throws {
+        let uppercase = try await checkUnsavedInput(in: "<div contenteditable='TRUE'>a reply</div>")
+        XCTAssertTrue(uppercase)
+        let plaintext = try await checkUnsavedInput(in: "<div contenteditable='plaintext-only'>a reply</div>")
+        XCTAssertTrue(plaintext)
+    }
+
+    func testContentEditableFalseDoesNotCount() async throws {
+        let dirty = try await checkUnsavedInput(in: "<div contenteditable='false'>page copy</div>")
+        XCTAssertFalse(dirty)
+    }
+
+    func testEmptyEditorHibernates() async throws {
+        let dirty = try await checkUnsavedInput(in: "<div contenteditable='true'>   </div>")
+        XCTAssertFalse(dirty)
+    }
+
+    func testEditorInsideShadowRootKeepsPageAlive() async throws {
+        let dirty = try await checkUnsavedInput(in: """
+        <div id='host'></div>
+        <script>
+          const root = document.getElementById('host').attachShadow({ mode: 'open' });
+          root.innerHTML = "<div contenteditable='true'>shadow draft</div>";
+        </script>
+        """)
+        XCTAssertTrue(dirty)
+    }
+
+    func testDirtyFieldInsideNestedShadowRootKeepsPageAlive() async throws {
+        let dirty = try await checkUnsavedInput(in: """
+        <div id='host'></div>
+        <script>
+          const outer = document.getElementById('host').attachShadow({ mode: 'open' });
+          const inner = document.createElement('div');
+          outer.appendChild(inner);
+          const innerRoot = inner.attachShadow({ mode: 'open' });
+          innerRoot.innerHTML = "<textarea></textarea>";
+          innerRoot.querySelector('textarea').value = 'draft';
+        </script>
+        """)
+        XCTAssertTrue(dirty)
+    }
+
+    func testCleanShadowRootHibernates() async throws {
+        let dirty = try await checkUnsavedInput(in: """
+        <div id='host'></div>
+        <script>
+          const root = document.getElementById('host').attachShadow({ mode: 'open' });
+          root.innerHTML = "<div contenteditable='true'></div><input type='text'>";
+        </script>
+        """)
+        XCTAssertFalse(dirty)
+    }
+
+    func testEditorInsideSameOriginFrameKeepsPageAlive() async throws {
+        let dirty = try await checkUnsavedInput(in: """
+        <iframe srcdoc="<div contenteditable>frame draft</div>"></iframe>
+        """)
+        XCTAssertTrue(dirty)
+    }
+
+    func testCleanSameOriginFrameHibernates() async throws {
+        let dirty = try await checkUnsavedInput(in: """
+        <iframe srcdoc="<p>embed copy</p><input type='text'>"></iframe>
+        """)
+        XCTAssertFalse(dirty)
     }
 }

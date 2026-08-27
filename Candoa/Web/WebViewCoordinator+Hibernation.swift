@@ -107,9 +107,22 @@ extension WebViewCoordinator {
     func hibernateIfNoUnsavedInput(_ tabID: UUID, idleBefore cutoff: Date = Date()) {
         guard let webView = webViews[tabID] else { return }
 
+        // Typing seen anywhere in the page — including closed shadow roots
+        // and cross-origin frames the check script below can't read — pins
+        // the tab until its next navigation.
+        guard !userEditedTabIDs.contains(tabID) else {
+            Self.hibernationLogger.notice("Kept tab \(tabID.uuidString, privacy: .public): user edited this page")
+            return
+        }
+
         webView.evaluateJavaScript(WebPageScripts.unsavedInputCheckScript) { [weak self] value, error in
             Task { @MainActor in
-                guard error == nil, (value as? Bool) == false else { return }
+                // Anything but a clean "false" — unsaved input, a script
+                // error, an unreadable page — keeps the tab alive.
+                guard error == nil, (value as? Bool) == false else {
+                    Self.hibernationLogger.notice("Kept tab \(tabID.uuidString, privacy: .public): unsaved input or unreadable page")
+                    return
+                }
                 self?.hibernate(tabID, idleBefore: cutoff)
             }
         }

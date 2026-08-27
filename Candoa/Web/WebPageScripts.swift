@@ -3,6 +3,7 @@ enum WebPageScripts {
     static let linkHoverMessageName = "candoaLinkHover"
     static let popupDiagnosticsMessageName = "candoaPopupDiagnostics"
     static let webStoreInstallMessageName = "candoaWebStoreInstall"
+    static let unsavedInputMessageName = "candoaUnsavedInput"
 
     /// UI-testing only: reports each page's opener linkage so tests can see
     /// inside cross-origin popups (e.g. OAuth flows) that XCUITest can't reach.
@@ -225,10 +226,22 @@ enum WebPageScripts {
     """
 
     /// Hibernation guard: anything the user may have typed keeps the page
-    /// alive, because tearing down the web view would lose that input.
+    /// alive, because tearing down the web view would lose that input —
+    /// `interactionState` restores form controls but not contenteditable
+    /// content, and never a rich editor's internal model.
+    ///
+    /// The walk pierces open shadow roots and same-origin frames, because
+    /// modern composers (Reddit, anything Lexical/ProseMirror-shaped) mount
+    /// inside custom elements or embeds that `querySelectorAll` never sees.
+    /// What it still cannot reach — closed shadow roots, cross-origin
+    /// frames — is covered by `unsavedInputObserverScript`. Blowing the node
+    /// budget reports dirty: "cannot tell" keeps the page alive.
     static let unsavedInputCheckScript = """
     (() => {
-      const hasDirtyField = Array.from(document.querySelectorAll("input, textarea")).some((field) => {
+      const budget = 60000;
+      let visited = 0;
+
+      const isDirtyField = (field) => {
         if (field.type === "checkbox" || field.type === "radio") {
           return field.checked !== field.defaultChecked;
         }
@@ -236,11 +249,60 @@ enum WebPageScripts {
           return false;
         }
         return field.value !== field.defaultValue;
-      });
-      if (hasDirtyField) { return true; }
+      };
 
-      return Array.from(document.querySelectorAll("[contenteditable='true']"))
-        .some((editor) => editor.textContent.trim().length > 0);
+      // A bare `contenteditable`, any casing of "true", and "plaintext-only"
+      // all mean editable; only an explicit "false" opts out.
+      const isEditor = (el) => {
+        const value = el.getAttribute("contenteditable");
+        return value !== null && value.toLowerCase() !== "false";
+      };
+
+      const hasUnsavedInput = (root) => {
+        const doc = root.ownerDocument || root;
+        const walker = doc.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
+        for (let el = walker.nextNode(); el; el = walker.nextNode()) {
+          visited += 1;
+          if (visited > budget) { return true; }
+          const tag = el.localName;
+          if (tag === "input" || tag === "textarea") {
+            if (isDirtyField(el)) { return true; }
+          } else if (isEditor(el) && el.textContent.trim().length > 0) {
+            return true;
+          }
+          if (el.shadowRoot && hasUnsavedInput(el.shadowRoot)) { return true; }
+          if (tag === "iframe" || tag === "frame") {
+            let framed = null;
+            try { framed = el.contentDocument; } catch { framed = null; }
+            if (framed && hasUnsavedInput(framed)) { return true; }
+          }
+        }
+        return false;
+      };
+
+      return hasUnsavedInput(document);
+    })();
+    """
+
+    /// Injected into every frame: the on-demand check above cannot read
+    /// closed shadow roots or cross-origin frames, but `input`/`change`
+    /// events are composed, so a window-level capture listener sees typing
+    /// wherever it happens. The first genuine (`isTrusted`) edit posts one
+    /// message and unhooks; the native side pins the tab against hibernation
+    /// until its next main-frame navigation.
+    static let unsavedInputObserverScript = """
+    (() => {
+      if (window.__candoaUnsavedInputObserved) { return; }
+      window.__candoaUnsavedInputObserved = true;
+
+      const report = (event) => {
+        if (!event.isTrusted) { return; }
+        window.removeEventListener("input", report, true);
+        window.removeEventListener("change", report, true);
+        window.webkit?.messageHandlers?.\(unsavedInputMessageName)?.postMessage(true);
+      };
+      window.addEventListener("input", report, { capture: true, passive: true });
+      window.addEventListener("change", report, { capture: true, passive: true });
     })();
     """
 
