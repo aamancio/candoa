@@ -18,6 +18,11 @@ internal struct DeveloperToolbar: View {
     /// same leading controls the address strip does, so a local-development
     /// page is not the one page in that mode without a Back button.
     let leadingControls: TopToolbarLeadingControls?
+    /// While the window chrome wears the page's own color, the bar trades
+    /// its material and separator for that same tint, so one color runs
+    /// unbroken from the title band into the page's header, the way Dia
+    /// blends. Nil restores the neutral material.
+    let chromeTint: Color?
     let onSubmitURL: (String) -> Void
     let onToggleChat: () -> Void
 
@@ -103,11 +108,21 @@ internal struct DeveloperToolbar: View {
         // whichever bar a tab gets.
         .frame(height: leadingControls == nil ? 30 : TopAddressBar.height)
         .frame(maxWidth: .infinity)
-        .background(Rectangle().fill(.regularMaterial))
+        .background(
+            ZStack {
+                Rectangle()
+                    .fill(.regularMaterial)
+                    .opacity(chromeTint == nil ? 1 : 0)
+                chromeTint ?? .clear
+            }
+            .animation(.easeInOut(duration: 0.28), value: chromeTint)
+        )
         .overlay(alignment: .bottom) {
             Rectangle()
                 .fill(InterfaceStyle.sidebarSeparator)
                 .frame(height: 1)
+                .opacity(chromeTint == nil ? 1 : 0)
+                .animation(.easeInOut(duration: 0.28), value: chromeTint)
         }
     }
 

@@ -147,6 +147,10 @@ enum SettingsOption {
 
     static let websiteAppearance = prefix + "WebsiteAppearance"
     static let addressBarPlacement = prefix + "AddressBarPlacement"
+    /// Whether the window chrome wears the active page's own color
+    /// (WindowBackdrop's page tint), the way Dia's toolbar blends into the
+    /// site's header.
+    static let showWebsiteColors = prefix + "ShowWebsiteColors"
 
     /// Whether a playing video floats in the mini player when its tab is
     /// left. Off, the tab just plays on in the background.

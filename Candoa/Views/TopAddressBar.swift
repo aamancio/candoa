@@ -50,6 +50,11 @@ struct TopAddressBar: View {
     /// way under this placement; this only decides whether it offers to show
     /// or to hide.
     let isSidebarVisible: Bool
+    /// While the window chrome wears the page's own color, the strip trades
+    /// its material and separator for that same tint, so one color runs
+    /// unbroken from the title band into the page's header, the way Dia
+    /// blends. Nil restores the neutral material.
+    let chromeTint: Color?
     let onToggleSidebar: () -> Void
 
     @State private var isHovering = false
@@ -97,11 +102,21 @@ struct TopAddressBar: View {
         .padding(.trailing, contentInsets.trailing)
         .frame(height: Self.height)
         .frame(maxWidth: .infinity)
-        .background(Rectangle().fill(.regularMaterial))
+        .background(
+            ZStack {
+                Rectangle()
+                    .fill(.regularMaterial)
+                    .opacity(chromeTint == nil ? 1 : 0)
+                chromeTint ?? .clear
+            }
+            .animation(.easeInOut(duration: 0.28), value: chromeTint)
+        )
         .overlay(alignment: .bottom) {
             Rectangle()
                 .fill(InterfaceStyle.sidebarSeparator)
                 .frame(height: 1)
+                .opacity(chromeTint == nil ? 1 : 0)
+                .animation(.easeInOut(duration: 0.28), value: chromeTint)
         }
         .onHover { isHovering = $0 }
         .accessibilityElement(children: .contain)

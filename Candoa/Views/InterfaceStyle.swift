@@ -227,6 +227,125 @@ internal struct SpaceThemeReadability {
     }
 }
 
+/// The color a web page claims for its own chrome — declared through
+/// `<meta name="theme-color">` or sampled off the page's top edge — plus the
+/// host it was read from, so a cross-origin navigation can drop it while
+/// same-site loads keep the chrome steady.
+struct PageThemeColor: Equatable {
+    let hex: String
+    let host: String?
+}
+
+/// Turns a page's claimed color into a tint the window chrome can wear, the
+/// way Dia's toolbar and a site's own header read as one surface. Pure hex
+/// math, kept separate from `SpaceThemeReadability`: a Space theme dims its
+/// color into a capped wash under neutral foregrounds, while a page tint is
+/// worn at full strength and must be corrected toward the foreground instead.
+enum PageChromeTint {
+    /// Stricter than WCAG's 4.5:1 floor because the chrome sets secondary
+    /// labels on this tint, and their alpha gives back some contrast.
+    private static let contrastTarget = 5.5
+
+    /// Near-white page colors are what the neutral chrome already is;
+    /// wearing them would only repaint the window a slightly worse white.
+    /// Saturated and dark colors — including dark greys — are worth wearing.
+    static func isChromeworthy(hex: String) -> Bool {
+        guard let rgb = components(hex: hex) else { return false }
+        let maxComponent = max(rgb.red, rgb.green, rgb.blue)
+        let minComponent = min(rgb.red, rgb.green, rgb.blue)
+        let saturation = maxComponent == 0 ? 0 : (maxComponent - minComponent) / maxComponent
+        return !(maxComponent > 0.92 && saturation < 0.12)
+    }
+
+    /// The page color, pulled toward white or black just far enough that the
+    /// current scheme's semantic foregrounds stay readable on it. A color
+    /// that already supports the foreground passes through untouched, so a
+    /// dark site header in a dark window matches the page exactly. Solved in
+    /// linear light so the corrected luminance lands where WCAG measures it.
+    static func chromeHex(for hex: String, prefersDarkForeground: Bool) -> String? {
+        guard let rgb = components(hex: hex) else { return nil }
+        let luminance = relativeLuminance(rgb)
+
+        if prefersDarkForeground {
+            let minimumLuminance = contrastTarget * 0.05 - 0.05
+            guard luminance < minimumLuminance else { return hexString(rgb) }
+            let fraction = (minimumLuminance - luminance) / (1 - luminance)
+            return hexString(scrimmed(rgb, towardWhite: true, fraction: fraction))
+        }
+
+        let maximumLuminance = 1.05 / contrastTarget - 0.05
+        guard luminance > maximumLuminance else { return hexString(rgb) }
+        let fraction = 1 - maximumLuminance / luminance
+        return hexString(scrimmed(rgb, towardWhite: false, fraction: fraction))
+    }
+
+    static func hex(from color: NSColor) -> String? {
+        guard let rgb = color.usingColorSpace(.sRGB) else { return nil }
+        return hexString(RGB(
+            red: min(1, max(0, Double(rgb.redComponent))),
+            green: min(1, max(0, Double(rgb.greenComponent))),
+            blue: min(1, max(0, Double(rgb.blueComponent)))
+        ))
+    }
+
+    /// Parses the sampling script's `"r,g,b"` verdict (0…255 channels).
+    static func hex(fromRGBString string: String) -> String? {
+        let parts = string.split(separator: ",").compactMap { Double($0.trimmingCharacters(in: .whitespaces)) }
+        guard parts.count == 3, parts.allSatisfy({ (0...255).contains($0) }) else { return nil }
+        return hexString(RGB(red: parts[0] / 255, green: parts[1] / 255, blue: parts[2] / 255))
+    }
+
+    private struct RGB {
+        var red: Double
+        var green: Double
+        var blue: Double
+    }
+
+    private static func components(hex: String) -> RGB? {
+        let cleaned = hex.trimmingCharacters(in: CharacterSet(charactersIn: "#"))
+        guard cleaned.count == 6, let value = Int(cleaned, radix: 16) else { return nil }
+        return RGB(
+            red: Double((value >> 16) & 0xFF) / 255,
+            green: Double((value >> 8) & 0xFF) / 255,
+            blue: Double(value & 0xFF) / 255
+        )
+    }
+
+    private static func hexString(_ rgb: RGB) -> String {
+        String(
+            format: "#%02X%02X%02X",
+            Int(round(rgb.red * 255)),
+            Int(round(rgb.green * 255)),
+            Int(round(rgb.blue * 255))
+        )
+    }
+
+    private static func relativeLuminance(_ rgb: RGB) -> Double {
+        0.2126 * linearized(rgb.red) + 0.7152 * linearized(rgb.green) + 0.0722 * linearized(rgb.blue)
+    }
+
+    private static func scrimmed(_ rgb: RGB, towardWhite: Bool, fraction: Double) -> RGB {
+        func mixed(_ component: Double) -> Double {
+            let linear = linearized(component)
+            let blended = towardWhite ? linear + fraction * (1 - linear) : linear * (1 - fraction)
+            return delinearized(blended)
+        }
+        return RGB(red: mixed(rgb.red), green: mixed(rgb.green), blue: mixed(rgb.blue))
+    }
+
+    private static func linearized(_ component: Double) -> Double {
+        component <= 0.04045
+            ? component / 12.92
+            : pow((component + 0.055) / 1.055, 2.4)
+    }
+
+    private static func delinearized(_ component: Double) -> Double {
+        component <= 0.0031308
+            ? component * 12.92
+            : 1.055 * pow(component, 1 / 2.4) - 0.055
+    }
+}
+
 /// The shared interface surface painted behind the browser workspace. Space
 /// tint remains visible around the web surface while chrome such as the
 /// sidebar can keep its own semantic background.

@@ -126,6 +126,10 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
     /// Tabs whose finished page has already answered the reader-availability
     /// probe, so switching back to a tab never re-runs it.
     var readerProbedTabIDs = Set<UUID>()
+    /// Pending page-color refreshes, one per tab, so a burst of same-page
+    /// URL changes coalesces into a single sample instead of streaming
+    /// JavaScript into the page (WebViewCoordinator+PageIntegration).
+    var pageThemeColorRefreshWork: [UUID: DispatchWorkItem] = [:]
     /// Memory-pressure events are the only thing that hibernates a tab
     /// (WebViewCoordinator+Hibernation). nonisolated(unsafe): cancelled from
     /// the nonisolated deinit, where a main-actor property is unreachable.
@@ -595,6 +599,7 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         clearReaderState(for: tabID)
         pendingWebAppPrompts[tabID] = nil
         observations[tabID] = nil
+        pageThemeColorRefreshWork.removeValue(forKey: tabID)?.cancel()
         pendingAppearanceNavigationTokens[tabID] = nil
         popupTabIDsAwaitingFirstLoad.remove(tabID)
         webView.stopLoading()

@@ -5,6 +5,7 @@ internal struct GeneralSettingsPane: View {
     @AppStorage(SettingsOption.checkDefaultBrowser) private var checkDefaultBrowser = false
     @AppStorage(SettingsOption.askBeforeQuitting) private var askBeforeQuitting = true
     @AppStorage(SettingsOption.websiteAppearance) private var websiteAppearance = WebsiteAppearance.automatic.rawValue
+    @AppStorage(SettingsOption.showWebsiteColors) private var showWebsiteColors = true
     @AppStorage(SettingsOption.addressBarPlacement) private var addressBarPlacement = AddressBarPlacement.default.rawValue
     @AppStorage(SettingsOption.homepage) private var homepage = ""
     @AppStorage(SettingsOption.newTabsOpenWith) private var newTabsOpenWith = NewTabPreference.commandBar.rawValue
@@ -252,6 +253,15 @@ internal struct GeneralSettingsPane: View {
                             SettingsPickerOption(id: "light", title: String(localized: "Light")),
                             SettingsPickerOption(id: "dark", title: String(localized: "Dark"))
                         ]
+                    )
+
+                    SettingsDivider()
+
+                    SettingsToggleRow(
+                        systemImage: "paintpalette",
+                        title: String(localized: "Show website colors"),
+                        subtitle: String(localized: "Blend the toolbar and sidebar into the color of the site you're on."),
+                        isOn: $showWebsiteColors
                     )
 
                     SettingsDivider()

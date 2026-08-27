@@ -220,6 +220,11 @@ final class BrowserStore: ObservableObject {
     /// Never persisted — reader state belongs to the live web view.
     @Published var readerAvailableTabIDs: Set<UUID> = []
     @Published var readerActiveTabIDs: Set<UUID> = []
+    /// The color each tab's page claims for itself (meta theme-color, or the
+    /// page's own sampled header color), written by the web coordinator so
+    /// the window chrome can wear the active page's color. Never persisted —
+    /// a restored page re-declares its color as it loads.
+    @Published var pageThemeColorsByTab: [UUID: PageThemeColor] = [:]
     @Published var editingSpaceID: UUID?
     @Published var editingFolderID: UUID?
     /// Spaces whose pinned area is folded away behind the Space header, the

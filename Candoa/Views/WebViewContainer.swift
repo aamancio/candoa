@@ -30,6 +30,8 @@ struct WebViewContainer: View {
     @AppStorage(DeveloperModeConfiguration.storageKey) private var developerModeOverrides = ""
     @AppStorage(SettingsOption.addressBarPlacement)
     private var addressBarPlacement = AddressBarPlacement.default.rawValue
+    @AppStorage(SettingsOption.showWebsiteColors) private var showsWebsiteColors = true
+    @Environment(\.colorScheme) private var colorScheme
     /// In-flight divider drag. Panes keep their committed widths while it
     /// exists — only the preview line follows the pointer — so the live
     /// WKWebViews never relayout mid-drag; the single web layout happens at
@@ -267,6 +269,26 @@ struct WebViewContainer: View {
         )
     }
 
+    /// Mirrors `WindowBackdrop.pageTint`: while the window chrome wears the
+    /// active page's color, the top bars trade their material for the same
+    /// resolved tint, so one color runs from the title band into the page's
+    /// own header. The same correction is applied here so bar and backdrop
+    /// can never disagree.
+    private var chromePageTint: Color? {
+        guard
+            showsWebsiteColors,
+            !store.isPrivate,
+            let hex = store.activePageThemeColorHex,
+            let chromeHex = PageChromeTint.chromeHex(
+                for: hex,
+                prefersDarkForeground: colorScheme != .dark
+            )
+        else {
+            return nil
+        }
+        return Color(spaceHex: chromeHex)
+    }
+
     @ViewBuilder
     private func singleTabContent(for tab: BrowserTab) -> some View {
         VStack(spacing: 0) {
@@ -287,6 +309,7 @@ struct WebViewContainer: View {
                     faviconData: tab.faviconData,
                     contentInsets: barInterfaceInsets,
                     leadingControls: usesTopToolbarPlacement ? topToolbarLeadingControls : nil,
+                    chromeTint: chromePageTint,
                     onSubmitURL: { store.navigateActiveTab(to: $0) },
                     onToggleChat: { store.requestAISidebarToggle() }
                 )
@@ -300,6 +323,7 @@ struct WebViewContainer: View {
                     url: tab.url,
                     contentInsets: barInterfaceInsets,
                     isSidebarVisible: isSidebarVisible,
+                    chromeTint: chromePageTint,
                     onToggleSidebar: onToggleSidebar
                 )
                 .zIndex(1)
