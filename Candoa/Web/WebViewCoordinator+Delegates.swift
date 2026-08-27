@@ -49,6 +49,7 @@ extension WebViewCoordinator {
         recordHistoryVisit(for: webView)
         checkForEmptySignInRedirect(in: webView)
         refreshFavicon(for: webView)
+        armPageThemeColorRetries(for: webView)
         refreshPageThemeColor(for: webView)
         forwardWebAppPromptIfNeeded(for: webView)
         reportWebsiteAppearanceForUITesting(from: webView)

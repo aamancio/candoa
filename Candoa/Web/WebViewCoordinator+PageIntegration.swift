@@ -60,6 +60,7 @@ extension WebViewCoordinator {
                     self?.updateStore(from: webView, isLoading: webView.isLoading)
                     // Same-document navigations (SPA route changes) never
                     // reach didFinish, but can repaint the page's header.
+                    self?.armPageThemeColorRetries(for: webView)
                     self?.schedulePageThemeColorRefresh(for: webView)
                 }
             },
@@ -219,29 +220,64 @@ extension WebViewCoordinator {
                 // ran wins, and its own KVO beat has already published it.
                 guard self.declaredChromeworthyHex(of: webView) == nil else { return }
                 let verdict = ((try? result.get()) as? String) ?? ""
+                let hex = PageChromeTint.hex(fromRGBString: verdict)
                 self.publishPageThemeColor(
-                    hex: PageChromeTint.hex(fromRGBString: verdict),
+                    hex: hex,
                     host: webView.url?.host ?? host,
                     tabID: tabID
                 )
+                if let hex, PageChromeTint.isChromeworthy(hex: hex) {
+                    self.pageThemeColorRetryBudgets[tabID] = 0
+                } else {
+                    // An SPA paints its header after the load event (LUMM
+                    // boots Angular well past didFinish), so a colorless
+                    // verdict right after a load requests a settle-in
+                    // re-sample. Strictly bounded — never a poll: requests
+                    // coalesce, the budget is spent when a retry fires (a
+                    // burst of completions can't burn it), and it only
+                    // refills on the next navigation beat.
+                    self.schedulePageThemeColorRefresh(
+                        for: webView,
+                        delay: 1.2,
+                        consumesRetryBudget: true
+                    )
+                }
             }
         }
     }
 
     /// One coalesced refresh per burst of same-document URL changes, so an
     /// SPA rewriting its route never streams sampling scripts into the page.
-    func schedulePageThemeColorRefresh(for webView: WKWebView) {
+    /// A budget-consuming call is a settle-in retry: it only runs while the
+    /// tab's retry budget lasts, and spends it at fire time.
+    func schedulePageThemeColorRefresh(
+        for webView: WKWebView,
+        delay: TimeInterval = 0.45,
+        consumesRetryBudget: Bool = false
+    ) {
         guard let tabID = tabID(for: webView) else { return }
+        if consumesRetryBudget, (pageThemeColorRetryBudgets[tabID] ?? 0) <= 0 { return }
         pageThemeColorRefreshWork[tabID]?.cancel()
         let work = DispatchWorkItem { [weak self, weak webView] in
             MainActor.assumeIsolated {
                 guard let self, let webView else { return }
                 self.pageThemeColorRefreshWork[tabID] = nil
+                if consumesRetryBudget {
+                    guard (self.pageThemeColorRetryBudgets[tabID] ?? 0) > 0 else { return }
+                    self.pageThemeColorRetryBudgets[tabID]? -= 1
+                }
                 self.refreshPageThemeColor(for: webView)
             }
         }
         pageThemeColorRefreshWork[tabID] = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.45, execute: work)
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
+    }
+
+    /// Arms the settle-in re-samples for a fresh page cycle (see the retry
+    /// note in `refreshPageThemeColor`).
+    func armPageThemeColorRetries(for webView: WKWebView) {
+        guard let tabID = tabID(for: webView) else { return }
+        pageThemeColorRetryBudgets[tabID] = 2
     }
 
     /// A committed cross-origin page starts from the neutral chrome unless it

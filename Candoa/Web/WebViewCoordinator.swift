@@ -130,6 +130,10 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
     /// URL changes coalesces into a single sample instead of streaming
     /// JavaScript into the page (WebViewCoordinator+PageIntegration).
     var pageThemeColorRefreshWork: [UUID: DispatchWorkItem] = [:]
+    /// Settle-in re-samples left per tab for the current page cycle: an SPA
+    /// paints its header after the load event, so a colorless first verdict
+    /// re-samples a couple of times, then stops until the next navigation.
+    var pageThemeColorRetryBudgets: [UUID: Int] = [:]
     /// Memory-pressure events are the only thing that hibernates a tab
     /// (WebViewCoordinator+Hibernation). nonisolated(unsafe): cancelled from
     /// the nonisolated deinit, where a main-actor property is unreachable.
@@ -600,6 +604,7 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         pendingWebAppPrompts[tabID] = nil
         observations[tabID] = nil
         pageThemeColorRefreshWork.removeValue(forKey: tabID)?.cancel()
+        pageThemeColorRetryBudgets[tabID] = nil
         pendingAppearanceNavigationTokens[tabID] = nil
         popupTabIDsAwaitingFirstLoad.remove(tabID)
         webView.stopLoading()
