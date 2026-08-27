@@ -2313,7 +2313,10 @@ final class WebNotificationRoutingTests: XCTestCase {
             + 0.0722 * linear(value & 0xFF)
     }
 
-    func testNearWhitePageColorsAreNotChromeworthy() {
+    func testNearWhiteDeclarationsAreNotChromeworthy() {
+        // The chromeworthy gate applies only to DECLARED colors: boilerplate
+        // white declarations never stand in for the painted pixels, while
+        // sampled near-white pixels are worn directly (no gate).
         XCTAssertFalse(PageChromeTint.isChromeworthy(hex: "#FFFFFF"))
         XCTAssertFalse(PageChromeTint.isChromeworthy(hex: "#F5F5F5"))
         XCTAssertTrue(PageChromeTint.isChromeworthy(hex: "#17697A"), "saturated teal")
@@ -2322,30 +2325,30 @@ final class WebNotificationRoutingTests: XCTestCase {
         XCTAssertFalse(PageChromeTint.isChromeworthy(hex: "not-a-color"))
     }
 
-    func testDarkPageColorPassesThroughUntouchedInDarkScheme() {
-        // A dark site header in a dark window must match the page exactly —
-        // that pixel identity is the whole Dia-style blend.
-        XCTAssertEqual(
-            PageChromeTint.chromeHex(for: "#17697A", prefersDarkForeground: false),
-            "#17697A"
-        )
+    func testDarkPageColorIsWornExactlyWithLightForegrounds() throws {
+        // A dark site header must match the page exactly — that pixel
+        // identity is the whole Dia-style blend — and it picks light labels
+        // regardless of the window appearance.
+        let resolved = try XCTUnwrap(PageChromeTint.resolve(hex: "#17697A"))
+        XCTAssertEqual(resolved.hex, "#17697A")
+        XCTAssertFalse(resolved.usesDarkForeground)
     }
 
-    func testDarkPageColorIsLightenedForDarkForegrounds() throws {
-        let corrected = try XCTUnwrap(
-            PageChromeTint.chromeHex(for: "#17697A", prefersDarkForeground: true)
-        )
-        XCTAssertNotEqual(corrected, "#17697A")
-        // 5.5:1 against black-ish labels means luminance ≥ 5.5·0.05 − 0.05.
-        XCTAssertGreaterThanOrEqual(luminance(ofHex: corrected), 0.225 - 0.005)
+    func testWhitePageColorIsWornExactlyWithDarkForegrounds() throws {
+        // A white page gets a white bar even in a dark window — that IS the
+        // blend — with the labels flipped dark to survive on it.
+        let resolved = try XCTUnwrap(PageChromeTint.resolve(hex: "#FFFFFF"))
+        XCTAssertEqual(resolved.hex, "#FFFFFF")
+        XCTAssertTrue(resolved.usesDarkForeground)
     }
 
-    func testLightPageColorIsDarkenedForLightForegrounds() throws {
-        let corrected = try XCTUnwrap(
-            PageChromeTint.chromeHex(for: "#F0E68C", prefersDarkForeground: false)
-        )
-        // 5.5:1 against white labels means luminance ≤ 1.05/5.5 − 0.05.
-        XCTAssertLessThanOrEqual(luminance(ofHex: corrected), 1.05 / 5.5 - 0.05 + 0.005)
+    func testMidLuminanceColorIsNudgedTowardTheNearerSide() throws {
+        // #808080 sits between the two readable ranges; the nearer side is
+        // the light one, so it lightens just enough for dark labels.
+        let resolved = try XCTUnwrap(PageChromeTint.resolve(hex: "#808080"))
+        XCTAssertTrue(resolved.usesDarkForeground)
+        XCTAssertGreaterThanOrEqual(luminance(ofHex: resolved.hex), 0.225 - 0.005)
+        XCTAssertLessThanOrEqual(luminance(ofHex: resolved.hex), 0.26, "nudged, not washed")
     }
 
     func testChromeShadesDarkenInLinearLight() throws {

@@ -60,6 +60,9 @@ struct TopAddressBar: View {
     @State private var isHovering = false
     @State private var isAddressHovered = false
     @State private var sharePicker = SharePickerCoordinator()
+    /// The window's own scheme — read above the re-schemed subtree, so the
+    /// untinted strip and the Site Info popover stay with the window.
+    @Environment(\.colorScheme) private var windowScheme
 
     /// Dia's proportions: tall enough that 24pt controls sit in the strip
     /// with air around them rather than filling it edge to edge.
@@ -120,6 +123,10 @@ struct TopAddressBar: View {
                 .frame(height: 1)
                 .animation(.easeInOut(duration: 0.28), value: chromeTint)
         }
+        // The worn color decides the strip's labels, not the window: a dark
+        // window still shows dark text on a light page's white bar (Dia
+        // flips its toolbar text per site the same way).
+        .environment(\.colorScheme, chromeTint?.foregroundScheme ?? windowScheme)
         .onHover { isHovering = $0 }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("top-address-bar")
@@ -261,6 +268,10 @@ struct TopAddressBar: View {
                     }
                 }
             )
+            // The popover is the window's, not the tinted strip's: its
+            // chrome renders in the window appearance, so its content must
+            // not inherit the strip's re-schemed environment.
+            .environment(\.colorScheme, windowScheme)
         }
     }
 }

@@ -31,7 +31,6 @@ struct WebViewContainer: View {
     @AppStorage(SettingsOption.addressBarPlacement)
     private var addressBarPlacement = AddressBarPlacement.default.rawValue
     @AppStorage(SettingsOption.showWebsiteColors) private var showsWebsiteColors = true
-    @Environment(\.colorScheme) private var colorScheme
     /// In-flight divider drag. Panes keep their committed widths while it
     /// exists — only the preview line follows the pointer — so the live
     /// WKWebViews never relayout mid-drag; the single web layout happens at
@@ -269,11 +268,11 @@ struct WebViewContainer: View {
         )
     }
 
-    /// Mirrors `WindowBackdrop.pageTint`: while the window chrome wears the
-    /// active page's color, the top bars trade their material for the same
-    /// resolved tint (plus its derived border and hover shades), so one
-    /// color runs from the title band into the page's own header. The same
-    /// correction is applied here so bar and backdrop can never disagree.
+    /// While the chrome wears the active page's color, the top bars trade
+    /// their material for the resolved tint (plus its derived border and
+    /// hover shades), so one color runs from the title band into the page's
+    /// own header. The tint carries its own foreground scheme, decided by
+    /// the worn color rather than the window appearance.
     private var chromePageTint: TopBarChromeTint? {
         guard
             showsWebsiteColors,
@@ -282,10 +281,7 @@ struct WebViewContainer: View {
         else {
             return nil
         }
-        return TopBarChromeTint(
-            pageHex: hex,
-            prefersDarkForeground: colorScheme != .dark
-        )
+        return TopBarChromeTint(pageHex: hex)
     }
 
     @ViewBuilder
