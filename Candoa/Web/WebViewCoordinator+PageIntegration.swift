@@ -202,14 +202,25 @@ extension WebViewCoordinator {
     /// coalesce, the budget is spent when a retry fires (a burst of
     /// verdicts can't burn it), and it only refills on the next beat.
     ///
-    /// An inconclusive verdict while a color is worn HOLDS that color: it
-    /// means the top edge is veiled (a modal drawer's scrim) or split, not
-    /// that the page repainted — dropping to neutral mid-veil is exactly
-    /// the flash a person notices. The declared fallback applies only while
-    /// nothing is worn yet, and a stale hold cannot outlive its page: the
-    /// cross-origin commit clear still drops it.
+    /// A veil verdict ("veil:r,g,b,a" — a modal scrim covers the top edge)
+    /// dims the color the bar already wears by compositing the scrim over
+    /// the stored BASE color, so the bar darkens exactly the way the page's
+    /// own header darkens under it (Dia's bar does the same). The base
+    /// survives in `PageThemeColor.baseHex`, so a repeated veil can never
+    /// dim an already-dimmed value. A plain inconclusive verdict HOLDS the
+    /// worn color: the top edge is split or mid-transition, not repainted.
+    /// The declared fallback applies only while nothing is worn yet, and a
+    /// stale hold cannot outlive its page: the cross-origin commit clear
+    /// still drops it.
     func handleSampledPageColorVerdict(_ verdict: String, for webView: WKWebView, tabID: UUID) {
-        if let sampled = PageChromeTint.hex(fromRGBString: verdict) {
+        if verdict.hasPrefix("veil:"),
+           let stored = store?.pageThemeColorsByTab[tabID],
+           let dimmed = veiledHex(from: verdict, base: stored.baseHex) {
+            store?.updatePageThemeColor(
+                tabID: tabID,
+                color: PageThemeColor(hex: dimmed, host: stored.host, baseHex: stored.baseHex)
+            )
+        } else if let sampled = PageChromeTint.hex(fromRGBString: verdict) {
             publishPageThemeColor(hex: sampled, host: webView.url?.host, tabID: tabID)
         } else if store?.pageThemeColorsByTab[tabID] == nil {
             publishPageThemeColor(
@@ -222,6 +233,21 @@ extension WebViewCoordinator {
             for: webView,
             delay: 1.2,
             consumesRetryBudget: true
+        )
+    }
+
+    /// Parses "veil:r,g,b,a" and composites that scrim over `base`.
+    private func veiledHex(from verdict: String, base: String) -> String? {
+        let parts = verdict.dropFirst("veil:".count)
+            .split(separator: ",")
+            .compactMap { Double($0.trimmingCharacters(in: .whitespaces)) }
+        guard parts.count == 4 else { return nil }
+        return PageChromeTint.veiledHex(
+            base: base,
+            scrimRed: parts[0],
+            scrimGreen: parts[1],
+            scrimBlue: parts[2],
+            scrimAlpha: parts[3]
         )
     }
 

@@ -52,8 +52,10 @@ enum WebPageScripts {
             const rect = element.getBoundingClientRect();
             if (rect.width >= innerWidth * 0.85 && rect.height >= innerHeight * 0.85) {
               // A modal scrim veils the top edge; what it covers is a
-              // sibling this walk cannot reach. Inconclusive, not a color.
-              return null;
+              // sibling this walk cannot reach. Report the scrim itself so
+              // the app can dim the color it already wears, the way the
+              // page dims under it (Dia's bar darkens with the header).
+              return { veil: color };
             }
             overlays.push(color);
           }
@@ -74,10 +76,17 @@ enum WebPageScripts {
         const width = window.innerWidth;
         if (!width || !document.documentElement) { return ""; }
         const votes = new Map();
+        const veils = new Map();
         for (const fraction of [0.08, 0.3, 0.5, 0.7, 0.92]) {
           const x = Math.max(1, Math.min(width - 2, Math.round(width * fraction)));
           const color = colorAt(x);
           if (!color) { continue; }
+          if (color.veil) {
+            const v = color.veil;
+            const key = Math.round(v.r) + "," + Math.round(v.g) + "," + Math.round(v.b) + "," + v.a.toFixed(2);
+            veils.set(key, (veils.get(key) || 0) + 1);
+            continue;
+          }
           const key = Math.round(color.r) + "," + Math.round(color.g) + "," + Math.round(color.b);
           votes.set(key, (votes.get(key) || 0) + 1);
         }
@@ -86,7 +95,14 @@ enum WebPageScripts {
         votes.forEach((count, key) => {
           if (count > bestCount) { best = key; bestCount = count; }
         });
-        return bestCount >= 3 ? best : "";
+        if (bestCount >= 3) { return best; }
+        let veil = "";
+        let veilCount = 0;
+        veils.forEach((count, key) => {
+          if (count > veilCount) { veil = key; veilCount = count; }
+        });
+        if (veilCount >= 3) { return "veil:" + veil; }
+        return "";
       };
 
       let lastReported = null;

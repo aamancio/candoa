@@ -230,10 +230,20 @@ internal struct SpaceThemeReadability {
 /// The color a web page claims for its own chrome — declared through
 /// `<meta name="theme-color">` or sampled off the page's top edge — plus the
 /// host it was read from, so a cross-origin navigation can drop it while
-/// same-site loads keep the chrome steady.
+/// same-site loads keep the chrome steady. `hex` is what the bar wears —
+/// under a modal scrim that is the base color dimmed the way the page dims;
+/// `baseHex` keeps the undimmed color so repeated veil reports can never
+/// dim an already-dimmed value twice.
 struct PageThemeColor: Equatable {
     let hex: String
     let host: String?
+    let baseHex: String
+
+    init(hex: String, host: String?, baseHex: String? = nil) {
+        self.hex = hex
+        self.host = host
+        self.baseHex = baseHex ?? hex
+    }
 }
 
 /// Turns a page's claimed color into a tint the window chrome can wear, the
@@ -296,6 +306,27 @@ enum PageChromeTint {
         return hexString(scrimmed(rgb, towardWhite: false, fraction: fraction))
     }
 
+    /// A page's scrim composited over a base color exactly the way CSS
+    /// composites it — per gamma channel, no linearization — so the bar
+    /// dims to the same value the veiled header shows through the scrim.
+    static func veiledHex(base: String, scrimRed: Double, scrimGreen: Double, scrimBlue: Double, scrimAlpha: Double) -> String? {
+        guard
+            let rgb = components(hex: base),
+            (0...255).contains(scrimRed), (0...255).contains(scrimGreen), (0...255).contains(scrimBlue),
+            (0...1).contains(scrimAlpha)
+        else {
+            return nil
+        }
+        func channel(_ over: Double, _ under: Double) -> Double {
+            (over / 255) * scrimAlpha + under * (1 - scrimAlpha)
+        }
+        return hexString(RGB(
+            red: channel(scrimRed, rgb.red),
+            green: channel(scrimGreen, rgb.green),
+            blue: channel(scrimBlue, rgb.blue)
+        ))
+    }
+
     static func hex(from color: NSColor) -> String? {
         guard let rgb = color.usingColorSpace(.sRGB) else { return nil }
         return hexString(RGB(
@@ -306,8 +337,13 @@ enum PageChromeTint {
     }
 
     /// Parses the sampling script's `"r,g,b"` verdict (0…255 channels).
+    /// Strict: exactly three components and every one must parse — a
+    /// dropped component must never let a different verdict shape (like
+    /// "veil:r,g,b,a") collapse into a bogus near-black color.
     static func hex(fromRGBString string: String) -> String? {
-        let parts = string.split(separator: ",").compactMap { Double($0.trimmingCharacters(in: .whitespaces)) }
+        let raw = string.split(separator: ",")
+        guard raw.count == 3 else { return nil }
+        let parts = raw.compactMap { Double($0.trimmingCharacters(in: .whitespaces)) }
         guard parts.count == 3, parts.allSatisfy({ (0...255).contains($0) }) else { return nil }
         return hexString(RGB(red: parts[0] / 255, green: parts[1] / 255, blue: parts[2] / 255))
     }
