@@ -60,6 +60,9 @@ extension WebViewCoordinator {
             let verdict = (message.body as? [String: Any])?["color"] as? String ?? ""
             handleSampledPageColorVerdict(verdict, for: webView, tabID: tabID)
 
+        case WebPageScripts.passkeyMessageName:
+            handlePasskeyMessage(message, webView: webView)
+
         case WebPageScripts.popupDiagnosticsMessageName:
             guard let body = message.body as? [String: Any] else { return }
             let phase = body["phase"] as? String ?? "?"

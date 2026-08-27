@@ -6,6 +6,7 @@ enum WebPageScripts {
     static let unsavedInputMessageName = "candoaUnsavedInput"
     static let webNotificationMessageName = "candoaWebNotification"
     static let pageColorMessageName = "candoaPageColor"
+    static let passkeyMessageName = "candoaPasskeys"
 
     /// Reads the color the page paints along its top edge — what the top bar
     /// wears (`PageChromeTint`) — and reports it when it changes, so the bar
@@ -1695,6 +1696,187 @@ enum WebPageScripts {
       window.addEventListener("scroll", queueReport, { passive: true, capture: true });
       window.addEventListener("resize", queueReport, { passive: true });
       window.setTimeout(report, 0);
+    })();
+    """
+
+    /// WebAuthn from Candoa's built-in authenticator (issue #506), injected
+    /// only while the app lacks Apple's browser passkey entitlement — with it,
+    /// WebKit's own system sheet takes over and this shim is never installed.
+    /// `navigator.credentials.create/get` calls carrying `publicKey` options
+    /// are marshaled (buffers as base64url) to the native side, which owns
+    /// origin validation, consent, keys, and signing; everything else passes
+    /// through to WebKit untouched. Replies come back through
+    /// `__candoaPasskeyResult`, matched by the shim's own request ids.
+    /// Main frame only: the signing-in site is the one in the address bar.
+    static let passkeyShimScript = """
+    (() => {
+      if (window.__candoaPasskeyShimInstalled) { return; }
+      window.__candoaPasskeyShimInstalled = true;
+      if (!window.PublicKeyCredential || !navigator.credentials) { return; }
+      const handler = window.webkit?.messageHandlers?.\(passkeyMessageName);
+      if (!handler) { return; }
+
+      const post = handler.postMessage.bind(handler);
+      const nativeCreate = navigator.credentials.create.bind(navigator.credentials);
+      const nativeGet = navigator.credentials.get.bind(navigator.credentials);
+      const credentialPrototype = PublicKeyCredential.prototype;
+      const attestationPrototype = window.AuthenticatorAttestationResponse?.prototype ?? Object.prototype;
+      const assertionPrototype = window.AuthenticatorAssertionResponse?.prototype ?? Object.prototype;
+
+      let counter = 0;
+      const pendingRequests = new Map();
+
+      window.__candoaPasskeyResult = (requestID, reply) => {
+        const pending = pendingRequests.get(requestID);
+        if (!pending) { return; }
+        pendingRequests.delete(requestID);
+        if (reply && reply.error) {
+          pending.reject(new DOMException(
+            reply.message || "The operation either timed out or was not allowed.",
+            reply.error
+          ));
+        } else if (reply) {
+          pending.resolve(reply);
+        } else {
+          pending.reject(new DOMException(
+            "The operation either timed out or was not allowed.", "NotAllowedError"
+          ));
+        }
+      };
+
+      const toBase64URL = (source) => {
+        const bytes = source instanceof ArrayBuffer
+          ? new Uint8Array(source)
+          : new Uint8Array(source.buffer, source.byteOffset, source.byteLength);
+        let binary = "";
+        for (const byte of bytes) { binary += String.fromCharCode(byte); }
+        return btoa(binary).split("+").join("-").split("/").join("_").split("=").join("");
+      };
+
+      const fromBase64URL = (text) => {
+        const padded = text.split("-").join("+").split("_").join("/")
+          + "=".repeat((4 - (text.length % 4)) % 4);
+        const binary = atob(padded);
+        const bytes = new Uint8Array(binary.length);
+        for (let index = 0; index < binary.length; index += 1) {
+          bytes[index] = binary.charCodeAt(index);
+        }
+        return bytes.buffer;
+      };
+
+      const isBufferSource = (value) =>
+        value instanceof ArrayBuffer || ArrayBuffer.isView(value);
+
+      const describeCredentialList = (list) => (Array.isArray(list) ? list : [])
+        .filter((entry) => entry && entry.type === "public-key" && isBufferSource(entry.id))
+        .map((entry) => toBase64URL(entry.id));
+
+      const bridge = (payload, signal) => new Promise((resolve, reject) => {
+        if (signal?.aborted) {
+          reject(new DOMException("The operation was aborted.", "AbortError"));
+          return;
+        }
+        counter += 1;
+        const requestID = String(counter);
+        pendingRequests.set(requestID, { resolve, reject });
+        if (signal) {
+          signal.addEventListener("abort", () => {
+            if (!pendingRequests.has(requestID)) { return; }
+            pendingRequests.delete(requestID);
+            post({ action: "cancel", requestID });
+            reject(new DOMException("The operation was aborted.", "AbortError"));
+          }, { once: true });
+        }
+        post({ ...payload, requestID });
+      });
+
+      const defineHidden = (object, properties) => {
+        for (const [key, value] of Object.entries(properties)) {
+          Object.defineProperty(object, key, { value, enumerable: false, configurable: true });
+        }
+        return object;
+      };
+
+      const makeCredential = (reply, response) => defineHidden(Object.create(credentialPrototype), {
+        id: reply.credentialId,
+        rawId: fromBase64URL(reply.credentialId),
+        type: "public-key",
+        authenticatorAttachment: "platform",
+        response,
+        getClientExtensionResults: function getClientExtensionResults() { return {}; }
+      });
+
+      const createPasskey = async (options) => {
+        const publicKey = options.publicKey;
+        if (!isBufferSource(publicKey.challenge) || !publicKey.rp || !publicKey.user
+            || !isBufferSource(publicKey.user.id) || !Array.isArray(publicKey.pubKeyCredParams)) {
+          throw new TypeError("Required WebAuthn creation options are missing.");
+        }
+        const selection = publicKey.authenticatorSelection ?? {};
+        const reply = await bridge({
+          action: "create",
+          challenge: toBase64URL(publicKey.challenge),
+          rpId: typeof publicKey.rp.id === "string" ? publicKey.rp.id : null,
+          userId: toBase64URL(publicKey.user.id),
+          userName: String(publicKey.user.name ?? ""),
+          userDisplayName: String(publicKey.user.displayName ?? ""),
+          algorithms: publicKey.pubKeyCredParams
+            .filter((parameter) => parameter && parameter.type === "public-key")
+            .map((parameter) => Number(parameter.alg)),
+          excludeCredentials: describeCredentialList(publicKey.excludeCredentials)
+        }, options.signal);
+        const response = defineHidden(Object.create(attestationPrototype), {
+          clientDataJSON: fromBase64URL(reply.clientDataJSON),
+          attestationObject: fromBase64URL(reply.attestationObject),
+          getTransports: function getTransports() { return ["internal"]; },
+          getAuthenticatorData: function getAuthenticatorData() {
+            return fromBase64URL(reply.authenticatorData);
+          },
+          getPublicKey: function getPublicKey() { return fromBase64URL(reply.publicKey); },
+          getPublicKeyAlgorithm: function getPublicKeyAlgorithm() { return reply.publicKeyAlgorithm; }
+        });
+        return makeCredential(reply, response);
+      };
+
+      const getPasskey = async (options) => {
+        const publicKey = options.publicKey;
+        if (!isBufferSource(publicKey.challenge)) {
+          throw new TypeError("Required WebAuthn request options are missing.");
+        }
+        if (options.mediation === "conditional") {
+          // No autofill surface to offer; answer as an authenticator with
+          // nothing to show does.
+          throw new DOMException(
+            "The operation either timed out or was not allowed.", "NotAllowedError"
+          );
+        }
+        const reply = await bridge({
+          action: "get",
+          challenge: toBase64URL(publicKey.challenge),
+          rpId: typeof publicKey.rpId === "string" ? publicKey.rpId : null,
+          allowCredentials: describeCredentialList(publicKey.allowCredentials)
+        }, options.signal);
+        const response = defineHidden(Object.create(assertionPrototype), {
+          clientDataJSON: fromBase64URL(reply.clientDataJSON),
+          authenticatorData: fromBase64URL(reply.authenticatorData),
+          signature: fromBase64URL(reply.signature),
+          userHandle: reply.userHandle ? fromBase64URL(reply.userHandle) : null
+        });
+        return makeCredential(reply, response);
+      };
+
+      navigator.credentials.create = function create(options) {
+        if (!options || !options.publicKey) { return nativeCreate(options); }
+        return createPasskey(options);
+      };
+      navigator.credentials.get = function get(options) {
+        if (!options || !options.publicKey) { return nativeGet(options); }
+        return getPasskey(options);
+      };
+      PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable =
+        function isUserVerifyingPlatformAuthenticatorAvailable() { return Promise.resolve(true); };
+      PublicKeyCredential.isConditionalMediationAvailable =
+        function isConditionalMediationAvailable() { return Promise.resolve(false); };
     })();
     """
 }

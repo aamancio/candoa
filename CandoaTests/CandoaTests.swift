@@ -1,4 +1,5 @@
 import AppKit
+import CryptoKit
 import WebKit
 import XCTest
 @testable import Candoa
@@ -2389,5 +2390,345 @@ final class WebNotificationRoutingTests: XCTestCase {
         // #000001 and the bar went black under LUMM's drawer.
         XCTAssertNil(PageChromeTint.hex(fromRGBString: "veil:0,0,0,0.50"))
         XCTAssertNil(PageChromeTint.hex(fromRGBString: "x,0,0"), "unparseable channel")
+    }
+}
+
+/// Unit coverage for the built-in passkey authenticator's pure ceremony logic
+/// (issue #506): relying-party scoping, authenticator-data layout, the "none"
+/// attestation object, and assertion signatures that verify against the
+/// credential public key the way a relying party would check them.
+final class PasskeyCeremonyTests: XCTestCase {
+    private let origin = URL(string: "https://accounts.example.com/signin")!
+
+    // MARK: - Relying-party scope
+
+    func testRelyingPartyDefaultsToHost() throws {
+        XCTAssertEqual(
+            try PasskeyCeremony.effectiveRelyingParty(requested: nil, origin: origin),
+            "accounts.example.com"
+        )
+    }
+
+    func testRelyingPartyAcceptsRegistrableSuffix() throws {
+        XCTAssertEqual(
+            try PasskeyCeremony.effectiveRelyingParty(requested: "example.com", origin: origin),
+            "example.com"
+        )
+    }
+
+    func testRelyingPartyRejectsUnrelatedDomain() {
+        XCTAssertThrowsError(
+            try PasskeyCeremony.effectiveRelyingParty(requested: "evil.com", origin: origin)
+        )
+    }
+
+    func testRelyingPartyRejectsBareTopLevelDomain() {
+        XCTAssertThrowsError(
+            try PasskeyCeremony.effectiveRelyingParty(requested: "com", origin: origin)
+        )
+    }
+
+    func testRelyingPartyRejectsMultiPartPublicSuffix() {
+        let origin = URL(string: "https://shop.example.co.uk/")!
+        XCTAssertThrowsError(
+            try PasskeyCeremony.effectiveRelyingParty(requested: "co.uk", origin: origin)
+        )
+        XCTAssertEqual(
+            try? PasskeyCeremony.effectiveRelyingParty(requested: "example.co.uk", origin: origin),
+            "example.co.uk"
+        )
+    }
+
+    func testRelyingPartyRejectsInsecureOrigins() {
+        XCTAssertThrowsError(
+            try PasskeyCeremony.effectiveRelyingParty(requested: nil, origin: URL(string: "http://example.com/")!)
+        )
+        XCTAssertEqual(
+            try? PasskeyCeremony.effectiveRelyingParty(requested: nil, origin: URL(string: "http://localhost:8977/")!),
+            "localhost"
+        )
+    }
+
+    // MARK: - Authenticator data
+
+    func testAuthenticatorDataLayoutForAssertion() {
+        let data = PasskeyCeremony.authenticatorData(
+            relyingParty: "example.com",
+            flags: [.userPresent, .userVerified, .backupEligible, .backedUp]
+        )
+        XCTAssertEqual(data.count, 37)
+        XCTAssertEqual(Data(data.prefix(32)), Data(SHA256.hash(data: Data("example.com".utf8))))
+        XCTAssertEqual(data[32], 0x1D)
+        XCTAssertEqual(Data(data.suffix(4)), Data([0, 0, 0, 0]), "sign counter stays zero for synced passkeys")
+    }
+
+    func testAuthenticatorDataEmbedsAttestedCredential() throws {
+        let key = P256.Signing.PrivateKey()
+        let credentialID = Data((0..<16).map { UInt8($0) })
+        let data = PasskeyCeremony.authenticatorData(
+            relyingParty: "example.com",
+            flags: [.userPresent, .userVerified, .attestedCredentialIncluded],
+            attestedCredential: (id: credentialID, publicKey: key.publicKey)
+        )
+        XCTAssertEqual(data[32] & 0x40, 0x40)
+        XCTAssertEqual(Data(data[37..<53]), Data(count: 16), "zero AAGUID for none attestation")
+        XCTAssertEqual(Int(data[53]) << 8 | Int(data[54]), credentialID.count)
+        XCTAssertEqual(Data(data[55..<71]), credentialID)
+
+        let cose = Data(data[71...])
+        XCTAssertEqual(cose.first, 0xA5)
+        let raw = key.publicKey.rawRepresentation
+        XCTAssertNotNil(cose.range(of: raw.prefix(32)), "x coordinate present")
+        XCTAssertNotNil(cose.range(of: raw.suffix(32)), "y coordinate present")
+    }
+
+    func testAttestationObjectShape() {
+        let authData = PasskeyCeremony.authenticatorData(relyingParty: "example.com", flags: [.userPresent])
+        let object = PasskeyCeremony.attestationObject(authenticatorData: authData)
+        var expectedPrefix = Data([0xA3, 0x63]); expectedPrefix.append(Data("fmt".utf8))
+        expectedPrefix.append(0x64); expectedPrefix.append(Data("none".utf8))
+        expectedPrefix.append(0x67); expectedPrefix.append(Data("attStmt".utf8))
+        expectedPrefix.append(0xA0)
+        expectedPrefix.append(0x68); expectedPrefix.append(Data("authData".utf8))
+        XCTAssertTrue(object.starts(with: expectedPrefix))
+        XCTAssertTrue(object.suffix(authData.count) == authData)
+    }
+
+    // MARK: - Assertion signature
+
+    func testAssertionSignatureVerifiesLikeARelyingParty() throws {
+        let key = P256.Signing.PrivateKey()
+        let clientData = PasskeyCeremony.clientDataJSON(
+            type: "webauthn.get",
+            challenge: "dGVzdC1jaGFsbGVuZ2U",
+            origin: URL(string: "https://example.com")!
+        )
+        let authData = PasskeyCeremony.authenticatorData(
+            relyingParty: "example.com",
+            flags: [.userPresent, .userVerified]
+        )
+        let signature = try PasskeyCeremony.assertionSignature(
+            privateKey: key,
+            authenticatorData: authData,
+            clientDataJSON: clientData
+        )
+
+        var signed = authData
+        signed.append(Data(SHA256.hash(data: clientData)))
+        let parsed = try P256.Signing.ECDSASignature(derRepresentation: signature)
+        XCTAssertTrue(key.publicKey.isValidSignature(parsed, for: signed))
+    }
+
+    func testClientDataJSONParsesWithExpectedFields() throws {
+        let data = PasskeyCeremony.clientDataJSON(
+            type: "webauthn.create",
+            challenge: "YQ",
+            origin: URL(string: "https://example.com/path?query=1")!
+        )
+        let object = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        XCTAssertEqual(object["type"] as? String, "webauthn.create")
+        XCTAssertEqual(object["challenge"] as? String, "YQ")
+        XCTAssertEqual(object["origin"] as? String, "https://example.com", "origin only, never the full URL")
+        XCTAssertEqual(object["crossOrigin"] as? Bool, false)
+
+        let withPort = PasskeyCeremony.clientDataJSON(
+            type: "webauthn.get",
+            challenge: "YQ",
+            origin: URL(string: "http://localhost:8977/probe")!
+        )
+        let portObject = try XCTUnwrap(JSONSerialization.jsonObject(with: withPort) as? [String: Any])
+        XCTAssertEqual(portObject["origin"] as? String, "http://localhost:8977")
+    }
+
+    func testBase64URLRoundTrip() {
+        let data = Data((0..<64).map { _ in UInt8.random(in: .min ... .max) })
+        let encoded = PasskeyCeremony.base64URLEncode(data)
+        XCTAssertFalse(encoded.contains("+"))
+        XCTAssertFalse(encoded.contains("/"))
+        XCTAssertFalse(encoded.contains("="))
+        XCTAssertEqual(PasskeyCeremony.base64URLDecode(encoded), data)
+    }
+}
+
+/// The passkey shim's page-side behavior (issue #506): WebAuthn calls are
+/// marshaled to the `candoaPasskeys` handler with buffers as base64url, and
+/// native replies delivered through `__candoaPasskeyResult` come back as
+/// real-looking `PublicKeyCredential` objects. Native consent, keychain, and
+/// signing stay covered by `PasskeyCeremonyTests` plus the fixture run; here
+/// the native half is played by the test.
+@MainActor
+final class PasskeyShimTests: XCTestCase {
+    private final class MessageRecorder: NSObject, WKScriptMessageHandler {
+        var bodies: [[String: Any]] = []
+        func userContentController(
+            _ userContentController: WKUserContentController,
+            didReceive message: WKScriptMessage
+        ) {
+            if let body = message.body as? [String: Any] {
+                bodies.append(body)
+            }
+        }
+    }
+
+    private func makeLoadedWebView(
+        recorder: MessageRecorder,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) async throws -> WKWebView {
+        let configuration = WKWebViewConfiguration()
+        configuration.userContentController.add(recorder, name: WebPageScripts.passkeyMessageName)
+        configuration.userContentController.addUserScript(
+            WKUserScript(
+                source: WebPageScripts.passkeyShimScript,
+                injectionTime: .atDocumentStart,
+                forMainFrameOnly: true
+            )
+        )
+        let webView = WKWebView(
+            frame: CGRect(x: 0, y: 0, width: 320, height: 240),
+            configuration: configuration
+        )
+        // A secure-context base URL, so WebKit defines the WebAuthn
+        // interfaces the shim wraps.
+        webView.loadHTMLString(
+            "<!doctype html><html><body data-candoa-fixture='1'></body></html>",
+            baseURL: URL(string: "https://example.com/")
+        )
+        let loaded = try await poll(webView, until: "document.body?.dataset?.candoaFixture === '1'")
+        XCTAssertTrue(loaded, "fixture page must finish loading", file: file, line: line)
+        return webView
+    }
+
+    private func poll(_ webView: WKWebView, until expression: String) async throws -> Bool {
+        for _ in 0..<400 {
+            if (try? await webView.evaluateJavaScript("(\(expression)) === true")) as? Bool == true {
+                return true
+            }
+            try await Task.sleep(nanoseconds: 25_000_000)
+        }
+        return false
+    }
+
+    private func waitForMessage(
+        in recorder: MessageRecorder,
+        action: String
+    ) async throws -> [String: Any]? {
+        for _ in 0..<400 {
+            if let body = recorder.bodies.first(where: { $0["action"] as? String == action }) {
+                return body
+            }
+            try await Task.sleep(nanoseconds: 25_000_000)
+        }
+        return nil
+    }
+
+    func testCreateMarshalsOptionsAndDeliversCredential() async throws {
+        let recorder = MessageRecorder()
+        let webView = try await makeLoadedWebView(recorder: recorder)
+
+        let shimInstalled = try await poll(webView, until: "window.__candoaPasskeyShimInstalled === true")
+        XCTAssertTrue(shimInstalled)
+        let available = try await webView.evaluateJavaScript(
+            "PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable.name"
+        ) as? String
+        XCTAssertEqual(available, "isUserVerifyingPlatformAuthenticatorAvailable")
+
+        _ = try await webView.evaluateJavaScript("""
+        window.__result = null; window.__error = null;
+        navigator.credentials.create({ publicKey: {
+            challenge: new Uint8Array([1, 2, 3, 4]),
+            rp: { name: "Test", id: "example.com" },
+            user: { id: new Uint8Array([9, 9]), name: "probe@example.com", displayName: "Probe" },
+            pubKeyCredParams: [{ type: "public-key", alg: -257 }, { type: "public-key", alg: -7 }]
+        }}).then((c) => { window.__result = c; }, (e) => { window.__error = e.name; });
+        true
+        """)
+
+        let createMessage = try await waitForMessage(in: recorder, action: "create")
+        let body = try XCTUnwrap(createMessage)
+        XCTAssertEqual(body["challenge"] as? String, "AQIDBA")
+        XCTAssertEqual(body["rpId"] as? String, "example.com")
+        XCTAssertEqual(body["userId"] as? String, "CQk")
+        XCTAssertEqual(body["userName"] as? String, "probe@example.com")
+        XCTAssertEqual(body["algorithms"] as? [Int], [-257, -7])
+        let requestID = try XCTUnwrap(WebViewCoordinator.passkeyRequestID(from: body["requestID"]))
+
+        // Play the native side with the real ceremony pieces.
+        let key = P256.Signing.PrivateKey()
+        let credentialID = Data("unit-test-credential".utf8)
+        let authenticatorData = PasskeyCeremony.authenticatorData(
+            relyingParty: "example.com",
+            flags: [.userPresent, .userVerified, .attestedCredentialIncluded],
+            attestedCredential: (id: credentialID, publicKey: key.publicKey)
+        )
+        let reply: [String: Any] = [
+            "credentialId": PasskeyCeremony.base64URLEncode(credentialID),
+            "clientDataJSON": PasskeyCeremony.base64URLEncode(PasskeyCeremony.clientDataJSON(
+                type: "webauthn.create", challenge: "AQIDBA", origin: URL(string: "https://example.com/")!
+            )),
+            "attestationObject": PasskeyCeremony.base64URLEncode(
+                PasskeyCeremony.attestationObject(authenticatorData: authenticatorData)
+            ),
+            "authenticatorData": PasskeyCeremony.base64URLEncode(authenticatorData),
+            "publicKey": PasskeyCeremony.base64URLEncode(key.publicKey.derRepresentation),
+            "publicKeyAlgorithm": PasskeyCeremony.supportedAlgorithm
+        ]
+        let arguments = String(
+            data: try JSONSerialization.data(withJSONObject: [requestID, reply]),
+            encoding: .utf8
+        )!
+        _ = try await webView.evaluateJavaScript(
+            "window.__candoaPasskeyResult.apply(null, \(arguments)); true"
+        )
+
+        let resolved = try await poll(webView, until: "window.__result !== null")
+        XCTAssertTrue(resolved, "create promise must resolve from the native reply")
+        let shape = try await webView.evaluateJavaScript("""
+        [
+            window.__result instanceof PublicKeyCredential,
+            window.__result.type,
+            window.__result.id,
+            window.__result.authenticatorAttachment,
+            window.__result.response.getPublicKeyAlgorithm(),
+            new Uint8Array(window.__result.response.attestationObject).length
+        ]
+        """) as? [Any]
+        XCTAssertEqual(shape?[0] as? Bool, true)
+        XCTAssertEqual(shape?[1] as? String, "public-key")
+        XCTAssertEqual(shape?[2] as? String, PasskeyCeremony.base64URLEncode(credentialID))
+        XCTAssertEqual(shape?[3] as? String, "platform")
+        XCTAssertEqual(shape?[4] as? Int, -7)
+        XCTAssertEqual(
+            shape?[5] as? Int,
+            PasskeyCeremony.attestationObject(authenticatorData: authenticatorData).count
+        )
+    }
+
+    func testErrorRepliesRejectWithNamedDOMException() async throws {
+        let recorder = MessageRecorder()
+        let webView = try await makeLoadedWebView(recorder: recorder)
+
+        _ = try await webView.evaluateJavaScript("""
+        window.__error = null;
+        navigator.credentials.get({ publicKey: { challenge: new Uint8Array([7]) } })
+            .catch((e) => { window.__error = e.name; });
+        true
+        """)
+        let getMessage = try await waitForMessage(in: recorder, action: "get")
+        let body = try XCTUnwrap(getMessage)
+        let requestID = try XCTUnwrap(WebViewCoordinator.passkeyRequestID(from: body["requestID"]))
+        _ = try await webView.evaluateJavaScript(
+            "window.__candoaPasskeyResult('\(requestID)', { error: 'NotAllowedError' }); true"
+        )
+        let rejected = try await poll(webView, until: "window.__error === 'NotAllowedError'")
+        XCTAssertTrue(rejected)
+    }
+
+    func testRequestIDValidationDropsNonNumericIDs() {
+        XCTAssertEqual(WebViewCoordinator.passkeyRequestID(from: "42"), "42")
+        XCTAssertNil(WebViewCoordinator.passkeyRequestID(from: "42; alert(1)"))
+        XCTAssertNil(WebViewCoordinator.passkeyRequestID(from: ""))
+        XCTAssertNil(WebViewCoordinator.passkeyRequestID(from: "1234567890123"))
+        XCTAssertNil(WebViewCoordinator.passkeyRequestID(from: 42))
     }
 }
