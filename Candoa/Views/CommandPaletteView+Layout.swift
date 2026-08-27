@@ -113,16 +113,17 @@ extension CommandPaletteView {
     /// Editing the current address — from the sidebar pill or the "Above the
     /// Page" strip — presents as an anchored dropdown at the window's top,
     /// Arc-style, rather than the centered new-tab bar. The two anchors
-    /// share every layout rule except width: the strip's dropdown is wider
-    /// because the strip spans the window.
+    /// share every layout rule except width: the strip's dropdown spans the
+    /// window edge to edge the way the strip itself does, while the sidebar
+    /// pill's stays sized to its lane.
     internal var isAnchoredAddressPalette: Bool {
         isSidebarAddressPalette || isTopAddressPalette
     }
 
     internal func paletteWidth(for windowWidth: CGFloat) -> CGFloat {
         if isAnchoredAddressPalette {
-            let cap = isTopAddressPalette ? Self.topAddressPaletteMaxWidth : Self.addressPaletteMaxWidth
-            return min(max(0, windowWidth - Self.addressPaletteLeadingInset * 2), cap)
+            let width = max(0, windowWidth - Self.addressPaletteLeadingInset * 2)
+            return isTopAddressPalette ? width : min(width, Self.addressPaletteMaxWidth)
         }
 
         // Zen's floating urlbar width: min(window width / 1.5, 750)
