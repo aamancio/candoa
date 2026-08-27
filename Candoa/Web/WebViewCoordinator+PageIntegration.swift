@@ -214,29 +214,20 @@ extension WebViewCoordinator {
                 guard let self, let webView, self.tabID(for: webView) == tabID else { return }
                 let verdict = ((try? result.get()) as? String) ?? ""
                 let sampled = PageChromeTint.hex(fromRGBString: verdict)
-                if let sampled, PageChromeTint.isChromeworthy(hex: sampled) {
-                    self.publishPageThemeColor(
-                        hex: sampled,
-                        host: webView.url?.host ?? host,
-                        tabID: tabID
-                    )
-                    self.pageThemeColorRetryBudgets[tabID] = 0
-                    return
-                }
 
-                // A near-white pixel verdict means the page really painted a
-                // neutral top — the chrome stays neutral even when a lying
-                // declaration exists. Only an inconclusive sample (no
-                // majority landed) leans on the declared color, so a
-                // declaring page tints promptly while it boots. Either way
-                // the settle-in re-sample keeps seeking the painted truth:
-                // strictly bounded — never a poll — requests coalesce, the
-                // budget is spent when a retry fires (a burst of completions
-                // can't burn it), and it only refills on the next navigation
-                // beat. An SPA that paints its header after the load event
-                // (LUMM boots Angular well past didFinish) is caught here.
+                // Every pixel verdict is worn as-is — a white page gets a
+                // white bar, which is the blend. Only an inconclusive
+                // sample (no majority landed) leans on the declared color,
+                // so a declaring page tints promptly while it boots. The
+                // settle-in re-sample keeps seeking the painted truth even
+                // after a verdict, because an SPA's first painted frame is
+                // often its blank shell (LUMM samples white until Angular
+                // boots its teal header well past didFinish). Strictly
+                // bounded — never a poll: requests coalesce, the budget is
+                // spent when a retry fires (a burst of completions can't
+                // burn it), and it only refills on the next navigation beat.
                 self.publishPageThemeColor(
-                    hex: sampled == nil ? self.declaredChromeworthyHex(of: webView) : nil,
+                    hex: sampled ?? self.declaredChromeworthyHex(of: webView),
                     host: webView.url?.host ?? host,
                     tabID: tabID
                 )
@@ -318,8 +309,11 @@ extension WebViewCoordinator {
         category: "PageThemeColor"
     )
 
+    /// Publishes whatever the callers resolved: sampled pixels are worn
+    /// as-is (the near-white gate applies only to declared colors, which
+    /// the callers pre-filter through `declaredChromeworthyHex`).
     private func publishPageThemeColor(hex: String?, host: String?, tabID: UUID) {
-        guard let hex, PageChromeTint.isChromeworthy(hex: hex) else {
+        guard let hex else {
             Self.pageThemeColorLogger.info(
                 "no wearable color for \(host ?? "-", privacy: .public)"
             )

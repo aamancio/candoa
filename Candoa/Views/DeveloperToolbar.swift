@@ -32,6 +32,9 @@ internal struct DeveloperToolbar: View {
     @State private var isHoveringControlMenu = false
     @State private var sharePicker = SharePickerCoordinator()
     @FocusState private var isURLFieldFocused: Bool
+    /// The window's own scheme — read above the re-schemed subtree, so the
+    /// untinted bar stays with the window.
+    @Environment(\.colorScheme) private var windowScheme
 
     private var isLocalDevelopment: Bool { url.isLocalDevelopment }
 
@@ -143,6 +146,10 @@ internal struct DeveloperToolbar: View {
                 .frame(height: 1)
                 .animation(.easeInOut(duration: 0.28), value: chromeTint)
         }
+        // The worn color decides the bar's labels, not the window: a dark
+        // window still shows dark text on a light page's white bar (Dia
+        // flips its toolbar text per site the same way).
+        .environment(\.colorScheme, chromeTint?.foregroundScheme ?? windowScheme)
     }
 
     private func toolbarButton(for control: DeveloperToolbarControlKind) -> some View {

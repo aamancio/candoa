@@ -246,9 +246,11 @@ enum PageChromeTint {
     /// labels on this tint, and their alpha gives back some contrast.
     private static let contrastTarget = 5.5
 
-    /// Near-white page colors are what the neutral chrome already is;
-    /// wearing them would only repaint the window a slightly worse white.
-    /// Saturated and dark colors — including dark greys — are worth wearing.
+    /// Whether a DECLARED color counts as a claim worth standing in for the
+    /// sampled pixels. Near-white declarations are boilerplate that sites
+    /// ship while painting something else entirely, so they never stand in —
+    /// sampled near-white pixels, by contrast, ARE worn: a white page gets a
+    /// white bar, which is the blend.
     static func isChromeworthy(hex: String) -> Bool {
         guard let rgb = components(hex: hex) else { return false }
         let maxComponent = max(rgb.red, rgb.green, rgb.blue)
@@ -257,26 +259,33 @@ enum PageChromeTint {
         return !(maxComponent > 0.92 && saturation < 0.12)
     }
 
-    /// The page color, pulled toward white or black just far enough that the
-    /// current scheme's semantic foregrounds stay readable on it. A color
-    /// that already supports the foreground passes through untouched, so a
-    /// dark site header in a dark window matches the page exactly. Solved in
+    /// The page color as the bar will wear it, plus which foreground survives
+    /// on it. Dia's model: the bar always wears the page's color — white on a
+    /// white page — and flips its own text dark or light per the color, never
+    /// per the window appearance (a dark window must still show a light bar
+    /// over a light page, or the two clash instead of blending). Most colors
+    /// pass through untouched because the fitting foreground is chosen; only
+    /// mid-luminance colors get nudged toward the nearer side, solved in
     /// linear light so the corrected luminance lands where WCAG measures it.
-    static func chromeHex(for hex: String, prefersDarkForeground: Bool) -> String? {
+    static func resolve(hex: String) -> (hex: String, usesDarkForeground: Bool)? {
         guard let rgb = components(hex: hex) else { return nil }
         let luminance = relativeLuminance(rgb)
+        let minimumLightBackground = contrastTarget * 0.05 - 0.05
+        let maximumDarkBackground = 1.05 / contrastTarget - 0.05
 
-        if prefersDarkForeground {
-            let minimumLuminance = contrastTarget * 0.05 - 0.05
-            guard luminance < minimumLuminance else { return hexString(rgb) }
-            let fraction = (minimumLuminance - luminance) / (1 - luminance)
-            return hexString(scrimmed(rgb, towardWhite: true, fraction: fraction))
+        if luminance >= minimumLightBackground {
+            return (hexString(rgb), true)
+        }
+        if luminance <= maximumDarkBackground {
+            return (hexString(rgb), false)
         }
 
-        let maximumLuminance = 1.05 / contrastTarget - 0.05
-        guard luminance > maximumLuminance else { return hexString(rgb) }
-        let fraction = 1 - maximumLuminance / luminance
-        return hexString(scrimmed(rgb, towardWhite: false, fraction: fraction))
+        let whiteFraction = (minimumLightBackground - luminance) / (1 - luminance)
+        let blackFraction = 1 - maximumDarkBackground / luminance
+        if whiteFraction <= blackFraction {
+            return (hexString(scrimmed(rgb, towardWhite: true, fraction: whiteFraction)), true)
+        }
+        return (hexString(scrimmed(rgb, towardWhite: false, fraction: blackFraction)), false)
     }
 
     /// A darker shade of a chrome hex, blended toward black in linear light.
@@ -357,26 +366,33 @@ enum PageChromeTint {
 /// The resolved page tint a top bar wears, with the shades Dia derives from
 /// its tinted toolbar: a darker border under the bar and a darker fill for
 /// hovered controls and the address field, so the bar keeps its landmarks
-/// after giving up its neutral material.
+/// after giving up its neutral material. `usesDarkForeground` is decided by
+/// the worn color itself — the bar re-schemes its own labels (Dia flips its
+/// toolbar text per site), independent of the window appearance.
 struct TopBarChromeTint: Equatable {
     let surface: Color
     let border: Color
     let controlFill: Color
+    let usesDarkForeground: Bool
 
-    init?(pageHex: String, prefersDarkForeground: Bool) {
+    /// The scheme the bar's semantic foregrounds should resolve in while
+    /// wearing this tint.
+    var foregroundScheme: ColorScheme {
+        usesDarkForeground ? .light : .dark
+    }
+
+    init?(pageHex: String) {
         guard
-            let surfaceHex = PageChromeTint.chromeHex(
-                for: pageHex,
-                prefersDarkForeground: prefersDarkForeground
-            ),
-            let borderHex = PageChromeTint.shadedHex(for: surfaceHex, fraction: 0.35),
-            let controlHex = PageChromeTint.shadedHex(for: surfaceHex, fraction: 0.18)
+            let resolved = PageChromeTint.resolve(hex: pageHex),
+            let borderHex = PageChromeTint.shadedHex(for: resolved.hex, fraction: 0.35),
+            let controlHex = PageChromeTint.shadedHex(for: resolved.hex, fraction: 0.18)
         else {
             return nil
         }
-        surface = Color(spaceHex: surfaceHex)
+        surface = Color(spaceHex: resolved.hex)
         border = Color(spaceHex: borderHex)
         controlFill = Color(spaceHex: controlHex)
+        usesDarkForeground = resolved.usesDarkForeground
     }
 }
 
