@@ -243,10 +243,15 @@ extension WebViewCoordinator {
     }
 
     /// Arms the settle-in re-samples for a fresh page cycle (see the retry
-    /// note in `refreshPageThemeColor`).
+    /// note in `refreshPageThemeColor`). Six retries at 1.2s cover ~8s of
+    /// settling: an SPA's boot paint fires no transition and no click, so
+    /// only these catch it, and a slow boot (LUMM restoring a big session)
+    /// outlived the old two-retry budget — the bar froze on the blank
+    /// shell's white. Bounded all the same: a page that never shows a color
+    /// costs seven tiny samples per navigation and then goes quiet.
     func armPageThemeColorRetries(for webView: WKWebView) {
         guard let tabID = tabID(for: webView) else { return }
-        pageThemeColorRetryBudgets[tabID] = 2
+        pageThemeColorRetryBudgets[tabID] = 6
     }
 
     /// A committed cross-origin page starts from the neutral chrome unless it
