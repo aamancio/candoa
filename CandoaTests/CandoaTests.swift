@@ -2362,11 +2362,32 @@ final class WebNotificationRoutingTests: XCTestCase {
         XCTAssertEqual(luminance(ofHex: border), luminance(ofHex: base) * 0.65, accuracy: 0.01)
     }
 
+    func testVeiledHexDimsLikeCSSCompositing() {
+        // A 50% black scrim over the LUMM header must land on the same
+        // value the page shows through it — plain gamma-space compositing.
+        XCTAssertEqual(
+            PageChromeTint.veiledHex(base: "#2F6E90", scrimRed: 0, scrimGreen: 0, scrimBlue: 0, scrimAlpha: 0.5),
+            "#183748"
+        )
+        // Alpha 0 leaves the base untouched; out-of-range scrims are refused.
+        XCTAssertEqual(
+            PageChromeTint.veiledHex(base: "#17697A", scrimRed: 255, scrimGreen: 255, scrimBlue: 255, scrimAlpha: 0),
+            "#17697A"
+        )
+        XCTAssertNil(PageChromeTint.veiledHex(base: "#17697A", scrimRed: 300, scrimGreen: 0, scrimBlue: 0, scrimAlpha: 0.5))
+        XCTAssertNil(PageChromeTint.veiledHex(base: "not-a-color", scrimRed: 0, scrimGreen: 0, scrimBlue: 0, scrimAlpha: 0.5))
+    }
+
     func testSampledRGBStringsParseAndReject() {
         XCTAssertEqual(PageChromeTint.hex(fromRGBString: "23,105,122"), "#17697A")
         XCTAssertEqual(PageChromeTint.hex(fromRGBString: "23, 105, 122"), "#17697A")
         XCTAssertNil(PageChromeTint.hex(fromRGBString: "300,0,0"), "out-of-range channel")
         XCTAssertNil(PageChromeTint.hex(fromRGBString: "23,105"), "missing channel")
         XCTAssertNil(PageChromeTint.hex(fromRGBString: ""))
+        // A veil verdict must never collapse into a color: dropping the
+        // unparseable component once left "veil:0,0,0,0.50" reading as
+        // #000001 and the bar went black under LUMM's drawer.
+        XCTAssertNil(PageChromeTint.hex(fromRGBString: "veil:0,0,0,0.50"))
+        XCTAssertNil(PageChromeTint.hex(fromRGBString: "x,0,0"), "unparseable channel")
     }
 }
