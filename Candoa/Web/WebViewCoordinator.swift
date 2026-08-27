@@ -107,6 +107,11 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
     var hibernatedInteractionStates: [UUID: Data] = [:]
     var wakeSnapshots: [UUID: NSImage] = [:]
     var restoringTabIDs = Set<UUID>()
+    /// Tabs where any frame reported a genuine user edit this page — the
+    /// hibernation guard's cover for editors its DOM walk can't read
+    /// (closed shadow roots, cross-origin frames). Cleared when the main
+    /// frame commits a new page.
+    var userEditedTabIDs = Set<UUID>()
     var restoreOverlays: [UUID: NSImageView] = [:]
     /// Off-screen preview warm-up (WebViewCoordinator+PreviewWarmup): tabs
     /// waiting for a throwaway load, the one load in flight, and every tab
@@ -295,6 +300,8 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         contentController.add(self, name: WebPageScripts.linkHoverMessageName)
         contentController.removeScriptMessageHandler(forName: WebPageScripts.webStoreInstallMessageName)
         contentController.add(self, name: WebPageScripts.webStoreInstallMessageName)
+        contentController.removeScriptMessageHandler(forName: WebPageScripts.unsavedInputMessageName)
+        contentController.add(self, name: WebPageScripts.unsavedInputMessageName)
         addUserScriptOnce(
             WebPageScripts.mediaObserverScript,
             to: contentController,
@@ -304,6 +311,12 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
             WebPageScripts.linkHoverObserverScript,
             to: contentController,
             // Every frame: links inside embeds deserve a preview too.
+            forMainFrameOnly: false
+        )
+        addUserScriptOnce(
+            WebPageScripts.unsavedInputObserverScript,
+            to: contentController,
+            // Every frame: a draft in an embedded composer is still a draft.
             forMainFrameOnly: false
         )
         addUserScriptOnce(
@@ -587,6 +600,10 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         webView.configuration.userContentController.removeScriptMessageHandler(
             forName: WebPageScripts.webStoreInstallMessageName
         )
+        webView.configuration.userContentController.removeScriptMessageHandler(
+            forName: WebPageScripts.unsavedInputMessageName
+        )
+        userEditedTabIDs.remove(tabID)
         webView.loadHTMLString("", baseURL: nil)
         webView.removeFromSuperview()
         tabIDsByWebView.removeObject(forKey: webView)

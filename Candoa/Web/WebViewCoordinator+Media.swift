@@ -50,6 +50,9 @@ extension WebViewCoordinator {
                 in: webView
             )
 
+        case WebPageScripts.unsavedInputMessageName:
+            userEditedTabIDs.insert(tabID)
+
         case WebPageScripts.popupDiagnosticsMessageName:
             guard let body = message.body as? [String: Any] else { return }
             let phase = body["phase"] as? String ?? "?"
