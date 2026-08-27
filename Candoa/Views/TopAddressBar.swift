@@ -57,7 +57,6 @@ struct TopAddressBar: View {
     let chromeTint: TopBarChromeTint?
     let onToggleSidebar: () -> Void
 
-    @State private var isHovering = false
     @State private var isAddressHovered = false
     @State private var sharePicker = SharePickerCoordinator()
     /// The window's own scheme — read above the re-schemed subtree, so the
@@ -127,7 +126,6 @@ struct TopAddressBar: View {
         // window still shows dark text on a light page's white bar (Dia
         // flips its toolbar text per site the same way).
         .environment(\.colorScheme, chromeTint?.foregroundScheme ?? windowScheme)
-        .onHover { isHovering = $0 }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("top-address-bar")
     }
@@ -200,40 +198,22 @@ struct TopAddressBar: View {
         .help("Share")
         .accessibilityLabel("Share")
         .accessibilityIdentifier("top-share-url-button")
-        // Not 0: fully transparent views stop hit-testing, and the button
-        // must keep its click footprint while visually absent.
-        .opacity(isHovering ? 1 : 0.02)
-        .animation(.easeOut(duration: 0.10), value: isHovering)
     }
 
-    /// Dia's trailing "Chat" pill: the one control on the strip that carries
-    /// its name, because it opens a panel rather than acting on the page.
+    /// A plain icon like the strip's other controls (and the developer
+    /// bar's), not a labeled pill — the strip stays a row of quiet glyphs.
     private var chatButton: some View {
         Button {
             store.requestAISidebarToggle()
         } label: {
-            HStack(spacing: 5) {
-                Image(systemName: "bubble.left")
-                    .font(.system(size: 11.5, weight: .semibold))
-                    // The bubble's thin tail leaves its mass high, so a
-                    // box-centered glyph reads lifted beside the label.
-                    .offset(y: 0.5)
-                Text("Chat")
-                    .font(.system(size: 12, weight: .medium))
-            }
-            .foregroundStyle(InterfaceStyle.sidebarText.opacity(0.82))
-            .padding(.horizontal, 9)
-            .frame(height: 26)
-            // On a tinted strip the pill is a darker shade of the worn
-            // color, like Dia's Chat pill, not a neutral grey island.
-            .background(
-                chromeTint?.controlFill ?? InterfaceStyle.sidebarControlFill,
-                in: RoundedRectangle(cornerRadius: 8, style: .continuous)
-            )
-            .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            Image(systemName: "bubble.left")
+                // The bubble's thin tail leaves its mass high, so a
+                // box-centered glyph reads lifted otherwise.
+                .offset(y: 0.5)
         }
-        .buttonTreatment(.content)
+        .toolbarIconButton()
         .shortcutTooltip("Chat", shortcut: .toggleAISidebar)
+        .accessibilityLabel("Chat")
         .accessibilityIdentifier("top-chat-button")
     }
 
