@@ -2,11 +2,13 @@ import Foundation
 
 /// The per-site behaviors Candoa actually implements today. Site Info only
 /// ever lists these — permissions the browser cannot enforce (location,
-/// notifications, autoplay) are deliberately absent rather than shown as
-/// inert controls.
+/// autoplay) are deliberately absent rather than shown as inert controls.
+/// Notifications qualify because Candoa provides the Notification API
+/// itself (`WebPageScripts.notificationShimScript` + `WebNotificationService`).
 enum SitePermission: String, CaseIterable, Codable, Identifiable {
     case camera
     case microphone
+    case notifications
     case popupWindows = "popup-windows"
 
     var id: String { rawValue }
@@ -15,7 +17,7 @@ enum SitePermission: String, CaseIterable, Codable, Identifiable {
     /// only be allowed or blocked — there is no moment to ask.
     var supportsAsking: Bool {
         switch self {
-        case .camera, .microphone:
+        case .camera, .microphone, .notifications:
             return true
         case .popupWindows:
             return false
@@ -24,7 +26,7 @@ enum SitePermission: String, CaseIterable, Codable, Identifiable {
 
     var defaultDecision: SitePermissionDecision {
         switch self {
-        case .camera, .microphone:
+        case .camera, .microphone, .notifications:
             return .ask
         case .popupWindows:
             // Matches Candoa's long-standing behavior: window.open works

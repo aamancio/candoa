@@ -450,6 +450,47 @@
         }
       }
     },
+    "%@ wants to send you notifications" : {
+      "comment" : "Permission prompt title: placeholder is a website name or 'This website'.",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ möchte Ihnen Mitteilungen senden"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ quiere enviarte notificaciones"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ souhaite vous envoyer des notifications"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@が通知の送信を求めています"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ deseja enviar notificações para você"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 想要向你发送通知"
+          }
+        }
+      }
+    },
     "%@ wants to use %@" : {
       "comment" : "Permission prompt: first placeholder is a website name or 'This website'; second is a device phrase like 'your camera'.",
       "localizations" : {
@@ -20330,6 +20371,88 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "什么都不保留。Candoa 不会记录哪些请求被拦截，也不会按网站计数，因此本报告绝不包含您的浏览历史，也没有任何报告数据需要清除。"
+          }
+        }
+      }
+    },
+    "Notifications" : {
+      "comment" : "Site Info permission row: whether this site may send notifications.",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mitteilungen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notificaciones"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notifications"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "通知"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notificações"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "通知"
+          }
+        }
+      }
+    },
+    "Notifications appear in Notification Center while the site is open in a tab. You can change this later in Site Info." : {
+      "comment" : "Permission prompt detail under '%@ wants to send you notifications'.",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mitteilungen erscheinen in der Mitteilungszentrale, solange die Website in einem Tab geöffnet ist. Sie können dies später in der Website-Info ändern."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Las notificaciones aparecen en el centro de notificaciones mientras el sitio esté abierto en una pestaña. Puedes cambiarlo más tarde en Información del sitio."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les notifications apparaissent dans le Centre de notifications tant que le site est ouvert dans un onglet. Vous pourrez modifier ce choix plus tard dans Informations sur le site."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "通知は、サイトがタブで開いている間、通知センターに表示されます。この設定は後でサイト情報から変更できます。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "As notificações aparecem na Central de Notificações enquanto o site estiver aberto em uma aba. Você pode mudar isso depois em Informações do Site."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "网站在标签页中打开时，通知会显示在通知中心。你可以稍后在网站信息中更改此设置。"
           }
         }
       }

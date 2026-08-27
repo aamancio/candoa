@@ -310,6 +310,8 @@ struct SiteInfoPopoverView: View {
             return "Camera"
         case .microphone:
             return "Microphone"
+        case .notifications:
+            return "Notifications"
         case .popupWindows:
             return "Pop-up Windows"
         }
@@ -321,6 +323,8 @@ struct SiteInfoPopoverView: View {
             return "video"
         case .microphone:
             return "mic"
+        case .notifications:
+            return "bell.badge"
         case .popupWindows:
             return "macwindow.on.rectangle"
         }

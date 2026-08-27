@@ -48,6 +48,9 @@ internal final class AppDelegate: NSObject, NSApplicationDelegate {
         MenuAlternateInstaller.install()
         DevelopMenuStyler.install()
         webAuthenticationHostService.activate()
+        // Claimed at launch so a web notification clicked after a relaunch
+        // still routes, instead of racing the first window's registration.
+        WebNotificationService.shared.activate()
         requestDefaultBrowserRoleIfWanted()
     }
 

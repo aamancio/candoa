@@ -2089,3 +2089,211 @@ final class UnsavedInputGuardTests: XCTestCase {
         XCTAssertFalse(dirty)
     }
 }
+
+// MARK: - Web notification shim (issue #170)
+
+/// Runs `WebPageScripts.notificationShimScript` in a real WKWebView and
+/// asserts both directions of the bridge: what the page sees
+/// (`window.Notification`, permission state, events) and what the native
+/// side would receive (the posted messages). The native prompt itself and
+/// Notification Center delivery are exercised by hand — they need system
+/// UI — but everything scriptable is pinned here.
+@MainActor
+final class WebNotificationShimTests: XCTestCase {
+    private final class MessageRecorder: NSObject, WKScriptMessageHandler {
+        var bodies: [[String: Any]] = []
+        func userContentController(
+            _ userContentController: WKUserContentController,
+            didReceive message: WKScriptMessage
+        ) {
+            if let body = message.body as? [String: Any] {
+                bodies.append(body)
+            }
+        }
+        func actions() -> [String] { bodies.compactMap { $0["action"] as? String } }
+    }
+
+    private func makeLoadedWebView(
+        recorder: MessageRecorder,
+        bodyHTML: String = "<p>page</p>",
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) async throws -> WKWebView {
+        let configuration = WKWebViewConfiguration()
+        configuration.userContentController.add(
+            recorder, name: WebPageScripts.webNotificationMessageName
+        )
+        configuration.userContentController.addUserScript(
+            WKUserScript(
+                source: WebPageScripts.notificationShimScript,
+                injectionTime: .atDocumentStart,
+                forMainFrameOnly: true
+            )
+        )
+        let webView = WKWebView(
+            frame: CGRect(x: 0, y: 0, width: 320, height: 240),
+            configuration: configuration
+        )
+        webView.loadHTMLString(
+            "<!doctype html><html><body data-candoa-fixture='1'>\(bodyHTML)</body></html>",
+            baseURL: nil
+        )
+        let loaded = try await poll(webView, until: "document.body?.dataset?.candoaFixture === '1'")
+        XCTAssertTrue(loaded, "fixture page must finish loading", file: file, line: line)
+        return webView
+    }
+
+    /// Evaluates `expression` until it is true. Expressions must be
+    /// side-effect free; the return value reports the final state.
+    private func poll(_ webView: WKWebView, until expression: String) async throws -> Bool {
+        for _ in 0..<400 {
+            if (try? await webView.evaluateJavaScript("(\(expression)) === true")) as? Bool == true {
+                return true
+            }
+            try await Task.sleep(nanoseconds: 25_000_000)
+        }
+        return false
+    }
+
+    func testShimDefinesNotificationAndQueriesState() async throws {
+        let recorder = MessageRecorder()
+        let webView = try await makeLoadedWebView(recorder: recorder)
+
+        let kind = try await webView.evaluateJavaScript("typeof Notification") as? String
+        XCTAssertEqual(kind, "function")
+        let permission = try await webView.evaluateJavaScript("Notification.permission") as? String
+        XCTAssertEqual(permission, "default")
+        XCTAssertEqual(recorder.actions(), ["query"], "the shim asks for its origin's stored state")
+    }
+
+    func testGrantedNotificationPostsShowWithItsContent() async throws {
+        let recorder = MessageRecorder()
+        let webView = try await makeLoadedWebView(recorder: recorder)
+
+        _ = try await webView.evaluateJavaScript(
+            "window.__candoaNotificationPermissionUpdate('granted'); Notification.permission"
+        )
+        _ = try await webView.evaluateJavaScript(
+            "window.__n = new Notification('Hello', { body: 'World', tag: 'thread-1' }); true"
+        )
+
+        guard let show = recorder.bodies.first(where: { $0["action"] as? String == "show" }) else {
+            return XCTFail("granted notification must post a show message")
+        }
+        XCTAssertEqual(show["title"] as? String, "Hello")
+        XCTAssertEqual(show["body"] as? String, "World")
+        XCTAssertEqual(show["tag"] as? String, "thread-1")
+        let id = show["id"] as? String ?? ""
+        XCTAssertNotNil(WebViewCoordinator.pageNotificationID(from: id), "ids are digit strings")
+    }
+
+    func testDeniedNotificationFiresErrorAndPostsNothing() async throws {
+        let recorder = MessageRecorder()
+        let webView = try await makeLoadedWebView(recorder: recorder)
+
+        _ = try await webView.evaluateJavaScript(
+            "window.__candoaNotificationPermissionUpdate('denied'); true"
+        )
+        _ = try await webView.evaluateJavaScript(
+            "window.__sawError = false; const n = new Notification('x'); n.onerror = () => { window.__sawError = true; }; true"
+        )
+        let sawError = try await poll(webView, until: "window.__sawError")
+        XCTAssertTrue(sawError, "a denied notification reports itself failed")
+        XCTAssertEqual(recorder.actions(), ["query"], "nothing is posted for a denied notification")
+    }
+
+    func testRequestPermissionWithoutGestureReportsCurrentState() async throws {
+        // evaluateJavaScript runs with implicit user activation, so the
+        // no-gesture path only shows itself to the page's own load-time
+        // script — exactly where notification prompt spam comes from.
+        let recorder = MessageRecorder()
+        let webView = try await makeLoadedWebView(
+            recorder: recorder,
+            bodyHTML: "<script>window.__resolved = null; Notification.requestPermission().then(v => { window.__resolved = v; });</script>"
+        )
+        let resolved = try await poll(webView, until: "window.__resolved === 'default'")
+        XCTAssertTrue(resolved, "no user gesture: the request settles to the current state")
+        XCTAssertFalse(
+            recorder.actions().contains("requestPermission"),
+            "no prompt reaches the native side without a gesture"
+        )
+    }
+
+    func testPermissionsQueryReportsTheShimState() async throws {
+        let recorder = MessageRecorder()
+        let webView = try await makeLoadedWebView(recorder: recorder)
+
+        _ = try await webView.evaluateJavaScript(
+            "navigator.permissions.query({ name: 'notifications' }).then(s => { window.__state = s.state; }); true"
+        )
+        let prompted = try await poll(webView, until: "window.__state === 'prompt'")
+        XCTAssertTrue(prompted)
+
+        _ = try await webView.evaluateJavaScript(
+            "window.__candoaNotificationPermissionUpdate('granted'); navigator.permissions.query({ name: 'notifications' }).then(s => { window.__state = s.state; }); true"
+        )
+        let granted = try await poll(webView, until: "window.__state === 'granted'")
+        XCTAssertTrue(granted)
+    }
+
+    func testCloseRetractsByTheSameID() async throws {
+        let recorder = MessageRecorder()
+        let webView = try await makeLoadedWebView(recorder: recorder)
+
+        _ = try await webView.evaluateJavaScript(
+            "window.__candoaNotificationPermissionUpdate('granted'); window.__n = new Notification('Hi'); window.__n.close(); true"
+        )
+        let show = recorder.bodies.first { $0["action"] as? String == "show" }
+        let close = recorder.bodies.first { $0["action"] as? String == "close" }
+        XCTAssertNotNil(show)
+        XCTAssertNotNil(close)
+        XCTAssertEqual(show?["id"] as? String, close?["id"] as? String)
+    }
+
+    func testClickCallbackDispatchesTheClickEvent() async throws {
+        let recorder = MessageRecorder()
+        let webView = try await makeLoadedWebView(recorder: recorder)
+
+        _ = try await webView.evaluateJavaScript(
+            "window.__candoaNotificationPermissionUpdate('granted'); window.__clicked = false; window.__n = new Notification('Hi'); window.__n.onclick = () => { window.__clicked = true; }; true"
+        )
+        guard
+            let show = recorder.bodies.first(where: { $0["action"] as? String == "show" }),
+            let id = show["id"] as? String
+        else {
+            return XCTFail("show message must carry the id the click routes back on")
+        }
+        _ = try await webView.evaluateJavaScript(
+            "window.__candoaNotificationActivated('\(id)'); true"
+        )
+        let clicked = try await poll(webView, until: "window.__clicked")
+        XCTAssertTrue(clicked)
+    }
+}
+
+/// Native-side helpers around the shim: id validation (anything but the
+/// shim's digit ids must be dropped before it reaches evaluateJavaScript)
+/// and reopening a site from a stored origin key.
+final class WebNotificationRoutingTests: XCTestCase {
+    func testPageNotificationIDsAreDigitStringsOnly() {
+        XCTAssertEqual(WebViewCoordinator.pageNotificationID(from: "42"), "42")
+        XCTAssertNil(WebViewCoordinator.pageNotificationID(from: ""))
+        XCTAssertNil(WebViewCoordinator.pageNotificationID(from: "1'); alert('x"))
+        XCTAssertNil(WebViewCoordinator.pageNotificationID(from: "1234567890123"), "length capped")
+        XCTAssertNil(WebViewCoordinator.pageNotificationID(from: 42), "numbers must arrive as strings")
+        XCTAssertNil(WebViewCoordinator.pageNotificationID(from: nil))
+    }
+
+    func testOriginKeysReopenWithoutDefaultPorts() {
+        XCTAssertEqual(
+            WebNotificationService.originURL(fromOriginKey: "https://mail.example.com:443")?.absoluteString,
+            "https://mail.example.com/"
+        )
+        XCTAssertEqual(
+            WebNotificationService.originURL(fromOriginKey: "http://localhost:8080")?.absoluteString,
+            "http://localhost:8080/"
+        )
+        XCTAssertNil(WebNotificationService.originURL(fromOriginKey: "file://local:0"))
+        XCTAssertNil(WebNotificationService.originURL(fromOriginKey: "not a url"))
+    }
+}

@@ -29,6 +29,9 @@ extension WebViewCoordinator {
             // The old page's frames are gone, and any draft they held with
             // them; the hibernation pin does not outlive the document.
             userEditedTabIDs.remove(tabID)
+            // The committed page's notification shim starts at "default";
+            // this corrects it to the origin's stored decision.
+            pushNotificationPermissionState(to: webView)
             // A committed page ends the download-conversion quarantine.
             downloadConvertedTabIDs.remove(tabID)
             // …and the failed-destination one: this tab is loading again.
