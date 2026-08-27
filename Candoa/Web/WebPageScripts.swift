@@ -16,10 +16,14 @@ enum WebPageScripts {
     /// settle timer exists only after an event and coalesces bursts; a
     /// recompute is ~5 `elementFromPoint` walks; a message crosses processes
     /// only when the verdict actually changed. Transition and animation ends
-    /// are filtered to elements touching the top band. Translucent layers
-    /// (a drawer's scrim, an rgba header) are composited over the first
-    /// opaque background so overlays read as the color they show, not the
-    /// color they cover.
+    /// are filtered to elements touching the top band. A small translucent
+    /// layer (an rgba header) is composited over its own opaque ancestor so
+    /// it reads as the color it shows — but a near-viewport translucent
+    /// layer is a modal scrim: the color underneath it is a sibling the DOM
+    /// walk cannot reach, so compositing would produce a muddy scrim-over-
+    /// body color no one painted (LUMM's drawer turned the bar grey).
+    /// Scrimmed probes are inconclusive instead, and an inconclusive
+    /// verdict makes the app HOLD the color it already wears.
     static let pageColorObserverScript = """
     (() => {
       if (window.__candoaPageColorInstalled) { return; }
@@ -44,7 +48,15 @@ enum WebPageScripts {
         while (element && element !== document.documentElement) {
           const color = parse(getComputedStyle(element).backgroundColor);
           if (color && color.a >= 0.98) { base = color; break; }
-          if (color && color.a > 0.02) { overlays.push(color); }
+          if (color && color.a > 0.02) {
+            const rect = element.getBoundingClientRect();
+            if (rect.width >= innerWidth * 0.85 && rect.height >= innerHeight * 0.85) {
+              // A modal scrim veils the top edge; what it covers is a
+              // sibling this walk cannot reach. Inconclusive, not a color.
+              return null;
+            }
+            overlays.push(color);
+          }
           element = element.parentElement;
         }
         if (!base) {
@@ -65,6 +77,7 @@ enum WebPageScripts {
         for (const fraction of [0.08, 0.3, 0.5, 0.7, 0.92]) {
           const x = Math.max(1, Math.min(width - 2, Math.round(width * fraction)));
           const color = colorAt(x);
+          if (!color) { continue; }
           const key = Math.round(color.r) + "," + Math.round(color.g) + "," + Math.round(color.b);
           votes.set(key, (votes.get(key) || 0) + 1);
         }
