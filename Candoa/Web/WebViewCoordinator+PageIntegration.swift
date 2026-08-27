@@ -156,88 +156,63 @@ extension WebViewCoordinator {
 
     // MARK: - Page Theme Color
 
-    /// Resolves the color the page claims for itself, for the window chrome
-    /// to wear (Settings ▸ General). The painted top edge is the truth the
-    /// bar must blend into, so the sampled color always wins; the declared
-    /// `<meta name="theme-color">` is only a fallback while no sample has
-    /// landed. Declarations routinely lie about the pixels — YouTube
-    /// declares #212121 while painting #0F0F0F, and plenty of apps declare
-    /// #ffffff boilerplate under a saturated header — and Dia wears the
-    /// pixels in both cases.
+    /// Asks the page's resident color observer (`pageColorObserverScript`)
+    /// to report the color it paints along its top edge. The observer also
+    /// reports on its own whenever the page repaints that edge — a drawer
+    /// sliding open, a site switching its own theme — so the bar follows
+    /// in-page changes no navigation beat would catch. Verdicts land in
+    /// `handleSampledPageColorVerdict`.
     func refreshPageThemeColor(for webView: WKWebView) {
-        guard let tabID = tabID(for: webView) else { return }
-        pageThemeColorRefreshWork.removeValue(forKey: tabID)?.cancel()
-        let host = webView.url?.host
-
-        let script = """
-        (() => {
-          const parse = (value) => {
-            const match = /^rgba?\\(([\\d.]+),\\s*([\\d.]+),\\s*([\\d.]+)(?:,\\s*([\\d.]+))?\\)/.exec(value || "");
-            if (!match) { return null; }
-            const alpha = match[4] === undefined ? 1 : parseFloat(match[4]);
-            return { r: Math.round(+match[1]), g: Math.round(+match[2]), b: Math.round(+match[3]), a: alpha };
-          };
-          const colorAt = (x) => {
-            let element = document.elementFromPoint(x, 2);
-            while (element && element !== document.documentElement) {
-              const color = parse(getComputedStyle(element).backgroundColor);
-              if (color && color.a >= 0.9) { return color; }
-              element = element.parentElement;
-            }
-            for (const candidate of [document.body, document.documentElement]) {
-              if (!candidate) { continue; }
-              const color = parse(getComputedStyle(candidate).backgroundColor);
-              if (color && color.a >= 0.9) { return color; }
-            }
-            return { r: 255, g: 255, b: 255, a: 1 };
-          };
-          const width = window.innerWidth;
-          if (!width || !document.documentElement) { return ""; }
-          const votes = new Map();
-          for (const fraction of [0.08, 0.3, 0.5, 0.7, 0.92]) {
-            const x = Math.max(1, Math.min(width - 2, Math.round(width * fraction)));
-            const color = colorAt(x);
-            const key = color.r + "," + color.g + "," + color.b;
-            votes.set(key, (votes.get(key) || 0) + 1);
-          }
-          let best = "";
-          let bestCount = 0;
-          votes.forEach((count, key) => {
-            if (count > bestCount) { best = key; bestCount = count; }
-          });
-          return bestCount >= 3 ? best : "";
-        })();
-        """
-
-        webView.evaluateJavaScript(script, in: nil, in: .defaultClient) { [weak self, weak webView] result in
+        guard tabID(for: webView) != nil else { return }
+        webView.evaluateJavaScript(
+            "window.__candoaPageColorReport ? (window.__candoaPageColorReport(), true) : false",
+            in: nil,
+            in: .page
+        ) { [weak self, weak webView] result in
             Task { @MainActor in
-                guard let self, let webView, self.tabID(for: webView) == tabID else { return }
-                let verdict = ((try? result.get()) as? String) ?? ""
-                let sampled = PageChromeTint.hex(fromRGBString: verdict)
-
-                // Every pixel verdict is worn as-is — a white page gets a
-                // white bar, which is the blend. Only an inconclusive
-                // sample (no majority landed) leans on the declared color,
-                // so a declaring page tints promptly while it boots. The
-                // settle-in re-sample keeps seeking the painted truth even
-                // after a verdict, because an SPA's first painted frame is
-                // often its blank shell (LUMM samples white until Angular
-                // boots its teal header well past didFinish). Strictly
-                // bounded — never a poll: requests coalesce, the budget is
-                // spent when a retry fires (a burst of completions can't
-                // burn it), and it only refills on the next navigation beat.
+                guard
+                    let self,
+                    let webView,
+                    let tabID = self.tabID(for: webView),
+                    ((try? result.get()) as? Bool) != true
+                else {
+                    return
+                }
+                // No observer in this document (an error page, a blank
+                // placeholder): the declared color is all there is.
                 self.publishPageThemeColor(
-                    hex: sampled ?? self.declaredChromeworthyHex(of: webView),
-                    host: webView.url?.host ?? host,
+                    hex: self.declaredChromeworthyHex(of: webView),
+                    host: webView.url?.host,
                     tabID: tabID
-                )
-                self.schedulePageThemeColorRefresh(
-                    for: webView,
-                    delay: 1.2,
-                    consumesRetryBudget: true
                 )
             }
         }
+    }
+
+    /// The painted top edge is the truth the bar must blend into, so the
+    /// sampled color always wins; the declared `<meta name="theme-color">`
+    /// is only a fallback while no sample has landed. Declarations
+    /// routinely lie about the pixels — YouTube declares #212121 while
+    /// painting #0F0F0F, and plenty of apps declare #ffffff boilerplate
+    /// under a saturated header — and Dia wears the pixels in both cases.
+    /// A settle-in re-sample keeps seeking the painted truth after a
+    /// navigation beat, because an SPA's first painted frame is often its
+    /// blank shell (LUMM samples white until Angular boots its teal header
+    /// well past didFinish). Strictly bounded — never a poll: requests
+    /// coalesce, the budget is spent when a retry fires (a burst of
+    /// verdicts can't burn it), and it only refills on the next beat.
+    func handleSampledPageColorVerdict(_ verdict: String, for webView: WKWebView, tabID: UUID) {
+        let sampled = PageChromeTint.hex(fromRGBString: verdict)
+        publishPageThemeColor(
+            hex: sampled ?? declaredChromeworthyHex(of: webView),
+            host: webView.url?.host,
+            tabID: tabID
+        )
+        schedulePageThemeColorRefresh(
+            for: webView,
+            delay: 1.2,
+            consumesRetryBudget: true
+        )
     }
 
     /// One coalesced refresh per burst of same-document URL changes, so an
