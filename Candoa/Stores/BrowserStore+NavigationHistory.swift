@@ -304,6 +304,29 @@ extension BrowserStore {
         }
     }
 
+    /// Records the color a tab's page claims for itself, or clears it when a
+    /// page stops claiming one. Also drops entries for closed tabs, so the
+    /// transient dictionary never outgrows the workspace.
+    func updatePageThemeColor(tabID: UUID, color: PageThemeColor?) {
+        var updated = pageThemeColorsByTab.filter { entry in
+            tabs.contains { $0.id == entry.key }
+        }
+        if let color, tabs.contains(where: { $0.id == tabID }) {
+            updated[tabID] = color
+        } else {
+            updated.removeValue(forKey: tabID)
+        }
+        guard updated != pageThemeColorsByTab else { return }
+        pageThemeColorsByTab = updated
+    }
+
+    /// The active tab's page color — what the window chrome wears when the
+    /// person has website colors enabled.
+    var activePageThemeColorHex: String? {
+        guard let activeTabID else { return nil }
+        return pageThemeColorsByTab[activeTabID]?.hex
+    }
+
     func recordHistoryVisit(tabID: UUID, title: String?, url: URL?) {
         guard
             let index = tabs.firstIndex(where: { $0.id == tabID }),

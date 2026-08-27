@@ -57,6 +57,17 @@ extension WebViewCoordinator {
                 Task { @MainActor in
                     guard let webView else { return }
                     self?.updateStore(from: webView, isLoading: webView.isLoading)
+                    // Same-document navigations (SPA route changes) never
+                    // reach didFinish, but can repaint the page's header.
+                    self?.schedulePageThemeColorRefresh(for: webView)
+                }
+            },
+            // The page's declared color arrives whenever WebKit parses or the
+            // page rewrites `<meta name="theme-color">`.
+            webView.observe(\.themeColor, options: [.new]) { [weak self, weak webView] _, _ in
+                Task { @MainActor in
+                    guard let webView else { return }
+                    self?.refreshPageThemeColor(for: webView)
                 }
             },
             webView.observe(\.isLoading, options: [.new]) { [weak self, weak webView] _, _ in
@@ -139,6 +150,119 @@ extension WebViewCoordinator {
                 store.updateFavicon(tabID: tabID, data: data)
             }
         }
+    }
+
+    // MARK: - Page Theme Color
+
+    /// Resolves the color the page claims for itself, for the window chrome
+    /// to wear (Settings ▸ General). A page can declare it — WebKit surfaces
+    /// `<meta name="theme-color">` as `themeColor` — or simply paint its own
+    /// header, which the sampling script reads off the page's top edge the
+    /// way Dia does. The declared color always wins over a sample.
+    func refreshPageThemeColor(for webView: WKWebView) {
+        guard let tabID = tabID(for: webView) else { return }
+        pageThemeColorRefreshWork.removeValue(forKey: tabID)?.cancel()
+        let host = webView.url?.host
+
+        if let declared = webView.themeColor, let hex = PageChromeTint.hex(from: declared) {
+            publishPageThemeColor(hex: hex, host: host, tabID: tabID)
+            return
+        }
+
+        let script = """
+        (() => {
+          const parse = (value) => {
+            const match = /^rgba?\\(([\\d.]+),\\s*([\\d.]+),\\s*([\\d.]+)(?:,\\s*([\\d.]+))?\\)/.exec(value || "");
+            if (!match) { return null; }
+            const alpha = match[4] === undefined ? 1 : parseFloat(match[4]);
+            return { r: Math.round(+match[1]), g: Math.round(+match[2]), b: Math.round(+match[3]), a: alpha };
+          };
+          const colorAt = (x) => {
+            let element = document.elementFromPoint(x, 2);
+            while (element && element !== document.documentElement) {
+              const color = parse(getComputedStyle(element).backgroundColor);
+              if (color && color.a >= 0.9) { return color; }
+              element = element.parentElement;
+            }
+            for (const candidate of [document.body, document.documentElement]) {
+              if (!candidate) { continue; }
+              const color = parse(getComputedStyle(candidate).backgroundColor);
+              if (color && color.a >= 0.9) { return color; }
+            }
+            return { r: 255, g: 255, b: 255, a: 1 };
+          };
+          const width = window.innerWidth;
+          if (!width || !document.documentElement) { return ""; }
+          const votes = new Map();
+          for (const fraction of [0.08, 0.3, 0.5, 0.7, 0.92]) {
+            const x = Math.max(1, Math.min(width - 2, Math.round(width * fraction)));
+            const color = colorAt(x);
+            const key = color.r + "," + color.g + "," + color.b;
+            votes.set(key, (votes.get(key) || 0) + 1);
+          }
+          let best = "";
+          let bestCount = 0;
+          votes.forEach((count, key) => {
+            if (count > bestCount) { best = key; bestCount = count; }
+          });
+          return bestCount >= 3 ? best : "";
+        })();
+        """
+
+        webView.evaluateJavaScript(script, in: nil, in: .defaultClient) { [weak self, weak webView] result in
+            Task { @MainActor in
+                guard let self, let webView, self.tabID(for: webView) == tabID else { return }
+                // A declared color that arrived while the sample ran wins,
+                // and its own KVO beat has already published it.
+                guard webView.themeColor == nil else { return }
+                let verdict = ((try? result.get()) as? String) ?? ""
+                self.publishPageThemeColor(
+                    hex: PageChromeTint.hex(fromRGBString: verdict),
+                    host: webView.url?.host ?? host,
+                    tabID: tabID
+                )
+            }
+        }
+    }
+
+    /// One coalesced refresh per burst of same-document URL changes, so an
+    /// SPA rewriting its route never streams sampling scripts into the page.
+    func schedulePageThemeColorRefresh(for webView: WKWebView) {
+        guard let tabID = tabID(for: webView) else { return }
+        pageThemeColorRefreshWork[tabID]?.cancel()
+        let work = DispatchWorkItem { [weak self, weak webView] in
+            MainActor.assumeIsolated {
+                guard let self, let webView else { return }
+                self.pageThemeColorRefreshWork[tabID] = nil
+                self.refreshPageThemeColor(for: webView)
+            }
+        }
+        pageThemeColorRefreshWork[tabID] = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.45, execute: work)
+    }
+
+    /// A committed cross-origin page starts from the neutral chrome unless it
+    /// declares its own color; holding the previous site's color over a slow
+    /// unrelated load would dress the new site in the old one's identity.
+    /// Same-site commits hold steady until the new page's verdict lands.
+    func clearCrossOriginPageThemeColor(for webView: WKWebView) {
+        guard
+            let tabID = tabID(for: webView),
+            webView.themeColor == nil,
+            let stored = store?.pageThemeColorsByTab[tabID],
+            stored.host != webView.url?.host
+        else {
+            return
+        }
+        store?.updatePageThemeColor(tabID: tabID, color: nil)
+    }
+
+    private func publishPageThemeColor(hex: String?, host: String?, tabID: UUID) {
+        guard let hex, PageChromeTint.isChromeworthy(hex: hex) else {
+            store?.updatePageThemeColor(tabID: tabID, color: nil)
+            return
+        }
+        store?.updatePageThemeColor(tabID: tabID, color: PageThemeColor(hex: hex, host: host))
     }
 
     func forwardWebAppPromptIfNeeded(for webView: WKWebView) {

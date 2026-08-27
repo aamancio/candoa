@@ -121,6 +121,86 @@
         }
       }
     },
+    "Show website colors" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Website-Farben anzeigen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostrar los colores del sitio web"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Afficher les couleurs du site web"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ウェブサイトの色を表示"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostrar cores do site"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示网站颜色"
+          }
+        }
+      }
+    },
+    "Blend the toolbar and sidebar into the color of the site you're on." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Symbolleiste und Seitenleiste an die Farbe der aktuellen Website anpassen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fusiona la barra de herramientas y la barra lateral con el color del sitio que estás visitando."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fond la barre d’outils et la barre latérale dans la couleur du site que vous consultez."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ツールバーとサイドバーを表示中のサイトの色になじませます。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mescla a barra de ferramentas e a barra lateral com a cor do site em que você está."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "将工具栏和边栏融入当前网站的颜色。"
+          }
+        }
+      }
+    },
     "— %@" : {
       "comment" : "Command palette row: em dash before a detail or source label.",
       "localizations" : {

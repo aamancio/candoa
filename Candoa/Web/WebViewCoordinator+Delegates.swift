@@ -37,6 +37,7 @@ extension WebViewCoordinator {
             // …and the failed-destination one: this tab is loading again.
             failedProvisionalURLs[tabID] = nil
         }
+        clearCrossOriginPageThemeColor(for: webView)
         updateStore(from: webView, isLoading: webView.isLoading)
     }
 
@@ -48,6 +49,7 @@ extension WebViewCoordinator {
         recordHistoryVisit(for: webView)
         checkForEmptySignInRedirect(in: webView)
         refreshFavicon(for: webView)
+        refreshPageThemeColor(for: webView)
         forwardWebAppPromptIfNeeded(for: webView)
         reportWebsiteAppearanceForUITesting(from: webView)
         dockWebInspectorForUITestingIfNeeded(from: webView)

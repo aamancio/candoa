@@ -2296,4 +2296,63 @@ final class WebNotificationRoutingTests: XCTestCase {
         XCTAssertNil(WebNotificationService.originURL(fromOriginKey: "file://local:0"))
         XCTAssertNil(WebNotificationService.originURL(fromOriginKey: "not a url"))
     }
+
+    // MARK: - Page chrome tint (pure hex math)
+
+    /// WCAG relative luminance, re-derived here so the tests measure the
+    /// production math against the spec instead of against itself.
+    private func luminance(ofHex hex: String) -> Double {
+        let cleaned = hex.trimmingCharacters(in: CharacterSet(charactersIn: "#"))
+        let value = Int(cleaned, radix: 16)!
+        func linear(_ byte: Int) -> Double {
+            let c = Double(byte) / 255
+            return c <= 0.04045 ? c / 12.92 : pow((c + 0.055) / 1.055, 2.4)
+        }
+        return 0.2126 * linear((value >> 16) & 0xFF)
+            + 0.7152 * linear((value >> 8) & 0xFF)
+            + 0.0722 * linear(value & 0xFF)
+    }
+
+    func testNearWhitePageColorsAreNotChromeworthy() {
+        XCTAssertFalse(PageChromeTint.isChromeworthy(hex: "#FFFFFF"))
+        XCTAssertFalse(PageChromeTint.isChromeworthy(hex: "#F5F5F5"))
+        XCTAssertTrue(PageChromeTint.isChromeworthy(hex: "#17697A"), "saturated teal")
+        XCTAssertTrue(PageChromeTint.isChromeworthy(hex: "#000000"), "dark headers count")
+        XCTAssertTrue(PageChromeTint.isChromeworthy(hex: "#F0E68C"), "light but saturated")
+        XCTAssertFalse(PageChromeTint.isChromeworthy(hex: "not-a-color"))
+    }
+
+    func testDarkPageColorPassesThroughUntouchedInDarkScheme() {
+        // A dark site header in a dark window must match the page exactly —
+        // that pixel identity is the whole Dia-style blend.
+        XCTAssertEqual(
+            PageChromeTint.chromeHex(for: "#17697A", prefersDarkForeground: false),
+            "#17697A"
+        )
+    }
+
+    func testDarkPageColorIsLightenedForDarkForegrounds() throws {
+        let corrected = try XCTUnwrap(
+            PageChromeTint.chromeHex(for: "#17697A", prefersDarkForeground: true)
+        )
+        XCTAssertNotEqual(corrected, "#17697A")
+        // 5.5:1 against black-ish labels means luminance ≥ 5.5·0.05 − 0.05.
+        XCTAssertGreaterThanOrEqual(luminance(ofHex: corrected), 0.225 - 0.005)
+    }
+
+    func testLightPageColorIsDarkenedForLightForegrounds() throws {
+        let corrected = try XCTUnwrap(
+            PageChromeTint.chromeHex(for: "#F0E68C", prefersDarkForeground: false)
+        )
+        // 5.5:1 against white labels means luminance ≤ 1.05/5.5 − 0.05.
+        XCTAssertLessThanOrEqual(luminance(ofHex: corrected), 1.05 / 5.5 - 0.05 + 0.005)
+    }
+
+    func testSampledRGBStringsParseAndReject() {
+        XCTAssertEqual(PageChromeTint.hex(fromRGBString: "23,105,122"), "#17697A")
+        XCTAssertEqual(PageChromeTint.hex(fromRGBString: "23, 105, 122"), "#17697A")
+        XCTAssertNil(PageChromeTint.hex(fromRGBString: "300,0,0"), "out-of-range channel")
+        XCTAssertNil(PageChromeTint.hex(fromRGBString: "23,105"), "missing channel")
+        XCTAssertNil(PageChromeTint.hex(fromRGBString: ""))
+    }
 }
