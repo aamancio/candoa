@@ -271,22 +271,21 @@ struct WebViewContainer: View {
 
     /// Mirrors `WindowBackdrop.pageTint`: while the window chrome wears the
     /// active page's color, the top bars trade their material for the same
-    /// resolved tint, so one color runs from the title band into the page's
-    /// own header. The same correction is applied here so bar and backdrop
-    /// can never disagree.
-    private var chromePageTint: Color? {
+    /// resolved tint (plus its derived border and hover shades), so one
+    /// color runs from the title band into the page's own header. The same
+    /// correction is applied here so bar and backdrop can never disagree.
+    private var chromePageTint: TopBarChromeTint? {
         guard
             showsWebsiteColors,
             !store.isPrivate,
-            let hex = store.activePageThemeColorHex,
-            let chromeHex = PageChromeTint.chromeHex(
-                for: hex,
-                prefersDarkForeground: colorScheme != .dark
-            )
+            let hex = store.activePageThemeColorHex
         else {
             return nil
         }
-        return Color(spaceHex: chromeHex)
+        return TopBarChromeTint(
+            pageHex: hex,
+            prefersDarkForeground: colorScheme != .dark
+        )
     }
 
     @ViewBuilder

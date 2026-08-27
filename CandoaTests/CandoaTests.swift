@@ -2348,6 +2348,17 @@ final class WebNotificationRoutingTests: XCTestCase {
         XCTAssertLessThanOrEqual(luminance(ofHex: corrected), 1.05 / 5.5 - 0.05 + 0.005)
     }
 
+    func testChromeShadesDarkenInLinearLight() throws {
+        // The bar's border and hover fills are darker shades of the worn
+        // color (Dia's treatment); a shade must actually lose luminance.
+        let base = "#17697A"
+        let border = try XCTUnwrap(PageChromeTint.shadedHex(for: base, fraction: 0.35))
+        let control = try XCTUnwrap(PageChromeTint.shadedHex(for: base, fraction: 0.18))
+        XCTAssertLessThan(luminance(ofHex: border), luminance(ofHex: control))
+        XCTAssertLessThan(luminance(ofHex: control), luminance(ofHex: base))
+        XCTAssertEqual(luminance(ofHex: border), luminance(ofHex: base) * 0.65, accuracy: 0.01)
+    }
+
     func testSampledRGBStringsParseAndReject() {
         XCTAssertEqual(PageChromeTint.hex(fromRGBString: "23,105,122"), "#17697A")
         XCTAssertEqual(PageChromeTint.hex(fromRGBString: "23, 105, 122"), "#17697A")
