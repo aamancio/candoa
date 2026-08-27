@@ -51,13 +51,14 @@ struct TopAddressBar: View {
     /// or to hide.
     let isSidebarVisible: Bool
     /// While the window chrome wears the page's own color, the strip trades
-    /// its material and separator for that same tint, so one color runs
-    /// unbroken from the title band into the page's header, the way Dia
-    /// blends. Nil restores the neutral material.
-    let chromeTint: Color?
+    /// its material for that tint and its neutral separator and hover fills
+    /// for the tint's darker shades, the way Dia derives its toolbar's
+    /// landmarks from the worn color. Nil restores the neutral treatments.
+    let chromeTint: TopBarChromeTint?
     let onToggleSidebar: () -> Void
 
     @State private var isHovering = false
+    @State private var isAddressHovered = false
     @State private var sharePicker = SharePickerCoordinator()
 
     /// Dia's proportions: tall enough that 24pt controls sit in the strip
@@ -107,15 +108,16 @@ struct TopAddressBar: View {
                 Rectangle()
                     .fill(.regularMaterial)
                     .opacity(chromeTint == nil ? 1 : 0)
-                chromeTint ?? .clear
+                chromeTint?.surface ?? Color.clear
             }
             .animation(.easeInOut(duration: 0.28), value: chromeTint)
         )
         .overlay(alignment: .bottom) {
+            // The strip keeps its bottom border while tinted — as a darker
+            // shade of the worn color, the way Dia edges its toolbar.
             Rectangle()
-                .fill(InterfaceStyle.sidebarSeparator)
+                .fill(chromeTint?.border ?? InterfaceStyle.sidebarSeparator)
                 .frame(height: 1)
-                .opacity(chromeTint == nil ? 1 : 0)
                 .animation(.easeInOut(duration: 0.28), value: chromeTint)
         }
         .onHover { isHovering = $0 }
@@ -125,6 +127,8 @@ struct TopAddressBar: View {
 
     /// The lock and the address read as one target, the way the sidebar pill
     /// pairs them: the lock opens Site Info, the text opens the command bar.
+    /// Hovering it fills the pair the way Dia's address field fills — with a
+    /// darker shade of the worn page color when the strip is tinted.
     private var addressButton: some View {
         HStack(spacing: 0) {
             if let url {
@@ -160,6 +164,16 @@ struct TopAddressBar: View {
             .accessibilityLabel("Address")
             .accessibilityIdentifier("top-address-button")
         }
+        .background(
+            RoundedRectangle(cornerRadius: 7, style: .continuous)
+                .fill(
+                    isAddressHovered
+                        ? (chromeTint?.controlFill ?? InterfaceStyle.sidebarControlFill)
+                        : Color.clear
+                )
+        )
+        .onHover { isAddressHovered = $0 }
+        .animation(.easeOut(duration: 0.12), value: isAddressHovered)
     }
 
     private var shareButton: some View {
@@ -203,8 +217,10 @@ struct TopAddressBar: View {
             .foregroundStyle(InterfaceStyle.sidebarText.opacity(0.82))
             .padding(.horizontal, 9)
             .frame(height: 26)
+            // On a tinted strip the pill is a darker shade of the worn
+            // color, like Dia's Chat pill, not a neutral grey island.
             .background(
-                InterfaceStyle.sidebarControlFill,
+                chromeTint?.controlFill ?? InterfaceStyle.sidebarControlFill,
                 in: RoundedRectangle(cornerRadius: 8, style: .continuous)
             )
             .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))

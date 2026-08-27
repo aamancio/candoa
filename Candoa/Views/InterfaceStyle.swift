@@ -279,6 +279,14 @@ enum PageChromeTint {
         return hexString(scrimmed(rgb, towardWhite: false, fraction: fraction))
     }
 
+    /// A darker shade of a chrome hex, blended toward black in linear light.
+    /// Dia derives its tinted toolbar's landmarks this way: the border under
+    /// the bar and the hover/control fills are shades of the worn color.
+    static func shadedHex(for hex: String, fraction: Double) -> String? {
+        guard let rgb = components(hex: hex) else { return nil }
+        return hexString(scrimmed(rgb, towardWhite: false, fraction: fraction))
+    }
+
     static func hex(from color: NSColor) -> String? {
         guard let rgb = color.usingColorSpace(.sRGB) else { return nil }
         return hexString(RGB(
@@ -343,6 +351,32 @@ enum PageChromeTint {
         component <= 0.0031308
             ? component * 12.92
             : 1.055 * pow(component, 1 / 2.4) - 0.055
+    }
+}
+
+/// The resolved page tint a top bar wears, with the shades Dia derives from
+/// its tinted toolbar: a darker border under the bar and a darker fill for
+/// hovered controls and the address field, so the bar keeps its landmarks
+/// after giving up its neutral material.
+struct TopBarChromeTint: Equatable {
+    let surface: Color
+    let border: Color
+    let controlFill: Color
+
+    init?(pageHex: String, prefersDarkForeground: Bool) {
+        guard
+            let surfaceHex = PageChromeTint.chromeHex(
+                for: pageHex,
+                prefersDarkForeground: prefersDarkForeground
+            ),
+            let borderHex = PageChromeTint.shadedHex(for: surfaceHex, fraction: 0.35),
+            let controlHex = PageChromeTint.shadedHex(for: surfaceHex, fraction: 0.18)
+        else {
+            return nil
+        }
+        surface = Color(spaceHex: surfaceHex)
+        border = Color(spaceHex: borderHex)
+        controlFill = Color(spaceHex: controlHex)
     }
 }
 

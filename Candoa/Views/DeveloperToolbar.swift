@@ -19,14 +19,15 @@ internal struct DeveloperToolbar: View {
     /// page is not the one page in that mode without a Back button.
     let leadingControls: TopToolbarLeadingControls?
     /// While the window chrome wears the page's own color, the bar trades
-    /// its material and separator for that same tint, so one color runs
-    /// unbroken from the title band into the page's header, the way Dia
-    /// blends. Nil restores the neutral material.
-    let chromeTint: Color?
+    /// its material for that tint and its neutral separator and hover fills
+    /// for the tint's darker shades, the way Dia derives its toolbar's
+    /// landmarks from the worn color. Nil restores the neutral treatments.
+    let chromeTint: TopBarChromeTint?
     let onSubmitURL: (String) -> Void
     let onToggleChat: () -> Void
 
     @State private var draftURL = ""
+    @State private var isURLFieldHovered = false
     @State private var hoveredControl: DeveloperToolbarControlKind?
     @State private var isHoveringControlMenu = false
     @State private var sharePicker = SharePickerCoordinator()
@@ -85,6 +86,23 @@ internal struct DeveloperToolbar: View {
                         draftURL = urlText
                     }
                 }
+                // Dia's address-field affordance: hovering (or editing) the
+                // URL fills a rounded field behind it — a darker shade of
+                // the worn page color on a tinted bar, neutral otherwise.
+                // The negative leading pull keeps the text where it sat.
+                .padding(.horizontal, 6)
+                .frame(height: 22)
+                .background(
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .fill(
+                            isURLFieldHovered || isURLFieldFocused
+                                ? (chromeTint?.controlFill ?? InterfaceStyle.sidebarControlFill)
+                                : Color.clear
+                        )
+                )
+                .padding(.leading, -6)
+                .onHover { isURLFieldHovered = $0 }
+                .animation(.easeOut(duration: 0.12), value: isURLFieldHovered)
 
             Spacer(minLength: 8)
 
@@ -113,15 +131,16 @@ internal struct DeveloperToolbar: View {
                 Rectangle()
                     .fill(.regularMaterial)
                     .opacity(chromeTint == nil ? 1 : 0)
-                chromeTint ?? .clear
+                chromeTint?.surface ?? Color.clear
             }
             .animation(.easeInOut(duration: 0.28), value: chromeTint)
         )
         .overlay(alignment: .bottom) {
+            // The bar keeps its bottom border while tinted — as a darker
+            // shade of the worn color, the way Dia edges its toolbar.
             Rectangle()
-                .fill(InterfaceStyle.sidebarSeparator)
+                .fill(chromeTint?.border ?? InterfaceStyle.sidebarSeparator)
                 .frame(height: 1)
-                .opacity(chromeTint == nil ? 1 : 0)
                 .animation(.easeInOut(duration: 0.28), value: chromeTint)
         }
     }
@@ -137,7 +156,11 @@ internal struct DeveloperToolbar: View {
                 )
                 .offset(y: control.inkCorrection)
                 .frame(width: 24, height: 24)
-                .background(foreground.opacity(hoveredControl == control ? 0.12 : 0))
+                .background(
+                    hoveredControl == control
+                        ? (chromeTint?.controlFill ?? foreground.opacity(0.12))
+                        : Color.clear
+                )
                 .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
                 .contentShape(Rectangle())
         }
