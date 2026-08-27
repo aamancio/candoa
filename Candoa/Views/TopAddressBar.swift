@@ -89,8 +89,6 @@ struct TopAddressBar: View {
             addressButton
                 .padding(.leading, 6)
 
-            Spacer(minLength: 4)
-
             if url != nil {
                 shareButton
             }
@@ -132,8 +130,10 @@ struct TopAddressBar: View {
 
     /// The lock and the address read as one target, the way the sidebar pill
     /// pairs them: the lock opens Site Info, the text opens the command bar.
-    /// Hovering it fills the pair the way Dia's address field fills — with a
-    /// darker shade of the worn page color when the strip is tinted.
+    /// The target spans the strip's whole free run — clicking the empty
+    /// space right of the address must edit it, exactly like a real URL
+    /// field — and hovering fills that run the way Dia's field fills, with
+    /// a darker shade of the worn page color when the strip is tinted.
     private var addressButton: some View {
         HStack(spacing: 0) {
             if let url {
@@ -162,6 +162,7 @@ struct TopAddressBar: View {
                 .padding(.leading, url == nil ? 6 : 4)
                 .padding(.trailing, 6)
                 .frame(height: 26)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .contentShape(Rectangle())
             }
             .buttonTreatment(.content)
@@ -169,6 +170,7 @@ struct TopAddressBar: View {
             .accessibilityLabel("Address")
             .accessibilityIdentifier("top-address-button")
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 7, style: .continuous)
                 .fill(
