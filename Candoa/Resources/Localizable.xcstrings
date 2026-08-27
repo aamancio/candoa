@@ -81,6 +81,46 @@
         }
       }
     },
+    "Choose which passkey saved in Candoa to sign in with." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wähle, mit welchem in Candoa gesicherten Passkey du dich anmelden möchtest."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elige con qué llave de acceso guardada en Candoa quieres iniciar sesión."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choisissez la clé d’identification enregistrée dans Candoa à utiliser pour vous connecter."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Candoaに保存されているどのパスキーでサインインするかを選択してください。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escolha com qual chave-senha salva no Candoa deseja iniciar sessão."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择要用于登录的已存储在 Candoa 中的通行密钥。"
+          }
+        }
+      }
+    },
     "Eli hasn't learned any details yet — things you share in conversations show up here." : {
       "localizations" : {
         "de" : {
@@ -117,6 +157,46 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Eli 尚未学习任何信息——你在对话中分享的内容会显示在这里。"
+          }
+        }
+      }
+    },
+    "save a passkey for “%@”" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "einen Passkey für „%@“ zu sichern"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "guardar una llave de acceso para “%@”"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "enregistrer une clé d’identification pour « %@ »"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@”のパスキーを保存"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "salvar uma chave-senha para “%@”"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "存储“%@”的通行密钥"
           }
         }
       }
@@ -28300,6 +28380,86 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "登录 — %@"
+          }
+        }
+      }
+    },
+    "Sign in to “%@”" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bei „%@“ anmelden"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Iniciar sesión en “%@”"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se connecter à « %@ »"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@”にサインイン"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Iniciar sessão em “%@”"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "登录“%@”"
+          }
+        }
+      }
+    },
+    "sign in to “%@” with a saved passkey" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "dich mit einem gesicherten Passkey bei „%@“ anzumelden"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iniciar sesión en “%@” con una llave de acceso guardada"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "vous connecter à « %@ » avec une clé d’identification enregistrée"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保存されたパスキーで“%@”にサインイン"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iniciar sessão em “%@” com uma chave-senha salva"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用已存储的通行密钥登录“%@”"
           }
         }
       }

@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import LocalAuthentication
 import WebKit
 
 @MainActor
@@ -112,6 +113,17 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
     /// (closed shadow roots, cross-origin frames). Cleared when the main
     /// frame commits a new page.
     var userEditedTabIDs = Set<UUID>()
+
+    /// The built-in authenticator's credentials (issue #506). UI-test runs
+    /// share the real keychain, so they keep credentials in memory only.
+    let passkeyCredentials = PasskeyCredentialStore(
+        isPersistenceSuspended: BrowserStore.isUITesting
+    )
+    /// WebAuthn allows one ceremony at a time; a second request while this is
+    /// set is answered NotAllowedError. The context lets a page's abort
+    /// dismiss the pending Touch ID sheet.
+    var activePasskeyRequestID: String?
+    var activePasskeyAuthenticationContext: LAContext?
     var restoreOverlays: [UUID: NSImageView] = [:]
     /// Off-screen preview warm-up (WebViewCoordinator+PreviewWarmup): tabs
     /// waiting for a throwaway load, the one load in flight, and every tab
@@ -355,6 +367,21 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
             to: contentController,
             forMainFrameOnly: true
         )
+        if !BrowserPasskeyAuthorizationService.hasManagedEntitlement {
+            // Until Apple grants the browser passkey entitlement, the
+            // built-in authenticator answers WebAuthn (issue #506). Once the
+            // entitlement is present this shim is never installed and the
+            // system authenticator takes over on its own.
+            contentController.removeScriptMessageHandler(forName: WebPageScripts.passkeyMessageName)
+            contentController.add(self, name: WebPageScripts.passkeyMessageName)
+            addUserScriptOnce(
+                WebPageScripts.passkeyShimScript,
+                to: contentController,
+                // Main frame only: the signing-in site is the one in the
+                // address bar.
+                forMainFrameOnly: true
+            )
+        }
         if BrowserStore.isUITesting {
             addUserScriptOnce(
                 "window.__candoaInitialDark = matchMedia('(prefers-color-scheme: dark)').matches",
@@ -636,6 +663,9 @@ final class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WK
         )
         webView.configuration.userContentController.removeScriptMessageHandler(
             forName: WebPageScripts.pageColorMessageName
+        )
+        webView.configuration.userContentController.removeScriptMessageHandler(
+            forName: WebPageScripts.passkeyMessageName
         )
         userEditedTabIDs.remove(tabID)
         WebNotificationService.shared.forgetTab(tabID)

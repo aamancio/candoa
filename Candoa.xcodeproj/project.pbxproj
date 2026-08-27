@@ -171,6 +171,9 @@
 		EF0000000000000000000104 /* PageActionProposal.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000000000000004 /* PageActionProposal.swift */; };
 		EF0000000000000000000105 /* WebPageScripts.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000000000000005 /* WebPageScripts.swift */; };
 		WN0000000000000000000101 /* WebNotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = WN0000000000000000000001 /* WebNotificationService.swift */; };
+		PK0000000000000000000101 /* PasskeyCeremony.swift in Sources */ = {isa = PBXBuildFile; fileRef = PK0000000000000000000001 /* PasskeyCeremony.swift */; };
+		PK0000000000000000000102 /* PasskeyCredentialStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = PK0000000000000000000002 /* PasskeyCredentialStore.swift */; };
+		PK0000000000000000000103 /* WebViewCoordinator+Passkeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = PK0000000000000000000003 /* WebViewCoordinator+Passkeys.swift */; };
 		EF0000000000000000000106 /* EliSidebarSupportingViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000000000000006 /* EliSidebarSupportingViews.swift */; };
 		EF0000000000000000000107 /* WebViewCoordinator+Permissions.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000000000000007 /* WebViewCoordinator+Permissions.swift */; };
 		EF0000000000000000000108 /* WebViewCoordinator+Hosting.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF0000000000000000000008 /* WebViewCoordinator+Hosting.swift */; };
@@ -380,6 +383,9 @@
 		EF0000000000000000000004 /* PageActionProposal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PageActionProposal.swift; sourceTree = "<group>"; };
 		EF0000000000000000000005 /* WebPageScripts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebPageScripts.swift; sourceTree = "<group>"; };
 		WN0000000000000000000001 /* WebNotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebNotificationService.swift; sourceTree = "<group>"; };
+		PK0000000000000000000001 /* PasskeyCeremony.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PasskeyCeremony.swift"; sourceTree = "<group>"; };
+		PK0000000000000000000002 /* PasskeyCredentialStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PasskeyCredentialStore.swift"; sourceTree = "<group>"; };
+		PK0000000000000000000003 /* WebViewCoordinator+Passkeys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WebViewCoordinator+Passkeys.swift"; sourceTree = "<group>"; };
 		EF0000000000000000000006 /* EliSidebarSupportingViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EliSidebarSupportingViews.swift; sourceTree = "<group>"; };
 		EF0000000000000000000007 /* WebViewCoordinator+Permissions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WebViewCoordinator+Permissions.swift"; sourceTree = "<group>"; };
 		EF0000000000000000000008 /* WebViewCoordinator+Hosting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WebViewCoordinator+Hosting.swift"; sourceTree = "<group>"; };
@@ -633,6 +639,9 @@
 				BA0000000000000000000001 /* BrowserAgentDriver.swift */,
 				EF0000000000000000000005 /* WebPageScripts.swift */,
 				WN0000000000000000000001 /* WebNotificationService.swift */,
+				PK0000000000000000000001 /* PasskeyCeremony.swift */,
+				PK0000000000000000000002 /* PasskeyCredentialStore.swift */,
+				PK0000000000000000000003 /* WebViewCoordinator+Passkeys.swift */,
 				EF0000000000000000000007 /* WebViewCoordinator+Permissions.swift */,
 				EF0000000000000000000008 /* WebViewCoordinator+Hosting.swift */,
 				DE0000000000000000000001 /* WebViewCoordinator+Inspector.swift */,
@@ -958,6 +967,9 @@
 				BA0000000000000000000101 /* BrowserAgentDriver.swift in Sources */,
 				EF0000000000000000000105 /* WebPageScripts.swift in Sources */,
 				WN0000000000000000000101 /* WebNotificationService.swift in Sources */,
+				PK0000000000000000000101 /* PasskeyCeremony.swift in Sources */,
+				PK0000000000000000000102 /* PasskeyCredentialStore.swift in Sources */,
+				PK0000000000000000000103 /* WebViewCoordinator+Passkeys.swift in Sources */,
 				EF0000000000000000000107 /* WebViewCoordinator+Permissions.swift in Sources */,
 				EF0000000000000000000108 /* WebViewCoordinator+Hosting.swift in Sources */,
 				EF0000000000000000000109 /* WebViewCoordinator+Hibernation.swift in Sources */,
