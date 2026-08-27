@@ -201,13 +201,23 @@ extension WebViewCoordinator {
     /// well past didFinish). Strictly bounded — never a poll: requests
     /// coalesce, the budget is spent when a retry fires (a burst of
     /// verdicts can't burn it), and it only refills on the next beat.
+    ///
+    /// An inconclusive verdict while a color is worn HOLDS that color: it
+    /// means the top edge is veiled (a modal drawer's scrim) or split, not
+    /// that the page repainted — dropping to neutral mid-veil is exactly
+    /// the flash a person notices. The declared fallback applies only while
+    /// nothing is worn yet, and a stale hold cannot outlive its page: the
+    /// cross-origin commit clear still drops it.
     func handleSampledPageColorVerdict(_ verdict: String, for webView: WKWebView, tabID: UUID) {
-        let sampled = PageChromeTint.hex(fromRGBString: verdict)
-        publishPageThemeColor(
-            hex: sampled ?? declaredChromeworthyHex(of: webView),
-            host: webView.url?.host,
-            tabID: tabID
-        )
+        if let sampled = PageChromeTint.hex(fromRGBString: verdict) {
+            publishPageThemeColor(hex: sampled, host: webView.url?.host, tabID: tabID)
+        } else if store?.pageThemeColorsByTab[tabID] == nil {
+            publishPageThemeColor(
+                hex: declaredChromeworthyHex(of: webView),
+                host: webView.url?.host,
+                tabID: tabID
+            )
+        }
         schedulePageThemeColorRefresh(
             for: webView,
             delay: 1.2,
