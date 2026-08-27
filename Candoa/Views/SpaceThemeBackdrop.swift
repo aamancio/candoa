@@ -26,8 +26,6 @@ final class SpaceChromeTransition: ObservableObject {
 struct WindowBackdrop: View {
     @ObservedObject var store: BrowserStore
     @ObservedObject private var chromeTransition: SpaceChromeTransition
-    @Environment(\.colorScheme) private var colorScheme
-    @AppStorage(SettingsOption.showWebsiteColors) private var showsWebsiteColors = true
 
     init(store: BrowserStore) {
         self._store = ObservedObject(wrappedValue: store)
@@ -110,36 +108,13 @@ struct WindowBackdrop: View {
         return ResolvedTint(color: colors.count > 1 ? mixed : first, opacity: min(0.52, 0.38 * multiplier))
     }
 
-    /// The active page's own color, worn at full strength the way Dia blends
-    /// its toolbar into the site's header. The hex is corrected toward the
-    /// current scheme's foreground before it is worn (`PageChromeTint`), so
-    /// the chrome's semantic labels stay readable with no foreground changes
-    /// — a dark site header in a dark window comes through untouched.
-    private var pageTint: ResolvedTint? {
-        guard
-            showsWebsiteColors,
-            !store.isPrivate,
-            !usesSetupInterface,
-            let hex = store.activePageThemeColorHex,
-            let chromeHex = PageChromeTint.chromeHex(
-                for: hex,
-                prefersDarkForeground: colorScheme != .dark
-            ),
-            let color = NSColor(spaceHex: chromeHex)
-        else {
-            return nil
-        }
-        return ResolvedTint(color: color, opacity: 1)
-    }
-
     /// Browsing tint with the in-flight swipe blend applied: the surface
     /// color follows the gesture between the two Spaces' themes instead of
-    /// snapping when the switch commits. The active page's color outranks
-    /// the Space theme; a swipe blends from it toward the destination
-    /// Space's theme, and the destination's own page color fades in once
-    /// the switch commits.
+    /// snapping when the switch commits. The active page's color never
+    /// reaches this backdrop — it stays confined to the top bar, Dia-style
+    /// (`TopBarChromeTint`), so a Space's own theme keeps the window.
     private var blendedChromeTint: ResolvedTint? {
-        let source = pageTint ?? browsingTint(
+        let source = browsingTint(
             hexes: store.activeThemeColorHexes,
             themeOpacity: store.activeThemeOpacity
         )
@@ -168,9 +143,7 @@ struct WindowBackdrop: View {
     }
 
     private var chromeTexture: Double {
-        // A page-colored chrome stays flat like the page's own header;
-        // the Space's texture returns with the Space theme.
-        let source = pageTint == nil ? store.activeThemeTexture : 0
+        let source = store.activeThemeTexture
         guard let destinationSpace = transitionDestinationSpace else { return source }
         return source + (destinationSpace.themeTexture - source) * transitionFraction
     }
@@ -185,12 +158,7 @@ struct WindowBackdrop: View {
     private var themeChangeSignature: [String] {
         store.activeThemeColorHexes + [
             String(store.activeThemeOpacity),
-            String(store.activeThemeTexture),
-            // Navigating to a differently-colored page, switching to a tab
-            // wearing another color, and toggling the setting all cross-fade
-            // like a Space theme change.
-            store.activePageThemeColorHex ?? "",
-            String(showsWebsiteColors)
+            String(store.activeThemeTexture)
         ]
     }
 
