@@ -16,12 +16,6 @@ extension BrowserStore {
         commandPaletteResumeQuery = activeURL.flatMap(navigationService.searchQuery(from:)) ?? ""
         commandPaletteSessionID = UUID()
         commandPalettePrefersCurrentTabNavigation = true
-        commandPaletteWasOpenedFromSidebarAddress = false
-        // Under the "Above the Page" placement the address lives in the top
-        // strip, so editing it presents the same anchored dropdown the
-        // sidebar pill gets — just sized to the strip — instead of the
-        // centered new-tab bar.
-        commandPaletteWasOpenedFromTopAddressBar = AddressBarPlacement.current == .top
         commandPaletteOpensNewTab = false
         presentCommandPalette()
         addressFocusRequestID = UUID()
@@ -37,8 +31,6 @@ extension BrowserStore {
         commandPaletteResumeQuery = ""
         commandPaletteSessionID = UUID()
         commandPalettePrefersCurrentTabNavigation = true
-        commandPaletteWasOpenedFromSidebarAddress = false
-        commandPaletteWasOpenedFromTopAddressBar = false
         commandPaletteOpensNewTab = false
         presentCommandPalette()
         addressFocusRequestID = UUID()
@@ -56,8 +48,6 @@ extension BrowserStore {
         commandPaletteResumeQuery = ""
         commandPaletteSessionID = UUID()
         commandPalettePrefersCurrentTabNavigation = false
-        commandPaletteWasOpenedFromSidebarAddress = false
-        commandPaletteWasOpenedFromTopAddressBar = false
         commandPaletteOpensNewTab = false
         commandPaletteSplitsWithSelection = true
         presentCommandPalette()
@@ -96,7 +86,6 @@ extension BrowserStore {
         commandPaletteResumeQuery = activeURL.flatMap(navigationService.searchQuery(from:)) ?? ""
         commandPaletteSessionID = UUID()
         commandPalettePrefersCurrentTabNavigation = true
-        commandPaletteWasOpenedFromSidebarAddress = true
         commandPaletteOpensNewTab = false
         presentCommandPalette()
         addressFocusRequestID = UUID()
@@ -137,8 +126,6 @@ extension BrowserStore {
         commandPaletteResumeQuery = ""
         commandPaletteSessionID = UUID()
         commandPalettePrefersCurrentTabNavigation = false
-        commandPaletteWasOpenedFromSidebarAddress = false
-        commandPaletteWasOpenedFromTopAddressBar = false
         commandPaletteOpensNewTab = false
         presentCommandPalette()
     }
@@ -180,8 +167,6 @@ extension BrowserStore {
         commandPaletteResumeQuery = ""
         commandPaletteSessionID = UUID()
         commandPalettePrefersCurrentTabNavigation = false
-        commandPaletteWasOpenedFromSidebarAddress = false
-        commandPaletteWasOpenedFromTopAddressBar = false
         commandPaletteOpensNewTab = true
         presentCommandPalette()
     }
@@ -202,8 +187,6 @@ extension BrowserStore {
     func dismissCommandPalette() {
         isCommandPalettePresented = false
         commandPalettePrefersCurrentTabNavigation = false
-        commandPaletteWasOpenedFromSidebarAddress = false
-        commandPaletteWasOpenedFromTopAddressBar = false
         commandPaletteOpensNewTab = false
         commandPaletteSplitsWithSelection = false
 

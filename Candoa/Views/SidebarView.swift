@@ -781,7 +781,6 @@ struct SidebarView: View {
 
     private var hidesNavigationControlsForAddressPalette: Bool {
         store.isInitialOnboardingPresented
-            || (store.isCommandPalettePresented && store.commandPaletteWasOpenedFromSidebarAddress)
     }
 
     private var navigationControls: some View {
