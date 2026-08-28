@@ -57,49 +57,54 @@ internal enum MiniPlayerResizeEdge: String, CaseIterable, Identifiable {
         }
     }
 
+    // Each handle straddles the player's border: `resizeHitThickness` /
+    // `resizeCornerLength` inside it plus `resizeOutwardGrab` beyond it,
+    // so a drag that overshoots the player still lands.
     func width(in size: CGSize) -> CGFloat {
         switch self {
         case .top, .bottom:
             return size.width
         case .leading, .trailing:
-            return MiniPlayerLayout.resizeHitThickness
+            return MiniPlayerLayout.resizeHitThickness + MiniPlayerLayout.resizeOutwardGrab
         case .topLeading, .topTrailing, .bottomLeading, .bottomTrailing:
-            return MiniPlayerLayout.resizeCornerLength
+            return MiniPlayerLayout.resizeCornerLength + MiniPlayerLayout.resizeOutwardGrab
         }
     }
 
     func height(in size: CGSize) -> CGFloat {
         switch self {
         case .top, .bottom:
-            return MiniPlayerLayout.resizeHitThickness
+            return MiniPlayerLayout.resizeHitThickness + MiniPlayerLayout.resizeOutwardGrab
         case .leading, .trailing:
             return size.height
         case .topLeading, .topTrailing, .bottomLeading, .bottomTrailing:
-            return MiniPlayerLayout.resizeCornerLength
+            return MiniPlayerLayout.resizeCornerLength + MiniPlayerLayout.resizeOutwardGrab
         }
     }
 
     func position(in size: CGSize) -> CGPoint {
-        let edgeInset = MiniPlayerLayout.resizeHitThickness / 2
-        let cornerInset = MiniPlayerLayout.resizeCornerLength / 2
+        // A handle's centre sits where its inside and outside extents
+        // balance around the border.
+        let edgeCenter = (MiniPlayerLayout.resizeHitThickness - MiniPlayerLayout.resizeOutwardGrab) / 2
+        let cornerCenter = (MiniPlayerLayout.resizeCornerLength - MiniPlayerLayout.resizeOutwardGrab) / 2
 
         switch self {
         case .top:
-            return CGPoint(x: size.width / 2, y: edgeInset)
+            return CGPoint(x: size.width / 2, y: edgeCenter)
         case .bottom:
-            return CGPoint(x: size.width / 2, y: size.height - edgeInset)
+            return CGPoint(x: size.width / 2, y: size.height - edgeCenter)
         case .leading:
-            return CGPoint(x: edgeInset, y: size.height / 2)
+            return CGPoint(x: edgeCenter, y: size.height / 2)
         case .trailing:
-            return CGPoint(x: size.width - edgeInset, y: size.height / 2)
+            return CGPoint(x: size.width - edgeCenter, y: size.height / 2)
         case .topLeading:
-            return CGPoint(x: cornerInset, y: cornerInset)
+            return CGPoint(x: cornerCenter, y: cornerCenter)
         case .topTrailing:
-            return CGPoint(x: size.width - cornerInset, y: cornerInset)
+            return CGPoint(x: size.width - cornerCenter, y: cornerCenter)
         case .bottomLeading:
-            return CGPoint(x: cornerInset, y: size.height - cornerInset)
+            return CGPoint(x: cornerCenter, y: size.height - cornerCenter)
         case .bottomTrailing:
-            return CGPoint(x: size.width - cornerInset, y: size.height - cornerInset)
+            return CGPoint(x: size.width - cornerCenter, y: size.height - cornerCenter)
         }
     }
 

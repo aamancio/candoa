@@ -4,8 +4,12 @@ import SwiftUI
 enum MiniPlayerLayout {
     static let margin: CGFloat = 10
     static let topMargin: CGFloat = margin
-    static let resizeHitThickness: CGFloat = 10
-    static let resizeCornerLength: CGFloat = 18
+    static let resizeHitThickness: CGFloat = 12
+    static let resizeCornerLength: CGFloat = 22
+    /// The grab ring past the player's border: overshooting an edge or
+    /// corner by this much still catches the handle, the way a macOS
+    /// window resizes from just outside its frame.
+    static let resizeOutwardGrab: CGFloat = 10
     static let defaultAspectRatio: CGFloat = 16.0 / 9.0
     /// Shorts and TikTok clips are 9:16, cinema trailers run past 2.4:1;
     /// past those a report is more likely garbage than a video worth a
