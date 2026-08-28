@@ -166,11 +166,11 @@ extension WebViewCoordinator {
             candidates = candidates.filter { allowed.contains($0.id) }
         }
         guard !candidates.isEmpty else {
-            // Tell the person, not the page: every browser rejects this with
-            // the generic error — after its own UI is dismissed — so a site
-            // can neither read nor time out whether credentials exist
-            // (WebAuthn assertion privacy).
-            await presentMissingPasskeyNotice(relyingParty: relyingParty, webView: webView)
+            // Quietly decline, like an authenticator with nothing to offer:
+            // sites show their own fallback UI on the generic rejection. The
+            // randomized pause keeps the reply from doubling as an instant
+            // credential-existence probe (WebAuthn assertion privacy).
+            try? await Task.sleep(nanoseconds: UInt64.random(in: 300_000_000...900_000_000))
             return Self.passkeyFailure("NotAllowedError")
         }
 
@@ -209,25 +209,6 @@ extension WebViewCoordinator {
             "signature": PasskeyCeremony.base64URLEncode(signature),
             "userHandle": credential.userHandle
         ]
-    }
-
-    /// Shown when a site asks for a passkey Candoa doesn't hold, the way
-    /// Safari raises its own "no passkeys available" sheet. Fixture runs skip
-    /// it — there is nobody to dismiss a sheet.
-    private func presentMissingPasskeyNotice(relyingParty: String, webView: WKWebView) async {
-        guard !BrowserStore.isUITesting else { return }
-        let alert = NSAlert()
-        alert.messageText = String(localized: "No passkey for “\(relyingParty)” is saved in Candoa")
-        alert.informativeText = String(
-            localized: "You can register a new passkey on this site, or sign in another way."
-        )
-        alert.alertStyle = .informational
-        alert.addButton(withTitle: String(localized: "OK"))
-        if let window = webView.window {
-            _ = await alert.beginSheetModal(for: window)
-        } else {
-            _ = alert.runModal()
-        }
     }
 
     /// One credential answers directly; several ask the person which account,
