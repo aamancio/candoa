@@ -83,6 +83,14 @@ extension WebViewCoordinator {
             return Self.passkeyFailure("NotAllowedError")
         }
 
+        let userName = (body["userName"] as? String) ?? ""
+        let verified = await verifyUser(reason: String(
+            localized: "save a passkey for “\(relyingParty)”"
+        ))
+        guard verified else { return Self.passkeyFailure("NotAllowedError") }
+
+        // Only after consent: an instant InvalidStateError would let a site
+        // probe silently for which credentials exist (WebAuthn §14.5.1).
         let existing = passkeyCredentials.credentials(for: relyingParty)
         let excluded = Set((body["excludeCredentials"] as? [String]) ?? [])
         if existing.contains(where: { excluded.contains($0.id) }) {
@@ -90,12 +98,6 @@ extension WebViewCoordinator {
                 "InvalidStateError", message: "A passkey already exists for this account."
             )
         }
-
-        let userName = (body["userName"] as? String) ?? ""
-        let verified = await verifyUser(reason: String(
-            localized: "save a passkey for “\(relyingParty)”"
-        ))
-        guard verified else { return Self.passkeyFailure("NotAllowedError") }
 
         let key = P256.Signing.PrivateKey()
         var identifier = Data(count: 32)
@@ -164,9 +166,12 @@ extension WebViewCoordinator {
             candidates = candidates.filter { allowed.contains($0.id) }
         }
         guard !candidates.isEmpty else {
-            return Self.passkeyFailure(
-                "NotAllowedError", message: "No matching passkey is saved in Candoa."
-            )
+            // Tell the person, not the page: every browser rejects this with
+            // the generic error — after its own UI is dismissed — so a site
+            // can neither read nor time out whether credentials exist
+            // (WebAuthn assertion privacy).
+            await presentMissingPasskeyNotice(relyingParty: relyingParty, webView: webView)
+            return Self.passkeyFailure("NotAllowedError")
         }
 
         guard let credential = await choosePasskey(
@@ -204,6 +209,25 @@ extension WebViewCoordinator {
             "signature": PasskeyCeremony.base64URLEncode(signature),
             "userHandle": credential.userHandle
         ]
+    }
+
+    /// Shown when a site asks for a passkey Candoa doesn't hold, the way
+    /// Safari raises its own "no passkeys available" sheet. Fixture runs skip
+    /// it — there is nobody to dismiss a sheet.
+    private func presentMissingPasskeyNotice(relyingParty: String, webView: WKWebView) async {
+        guard !BrowserStore.isUITesting else { return }
+        let alert = NSAlert()
+        alert.messageText = String(localized: "No passkey for “\(relyingParty)” is saved in Candoa")
+        alert.informativeText = String(
+            localized: "You can register a new passkey on this site, or sign in another way."
+        )
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: String(localized: "OK"))
+        if let window = webView.window {
+            _ = await alert.beginSheetModal(for: window)
+        } else {
+            _ = alert.runModal()
+        }
     }
 
     /// One credential answers directly; several ask the person which account,

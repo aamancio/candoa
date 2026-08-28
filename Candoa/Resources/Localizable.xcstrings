@@ -161,6 +161,46 @@
         }
       }
     },
+    "No passkey for “%@” is saved in Candoa" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Für „%@“ ist kein Passkey in Candoa gesichert"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No hay ninguna llave de acceso para “%@” guardada en Candoa"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucune clé d’identification pour « %@ » n’est enregistrée dans Candoa"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@”のパスキーはCandoaに保存されていません"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nenhuma chave-senha para “%@” está salva no Candoa"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Candoa 中未存储“%@”的通行密钥"
+          }
+        }
+      }
+    },
     "save a passkey for “%@”" : {
       "localizations" : {
         "de" : {
@@ -36361,6 +36401,46 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "你可以随时在“设置”中更改。"
+          }
+        }
+      }
+    },
+    "You can register a new passkey on this site, or sign in another way." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Du kannst auf dieser Website einen neuen Passkey registrieren oder dich anders anmelden."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Puedes registrar una nueva llave de acceso en este sitio o iniciar sesión de otra forma."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vous pouvez enregistrer une nouvelle clé d’identification sur ce site, ou vous connecter autrement."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このサイトで新しいパスキーを登録するか、別の方法でサインインできます。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Você pode registrar uma nova chave-senha neste site ou iniciar sessão de outra forma."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你可以在此网站注册新的通行密钥，或用其他方式登录。"
           }
         }
       }
