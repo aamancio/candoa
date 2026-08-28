@@ -51,6 +51,28 @@ internal struct DeveloperToolbar: View {
         URL(string: urlText)
     }
 
+    /// The strip's address hierarchy on the developer bar: the host (with
+    /// its port — the whole point on a local page) reads clear, the scheme
+    /// and path stay passive. Verbatim: URLs are data, not catalog strings.
+    private var devAddressDisplay: Text {
+        guard let url = currentURL, url.host() != nil else {
+            return Text(verbatim: draftURL).foregroundColor(foreground.opacity(0.92))
+        }
+
+        let passive = foreground.opacity(0.5)
+        var display = Text(verbatim: "")
+        if let scheme = url.scheme {
+            display = display + Text(verbatim: scheme + "://").foregroundColor(passive)
+        }
+        display = display + Text(verbatim: url.displayDomainText)
+            .foregroundColor(foreground.opacity(0.95))
+        let tail = TopAddressBar.passiveURLTail(of: url)
+        if !tail.isEmpty {
+            display = display + Text(verbatim: tail).foregroundColor(passive)
+        }
+        return display
+    }
+
     var body: some View {
         HStack(spacing: 8) {
             if let leadingControls {
@@ -63,7 +85,10 @@ internal struct DeveloperToolbar: View {
             TextField("", text: $draftURL)
                 .textFieldStyle(.plain)
                 .font(.system(size: 12, weight: .medium, design: .monospaced))
-                .foregroundStyle(foreground.opacity(0.92))
+                // While not editing, the field's own text steps aside for
+                // the two-tone overlay below — same font, same metrics, so
+                // nothing moves when editing begins.
+                .foregroundStyle(isURLFieldFocused ? foreground.opacity(0.92) : Color.clear)
                 .tint(AppColor.accent)
                 .lineLimit(1)
                 .focused($isURLFieldFocused)
@@ -103,6 +128,18 @@ internal struct DeveloperToolbar: View {
                                 : Color.clear
                         )
                 )
+                .overlay(alignment: .leading) {
+                    // The read-only face of the field: domain clear, scheme
+                    // and path passive, like the address strip's hierarchy.
+                    if !isURLFieldFocused {
+                        devAddressDisplay
+                            .font(.system(size: 12, weight: .medium, design: .monospaced))
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                            .padding(.leading, 6)
+                            .allowsHitTesting(false)
+                    }
+                }
                 .padding(.leading, -6)
                 .onHover { isURLFieldHovered = $0 }
                 .animation(.easeOut(duration: 0.12), value: isURLFieldHovered)
