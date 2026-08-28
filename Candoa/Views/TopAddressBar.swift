@@ -67,59 +67,40 @@ struct TopAddressBar: View {
     /// with air around them rather than filling it edge to edge.
     static let height: CGFloat = 38
 
+    /// Dia's address hierarchy: the domain reads clear, everything around it
+    /// stays passive, so the one word that says where you are is the one
+    /// word that pops. Idle, the passive tail is the page's title after a
+    /// " / "; hovered, it becomes the page's actual path and query — Dia
+    /// reveals the link the same way. Verbatim segments: URLs and titles
+    /// are data, not catalog strings.
     private var addressDisplay: Text {
         guard let url else {
             return Text(BrowserDefaults.addressPlaceholder)
                 .foregroundColor(InterfaceStyle.sidebarTextSecondary)
         }
-        return Self.styledAddress(
-            url: url,
-            title: store.activeTab?.title,
-            revealsURLTail: isAddressHovered,
-            size: 13,
-            domainWeight: .medium
-        )
-    }
 
-    /// Dia's address hierarchy, shared by the strip and the sidebar pill:
-    /// the domain reads clear, everything around it stays passive — an
-    /// insecure scheme dimmed before it — so the one word that says where
-    /// you are is the one word that pops. Idle, the passive tail is the
-    /// page's title after a " / "; revealed (hover), it becomes the page's
-    /// actual path and query — Dia shows the link the same way. Verbatim
-    /// segments: URLs and titles are data, not catalog strings.
-    static func styledAddress(
-        url: URL,
-        title: String?,
-        revealsURLTail: Bool,
-        size: CGFloat,
-        domainWeight: Font.Weight,
-        design: Font.Design = .default
-    ) -> Text {
         let passive = InterfaceStyle.sidebarTextSecondary.opacity(0.8)
-        let passiveFont = Font.system(size: size, design: design)
         var display = Text(verbatim: "")
         if url.scheme?.lowercased() == "http" {
-            display = display + Text(verbatim: "http://").font(passiveFont).foregroundColor(passive)
+            display = display + Text(verbatim: "http://").foregroundColor(passive)
         }
         display = display + Text(verbatim: url.displayDomainText)
-            .font(.system(size: size, weight: domainWeight, design: design))
+            .font(.system(size: 13, weight: .medium))
             .foregroundColor(InterfaceStyle.sidebarText)
 
-        if revealsURLTail {
-            let tail = passiveURLTail(of: url)
+        if isAddressHovered {
+            let tail = Self.passiveURLTail(of: url)
             if !tail.isEmpty {
-                display = display + Text(verbatim: tail).font(passiveFont).foregroundColor(passive)
+                display = display + Text(verbatim: tail).foregroundColor(passive)
             }
             return display
         }
 
-        let trimmedTitle = (title ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        if !trimmedTitle.isEmpty,
-           trimmedTitle.localizedCaseInsensitiveCompare(url.displayDomainText) != .orderedSame {
+        let title = store.activeTab?.title.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if !title.isEmpty, title.localizedCaseInsensitiveCompare(url.displayDomainText) != .orderedSame {
             display = display
-                + Text(verbatim: " / ").font(passiveFont).foregroundColor(passive)
-                + Text(verbatim: trimmedTitle).font(passiveFont).foregroundColor(passive)
+                + Text(verbatim: " / ").foregroundColor(passive)
+                + Text(verbatim: title).foregroundColor(passive)
         }
         return display
     }
