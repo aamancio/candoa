@@ -325,6 +325,10 @@ final class BrowserStore: ObservableObject {
     @Published var uiTestingWebsiteAppearanceDescription = "pending"
     @Published var uiTestingPopupDiagnostics: [String] = []
     @Published var uiTestingWebAuthEvents: [String] = []
+    /// Fixture-typed command bar text — the `palette:type:` window command.
+    /// Carries an ID so the same text can be re-sent across palette sessions.
+    @Published var uiTestingCommandPaletteTypedText: UITestingPaletteTypedText?
+    @Published var uiTestingCommandPaletteTabRequestID: UUID?
 
     /// Tabs created locally since the last snapshot save. A remote-state
     /// apply must not drop these: they exist only in memory, so a snapshot

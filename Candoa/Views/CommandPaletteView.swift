@@ -77,5 +77,15 @@ struct CommandPaletteView: View {
         .onChange(of: selectedSearchProvider) { _, _ in
             selectedCommandIndex = 0
         }
+        // Fixture seams: keyboard-free typing and Tab, so command bar
+        // states can be reproduced while the machine is in use.
+        .onChange(of: store.uiTestingCommandPaletteTypedText) { _, typedText in
+            guard BrowserStore.isUITesting, let typedText else { return }
+            query = typedText.text
+        }
+        .onChange(of: store.uiTestingCommandPaletteTabRequestID) { _, requestID in
+            guard BrowserStore.isUITesting, requestID != nil else { return }
+            activateSearchProviderFromQuery()
+        }
     }
 }
