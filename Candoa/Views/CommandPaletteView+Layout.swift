@@ -20,7 +20,7 @@ extension CommandPaletteView {
                 searchField
                     .layoutPriority(1)
 
-                if let headerSearchProvider, !isAnchoredAddressPalette {
+                if let headerSearchProvider {
                     Spacer(minLength: 12)
 
                     HStack(spacing: 8) {
@@ -41,7 +41,7 @@ extension CommandPaletteView {
                     .layoutPriority(2)
                 }
             }
-            .padding(.horizontal, isAnchoredAddressPalette ? 18 : 16)
+            .padding(.horizontal, 16)
             .padding(.vertical, paletteHeaderVerticalPadding)
 
             Rectangle()
@@ -102,44 +102,19 @@ extension CommandPaletteView {
         store.commandPalettePrefersCurrentTabNavigation
     }
 
-    internal var isSidebarAddressPalette: Bool {
-        store.commandPaletteWasOpenedFromSidebarAddress
-    }
-
-    internal var isTopAddressPalette: Bool {
-        store.commandPaletteWasOpenedFromTopAddressBar
-    }
-
-    /// Editing the current address — from the sidebar pill or the "Above the
-    /// Page" strip — presents as an anchored dropdown at the window's top,
-    /// Arc-style, rather than the centered new-tab bar. The two anchors
-    /// share every layout rule except width: the strip's dropdown spans the
-    /// window edge to edge the way the strip itself does, while the sidebar
-    /// pill's stays sized to its lane.
-    internal var isAnchoredAddressPalette: Bool {
-        isSidebarAddressPalette || isTopAddressPalette
-    }
+    // One presentation for every way in — the sidebar pill, the top strip,
+    // the developer bar, ⌘T and ⌘L alike all summon the same centered
+    // command bar, so editing an address never looks different from opening
+    // one (Alex's call after the anchored dropdown variants diverged).
 
     internal func paletteWidth(for windowWidth: CGFloat) -> CGFloat {
-        if isAnchoredAddressPalette {
-            let width = max(0, windowWidth - Self.addressPaletteLeadingInset * 2)
-            return isTopAddressPalette ? width : min(width, Self.addressPaletteMaxWidth)
-        }
-
         // Zen's floating urlbar width: min(window width / 1.5, 750)
         // (ZenUIManager.updateTabsToolbar's --zen-urlbar-width).
-        return min(windowWidth / 1.5, 750)
+        min(windowWidth / 1.5, 750)
     }
 
     internal func palettePosition(in windowSize: CGSize, width: CGFloat) -> CGPoint {
-        if isAnchoredAddressPalette {
-            return CGPoint(
-                x: Self.addressPaletteLeadingInset + width / 2,
-                y: Self.addressPaletteTopInset + anchoredPaletteHeight / 2
-            )
-        }
-
-        return CGPoint(x: windowSize.width / 2, y: windowSize.height / 2)
+        CGPoint(x: windowSize.width / 2, y: windowSize.height / 2)
     }
 
     internal var headerIconSearchProvider: SearchProvider? {
@@ -162,7 +137,6 @@ extension CommandPaletteView {
         selectedSearchProvider == nil
             && headerSearchProvider == nil
             && isAddressEditingPalette
-            && !isAnchoredAddressPalette
     }
 
     /// Exact height of the visible rows (46pt rows, 7pt spacing, 11pt
@@ -174,15 +148,11 @@ extension CommandPaletteView {
     /// The palette itself shrinks with its result count, but it sits inside
     /// this fixed-height anchor so typing does not recenter the surface.
     internal var anchoredPaletteHeight: CGFloat {
-        if isAnchoredAddressPalette {
-            return Self.addressPaletteHeight
-        }
-
-        return Self.normalHeaderHeight + Self.dividerHeight + resultsHeight(for: CGFloat(Self.maxVisibleCommandCount))
+        Self.normalHeaderHeight + Self.dividerHeight + resultsHeight(for: CGFloat(Self.maxVisibleCommandCount))
     }
 
     internal var paletteHeaderHeight: CGFloat {
-        isAnchoredAddressPalette ? Self.addressHeaderHeight : Self.normalHeaderHeight
+        Self.normalHeaderHeight
     }
 
     internal var paletteHeaderVerticalPadding: CGFloat {
@@ -190,11 +160,7 @@ extension CommandPaletteView {
     }
 
     internal var resultsAreaHeight: CGFloat {
-        if isAnchoredAddressPalette {
-            return max(0, anchoredPaletteHeight - paletteHeaderHeight - Self.dividerHeight)
-        }
-
-        return resultsHeight
+        resultsHeight
     }
 
     internal func resultsHeight(for count: CGFloat) -> CGFloat {

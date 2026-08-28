@@ -205,11 +205,6 @@ final class BrowserStore: ObservableObject {
     @Published var commandPaletteResumeQuery = ""
     @Published var commandPaletteSessionID = UUID()
     @Published var commandPalettePrefersCurrentTabNavigation = false
-    @Published var commandPaletteWasOpenedFromSidebarAddress = false
-    /// The palette was summoned from the "Above the Page" toolbar's address
-    /// (or ⌘L while that placement is active): it presents as the same
-    /// anchored dropdown the sidebar address uses, sized to the strip.
-    @Published var commandPaletteWasOpenedFromTopAddressBar = false
     @Published var commandPaletteOpensNewTab = false
     /// The palette is choosing what to split the current pane with: rows are
     /// the Space's other tabs (a pick joins the split) and a typed address

@@ -19,12 +19,7 @@ struct CommandPaletteView: View {
     internal static let commandRowSpacing: CGFloat = 7
     internal static let resultsVerticalPadding: CGFloat = 22
     internal static let normalHeaderHeight: CGFloat = 70
-    internal static let addressHeaderHeight: CGFloat = 62
     internal static let dividerHeight: CGFloat = 1
-    internal static let addressPaletteLeadingInset: CGFloat = 5
-    internal static let addressPaletteTopInset: CGFloat = 44
-    internal static let addressPaletteHeight: CGFloat = 333
-    internal static let addressPaletteMaxWidth: CGFloat = 440
 
     internal var activeTint: Color {
         return selectedSearchProvider?.paletteColor ?? Self.paletteTint
