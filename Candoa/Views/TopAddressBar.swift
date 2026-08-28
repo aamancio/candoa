@@ -68,10 +68,11 @@ struct TopAddressBar: View {
     static let height: CGFloat = 38
 
     /// Dia's address hierarchy: the domain reads clear, everything around it
-    /// stays passive — an insecure scheme dimmed before it, and the page's
-    /// title dimmed after a " / " — so the one word that says where you are
-    /// is the one word that pops. Verbatim segments: URLs and titles are
-    /// data, not catalog strings.
+    /// stays passive, so the one word that says where you are is the one
+    /// word that pops. Idle, the passive tail is the page's title after a
+    /// " / "; hovered, it becomes the page's actual path and query — Dia
+    /// reveals the link the same way. Verbatim segments: URLs and titles
+    /// are data, not catalog strings.
     private var addressDisplay: Text {
         guard let url else {
             return Text(BrowserDefaults.addressPlaceholder)
@@ -87,6 +88,14 @@ struct TopAddressBar: View {
             .font(.system(size: 13, weight: .medium))
             .foregroundColor(InterfaceStyle.sidebarText)
 
+        if isAddressHovered {
+            let tail = Self.passiveURLTail(of: url)
+            if !tail.isEmpty {
+                display = display + Text(verbatim: tail).foregroundColor(passive)
+            }
+            return display
+        }
+
         let title = store.activeTab?.title.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         if !title.isEmpty, title.localizedCaseInsensitiveCompare(url.displayDomainText) != .orderedSame {
             display = display
@@ -94,6 +103,20 @@ struct TopAddressBar: View {
                 + Text(verbatim: title).foregroundColor(passive)
         }
         return display
+    }
+
+    /// Everything after the origin — path, query, fragment — or nothing on
+    /// a bare front page.
+    static func passiveURLTail(of url: URL) -> String {
+        var tail = url.path(percentEncoded: true)
+        if tail == "/" { tail = "" }
+        if let query = url.query(percentEncoded: true), !query.isEmpty {
+            tail += "?" + query
+        }
+        if let fragment = url.fragment(percentEncoded: true), !fragment.isEmpty {
+            tail += "#" + fragment
+        }
+        return tail
     }
 
     private var siteInfoSymbol: String {
@@ -189,7 +212,6 @@ struct TopAddressBar: View {
                 .contentShape(Rectangle())
             }
             .buttonTreatment(.content)
-            .help(BrowserDefaults.addressPlaceholder)
             .accessibilityLabel("Address")
             .accessibilityIdentifier("top-address-button")
         }
