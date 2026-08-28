@@ -2769,3 +2769,69 @@ final class PasskeyShimTests: XCTestCase {
         XCTAssertNil(WebViewCoordinator.passkeyRequestID(from: 42))
     }
 }
+
+/// The UI-test defaults reset runs in the real domain; these prove a test
+/// run parks the person's values and the next normal launch puts them back
+/// exactly — including keys that were unset — instead of factory-resetting
+/// their choices (the "Above the Page" toolbar kept reverting this way).
+@MainActor
+final class UITestingDefaultsPreservationTests: XCTestCase {
+    private var defaults: UserDefaults!
+    private let suiteName = "CandoaTests.UITestingDefaultsPreservation"
+
+    override func setUp() {
+        super.setUp()
+        defaults = UserDefaults(suiteName: suiteName)
+        defaults.removePersistentDomain(forName: suiteName)
+    }
+
+    override func tearDown() {
+        defaults.removePersistentDomain(forName: suiteName)
+        super.tearDown()
+    }
+
+    func testTestLaunchParksValuesAndClearsKeys() {
+        defaults.set("top", forKey: SettingsOption.addressBarPlacement)
+        defaults.set(true, forKey: SettingsOption.openSafeDownloads)
+
+        UITestingDefaultsPreservation.backUpAndClearForUITesting(defaults: defaults)
+
+        for key in UITestingDefaultsPreservation.resetKeys {
+            XCTAssertNil(defaults.object(forKey: key))
+        }
+        XCTAssertNotNil(defaults.dictionary(forKey: UITestingDefaultsPreservation.backupKey))
+    }
+
+    func testNormalLaunchRestoresParkedValuesAndShedsTestResidue() {
+        defaults.set("top", forKey: SettingsOption.addressBarPlacement)
+        UITestingDefaultsPreservation.backUpAndClearForUITesting(defaults: defaults)
+
+        // A test writes into keys the person had set and hadn't set.
+        defaults.set("sidebar", forKey: SettingsOption.addressBarPlacement)
+        defaults.set("one-day", forKey: SettingsOption.historyRetention)
+
+        UITestingDefaultsPreservation.restoreAfterUITestingIfNeeded(defaults: defaults)
+
+        XCTAssertEqual(defaults.string(forKey: SettingsOption.addressBarPlacement), "top")
+        XCTAssertNil(defaults.object(forKey: SettingsOption.historyRetention))
+        XCTAssertNil(defaults.object(forKey: UITestingDefaultsPreservation.backupKey))
+    }
+
+    func testBackToBackTestRunsKeepTheOriginalBackup() {
+        defaults.set("top", forKey: SettingsOption.addressBarPlacement)
+        UITestingDefaultsPreservation.backUpAndClearForUITesting(defaults: defaults)
+
+        // A test leaves residue; the next test launch must not park it.
+        defaults.set("sidebar", forKey: SettingsOption.addressBarPlacement)
+        UITestingDefaultsPreservation.backUpAndClearForUITesting(defaults: defaults)
+
+        UITestingDefaultsPreservation.restoreAfterUITestingIfNeeded(defaults: defaults)
+        XCTAssertEqual(defaults.string(forKey: SettingsOption.addressBarPlacement), "top")
+    }
+
+    func testNormalLaunchWithoutPriorTestRunIsUntouched() {
+        defaults.set("top", forKey: SettingsOption.addressBarPlacement)
+        UITestingDefaultsPreservation.restoreAfterUITestingIfNeeded(defaults: defaults)
+        XCTAssertEqual(defaults.string(forKey: SettingsOption.addressBarPlacement), "top")
+    }
+}

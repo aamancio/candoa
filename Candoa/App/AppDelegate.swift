@@ -11,25 +11,13 @@ internal final class AppDelegate: NSObject, NSApplicationDelegate {
         // UI-test launches share the real defaults domain, so a prior run's
         // per-site permission decisions would leak into the next one. Tests
         // that need pre-set decisions seed them through launch arguments,
-        // which read from the argument domain and survive this reset.
+        // which read from the argument domain and survive this reset. The
+        // person's own values are parked first and put back on the next
+        // normal launch, so a test run never costs them their choices.
         if ProcessInfo.processInfo.environment["CANDOA_UI_TESTING"] == "1" {
-            UserDefaults.standard.removeObject(forKey: SitePermissionConfiguration.storageKey)
-            // Command bar learning would carry a prior run's picks into the
-            // next one's suggestion order.
-            UserDefaults.standard.removeObject(forKey: CommandBarSelectionMemory.storageKey)
-            // The General pane's behavior choices leak between runs the same
-            // way, and tests assume the defaults (⌘T arms the palette,
-            // download fixtures survive the popover's retention pass).
-            for key in [
-                SettingsOption.newTabsOpenWith,
-                SettingsOption.historyRetention,
-                SettingsOption.downloadLocationMode,
-                SettingsOption.downloadListRetention,
-                SettingsOption.openSafeDownloads,
-                SettingsOption.addressBarPlacement
-            ] {
-                UserDefaults.standard.removeObject(forKey: key)
-            }
+            UITestingDefaultsPreservation.backUpAndClearForUITesting()
+        } else {
+            UITestingDefaultsPreservation.restoreAfterUITestingIfNeeded()
         }
 
         // UI-test fixtures seed history with current timestamps; the prune
@@ -107,4 +95,62 @@ internal final class AppDelegate: NSObject, NSApplicationDelegate {
     // application(_:open:) would deliver each URL a second time — and on
     // macOS versions where it preempts .onOpenURL, swallow them entirely.
 
+}
+
+/// UI-test launches need a clean slate for the keys below, but they run in
+/// the real defaults domain — deleting outright costs the person their own
+/// choices (a test run used to silently reset the toolbar placement, site
+/// permissions, and the rest to factory defaults). So the first UI-test
+/// launch parks the live values under a reserved key, every UI-test launch
+/// clears the keys as before, and the next normal launch puts the parked
+/// values back — which also discards anything tests wrote into those keys.
+@MainActor
+internal enum UITestingDefaultsPreservation {
+    /// Reserved key holding the parked values. Its presence is the "a test
+    /// run owns these keys right now" marker, so back-to-back test runs
+    /// keep the original backup instead of re-parking test residue.
+    static let backupKey = "Candoa.Settings.UITestingPreservedDefaults"
+
+    /// The keys tests assume are factory-fresh: per-site permission
+    /// decisions, command bar learning (a prior run's picks would reorder
+    /// suggestions), and the General pane's behavior choices (⌘T arms the
+    /// palette, download fixtures survive the popover's retention pass).
+    static let resetKeys: [String] = [
+        SitePermissionConfiguration.storageKey,
+        CommandBarSelectionMemory.storageKey,
+        SettingsOption.newTabsOpenWith,
+        SettingsOption.historyRetention,
+        SettingsOption.downloadLocationMode,
+        SettingsOption.downloadListRetention,
+        SettingsOption.openSafeDownloads,
+        SettingsOption.addressBarPlacement
+    ]
+
+    static func backUpAndClearForUITesting(defaults: UserDefaults = .standard) {
+        if defaults.object(forKey: backupKey) == nil {
+            var parked: [String: Any] = [:]
+            for key in resetKeys {
+                if let value = defaults.object(forKey: key) {
+                    parked[key] = value
+                }
+            }
+            defaults.set(parked, forKey: backupKey)
+        }
+        for key in resetKeys {
+            defaults.removeObject(forKey: key)
+        }
+    }
+
+    static func restoreAfterUITestingIfNeeded(defaults: UserDefaults = .standard) {
+        guard let parked = defaults.dictionary(forKey: backupKey) else { return }
+        for key in resetKeys {
+            if let value = parked[key] {
+                defaults.set(value, forKey: key)
+            } else {
+                // Absent at park time; clearing sheds test residue too.
+                defaults.removeObject(forKey: key)
+            }
+        }
+        defaults.removeObject(forKey: backupKey)
+    }
 }
