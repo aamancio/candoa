@@ -23,7 +23,21 @@ final class BrowserPasskeyAuthorizationService {
     /// Also consulted by the built-in virtual authenticator (issue #506),
     /// which stands in exactly while this is false.
     nonisolated static var hasManagedEntitlement: Bool {
+        if isEntitlementSimulatedForFixtures { return true }
         guard let task = SecTaskCreateFromSelf(nil) else { return false }
         return SecTaskCopyValueForEntitlement(task, Self.entitlement as CFString, nil) as? Bool == true
+    }
+
+    /// Debug builds can't be signed with the managed entitlement (CI holds
+    /// the only key, and the quality gate bans it from entitlements files),
+    /// so the migration flip — the virtual authenticator uninstalling itself
+    /// the day Apple grants the entitlement (issue #501) — would otherwise be
+    /// unverifiable before release. This fixture pretends the grant landed.
+    private nonisolated static var isEntitlementSimulatedForFixtures: Bool {
+        #if DEBUG
+        return ProcessInfo.processInfo.environment["CANDOA_FIXTURE_PASSKEY_ENTITLED"] == "1"
+        #else
+        return false
+        #endif
     }
 }
