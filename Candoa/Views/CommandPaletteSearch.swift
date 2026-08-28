@@ -365,10 +365,14 @@ extension CommandPaletteView {
         }
 
         let suffixStart = text.index(text.startIndex, offsetBy: query.count)
+        // A learned or history completion that lands on a search provider's
+        // site behaves like the provider's own: the first Tab makes the
+        // chip, matching the "Search X — Tab" hint, instead of merely
+        // solidifying the text and needing a second press.
         return PaletteAutocompleteSuggestion(
             text: text,
             suffix: String(text[suffixStart...]),
-            provider: provider,
+            provider: provider ?? self.provider(forURLText: text),
             command: command
         )
     }

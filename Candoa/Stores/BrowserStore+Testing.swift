@@ -2,6 +2,13 @@ import Combine
 import Foundation
 import SQLite3
 
+/// Fixture-typed command bar text (the `palette:type:` window command).
+/// The ID keys change detection so the same text can be sent twice.
+struct UITestingPaletteTypedText: Equatable {
+    let id: UUID
+    let text: String
+}
+
 extension BrowserStore {
     static var isUITesting: Bool {
 #if DEBUG
@@ -177,6 +184,32 @@ extension BrowserStore {
                         self.aiSidebarToggleRequestID = UUID()
                     } else if command == "sidebar:toggle" {
                         self.sidebarToggleRequestID = UUID()
+                    } else if command.hasPrefix("palette:type:") {
+                        let text = String(command.dropFirst("palette:type:".count))
+                        if !self.isCommandPalettePresented {
+                            self.openNewTabCommandPalette()
+                        }
+                        // The palette view mounts on the next render pass;
+                        // set the text after it so onChange can observe it.
+                        Task { @MainActor [weak self] in
+                            try? await Task.sleep(for: .milliseconds(250))
+                            self?.uiTestingCommandPaletteTypedText =
+                                UITestingPaletteTypedText(id: UUID(), text: text)
+                        }
+                    } else if command == "palette:tab" {
+                        self.uiTestingCommandPaletteTabRequestID = UUID()
+                    } else if command.hasPrefix("palette:learn:") {
+                        // `palette:learn:<typedText>|<url>` seeds a learned
+                        // pick, standing in for a row chosen in a past run.
+                        let payload = String(command.dropFirst("palette:learn:".count))
+                        let parts = payload.split(separator: "|", maxSplits: 1)
+                        if parts.count == 2, let url = URL(string: String(parts[1])) {
+                            self.commandBarSelections.record(
+                                typedText: String(parts[0]),
+                                title: "Learned Fixture Page",
+                                url: url
+                            )
+                        }
                     }
                 }
             }
