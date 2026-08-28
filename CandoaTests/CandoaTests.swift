@@ -1959,6 +1959,43 @@ final class MiniPlayerLayoutTests: XCTestCase {
         let tall = MiniPlayerLayout.clampedSize(longEdge: carried, aspectRatio: 9.0 / 16.0, in: window)
         XCTAssertEqual(tall.height, 520, accuracy: 0.5, "the player keeps its stature across a swipe to a short")
     }
+
+    func testResizeHandlesStraddleThePlayerBorder() {
+        let size = CGSize(width: 430, height: 430 * 9 / 16)
+
+        for edge in MiniPlayerResizeEdge.allCases {
+            let rect = CGRect(
+                x: edge.position(in: size).x - edge.width(in: size) / 2,
+                y: edge.position(in: size).y - edge.height(in: size) / 2,
+                width: edge.width(in: size),
+                height: edge.height(in: size)
+            )
+            XCTAssertTrue(
+                rect.intersects(CGRect(origin: .zero, size: size)),
+                "\(edge.rawValue) reaches inside the player"
+            )
+        }
+
+        // Overshooting a corner or an edge by a few points still lands.
+        let overshoot = MiniPlayerLayout.resizeOutwardGrab - 2
+        let bottomRight = MiniPlayerResizeEdge.bottomTrailing
+        let cornerRect = CGRect(
+            x: bottomRight.position(in: size).x - bottomRight.width(in: size) / 2,
+            y: bottomRight.position(in: size).y - bottomRight.height(in: size) / 2,
+            width: bottomRight.width(in: size),
+            height: bottomRight.height(in: size)
+        )
+        XCTAssertTrue(cornerRect.contains(CGPoint(x: size.width + overshoot, y: size.height + overshoot)))
+
+        let trailing = MiniPlayerResizeEdge.trailing
+        let edgeRect = CGRect(
+            x: trailing.position(in: size).x - trailing.width(in: size) / 2,
+            y: trailing.position(in: size).y - trailing.height(in: size) / 2,
+            width: trailing.width(in: size),
+            height: trailing.height(in: size)
+        )
+        XCTAssertTrue(edgeRect.contains(CGPoint(x: size.width + overshoot, y: size.height / 2)))
+    }
 }
 
 // MARK: - Hibernation unsaved-input guard (issue #485)
