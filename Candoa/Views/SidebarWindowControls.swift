@@ -668,6 +668,9 @@ internal struct ToolbarIconButtonStyle: ButtonStyle {
             configuration.label
                 .font(.system(size: 15, weight: .medium))
                 .symbolRenderingMode(.hierarchical)
+                // Custom ButtonStyles opt out of SwiftUI's automatic disabled
+                // dim, so a history-less back arrow rendered at full strength.
+                .opacity(isEnabled ? 1 : 0.35)
                 // Part of the sidebar header's width budget: five of these
                 // must fit beside the window controls in the 234pt lane.
                 .frame(width: 24, height: 24)
