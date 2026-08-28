@@ -807,15 +807,29 @@ struct SidebarView: View {
                             .foregroundStyle(InterfaceStyle.sidebarIcon)
                     }
 
-                    Text(sidebarAddressText(for: url))
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                        .font(
-                            developerModeEnabled
-                                ? .system(size: 13, weight: .medium, design: .monospaced)
-                                : .system(size: 14, weight: .semibold)
-                        )
-                        .foregroundStyle(InterfaceStyle.sidebarTextSecondary)
+                    // The strip's Dia hierarchy in the pill too: domain
+                    // clear, scheme and tail passive. Local-development
+                    // pages always show the URL form (monospaced, like the
+                    // developer bar); everything else shows the title tail
+                    // idle and reveals the path on hover.
+                    Group {
+                        if let url {
+                            TopAddressBar.styledAddress(
+                                url: url,
+                                title: displayedActiveTab(for: spaceID)?.title,
+                                revealsURLTail: developerModeEnabled || isHoveringAddressPill,
+                                size: developerModeEnabled ? 13 : 14,
+                                domainWeight: developerModeEnabled ? .medium : .semibold,
+                                design: developerModeEnabled ? .monospaced : .default
+                            )
+                        } else {
+                            Text(sidebarAddressText(for: nil))
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(InterfaceStyle.sidebarTextSecondary)
+                        }
+                    }
+                    .lineLimit(1)
+                    .truncationMode(.tail)
 
                     Spacer(minLength: 0)
                 }
