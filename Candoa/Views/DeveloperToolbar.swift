@@ -23,15 +23,16 @@ internal struct DeveloperToolbar: View {
     /// for the tint's darker shades, the way Dia derives its toolbar's
     /// landmarks from the worn color. Nil restores the neutral treatments.
     let chromeTint: TopBarChromeTint?
-    let onSubmitURL: (String) -> Void
+    /// Editing goes through the command bar like every other address in
+    /// Candoa — same dropdown, same suggestions — instead of a bare inline
+    /// field with no autocomplete.
+    let onEditAddress: () -> Void
     let onToggleChat: () -> Void
 
-    @State private var draftURL = ""
     @State private var isURLFieldHovered = false
     @State private var hoveredControl: DeveloperToolbarControlKind?
     @State private var isHoveringControlMenu = false
     @State private var sharePicker = SharePickerCoordinator()
-    @FocusState private var isURLFieldFocused: Bool
     /// The window's own scheme — read above the re-schemed subtree, so the
     /// untinted bar stays with the window.
     @Environment(\.colorScheme) private var windowScheme
@@ -56,7 +57,7 @@ internal struct DeveloperToolbar: View {
     /// and path stay passive. Verbatim: URLs are data, not catalog strings.
     private var devAddressDisplay: Text {
         guard let url = currentURL, url.host() != nil else {
-            return Text(verbatim: draftURL).foregroundColor(foreground.opacity(0.92))
+            return Text(verbatim: urlText).foregroundColor(foreground.opacity(0.92))
         }
 
         let passive = foreground.opacity(0.5)
@@ -82,69 +83,37 @@ internal struct DeveloperToolbar: View {
                     .padding(.trailing, -4)
             }
 
-            TextField("", text: $draftURL)
-                .textFieldStyle(.plain)
-                .font(.system(size: 12, weight: .medium, design: .monospaced))
-                // While not editing, the field's own text steps aside for
-                // the two-tone overlay below — same font, same metrics, so
-                // nothing moves when editing begins.
-                .foregroundStyle(isURLFieldFocused ? foreground.opacity(0.92) : Color.clear)
-                .tint(AppColor.accent)
-                .lineLimit(1)
-                .focused($isURLFieldFocused)
-                .onSubmit {
-                    isURLFieldFocused = false
-                    onSubmitURL(draftURL)
-                }
-                .onExitCommand {
-                    draftURL = urlText
-                    isURLFieldFocused = false
-                }
-                .onAppear { draftURL = urlText }
-                .onChange(of: urlText) { _, newValue in
-                    // Navigation landed: refresh the field, but never clobber
-                    // an edit in progress.
-                    if !isURLFieldFocused {
-                        draftURL = newValue
-                    }
-                }
-                .onChange(of: isURLFieldFocused) { _, isFocused in
-                    // Abandoned edits (click away) revert to the live URL.
-                    if !isFocused {
-                        draftURL = urlText
-                    }
-                }
-                // Dia's address-field affordance: hovering (or editing) the
-                // URL fills a rounded field behind it — a darker shade of
-                // the worn page color on a tinted bar, neutral otherwise.
-                // The negative leading pull keeps the text where it sat.
-                .padding(.horizontal, 6)
-                .frame(height: 22)
-                .background(
-                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .fill(
-                            isURLFieldHovered || isURLFieldFocused
-                                ? (chromeTint?.controlFill ?? InterfaceStyle.sidebarControlFill)
-                                : Color.clear
-                        )
-                )
-                .overlay(alignment: .leading) {
-                    // The read-only face of the field: domain clear, scheme
-                    // and path passive, like the address strip's hierarchy.
-                    if !isURLFieldFocused {
-                        devAddressDisplay
-                            .font(.system(size: 12, weight: .medium, design: .monospaced))
-                            .lineLimit(1)
-                            .truncationMode(.tail)
-                            .padding(.leading, 6)
-                            .allowsHitTesting(false)
-                    }
-                }
-                .padding(.leading, -6)
-                .onHover { isURLFieldHovered = $0 }
-                .animation(.easeOut(duration: 0.12), value: isURLFieldHovered)
-
-            Spacer(minLength: 8)
+            // The address is one click target spanning the bar's free run,
+            // like the strip's: clicking anywhere on it opens the command
+            // bar with the URL prefilled — autocomplete included — instead
+            // of a bare inline field. Dia's address-field affordance stays:
+            // hovering fills a rounded field behind it, a darker shade of
+            // the worn page color on a tinted bar, neutral otherwise. The
+            // negative leading pull keeps the text where it sat.
+            Button(action: onEditAddress) {
+                devAddressDisplay
+                    .font(.system(size: 12, weight: .medium, design: .monospaced))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .padding(.horizontal, 6)
+                    .frame(height: 22)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+            }
+            .buttonTreatment(.content)
+            .background(
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(
+                        isURLFieldHovered
+                            ? (chromeTint?.controlFill ?? InterfaceStyle.sidebarControlFill)
+                            : Color.clear
+                    )
+            )
+            .padding(.leading, -6)
+            .onHover { isURLFieldHovered = $0 }
+            .animation(.easeOut(duration: 0.12), value: isURLFieldHovered)
+            .accessibilityLabel("Address")
+            .accessibilityIdentifier("developer-address-button")
 
             // Zen's 8px grid: equal 24pt hit boxes on an 8pt gap, so the
             // optical gap between glyphs stays even.

@@ -305,7 +305,7 @@ struct WebViewContainer: View {
                     contentInsets: barInterfaceInsets,
                     leadingControls: usesTopToolbarPlacement ? topToolbarLeadingControls : nil,
                     chromeTint: chromePageTint,
-                    onSubmitURL: { store.navigateActiveTab(to: $0) },
+                    onEditAddress: { store.focusAddressBar() },
                     onToggleChat: { store.requestAISidebarToggle() }
                 )
                 // The web host's opaque surface background paints over
