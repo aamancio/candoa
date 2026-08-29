@@ -2309,6 +2309,110 @@ final class WebNotificationShimTests: XCTestCase {
     }
 }
 
+/// Runs `WebPageScripts.pageColorObserverScript` in a real WKWebView and
+/// asserts the verdict it posts for pages that author their colors in
+/// modern CSS spaces. WebKit serializes those computed backgrounds as
+/// lab()/oklch() — never rgb() — and the observer's legacy-rgb parser used
+/// to fail on every probe and land on its white fallback, so a Tailwind v4
+/// dark page (ui.shadcn.com) got a white top bar over black pixels.
+@MainActor
+final class PageColorObserverTests: XCTestCase {
+    private final class VerdictRecorder: NSObject, WKScriptMessageHandler {
+        var colors: [String] = []
+        func userContentController(
+            _ userContentController: WKUserContentController,
+            didReceive message: WKScriptMessage
+        ) {
+            if let body = message.body as? [String: Any], let color = body["color"] as? String {
+                colors.append(color)
+            }
+        }
+    }
+
+    private func makeLoadedWebView(
+        recorder: VerdictRecorder,
+        html: String,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) async throws -> WKWebView {
+        let configuration = WKWebViewConfiguration()
+        configuration.userContentController.add(
+            recorder, name: WebPageScripts.pageColorMessageName
+        )
+        configuration.userContentController.addUserScript(
+            WKUserScript(
+                source: WebPageScripts.pageColorObserverScript,
+                injectionTime: .atDocumentEnd,
+                forMainFrameOnly: true
+            )
+        )
+        let webView = WKWebView(
+            frame: CGRect(x: 0, y: 0, width: 320, height: 240),
+            configuration: configuration
+        )
+        webView.loadHTMLString(html, baseURL: nil)
+        let loaded = try await poll(webView, until: "window.__candoaPageColorInstalled === true")
+        XCTAssertTrue(loaded, "observer script must install", file: file, line: line)
+        return webView
+    }
+
+    private func poll(_ webView: WKWebView, until expression: String) async throws -> Bool {
+        for _ in 0..<400 {
+            if (try? await webView.evaluateJavaScript("(\(expression)) === true")) as? Bool == true {
+                return true
+            }
+            try await Task.sleep(nanoseconds: 25_000_000)
+        }
+        return false
+    }
+
+    private func reportedVerdict(
+        _ webView: WKWebView,
+        _ recorder: VerdictRecorder
+    ) async throws -> String? {
+        _ = try await webView.evaluateJavaScript("window.__candoaPageColorReport(); true")
+        for _ in 0..<400 {
+            if let verdict = recorder.colors.last { return verdict }
+            try await Task.sleep(nanoseconds: 25_000_000)
+        }
+        return nil
+    }
+
+    func testLegacyRGBBackgroundReportsExactly() async throws {
+        let recorder = VerdictRecorder()
+        let webView = try await makeLoadedWebView(
+            recorder: recorder,
+            html: "<!doctype html><html><body style='margin:0;background-color:rgb(18,52,86)'><p>page</p></body></html>"
+        )
+        let verdict = try await reportedVerdict(webView, recorder)
+        XCTAssertEqual(verdict, "18,52,86")
+    }
+
+    /// The shadcn shape: transparent html/body, an oklch-dark wrapper
+    /// painting the whole viewport. The verdict must be that dark color,
+    /// not the white no-base fallback.
+    func testOKLCHBackgroundOnWrapperReportsItsDarkColor() async throws {
+        let recorder = VerdictRecorder()
+        let webView = try await makeLoadedWebView(
+            recorder: recorder,
+            html: """
+            <!doctype html><html><body style='margin:0'>
+            <div style='position:fixed;inset:0;background-color:oklch(0.145 0 0)'><p>page</p></div>
+            </body></html>
+            """
+        )
+        guard let verdict = try await reportedVerdict(webView, recorder) else {
+            return XCTFail("observer must post a verdict")
+        }
+        let channels = verdict.split(separator: ",").compactMap { Int($0) }
+        XCTAssertEqual(channels.count, 3, "verdict is r,g,b — got \(verdict)")
+        XCTAssertTrue(
+            channels.allSatisfy { $0 < 60 },
+            "oklch(0.145 0 0) is near-black, not the white fallback — got \(verdict)"
+        )
+    }
+}
+
 /// Native-side helpers around the shim: id validation (anything but the
 /// shim's digit ids must be dropped before it reaches evaluateJavaScript)
 /// and reopening a site from a stored origin key.
