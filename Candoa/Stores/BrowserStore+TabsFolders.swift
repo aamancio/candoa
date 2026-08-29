@@ -474,7 +474,7 @@ extension BrowserStore {
     }
 
     @discardableResult
-    func createPopupTab(url: URL?, in spaceID: UUID) -> BrowserTab {
+    func createPopupTab(url: URL?, in spaceID: UUID, activate: Bool = true) -> BrowserTab {
         let tab = BrowserTab(
             title: title(for: url),
             url: url,
@@ -485,7 +485,9 @@ extension BrowserStore {
 
         tabs.insert(tab, at: 0)
         unsyncedLocalTabIDs.insert(tab.id)
-        switchTab(to: tab.id)
+        if activate {
+            switchTab(to: tab.id)
+        }
         return tab
     }
 

@@ -84,6 +84,45 @@ extension CandoaUITests {
         )
     }
 
+    /// Sites that route link clicks through window.open (SPA routers, search
+    /// results) must honor the same ⌘-click contract as real anchors: the
+    /// popup loads in a background tab while the clicked page keeps the
+    /// screen; ⇧ added makes it active. Before createWebViewWith checked
+    /// modifier flags, a ⌘-click on such a link always focused the new tab.
+    func testCommandClickWindowOpenStaysInBackground() {
+        let app = launchApp(fixture: "popup-open")
+
+        openFixtureTab(path: "popup", in: app)
+
+        let webView = app.webViews.firstMatch
+        XCTAssertTrue(webView.waitForExistence(timeout: 10), currentState(in: app))
+        XCUIElement.perform(withKeyModifiers: .command) {
+            webView.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).click()
+        }
+
+        // The popup tab is created in the background (the diagnostic marks
+        // the non-activating path) while the clicked page stays active.
+        XCTAssertTrue(
+            waitForState(
+                in: app,
+                containing: "background href=https://fixture.candoa.test/popup-child",
+                timeout: 10
+            ),
+            currentState(in: app)
+        )
+        XCTAssertEqual(stateValue("active", in: app), "popup", currentState(in: app))
+        XCTAssertEqual(stateValue("url", in: app), "https://fixture.candoa.test/popup", currentState(in: app))
+
+        // ⇧ added makes the new tab active instead.
+        XCUIElement.perform(withKeyModifiers: [.command, .shift]) {
+            webView.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).click()
+        }
+        XCTAssertTrue(
+            waitForState(in: app, containing: "url=https://fixture.candoa.test/popup-child", timeout: 10),
+            currentState(in: app)
+        )
+    }
+
     /// A sign-in redirect that lands, renders nothing, and stays there leaves
     /// the tab blank with no way out — and the spent URL is persisted, so
     /// every relaunch restores the same empty page. The recovery cover names
