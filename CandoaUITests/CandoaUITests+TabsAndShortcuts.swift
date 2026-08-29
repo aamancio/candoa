@@ -582,4 +582,36 @@ extension CandoaUITests {
             currentState(in: app)
         )
     }
+
+    /// Safari's ⌘`: key status cycles through the app's windows. The
+    /// system's own Move Focus to Next Window never survives the web
+    /// view's key bounce while a page holds focus, so the shortcut
+    /// monitor cycles explicitly. The ⌘T probe proves which window is
+    /// key: the palette can only open in the key window.
+    func testCommandBacktickCyclesWindows() {
+        let app = launchApp(fixture: "link-click")
+        XCTAssertTrue(waitForState(in: app, containing: "private=false"), currentState(in: app))
+
+        app.typeKey("n", modifierFlags: [.command, .shift])
+        let privateWindow = app.windows["Private Browsing"]
+        XCTAssertTrue(privateWindow.waitForExistence(timeout: 10))
+        let ordinaryWindow = app.windows.matching(
+            NSPredicate(format: "title != %@", "Private Browsing")
+        ).firstMatch
+
+        // Settle key status on the private window before cycling.
+        element("private-browsing-label", in: privateWindow).click()
+        openNewTabPalette(in: privateWindow, of: app)
+        app.typeKey(.escape, modifierFlags: [])
+
+        // ⌘` hands key status to the ordinary window…
+        app.typeKey("`", modifierFlags: .command)
+        openNewTabPalette(in: ordinaryWindow, of: app)
+        app.typeKey(.escape, modifierFlags: [])
+
+        // …and ⇧⌘` cycles back to the private window.
+        app.typeKey("`", modifierFlags: [.command, .shift])
+        openNewTabPalette(in: privateWindow, of: app)
+        app.typeKey(.escape, modifierFlags: [])
+    }
 }
