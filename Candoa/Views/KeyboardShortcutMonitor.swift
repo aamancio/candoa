@@ -216,6 +216,16 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
                 return nil
             }
 
+            // Safari's ⌘` / ⇧⌘`: cycle key status through the app's
+            // windows. AppKit's own Move Focus to Next Window handling
+            // never fires while the page holds first responder — the web
+            // view claims the key equivalent and the bounce dies in the
+            // beep swallow — so the browser cycles explicitly.
+            if Self.isCycleWindowsShortcut(event) {
+                Self.cycleKeyWindow(forward: !Self.normalizedModifiers(for: event).contains(.shift))
+                return nil
+            }
+
             if Self.matchesConfiguredShortcut(.newTab, event) {
                 onCommandT()
                 return nil
@@ -460,6 +470,32 @@ struct KeyboardShortcutMonitor: NSViewRepresentable {
 
         private static func isControlPressed(_ event: NSEvent) -> Bool {
             event.modifierFlags.intersection(.deviceIndependentFlagsMask).contains(.control)
+        }
+
+        /// ⌘` or ⇧⌘`, matched by character so the key follows the layout
+        /// the way the system's own Move Focus to Next Window does. The
+        /// shifted form reports "~" on ANSI layouts.
+        private static func isCycleWindowsShortcut(_ event: NSEvent) -> Bool {
+            let modifiers = normalizedModifiers(for: event)
+            guard modifiers == .command || modifiers == [.command, .shift] else { return false }
+            let characters = event.charactersIgnoringModifiers
+            return characters == "`" || characters == "~"
+        }
+
+        /// Round-robin the way AppKit cycles: forward sends the key window
+        /// to the back of the app's line and promotes the one behind it, so
+        /// repeated presses visit every window; backward promotes the
+        /// window at the back of the line.
+        private static func cycleKeyWindow(forward: Bool) {
+            let windows = NSApp.orderedWindows.filter { $0.canBecomeMain && !($0 is NSPanel) }
+            guard windows.count > 1, let keyWindow = windows.first, let lastWindow = windows.last else { return }
+            if forward {
+                let next = windows[1]
+                keyWindow.order(.below, relativeTo: lastWindow.windowNumber)
+                next.makeKeyAndOrderFront(nil)
+            } else {
+                lastWindow.makeKeyAndOrderFront(nil)
+            }
         }
 
         private static func digit(for event: NSEvent, requiring modifier: NSEvent.ModifierFlags) -> Int? {
