@@ -301,7 +301,22 @@ extension WebViewCoordinator {
         let sourceSpaceID = tabID(for: webView)
             .flatMap { sourceTabID in store.tabs.first { $0.id == sourceTabID }?.spaceID }
             ?? store.activeSpaceID
-        let popupTab = store.createPopupTab(url: navigationAction.request.url, in: sourceSpaceID)
+        // Sites that route clicks through window.open still honor the
+        // ⌘-click contract from decidePolicyFor: the tab loads in the
+        // background, ⇧ added makes it active. Unmodified window.open
+        // (real pop-ups, OAuth windows) keeps taking the screen.
+        let modifiers = navigationAction.modifierFlags
+        let activates = !modifiers.contains(.command) || modifiers.contains(.shift)
+        if BrowserStore.isUITesting, !activates {
+            store.uiTestingPopupDiagnostics.append(
+                "background href=\(navigationAction.request.url?.absoluteString.prefix(80) ?? "nil")"
+            )
+        }
+        let popupTab = store.createPopupTab(
+            url: navigationAction.request.url,
+            in: sourceSpaceID,
+            activate: activates
+        )
 
         // WebKit drives the popup's first navigation through the returned web view,
         // which must be created with the configuration it hands us.
