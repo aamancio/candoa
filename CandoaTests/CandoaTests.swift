@@ -2411,6 +2411,33 @@ final class PageColorObserverTests: XCTestCase {
             "oklch(0.145 0 0) is near-black, not the white fallback — got \(verdict)"
         )
     }
+
+    /// The Radix-modal shape (shadcn's ⌘K palette): the open dialog sets
+    /// `pointer-events: none` on the body, so `elementFromPoint` falls
+    /// through to the bare root while the dark page still paints. The
+    /// probe must report inconclusive ("" — the app holds the worn color),
+    /// never the white fallback that made the bar flap white.
+    func testBodyWithoutPointerEventsReportsInconclusiveNotWhite() async throws {
+        let recorder = VerdictRecorder()
+        let webView = try await makeLoadedWebView(
+            recorder: recorder,
+            html: """
+            <!doctype html><html><body style='margin:0'>
+            <div style='position:fixed;inset:0;background-color:rgb(10,10,10)'><p>page</p></div>
+            </body></html>
+            """
+        )
+        let before = try await reportedVerdict(webView, recorder)
+        XCTAssertEqual(before, "10,10,10", "the page's own color is worn while hit-testing works")
+
+        _ = try await webView.evaluateJavaScript("document.body.style.pointerEvents = 'none'; true")
+        let during = try await reportedVerdict(webView, recorder)
+        XCTAssertEqual(during, "", "a blinded probe is inconclusive, not the white fallback")
+
+        _ = try await webView.evaluateJavaScript("document.body.style.pointerEvents = ''; true")
+        let after = try await reportedVerdict(webView, recorder)
+        XCTAssertEqual(after, "10,10,10", "closing the modal restores the page's color")
+    }
 }
 
 /// Native-side helpers around the shim: id validation (anything but the

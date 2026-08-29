@@ -61,6 +61,15 @@ enum WebPageScripts {
         const overlays = [];
         let base = null;
         let element = document.elementFromPoint(x, 2);
+        // A modal that turns off the body's pointer-events (shadcn's ⌘K
+        // palette) blinds hit-testing: the probe falls through to the bare
+        // root even though painted elements still cover it. That is no
+        // information, not a white page — the probe is inconclusive, so the
+        // app HOLDs the color the bar already wears.
+        if ((!element || element === document.documentElement) &&
+            document.body && getComputedStyle(document.body).pointerEvents === "none") {
+          return null;
+        }
         while (element && element !== document.documentElement) {
           const color = parse(getComputedStyle(element).backgroundColor);
           if (color && color.a >= 0.98) { base = color; break; }
