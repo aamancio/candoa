@@ -30,11 +30,26 @@ enum WebPageScripts {
       if (window.__candoaPageColorInstalled) { return; }
       window.__candoaPageColorInstalled = true;
 
+      // Computed colors serialize in whatever space the page authored them —
+      // a Tailwind v4 theme comes back as lab()/oklch(), not rgb() — so
+      // whatever the legacy-rgb fast path can't read is repainted through a
+      // 1x1 canvas, which resolves any CSS color to plain sRGB pixels.
+      const normalizer = document.createElement("canvas");
+      normalizer.width = 1;
+      normalizer.height = 1;
+      const normalizerContext = normalizer.getContext("2d", { willReadFrequently: true });
       const parse = (value) => {
         const match = /^rgba?\\(([\\d.]+),\\s*([\\d.]+),\\s*([\\d.]+)(?:,\\s*([\\d.]+))?\\)/.exec(value || "");
-        if (!match) { return null; }
-        const alpha = match[4] === undefined ? 1 : parseFloat(match[4]);
-        return { r: +match[1], g: +match[2], b: +match[3], a: alpha };
+        if (match) {
+          const alpha = match[4] === undefined ? 1 : parseFloat(match[4]);
+          return { r: +match[1], g: +match[2], b: +match[3], a: alpha };
+        }
+        if (!value || !normalizerContext) { return null; }
+        normalizerContext.clearRect(0, 0, 1, 1);
+        normalizerContext.fillStyle = value;
+        normalizerContext.fillRect(0, 0, 1, 1);
+        const pixel = normalizerContext.getImageData(0, 0, 1, 1).data;
+        return { r: pixel[0], g: pixel[1], b: pixel[2], a: pixel[3] / 255 };
       };
       const over = (top, base) => ({
         r: top.r * top.a + base.r * (1 - top.a),
