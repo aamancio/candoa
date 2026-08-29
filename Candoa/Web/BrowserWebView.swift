@@ -23,6 +23,31 @@ final class BrowserWebView: WKWebView {
     /// never come back, so the weak table lets them fall out on their own.
     private let keyDownsSentToPage = NSHashTable<NSEvent>.weakObjects()
 
+    /// The modifiers held during the most recent mouse-down, and when it
+    /// landed. WebKit only attributes modifier flags to real anchor
+    /// activations; a click a site routes through JS window.open reaches
+    /// createWebViewWith as a fresh navigation whose modifierFlags are
+    /// empty. Capturing the gesture here lets the popup path honor
+    /// ⌘-click's background-tab contract, the way Chrome attributes the
+    /// disposition of a window.open to its triggering click.
+    private var lastMouseDownModifiers: NSEvent.ModifierFlags = []
+    private var lastMouseDownTimestamp: TimeInterval = .zero
+
+    /// Modifiers of a click recent enough to be the gesture behind a
+    /// popup arriving now; empty once the click has gone stale (a popup a
+    /// page opens on its own schedule inherits nothing).
+    var recentMouseDownModifiers: NSEvent.ModifierFlags {
+        ProcessInfo.processInfo.systemUptime - lastMouseDownTimestamp < 2
+            ? lastMouseDownModifiers
+            : []
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        lastMouseDownModifiers = event.modifierFlags
+        lastMouseDownTimestamp = event.timestamp
+        super.mouseDown(with: event)
+    }
+
     override func keyDown(with event: NSEvent) {
         if keyDownsSentToPage.contains(event) {
             keyDownsSentToPage.remove(event)
