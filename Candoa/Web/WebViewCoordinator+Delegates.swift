@@ -305,7 +305,11 @@ extension WebViewCoordinator {
         // ⌘-click contract from decidePolicyFor: the tab loads in the
         // background, ⇧ added makes it active. Unmodified window.open
         // (real pop-ups, OAuth windows) keeps taking the screen.
-        let modifiers = navigationAction.modifierFlags
+        // navigationAction.modifierFlags is empty for JS-initiated opens,
+        // so the source view's recent mouse-down supplies the gesture.
+        let modifiers = navigationAction.modifierFlags.union(
+            (webView as? BrowserWebView)?.recentMouseDownModifiers ?? []
+        )
         let activates = !modifiers.contains(.command) || modifiers.contains(.shift)
         if BrowserStore.isUITesting, !activates {
             store.uiTestingPopupDiagnostics.append(
