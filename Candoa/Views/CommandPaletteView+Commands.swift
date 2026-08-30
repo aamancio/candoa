@@ -452,7 +452,7 @@ extension CommandPaletteView {
     /// nowhere in the page's title or URL.
     internal func learnedSelectionCommand(for query: String) -> PaletteCommand? {
         guard !query.isEmpty,
-              let selection = store.commandBarSelections.selections(matching: query).first,
+              let selection = learnedSelection(for: query),
               let url = selection.url
         else {
             return nil
@@ -484,16 +484,24 @@ extension CommandPaletteView {
         switch command.action {
         case .navigate(let input):
             // Only rows that stand for a page teach anything; a typed URL
-            // or search needs no shortcut back to itself.
+            // or search needs no shortcut back to itself. A provider's
+            // search-results page teaches nothing either — remembering it
+            // would make this phrase re-run that site search forever.
             guard command.style == .history || command.style == .tab,
                   let url = URL(string: input),
-                  url.host(percentEncoded: false) != nil
+                  url.host(percentEncoded: false) != nil,
+                  !NavigationService.isProviderSearchResultsURL(url)
             else {
                 return
             }
             store.commandBarSelections.record(typedText: typedText, title: command.title, url: url)
         case .switchTab(let id):
-            guard let tab = store.tabs.first(where: { $0.id == id }), let url = tab.url else { return }
+            guard let tab = store.tabs.first(where: { $0.id == id }),
+                  let url = tab.url,
+                  !NavigationService.isProviderSearchResultsURL(url)
+            else {
+                return
+            }
             store.commandBarSelections.record(
                 typedText: typedText,
                 title: tab.title.isEmpty ? command.title : tab.title,

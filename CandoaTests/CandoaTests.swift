@@ -1051,6 +1051,51 @@ final class NavigationSchemeTests: XCTestCase {
     }
 }
 
+/// Provider search-results pages never lead the command bar's suggestions:
+/// retyping a phrase that repeats a past site search must still default to
+/// the search engine, not re-run the site search. The predicate that spots
+/// those pages is pure logic.
+final class ProviderSearchResultsURLTests: XCTestCase {
+    private func isResultsURL(_ urlString: String) -> Bool {
+        NavigationService.isProviderSearchResultsURL(URL(string: urlString)!)
+    }
+
+    func testRecognizesProviderResultsPages() {
+        XCTAssertTrue(isResultsURL("https://www.youtube.com/results?search_query=unidad+deportiva+belen"))
+        XCTAssertTrue(isResultsURL("https://www.google.com/search?q=weather&hl=en"))
+        XCTAssertTrue(isResultsURL("https://duckduckgo.com/?q=swift"))
+    }
+
+    func testHostMatchIgnoresWWWAndCase() {
+        XCTAssertTrue(isResultsURL("https://youtube.com/results?search_query=x"))
+        XCTAssertTrue(isResultsURL("HTTPS://WWW.YOUTUBE.COM/results?search_query=x"))
+    }
+
+    func testOrdinaryPagesOnProviderSitesDoNotMatch() {
+        XCTAssertFalse(isResultsURL("https://www.youtube.com/watch?v=QHXV3HzdzkE"))
+        XCTAssertFalse(isResultsURL("https://www.youtube.com/"))
+        XCTAssertFalse(isResultsURL("https://www.google.com/maps?q=bogota"))
+        XCTAssertFalse(isResultsURL("https://example.com/search?q=swift"))
+    }
+
+    func testResultsPathWithoutTheQueryParameterDoesNotMatch() {
+        XCTAssertFalse(isResultsURL("https://www.youtube.com/results"))
+        XCTAssertFalse(isResultsURL("https://www.youtube.com/results?search_query="))
+        XCTAssertFalse(isResultsURL("https://www.google.com/search?tbm=isch"))
+    }
+
+    func testEveryProviderRecognizesItsOwnSearchURL() {
+        for provider in NavigationService.searchProviders {
+            let url = provider.searchURL(for: "unidad deportiva belen")
+            XCTAssertNotNil(url, provider.id)
+            if let url {
+                XCTAssertTrue(provider.isSearchResultsURL(url), "\(provider.id): \(url)")
+                XCTAssertTrue(NavigationService.isProviderSearchResultsURL(url), provider.id)
+            }
+        }
+    }
+}
+
 /// The command palette teaches shortcuts by mapping each row's action back to
 /// its rebindable `ShortcutDefinition` (issue #370). Pure logic: no palette
 /// UI or persistence involved.
