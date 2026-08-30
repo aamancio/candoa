@@ -225,11 +225,22 @@ extension CommandPaletteView {
             ?? localAutocompleteSuggestion(for: trimmedQuery)
     }
 
+    /// The remembered pick worth leading with. A pick that lands on a
+    /// provider's search-results page is skipped: that page names a past
+    /// search, and letting it lead would turn a plain typed phrase into a
+    /// site search instead of the default engine.
+    internal func learnedSelection(for rawQuery: String) -> CommandBarSelection? {
+        store.commandBarSelections.selections(matching: rawQuery).first { selection in
+            guard let url = selection.url else { return false }
+            return !NavigationService.isProviderSearchResultsURL(url)
+        }
+    }
+
     internal func learnedAutocompleteSuggestion(
         for rawQuery: String,
         command: PaletteCommand
     ) -> PaletteAutocompleteSuggestion? {
-        guard let selection = store.commandBarSelections.selections(matching: rawQuery).first,
+        guard let selection = learnedSelection(for: rawQuery),
               let url = selection.url
         else {
             return nil
@@ -284,7 +295,12 @@ extension CommandPaletteView {
 
     internal func localAutocompleteSuggestion(for rawQuery: String) -> PaletteAutocompleteSuggestion? {
         let learnedKeys = learnedSelectionKeys(for: rawQuery)
+        // Provider search-results pages never complete the field: a typed
+        // phrase that happens to repeat a past site search should still
+        // default to the search engine, with the visit offered as a plain
+        // row further down.
         let historySuggestion = store.recentHistory(matching: rawQuery, limit: 8)
+            .filter { !NavigationService.isProviderSearchResultsURL($0.url) }
             .sorted { learnedRank(of: $0.url, in: learnedKeys) < learnedRank(of: $1.url, in: learnedKeys) }
             .flatMap { visit in
                 autocompleteTexts(title: visit.title, url: visit.url).map { (visit, $0) }
@@ -300,6 +316,9 @@ extension CommandPaletteView {
 
         return store.tabs
             .filter { $0.spaceID == store.activeSpaceID }
+            .filter { tab in
+                tab.url.map { !NavigationService.isProviderSearchResultsURL($0) } ?? true
+            }
             .sorted {
                 if $0.lastAccessedAt == $1.lastAccessedAt {
                     return $0.sortOrder < $1.sortOrder

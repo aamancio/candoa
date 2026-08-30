@@ -41,6 +41,24 @@ struct SearchProvider: Identifiable, Equatable {
         return components?.url
     }
 
+    /// Whether the URL is one of this provider's own search-results pages —
+    /// the kind `searchURL(for:)` produces, whatever extra parameters the
+    /// site added along the way.
+    func isSearchResultsURL(_ url: URL) -> Bool {
+        guard
+            let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+            let host = Self.normalizedHost(components.host),
+            host == Self.normalizedHost(baseURL.host(percentEncoded: false)),
+            Self.normalizedPath(components.path) == Self.normalizedPath(baseURL.path)
+        else {
+            return false
+        }
+
+        return components.queryItems?.contains {
+            $0.name == queryItemName && !($0.value ?? "").isEmpty
+        } ?? false
+    }
+
     func matches(_ rawInput: String) -> Bool {
         let input = Self.normalized(rawInput)
         guard !input.isEmpty else { return false }
@@ -62,6 +80,22 @@ struct SearchProvider: Identifiable, Equatable {
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .lowercased()
             .replacingOccurrences(of: " ", with: "")
+    }
+
+    private static func normalizedHost(_ host: String?) -> String? {
+        guard var host = host?.lowercased(), !host.isEmpty else { return nil }
+        if host.hasPrefix("www.") {
+            host.removeFirst(4)
+        }
+        return host
+    }
+
+    private static func normalizedPath(_ path: String) -> String {
+        var path = path.lowercased()
+        if path.hasSuffix("/") {
+            path.removeLast()
+        }
+        return path
     }
 }
 
@@ -294,6 +328,13 @@ struct NavigationService {
 
     static func searchProvider(id: String) -> SearchProvider? {
         searchProviders.first { $0.id == id }
+    }
+
+    /// Whether the URL is some provider's search-results page. A results
+    /// page names a past search, not a destination worth defaulting back
+    /// to, so the command bar keeps these out of its leading suggestion.
+    static func isProviderSearchResultsURL(_ url: URL) -> Bool {
+        searchProviders.contains { $0.isSearchResultsURL(url) }
     }
 
     static func defaultSearchProvider(for id: String?) -> SearchProvider {
