@@ -3011,3 +3011,95 @@ final class UITestingDefaultsPreservationTests: XCTestCase {
         XCTAssertEqual(defaults.string(forKey: SettingsOption.addressBarPlacement), "top")
     }
 }
+
+/// The Manage Website Data sheet's pure logic (issue #538): folding
+/// per-store data records into one row per site, and captioning what kinds
+/// of data a site stores. Fetch/removal against real WKWebsiteDataStores
+/// stays out of the unit target.
+@MainActor
+final class WebsiteDataInventoryTests: XCTestCase {
+    private let storeA = UUID()
+    private let storeB = UUID()
+
+    func testMergeFoldsSameSiteAcrossStores() {
+        let entries = WebsiteDataInventory.mergedEntries(from: [
+            (storeID: storeA, displayName: "capitalone.com", dataTypes: [WKWebsiteDataTypeCookies], record: "a"),
+            (storeID: storeB, displayName: "capitalone.com", dataTypes: [WKWebsiteDataTypeLocalStorage], record: "b")
+        ])
+
+        XCTAssertEqual(entries.count, 1)
+        XCTAssertEqual(entries[0].displayName, "capitalone.com")
+        XCTAssertEqual(entries[0].dataTypes, [WKWebsiteDataTypeCookies, WKWebsiteDataTypeLocalStorage])
+        XCTAssertEqual(entries[0].records.map(\.record).sorted(), ["a", "b"])
+        XCTAssertEqual(Set(entries[0].records.map(\.storeID)), [storeA, storeB])
+    }
+
+    func testMergeSortsSitesLikeFinder() {
+        let entries = WebsiteDataInventory.mergedEntries(from: [
+            (storeID: storeA, displayName: "example.com", dataTypes: [WKWebsiteDataTypeCookies], record: "a"),
+            (storeID: storeA, displayName: "apple.com", dataTypes: [WKWebsiteDataTypeCookies], record: "b"),
+            (storeID: storeA, displayName: "Capitalone.com", dataTypes: [WKWebsiteDataTypeCookies], record: "c")
+        ])
+
+        XCTAssertEqual(entries.map(\.displayName), ["apple.com", "Capitalone.com", "example.com"])
+    }
+
+    func testTypeSummaryUsesFixedOrderAndFoldsCacheKinds() {
+        let summary = WebsiteDataInventory.typeSummary(for: [
+            WKWebsiteDataTypeLocalStorage,
+            WKWebsiteDataTypeDiskCache,
+            WKWebsiteDataTypeMemoryCache,
+            WKWebsiteDataTypeCookies
+        ])
+
+        XCTAssertEqual(summary, "Cookies, Cache, Local Storage")
+    }
+
+    func testTypeSummaryFallsBackWhenNothingIsRecognizable() {
+        XCTAssertEqual(
+            WebsiteDataInventory.typeSummary(for: [WKWebsiteDataTypeHashSalt]),
+            "Website Data"
+        )
+    }
+}
+
+/// Round-trips the inventory's removal against a real, throwaway
+/// WKWebsiteDataStore: a planted cookie must surface as a data record and
+/// vanish once its entry is removed. The store is identifier-backed like a
+/// Space's, created fresh and deleted on the way out so nothing lingers in
+/// the app container.
+@MainActor
+final class WebsiteDataRemovalTests: XCTestCase {
+    func testRemovingAnEntryDeletesItsRecords() async throws {
+        let identifier = UUID()
+        let dataStore = WKWebsiteDataStore(forIdentifier: identifier)
+        defer {
+            WKWebsiteDataStore.remove(forIdentifier: identifier) { _ in }
+        }
+
+        var cookieProperties: [HTTPCookiePropertyKey: Any] = [
+            .domain: "stale-session.example",
+            .path: "/",
+            .name: "wedged",
+            .value: "token",
+            .expires: Date().addingTimeInterval(3600)
+        ]
+        cookieProperties[.secure] = "TRUE"
+        let cookie = try XCTUnwrap(HTTPCookie(properties: cookieProperties))
+        await dataStore.httpCookieStore.setCookie(cookie)
+
+        let records = await dataStore.dataRecords(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes())
+        let entries = WebsiteDataInventory.mergedEntries(from: records.map {
+            (storeID: identifier, displayName: $0.displayName, dataTypes: $0.dataTypes, record: $0)
+        })
+        let planted = try XCTUnwrap(entries.first { $0.displayName.contains("stale-session.example") })
+        XCTAssertTrue(planted.dataTypes.contains(WKWebsiteDataTypeCookies))
+
+        for (_, record) in planted.records {
+            await dataStore.removeData(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(), for: [record])
+        }
+
+        let remaining = await dataStore.dataRecords(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes())
+        XCTAssertFalse(remaining.contains { $0.displayName.contains("stale-session.example") })
+    }
+}

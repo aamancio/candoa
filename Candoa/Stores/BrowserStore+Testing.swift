@@ -161,8 +161,9 @@ extension BrowserStore {
     /// input: `navigate:<url>` loads a page in the active tab, `tab:new:<url>`
     /// opens one in a new tab (which backgrounds the page that was playing,
     /// the way into the floating mini player), `eli:toggle` opens or
-    /// closes the Eli sidebar, and `sidebar:toggle` pins the sidebar open or
-    /// away. Same rationale as the tab-switcher seam — keyboard-free, so it
+    /// closes the Eli sidebar, `sidebar:toggle` pins the sidebar open or
+    /// away, and `websitedata:manage` drops the Manage Website Data sheet.
+    /// Same rationale as the tab-switcher seam — keyboard-free, so it
     /// works while the machine is in use.
     static let uiTestingWindowCommandNotification =
         Notification.Name("app.candoa.uitesting.window-command")
@@ -196,6 +197,8 @@ extension BrowserStore {
                             self?.uiTestingCommandPaletteTypedText =
                                 UITestingPaletteTypedText(id: UUID(), text: text)
                         }
+                    } else if command == "websitedata:manage" {
+                        ManageWebsiteDataPrompt.present()
                     } else if command == "palette:tab" {
                         self.uiTestingCommandPaletteTabRequestID = UUID()
                     } else if command.hasPrefix("palette:learn:") {

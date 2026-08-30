@@ -54,7 +54,7 @@ enum BrowsingDataService {
                 // Every persistent identifier on disk, which also reaches
                 // stores orphaned by deleted Spaces. Private windows use
                 // non-persistent stores and never appear here.
-                identifiers = await allPersistentDataStoreIdentifiers()
+                identifiers = await WebsiteDataInventory.allPersistentDataStoreIdentifiers()
             }
             for identifier in identifiers {
                 // Resolve through the shared instance: a second
@@ -69,14 +69,6 @@ enum BrowsingDataService {
         }
 
         NotificationCenter.default.post(name: browsingDataDidClear, object: nil)
-    }
-
-    private static func allPersistentDataStoreIdentifiers() async -> [UUID] {
-        await withCheckedContinuation { continuation in
-            WKWebsiteDataStore.fetchAllDataStoreIdentifiers { identifiers in
-                continuation.resume(returning: identifiers)
-            }
-        }
     }
 }
 
