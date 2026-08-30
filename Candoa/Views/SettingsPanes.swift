@@ -441,6 +441,19 @@ internal struct PrivacySettingsPane: View {
                         }
                         .accessibilityIdentifier("settings-clear-browsing-data")
                     }
+
+                    SettingsDivider()
+
+                    SettingsRow(
+                        systemImage: "internaldrive",
+                        title: String(localized: "Website data"),
+                        subtitle: String(localized: "See which websites store cookies and other data, and remove one site's data without signing out everywhere else.")
+                    ) {
+                        Button("Manage Website Data…") {
+                            ManageWebsiteDataPrompt.present()
+                        }
+                        .accessibilityIdentifier("settings-manage-website-data")
+                    }
                 }
             }
         }

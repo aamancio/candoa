@@ -109,6 +109,7 @@
 		A90000000000000000000101 /* HistoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A90000000000000000000001 /* HistoryStore.swift */; };
 		A90000000000000000000102 /* HistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A90000000000000000000002 /* HistoryView.swift */; };
 		CA00000000000000000A0103 /* ClearBrowsingDataSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA00000000000000000A0003 /* ClearBrowsingDataSheet.swift */; };
+		CA00000000000000000A0F04 /* ManageWebsiteDataSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA00000000000000000A0FA4 /* ManageWebsiteDataSheet.swift */; };
 		CA00000000000000000A0101 /* BrowserMenuController.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA00000000000000000A0001 /* BrowserMenuController.swift */; };
 		AA0000000000000000000101 /* UserStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000001 /* UserStore.swift */; };
 		AA0000000000000000000102 /* BrowserStore+Testing.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000002 /* BrowserStore+Testing.swift */; };
@@ -126,6 +127,7 @@
 		AA000000000000000000010D /* ImageTextRecognizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000000D /* ImageTextRecognizer.swift */; };
 		AB1000000000000000000101 /* WebsiteAppearanceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB1000000000000000000001 /* WebsiteAppearanceService.swift */; };
 		AB10000000000000000BD101 /* BrowsingDataService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB10000000000000000BD001 /* BrowsingDataService.swift */; };
+		AB10000000000000000BD103 /* WebsiteDataInventory.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB10000000000000000BD003 /* WebsiteDataInventory.swift */; };
 		DE0000000000000000000105 /* AcknowledgmentsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE0000000000000000000005 /* AcknowledgmentsView.swift */; };
 		DE0000000000000000000106 /* BrowserStore+TabArrangement.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE0000000000000000000006 /* BrowserStore+TabArrangement.swift */; };
 		DE0000000000000000000101 /* WebViewCoordinator+Inspector.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE0000000000000000000001 /* WebViewCoordinator+Inspector.swift */; };
@@ -325,6 +327,7 @@
 		A90000000000000000000001 /* HistoryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryStore.swift; sourceTree = "<group>"; };
 		A90000000000000000000002 /* HistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryView.swift; sourceTree = "<group>"; };
 		CA00000000000000000A0003 /* ClearBrowsingDataSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClearBrowsingDataSheet.swift; sourceTree = "<group>"; };
+		CA00000000000000000A0FA4 /* ManageWebsiteDataSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManageWebsiteDataSheet.swift; sourceTree = "<group>"; };
 		CA00000000000000000A0001 /* BrowserMenuController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserMenuController.swift; sourceTree = "<group>"; };
 		AA0000000000000000000001 /* UserStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserStore.swift; sourceTree = "<group>"; };
 		AA0000000000000000000002 /* BrowserStore+Testing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+Testing.swift"; sourceTree = "<group>"; };
@@ -342,6 +345,7 @@
 		AA000000000000000000000D /* ImageTextRecognizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageTextRecognizer.swift; sourceTree = "<group>"; };
 		AB1000000000000000000001 /* WebsiteAppearanceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebsiteAppearanceService.swift; sourceTree = "<group>"; };
 		AB10000000000000000BD001 /* BrowsingDataService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowsingDataService.swift; sourceTree = "<group>"; };
+		AB10000000000000000BD003 /* WebsiteDataInventory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebsiteDataInventory.swift; sourceTree = "<group>"; };
 		DE0000000000000000000005 /* AcknowledgmentsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AcknowledgmentsView.swift"; sourceTree = "<group>"; };
 		DE0000000000000000000006 /* BrowserStore+TabArrangement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BrowserStore+TabArrangement.swift"; sourceTree = "<group>"; };
 		DE0000000000000000000001 /* WebViewCoordinator+Inspector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WebViewCoordinator+Inspector.swift"; sourceTree = "<group>"; };
@@ -513,6 +517,7 @@
 				010000000000000000000069 /* QuickNoteActivity.swift */,
 				A90000000000000000000002 /* HistoryView.swift */,
 				CA00000000000000000A0003 /* ClearBrowsingDataSheet.swift */,
+				CA00000000000000000A0FA4 /* ManageWebsiteDataSheet.swift */,
 				CA00000000000000000A0001 /* BrowserMenuController.swift */,
 				010000000000000000000067 /* InitialOnboardingView.swift */,
 				CACDAD113937BAC24AD303F7 /* InitialTourPopover.swift */,
@@ -602,6 +607,7 @@
 				010000000000000000000040 /* ContentBlockerService.swift */,
 				AB1000000000000000000001 /* WebsiteAppearanceService.swift */,
 				AB10000000000000000BD001 /* BrowsingDataService.swift */,
+				AB10000000000000000BD003 /* WebsiteDataInventory.swift */,
 				DE0000000000000000000002 /* ExternalBrowserService.swift */,
 				01000000000000000000001D /* AppUpdateService.swift */,
 				AB1200000000000000000002 /* WhatsNewService.swift */,
@@ -1053,6 +1059,8 @@
 				010000000000000000000140 /* ContentBlockerService.swift in Sources */,
 				AB1000000000000000000101 /* WebsiteAppearanceService.swift in Sources */,
 				AB10000000000000000BD101 /* BrowsingDataService.swift in Sources */,
+				AB10000000000000000BD103 /* WebsiteDataInventory.swift in Sources */,
+				CA00000000000000000A0F04 /* ManageWebsiteDataSheet.swift in Sources */,
 				DE0000000000000000000105 /* AcknowledgmentsView.swift in Sources */,
 				DE0000000000000000000106 /* BrowserStore+TabArrangement.swift in Sources */,
 				DE0000000000000000000101 /* WebViewCoordinator+Inspector.swift in Sources */,
