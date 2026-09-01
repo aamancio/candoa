@@ -10452,6 +10452,46 @@
         }
       }
     },
+    "Do you want to allow this page to open “%@”?" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Möchtest du zulassen, dass diese Seite „%@“ öffnet?"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "¿Quieres permitir que esta página abra “%@”?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Voulez-vous autoriser cette page à ouvrir « %@ » ?"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このページで“%@”を開くことを許可しますか？"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deseja permitir que esta página abra “%@”?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "要允许此页面打开“%@”吗？"
+          }
+        }
+      }
+    },
     "Documents" : {
       "comment" : "Space icon picker: label for the 'doc.text' symbol.",
       "localizations" : {
@@ -33409,6 +33449,46 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "网站已将你从登录页面送回，但打开的页面是空白的。"
+          }
+        }
+      }
+    },
+    "There is no app installed to open “%@” links." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Es ist keine App installiert, die „%@“-Links öffnen kann."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No hay ninguna app instalada que pueda abrir enlaces “%@”."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucune app installée ne peut ouvrir les liens « %@ »."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@”リンクを開けるアプリがインストールされていません。"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nenhum app instalado pode abrir links “%@”."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有安装可打开“%@”链接的 App。"
           }
         }
       }
