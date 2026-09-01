@@ -3103,3 +3103,40 @@ final class WebsiteDataRemovalTests: XCTestCase {
         XCTAssertFalse(remaining.contains { $0.displayName.contains("stale-session.example") })
     }
 }
+
+/// The external-scheme handoff's routing rules (issue #540): which URLs
+/// leave the web view for the OS, and which of those open without a
+/// consent prompt. The alert/LaunchServices side stays manual — it talks
+/// to real windows and real handler registrations.
+final class ExternalSchemePolicyTests: XCTestCase {
+    func testWebSchemesStayInTheWebView() {
+        for url in ["https://claude.ai/login", "http://localhost:3000", "about:blank",
+                    "blob:https://example.com/x", "data:text/plain,hi", "javascript:void(0)"] {
+            XCTAssertFalse(
+                ExternalSchemePolicy.requiresSystemHandoff(URL(string: url)!),
+                url
+            )
+        }
+    }
+
+    func testAppSchemesLeaveForTheSystem() {
+        for url in ["claude://auth/callback?code=abc", "zoom://join", "slack://open",
+                    "mailto:someone@example.com", "CLAUDE://mixed-case"] {
+            XCTAssertTrue(
+                ExternalSchemePolicy.requiresSystemHandoff(URL(string: url)!),
+                url
+            )
+        }
+    }
+
+    func testRelativeURLWithoutSchemeStaysPut() {
+        XCTAssertFalse(ExternalSchemePolicy.requiresSystemHandoff(URL(string: "/path/only")!))
+    }
+
+    func testConsentIsRequiredForAppSchemesButNotCommunication() {
+        XCTAssertTrue(ExternalSchemePolicy.requiresConsent(URL(string: "claude://auth")!))
+        XCTAssertTrue(ExternalSchemePolicy.requiresConsent(URL(string: "spotify://track")!))
+        XCTAssertFalse(ExternalSchemePolicy.requiresConsent(URL(string: "mailto:a@b.c")!))
+        XCTAssertFalse(ExternalSchemePolicy.requiresConsent(URL(string: "tel:5551234")!))
+    }
+}

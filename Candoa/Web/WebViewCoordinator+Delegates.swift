@@ -236,6 +236,16 @@ extension WebViewCoordinator {
     ) async -> WKNavigationActionPolicy {
         if navigationAction.shouldPerformDownload { return .download }
 
+        // Non-web schemes (claude://, zoom://, mailto:…) belong to the OS —
+        // the web view cannot load them, so before this handoff existed they
+        // died as silent provisional failures (issue #540). Safari's model:
+        // consent alert, then LaunchServices opens the registered app.
+        if let url = navigationAction.request.url,
+           ExternalSchemePolicy.requiresSystemHandoff(url) {
+            ExternalSchemeHandoff.perform(url, from: webView)
+            return .cancel
+        }
+
         // Safari's ⌘-click: the link opens in a new background tab and the
         // current page keeps the screen; ⇧ added makes the new tab active.
         // Intercepting here (not createWebViewWith) also catches modified
