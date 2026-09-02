@@ -1868,6 +1868,103 @@ final class CommandBarSelectionMemoryTests: XCTestCase {
         memory.removeAll()
         XCTAssertEqual(CommandBarSelectionMemory(defaults: defaults).selections(matching: "sl"), [])
     }
+
+    // MARK: - Search partner codes
+
+    private func duckDuckGo() -> SearchProvider {
+        NavigationService.searchProviders.first { $0.id == "duckduckgo" }!
+    }
+
+    private func code(
+        _ providerID: String,
+        _ name: String,
+        _ value: String,
+        expiring: Date? = nil
+    ) -> SearchPartnerCode {
+        SearchPartnerCode(
+            providerID: providerID,
+            queryItemName: name,
+            value: value,
+            expiresAt: expiring
+        )
+    }
+
+    func testSearchURLIsUnchangedWithNoPartnerCode() throws {
+        // The state that ships until a deal exists: searches must look exactly
+        // as they did before partner codes were plumbed through at all.
+        let url = try XCTUnwrap(duckDuckGo().searchURL(for: "swift", partnerCodes: .none))
+        let items = try XCTUnwrap(URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems)
+        XCTAssertEqual(items, [URLQueryItem(name: "q", value: "swift")])
+    }
+
+    func testSearchURLCarriesThePartnerCodeUnderTheEnginesOwnName() throws {
+        let codes = SearchPartnerCodes([code("duckduckgo", "t", "candoa")])
+        let url = try XCTUnwrap(duckDuckGo().searchURL(for: "swift", partnerCodes: codes))
+        let items = try XCTUnwrap(URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems)
+        XCTAssertEqual(items, [
+            URLQueryItem(name: "q", value: "swift"),
+            URLQueryItem(name: "t", value: "candoa"),
+        ])
+    }
+
+    func testEachEngineNamesItsOwnPartnerParameter() throws {
+        let ecosia = try XCTUnwrap(NavigationService.searchProviders.first { $0.id == "ecosia" })
+        let codes = SearchPartnerCodes([code("ecosia", "tt", "candoa")])
+        let url = try XCTUnwrap(ecosia.searchURL(for: "trees", partnerCodes: codes))
+        XCTAssertTrue(try XCTUnwrap(url.query).contains("tt=candoa"))
+    }
+
+    func testAnExpiredPartnerCodeIsNotSent() throws {
+        // A deal that ended must stop tagging searches for a partner who is no
+        // longer paying for them.
+        let ended = Date(timeIntervalSince1970: 1_000)
+        let codes = SearchPartnerCodes([code("duckduckgo", "t", "candoa", expiring: ended)])
+        let url = try XCTUnwrap(duckDuckGo().searchURL(
+            for: "swift",
+            partnerCodes: codes,
+            at: ended.addingTimeInterval(1)
+        ))
+        XCTAssertFalse(try XCTUnwrap(url.query).contains("t=candoa"))
+    }
+
+    func testAPartnerCodeIsSentUpToItsExpiry() throws {
+        let ends = Date(timeIntervalSince1970: 1_000)
+        let codes = SearchPartnerCodes([code("duckduckgo", "t", "candoa", expiring: ends)])
+        let url = try XCTUnwrap(duckDuckGo().searchURL(
+            for: "swift",
+            partnerCodes: codes,
+            at: ends.addingTimeInterval(-1)
+        ))
+        XCTAssertTrue(try XCTUnwrap(url.query).contains("t=candoa"))
+    }
+
+    func testAPartnerCodeNeverLeaksOntoAnotherEngine() throws {
+        let codes = SearchPartnerCodes([code("ecosia", "tt", "candoa")])
+        let url = try XCTUnwrap(duckDuckGo().searchURL(for: "swift", partnerCodes: codes))
+        let items = try XCTUnwrap(URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems)
+        XCTAssertEqual(items, [URLQueryItem(name: "q", value: "swift")])
+    }
+
+    func testAPartnerCodeJoinsQueryItemsTheEngineAlreadyRequires() throws {
+        let provider = SearchProvider(
+            id: "example",
+            name: "Example",
+            aliases: [],
+            symbolName: "magnifyingglass",
+            homeURL: URL(string: "https://example.com")!,
+            baseURL: URL(string: "https://example.com/search?region=all")!,
+            queryItemName: "q"
+        )
+        let codes = SearchPartnerCodes([code("example", "pc", "candoa")])
+        let url = try XCTUnwrap(provider.searchURL(for: "swift", partnerCodes: codes))
+        let items = try XCTUnwrap(URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems)
+        XCTAssertEqual(items, [
+            URLQueryItem(name: "region", value: "all"),
+            URLQueryItem(name: "q", value: "swift"),
+            URLQueryItem(name: "pc", value: "candoa"),
+        ])
+    }
+
 }
 
 /// The before/after summary a step's outcome carries, and the grounding of
