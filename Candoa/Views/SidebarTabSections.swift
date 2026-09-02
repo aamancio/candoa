@@ -193,6 +193,7 @@ internal struct FolderSectionView: View {
                         mediaState: store.mediaStates[tab.id],
                         onSelect: { store.switchTab(to: tab.id) },
                         onClose: { store.closeTab(tab.id) },
+                        onCloseOthers: { store.closeOtherTabs(keeping: tab.id) },
                         onDuplicate: { store.duplicateTab(tab.id) },
                         onOpenInSplit: { store.openSplitView(with: tab.id) },
                         onRemoveFromSplit: { store.removeTabFromSplit(tab.id) },

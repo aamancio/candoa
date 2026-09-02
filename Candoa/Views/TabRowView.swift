@@ -20,6 +20,7 @@ struct TabRowView: View {
     let mediaState: TabMediaState?
     let onSelect: () -> Void
     let onClose: () -> Void
+    var onCloseOthers: () -> Void = {}
     let onDuplicate: () -> Void
     let onOpenInSplit: () -> Void
     var onRemoveFromSplit: () -> Void = {}
@@ -109,6 +110,7 @@ struct TabRowView: View {
                 Button("Open in Split View", action: onOpenInSplit)
             }
             Button("Close Tab", action: onClose)
+            Button(BrowserCommandTitles.closeOtherTabs, action: onCloseOthers)
         }
         // Hover is the fill alone — a stroke around it as well made a passing
         // pointer draw a box, and read as a selected or targeted row.

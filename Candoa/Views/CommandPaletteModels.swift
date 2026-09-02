@@ -85,6 +85,7 @@ internal enum PaletteCommandStyle: Equatable {
 internal enum PaletteAction {
     case newTab
     case closeCurrentTab
+    case closeOtherTabs
     case duplicateCurrentTab
     case reloadTab
     case toggleSplitView
@@ -139,6 +140,7 @@ internal extension PaletteAction {
         switch self {
         case .newTab: return .newTab
         case .closeCurrentTab: return .closeCurrentTab
+        case .closeOtherTabs: return .closeOtherTabs
         case .reloadTab: return .reloadTab
         case .toggleSplitView: return .toggleSplitView
         case .toggleSplitPaneZoom: return .zoomSplitPane

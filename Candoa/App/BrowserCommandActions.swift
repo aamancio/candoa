@@ -56,6 +56,8 @@ struct BrowserCommandActions {
     var toggleFavoriteForActiveTab: () -> Void
     var duplicateTab: () -> Void
     var clearUnpinnedTabs: () -> Void
+    var closeOtherTabs: () -> Void
+    var canCloseOtherTabs: Bool
     var copyURL: () -> Void
     var copyURLAsMarkdown: () -> Void
     var findInPage: () -> Void
